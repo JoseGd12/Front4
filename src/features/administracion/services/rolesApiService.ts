@@ -97,11 +97,11 @@ class RolesApiService {
 
     // Si viene del array rolesModulos, extraer los IDs y permisos
     if (apiRole.rolesModulos && Array.isArray(apiRole.rolesModulos)) {
-      moduloIds = apiRole.rolesModulos.map((rm: RolesModulos) => rm.moduloId);
+      moduloIds = apiRole.rolesModulos.map((rm: RolesModulos) => String(rm.moduloId));
 
       // Mapear permisos por módulo
       apiRole.rolesModulos.forEach((rm: RolesModulos) => {
-        permisosPorModulo[rm.moduloId] = {
+        permisosPorModulo[String(rm.moduloId)] = {
           puedeVer: rm.puedeVer,
           puedeCrear: rm.puedeCrear,
           puedeEditar: rm.puedeEditar,
@@ -109,17 +109,22 @@ class RolesApiService {
         };
       });
     }
-    // Si ya viene como array de strings, usar directamente
+    // Si ya viene como array de números (desde el nuevo RoleDto), convertir a strings
     else if (Array.isArray(apiRole.modulos)) {
-      moduloIds = apiRole.modulos;
+      moduloIds = apiRole.modulos.map((id: any) => String(id));
+      
+      // Si no hay rolesModulos detallados, al menos inicializamos el objeto de permisos si existen en el objeto
+      if (apiRole.permisosPorModulo) {
+        permisosPorModulo = apiRole.permisosPorModulo;
+      }
     }
 
     return {
       id: String(apiRole.id),
       nombre: apiRole.nombre || '',
       descripcion: apiRole.descripcion?.trim() || '',
-      estado: apiRole.estado === true || apiRole.estado === 'active', // Convertir a boolean
-      modulos: moduloIds.map(id => String(id)), // Asegurar que todos los IDs sean strings
+      estado: apiRole.estado === true, 
+      modulos: moduloIds,
       usuariosAsignados: apiRole.usuariosAsignados || 0,
       fechaCreacion: apiRole.fechaCreacion || new Date().toISOString(),
       rolesModulos: apiRole.rolesModulos,
@@ -128,64 +133,23 @@ class RolesApiService {
   }
 
   /**
-   * Obtiene todos los roles con sus módulos
+   * Obtiene todos los roles con sus módulos de forma eficiente
    */
   async getRolesWithModules(): Promise<RoleWithModules[]> {
     try {
-      // Cargar usuarios en paralelo para el conteo satisfactorio
-      const [rolesRes, rolesModulosRes, usuariosRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/roles`, { headers: getAuthHeaders() }),
-        fetch(`${API_BASE_URL}/rolesmodulos`, { headers: getAuthHeaders() }),
-        fetch(`${API_BASE_URL}/Usuarios`, { headers: getAuthHeaders() })
-      ]);
+      console.time('🚀 Fetch Roles');
+      const response = await fetch(`${API_BASE_URL}/roles`, { headers: getAuthHeaders() });
+      
+      if (!response.ok) throw new Error(`Error roles: ${response.status}`);
 
-      if (!rolesRes.ok) throw new Error(`Error roles: ${rolesRes.status}`);
-
-      const rolesRaw = await rolesRes.json();
-      const rolesModulosRaw = rolesModulosRes.ok ? await rolesModulosRes.json() : [];
-      const usuariosRaw = usuariosRes.ok ? await usuariosRes.json() : [];
-
+      const rolesRaw = await response.json();
       const roles = Array.isArray(rolesRaw) ? rolesRaw : rolesRaw.data || [];
-      const rolesModulos = Array.isArray(rolesModulosRaw) ? rolesModulosRaw : rolesModulosRaw.data || [];
-      const usuarios = Array.isArray(usuariosRaw) ? usuariosRaw : usuariosRaw.data || [];
 
-      console.log('📋 Roles count:', roles.length);
-      console.log('📋 RolesModulos count:', rolesModulos.length);
-      console.log('📋 Usuarios count:', usuarios.length);
+      // Normalizar cada rol (ahora mucho más rápido ya que el backend trae los conteos y IDs)
+      const normalizedRoles = roles.map((role: any) => this.normalizeRole(role));
 
-      // Combinar todo
-      const data = roles.map((role: any) => {
-        // Filtrar módulos para este rol
-        const roleModulos = rolesModulos.filter((rm: any) =>
-          Number(rm.rolId) === Number(role.id)
-        );
-
-        // Contar usuarios para este rol
-        const userCount = usuarios.filter((u: any) =>
-          Number(u.rolId) === Number(role.id)
-        ).length;
-
-        return {
-          ...role,
-          rolesModulos: roleModulos,
-          usuariosAsignados: userCount
-        };
-      });
-
-      // Normalizar cada rol
-      const normalizedRoles = (Array.isArray(data) ? data : data.data || [])
-        .map((role: any) => {
-          console.log('🔍 Rol antes de normalizar:', role);
-          console.log('📋 rolesModulos del rol:', role.rolesModulos);
-          console.log('📋 modulos del rol:', role.modulos);
-          const normalized = this.normalizeRole(role);
-          console.log('✅ Rol normalizado:', normalized);
-          console.log('📊 modulos después de normalizar:', normalized.modulos);
-          console.log('🔑 permisosPorModulo después de normalizar:', normalized.permisosPorModulo);
-          return normalized;
-        });
-
-      console.log('📊 Roles finales:', normalizedRoles);
+      console.timeEnd('🚀 Fetch Roles');
+      console.log('✅ Roles procesados:', normalizedRoles.length);
       return normalizedRoles;
     } catch (error) {
       console.error('Error fetching roles:', error);

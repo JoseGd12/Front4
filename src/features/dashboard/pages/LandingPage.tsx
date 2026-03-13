@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
-import { 
-  Scissors, 
-  ShoppingCart, 
-  X, 
-  Plus, 
-  Minus, 
-  Menu, 
+import {
+  Scissors,
+  ShoppingCart,
+  X,
+  Plus,
+  Minus,
+  Menu,
   X as CloseIcon,
   Clock,
   Star,
@@ -17,127 +17,16 @@ import {
   Mail,
   MapPin,
   Instagram,
-  Facebook
+  Facebook,
+  ChevronRight
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
+import ImageRenderer from '../../../shared/components/ui/ImageRenderer';
+import { apiService } from '../../../shared/services/api';
+import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
 
-// Datos de productos (solo activos)
-const productosData = [
-  {
-    id: 1,
-    nombre: "Pomada Hair Wax",
-    descripcion: "Pomada premium para fijación fuerte",
-    categoria: "Cuidado Capilar",
-    precio: 45000,
-    imagen: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop&crop=center",
-    activo: true
-  },
-  {
-    id: 2,
-    nombre: "Shampoo Premium",
-    descripcion: "Shampoo profesional para todo tipo de cabello",
-    categoria: "Cuidado Capilar",
-    precio: 55000,
-    imagen: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=400&h=400&fit=crop&crop=center",
-    activo: true
-  },
-  {
-    id: 3,
-    nombre: "Aceite de Barba",
-    descripcion: "Aceite nutritivo para barba y bigote",
-    categoria: "Cuidado Barba",
-    precio: 48000,
-    imagen: "https://images.unsplash.com/photo-1593085512500-5d55148d6f0d?w=400&h=400&fit=crop&crop=center",
-    activo: true
-  },
-  {
-    id: 5,
-    nombre: "Cuchillas de Afeitar",
-    descripcion: "Cuchillas profesionales de acero inoxidable",
-    categoria: "Herramientas",
-    precio: 25000,
-    imagen: "https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=400&h=400&fit=crop&crop=center",
-    activo: true
-  },
-  {
-    id: 6,
-    nombre: "Cadena de Rodio Plateada",
-    descripcion: "Cadena elegante de rodio con acabado brillante",
-    categoria: "Accesorios",
-    precio: 180000,
-    imagen: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400&h=400&fit=crop&crop=center",
-    activo: true
-  }
-];
-
-// Datos de servicios (solo activos)
-const serviciosData = [
-  {
-    id: 1,
-    nombre: "Corte Caballero",
-    descripcion: "Corte clásico masculino con tijera y máquina",
-    duracion: 30,
-    precio: 35000,
-    categoria: "Cortes",
-    activo: true
-  },
-  {
-    id: 2,
-    nombre: "Corte + Barba",
-    descripcion: "Corte completo con arreglo de barba y bigote",
-    duracion: 60,
-    precio: 55000,
-    categoria: "Cortes",
-    activo: true
-  },
-  {
-    id: 3,
-    nombre: "Afeitado Clásico",
-    descripcion: "Afeitado tradicional con navaja y toalla caliente",
-    duracion: 30,
-    precio: 30000,
-    categoria: "Afeitado",
-    activo: true
-  },
-  {
-    id: 4,
-    nombre: "Corte Dama",
-    descripcion: "Corte femenino con lavado y secado",
-    duracion: 45,
-    precio: 45000,
-    categoria: "Cortes",
-    activo: true
-  },
-  {
-    id: 5,
-    nombre: "Tratamiento Capilar",
-    descripcion: "Tratamiento nutritivo e hidratante para el cabello",
-    duracion: 90,
-    precio: 85000,
-    categoria: "Tratamientos",
-    activo: true
-  },
-  {
-    id: 6,
-    nombre: "Peinado Evento",
-    descripcion: "Peinado especial para eventos y ocasiones importantes",
-    duracion: 60,
-    precio: 70000,
-    categoria: "Peinados",
-    activo: true
-  },
-  {
-    id: 7,
-    nombre: "Tintura",
-    descripcion: "Coloración completa del cabello",
-    duracion: 120,
-    precio: 120000,
-    categoria: "Coloración",
-    activo: true
-  }
-];
 
 interface CartItem {
   id: number;
@@ -163,10 +52,34 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('inicio');
+  
+  const [servicios, setServicios] = useState<any[]>([]);
+  const [productos, setProductos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Filtrar solo productos y servicios activos
-  const productosActivos = productosData.filter(p => p.activo);
-  const serviciosActivos = serviciosData.filter(s => s.activo);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [serviciosRes, productosRes] = await Promise.all([
+          apiService.getServicios(),
+          productoService.getProductos()
+        ]);
+        
+        // Filtrar activos (usando 'estado' para servicios y 'activo' para productos según lo visto en servicios)
+        setServicios(serviciosRes.filter(s => s.estado !== false));
+        setProductos(productosRes.filter(p => p.activo !== false));
+      } catch (error) {
+        console.error("Error fetching landing data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const productosActivos = productos;
+  const serviciosActivos = servicios;
 
   const addToCart = (item: any, tipo: 'producto' | 'servicio') => {
     if (!isAuthenticated) {
@@ -176,7 +89,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
 
     const existingItem = cart.find(c => c.id === item.id && c.tipo === tipo);
     if (existingItem) {
-      setCart(cart.map(c => 
+      setCart(cart.map(c =>
         c.id === item.id && c.tipo === tipo
           ? { ...c, cantidad: c.cantidad + 1 }
           : c
@@ -188,7 +101,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
         precio: item.precio,
         cantidad: 1,
         tipo,
-        imagen: item.imagen
+        imagen: tipo === 'producto' ? item.imagenProduc : item.imagen
       }]);
     }
     setCartOpen(true);
@@ -203,7 +116,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
       removeFromCart(id, tipo);
       return;
     }
-    setCart(cart.map(c => 
+    setCart(cart.map(c =>
       c.id === id && c.tipo === tipo
         ? { ...c, cantidad }
         : c
@@ -255,33 +168,29 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
             <div className="hidden md:flex items-center gap-8">
               <button
                 onClick={() => scrollToSection('inicio')}
-                className={`text-sm font-medium transition-colors ${
-                  activeSection === 'inicio' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
-                }`}
+                className={`text-sm font-medium transition-colors ${activeSection === 'inicio' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
+                  }`}
               >
                 Inicio
               </button>
               <button
                 onClick={() => scrollToSection('servicios')}
-                className={`text-sm font-medium transition-colors ${
-                  activeSection === 'servicios' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
-                }`}
+                className={`text-sm font-medium transition-colors ${activeSection === 'servicios' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
+                  }`}
               >
                 Servicios
               </button>
               <button
                 onClick={() => scrollToSection('productos')}
-                className={`text-sm font-medium transition-colors ${
-                  activeSection === 'productos' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
-                }`}
+                className={`text-sm font-medium transition-colors ${activeSection === 'productos' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
+                  }`}
               >
                 Productos
               </button>
               <button
                 onClick={() => scrollToSection('contacto')}
-                className={`text-sm font-medium transition-colors ${
-                  activeSection === 'contacto' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
-                }`}
+                className={`text-sm font-medium transition-colors ${activeSection === 'contacto' ? 'text-orange-primary' : 'text-gray-lightest hover:text-orange-primary'
+                  }`}
               >
                 Contacto
               </button>
@@ -406,13 +315,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
             <div className="grid md:grid-cols-2 gap-12 items-center">
               {/* Texto */}
               <div className="text-center md:text-left">
-                
+
                 <h1 className="text-5xl md:text-6xl font-bold text-white-primary mb-6 leading-tight">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-primary/10 border border-orange-primary/20 mb-6">
-                  <Sparkles className="w-4 h-4 text-orange-primary" />
-                  Estilo y Elegancia
-                  <span className="block text-orange-primary">en Cada Corte</span>
-                </div>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-primary/10 border border-orange-primary/20 mb-6">
+                    <Sparkles className="w-4 h-4 text-orange-primary" />
+                    Estilo y Elegancia
+                    <span className="block text-orange-primary">en Cada Corte</span>
+                  </div>
                 </h1>
                 <p className="text-xl text-gray-lightest mb-8 max-w-xl">
                   Descubre la experiencia premium de barbería. Servicios profesionales, productos de calidad y atención excepcional.
@@ -428,7 +337,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                   </button>
                   <button
                     onClick={() => scrollToSection('productos')}
-                    className="ml-5 px-8 py-4 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-dark text-white-primary font-semibold transition-colors" 
+                    className="ml-5 px-8 py-4 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-dark text-white-primary font-semibold transition-colors"
                   >
                     Explorar Productos
                   </button>
@@ -437,25 +346,25 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                 <br />
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-gray-dark">
-                  
+
                   <div>
-                  <br />
+                    <br />
                     <div className="text-3xl font-bold text-orange-primary">{serviciosActivos.length}+</div>
                     <div className="text-sm text-gray-lightest">Servicios</div>
                   </div>
                   <div>
-                  <br />
+                    <br />
                     <div className="text-3xl font-bold text-orange-primary">{productosActivos.length}+</div>
                     <div className="text-sm text-gray-lightest">Productos</div>
                   </div>
                   <div>
-                  <br />
+                    <br />
                     <div className="text-3xl font-bold text-orange-primary">5+</div>
                     <div className="text-sm text-gray-lightest">Años</div>
                   </div>
                 </div>
               </div>
-              
+
 
               {/* Imagen Hero */}
               <div className="relative">
@@ -468,7 +377,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                   <div className="absolute inset-0 bg-gradient-to-t from-black-primary/80 via-transparent to-transparent"></div>
                 </div>
                 {/* Badge */}
-                
+
               </div>
             </div>
           </div>
@@ -512,10 +421,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                     <span className="text-sm text-orange-primary font-medium">Nuestra Trayectoria</span>
                   </div>
                   <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white-primary mb-6 leading-tight">
-                    EDWINS BARBERIA, pasión por el estilo desde 2023
+                    MANITO BARBERSHOP, pasión por el estilo desde 2023
                   </h2>
                   <p className="text-base md:text-lg text-gray-lightest mb-4 leading-relaxed">
-                    EDWINS BARBERIA es una barbería ubicada en la Calle 79 #52-12, barrio El Bosque, dedicada al cuidado de la
+                    MANITO BARBERSHOP es una barbería ubicada en la Calle 79 #52-12, barrio El Bosque, dedicada al cuidado de la
                     apariencia masculina desde el 1 de abril de 2023. Con más de 2 años de trayectoria, nos hemos consolidado
                     como un punto de referencia para quienes buscan un servicio profesional y cercano.
                   </p>
@@ -599,16 +508,16 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
             </div>
           </div>
         </section>
-      
+
 
         {/* Sección de Servicios */}
         <section id="servicios" className="py-20 bg-gray-darkest">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-20 py-12">
-        
+
               <br />
               <h2 className="text-6xl md:text-7xl lg:text-8xl font-bold text-white-primary mb-8 leading-tight" style={{ fontSize: 'clamp(2rem, 6vw, 4rem)', fontWeight: 'bold' }}>
-                 Nuestros<span className="text-orange-primary"> servicios</span>
+                Nuestros<span className="text-orange-primary"> servicios</span>
               </h2>
               <p className="text-xl md:text-2xl text-gray-lightest max-w-3xl mx-auto">
                 Ofrecemos una amplia gama de servicios profesionales para cuidar tu estilo
@@ -617,36 +526,73 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {serviciosActivos.map((servicio) => (
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="bg-gray-darker rounded-2xl p-6 border border-gray-dark animate-pulse">
+                    <div className="w-12 h-12 rounded-xl bg-gray-medium mb-4" />
+                    <div className="h-6 bg-gray-medium rounded w-3/4 mb-4" />
+                    <div className="h-4 bg-gray-medium rounded w-5/6 mb-2" />
+                    <div className="h-4 bg-gray-medium rounded w-1/2" />
+                  </div>
+                ))
+              ) : (
+                serviciosActivos.map((servicio) => (
                 <div
                   key={servicio.id}
-                  className="group bg-gray-darker rounded-2xl p-6 border border-gray-dark hover:border-orange-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-orange-primary/10"
+                  className="group bg-gray-darker rounded-3xl overflow-hidden border border-gray-dark hover:border-orange-primary/50 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-primary/20"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-orange-primary/10 flex items-center justify-center">
-                      <Scissors className="w-6 h-6 text-orange-primary" />
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-white-primary">${formatCurrency(servicio.precio)}</div>
-                      <div className="text-sm text-gray-lightest flex items-center gap-1 justify-end">
-                        <Clock className="w-4 h-4" />
-                        {servicio.duracion} min
+                  {/* Imagen de Servicio (Grande y Hero) */}
+                  <div className="relative h-64 overflow-hidden bg-black/20">
+                    {servicio.imagen ? (
+                      <ImageRenderer 
+                        url={servicio.imagen} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-orange-primary/5">
+                        <Scissors className="w-16 h-16 text-orange-primary/20" />
+                      </div>
+                    )}
+                    {/* Badge de Precio Flotante */}
+                    <div className="absolute bottom-4 right-4">
+                      <div className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-orange-primary/30 shadow-xl">
+                        <span className="text-xl font-bold text-orange-primary">${formatCurrency(servicio.precio)}</span>
                       </div>
                     </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-white-primary mb-2">{servicio.nombre}</h3>
-                  <p className="text-gray-lightest mb-6">{servicio.descripcion}</p>
-                  <button
-                    onClick={() => addToCart(servicio, 'servicio')}
-                    className="w-full px-4 py-3 rounded-lg bg-orange-primary hover:bg-orange-secondary text-black-primary font-semibold transition-colors flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    Agregar al Carrito
-                  </button>
+
+                  {/* Contenido del Servicio */}
+                  <div className="p-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-primary/10 border border-orange-primary/20">
+                        <Clock className="w-4 h-4 text-orange-primary" />
+                        <span className="text-sm text-orange-primary font-medium">{servicio.duracion} min</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 fill-orange-primary text-orange-primary" />
+                        <span className="text-sm text-gray-lightest font-medium">5.0</span>
+                      </div>
+                    </div>
+
+                    <h3 className="text-2xl font-bold text-white-primary mb-3 group-hover:text-orange-primary transition-colors">
+                      {servicio.nombre}
+                    </h3>
+                    <p className="text-gray-lightest mb-8 line-clamp-2 leading-relaxed h-12">
+                      {servicio.descripcion}
+                    </p>
+
+                    <button
+                      onClick={() => addToCart(servicio, 'servicio')}
+                      className="w-full px-6 py-4 rounded-xl bg-orange-primary hover:bg-orange-secondary text-black-primary font-bold transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg shadow-orange-primary/20"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      Reservar ahora
+                    </button>
+                  </div>
                 </div>
-                
-              ))}
-            </div>
+              ))
+            )}
+          </div>
             <br />
             <br />
             <br />
@@ -678,20 +624,31 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {productosActivos.map((producto) => (
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="bg-gray-darkest rounded-2xl overflow-hidden border border-gray-dark animate-pulse">
+                    <div className="h-64 bg-gray-darker" />
+                    <div className="p-6">
+                      <div className="h-6 bg-gray-darker rounded w-3/4 mb-4" />
+                      <div className="h-4 bg-gray-darker rounded w-full mb-2" />
+                      <div className="h-4 bg-gray-darker rounded w-2/3" />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                productosActivos.map((producto) => (
                 <div
                   key={producto.id}
                   className="group bg-gray-darkest rounded-2xl overflow-hidden border border-gray-dark hover:border-orange-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-orange-primary/10"
                 >
                   <div className="relative h-64 bg-gray-darker overflow-hidden">
-                    <img
-                      src={producto.imagen}
-                      alt={producto.nombre}
+                    <ImageRenderer
+                      url={producto.imagenProduc}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     <div className="absolute top-4 right-4">
                       <span className="px-3 py-1 rounded-full bg-black-primary/80 text-white-primary text-xs font-medium">
-                        {producto.categoria}
+                        {producto.categoria?.nombre || 'Producto'}
                       </span>
                     </div>
                   </div>
@@ -716,8 +673,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+          </div>
             <br />
             <br />
             <br />
@@ -768,14 +726,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                 </div>
                 <h3 className="text-xl font-semibold text-white-primary mb-2">Email</h3>
                 <p className="text-gray-lightest">
-                  contacto@edwinsbarber.com<br />
-                  info@edwinsbarber.com
+                  contacto@manitobarber.com<br />
+                  info@manitobarber.com
                 </p>
               </div>
             </div>
             <br />
             <br />
-            
+
           </div>
         </section>
 
@@ -849,9 +807,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
               <br />
 
               <p className="text-gray-lightest text-sm">
-                © {new Date().getFullYear()} EDWINS BARBER. Todos los derechos reservados.
+                © {new Date().getFullYear()} MANITO BARBERSHOP. Todos los derechos reservados.
               </p>
-              
+
             </div>
           </div>
         </footer>
@@ -884,11 +842,12 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                 {cart.map((item) => (
                   <div key={`${item.tipo}-${item.id}`} className="flex items-center gap-4 p-4 bg-gray-darker rounded-lg border border-gray-dark">
                     {item.imagen && (
-                      <img
-                        src={item.imagen}
-                        alt={item.nombre}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
+                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                        <ImageRenderer
+                          url={item.imagen}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     )}
                     <div className="flex-1">
                       <h4 className="text-white-primary font-medium">{item.nombre}</h4>

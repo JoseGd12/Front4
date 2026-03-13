@@ -6,13 +6,14 @@ interface ImageRendererProps {
     url?: string | null;
     alt?: string;
     className?: string;
+    showLabel?: boolean;
 }
 
 /**
  * Componente unificado para renderizar imágenes de productos, servicios, clientes, etc.
  * Maneja automáticamente URLs de Cloudinary, Base64, rutas locales y legacy a través del proxy.
  */
-const ImageRenderer = ({ url, alt = "Imagen", className }: ImageRendererProps) => {
+const ImageRenderer = ({ url, alt = "Imagen", className, showLabel = true }: ImageRendererProps) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
@@ -74,8 +75,12 @@ const ImageRenderer = ({ url, alt = "Imagen", className }: ImageRendererProps) =
                     ) : (
                         <Package className="w-5 h-5 text-gray-400" />
                     )}
-                    {!error && <span className="text-[9px] uppercase tracking-wider font-semibold text-gray-500">Sin imagen</span>}
-                    {error && <span className="text-[9px] uppercase tracking-wider font-semibold text-red-400/60">Error</span>}
+                    {showLabel && (
+                        <>
+                            {!error && <span className="text-[9px] uppercase tracking-wider font-semibold text-gray-500">Sin imagen</span>}
+                            {error && <span className="text-[9px] uppercase tracking-wider font-semibold text-red-400/60">Error</span>}
+                        </>
+                    )}
                 </div>
             </div>
         );
@@ -96,6 +101,7 @@ const ImageRenderer = ({ url, alt = "Imagen", className }: ImageRendererProps) =
                 src={normalizedUrl}
                 alt={alt}
                 loading="lazy"
+                referrerPolicy="no-referrer"
                 onLoad={handleLoad}
                 onError={handleError}
                 className={cn(

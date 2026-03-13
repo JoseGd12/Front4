@@ -239,6 +239,13 @@ export function UsersPage() {
 
   // Filtros de usuario
   const filteredUsers = users.filter((user: any) => {
+    // Cuentas ocultas (Sistema o Internas) que no deben gestionarse manualmente
+    const isSystemAccount = 
+      (user.nombres || '').toLowerCase() === 'sistema' || 
+      (user.correo || '').toLowerCase().includes('sistema');
+    
+    if (isSystemAccount) return false;
+
     const term = searchTerm.toLowerCase();
     const searchMatch =
       (user.nombres || '').toLowerCase().includes(term) ||
@@ -955,9 +962,18 @@ export function UsersPage() {
                           className={`elegante-input w-full ${showUserFormErrors && !newUser.rol ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                         >
                           <option value="">Selecciona un rol</option>
-                          {availableRoles.filter(r => r.estado).map(rol => (
-                            <option key={rol.id} value={rol.nombre}>{rol.nombre}</option>
-                          ))}
+                          {availableRoles
+                            .filter(r => r.estado)
+                            .filter(r => {
+                              // Regla: Solo un Super Administrador puede asignar el rol de Super Administrador
+                              if (currentUser?.role !== 'super_admin' && r.nombre?.toLowerCase() === 'super administrador') {
+                                return false;
+                              }
+                              return true;
+                            })
+                            .map(rol => (
+                              <option key={rol.id} value={rol.nombre}>{rol.nombre}</option>
+                            ))}
                         </select>
                         {showUserFormErrors && !newUser.rol && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                       </div>
@@ -1134,7 +1150,7 @@ export function UsersPage() {
                         </td>
                         <td className="text-right py-4 px-4">
                           <div className="flex justify-end gap-1">
-                            {currentUser?.id !== user.id.toString() && (currentUser?.role === 'super_admin' || !['super administrador', 'gerente', 'super_admin', 'administrador', 'admin'].includes(user.rol?.toLowerCase() || '')) && (
+                            {currentUser?.id !== user.id.toString() && (currentUser?.role === 'super_admin' || (currentUser?.role === 'admin' && !['super administrador', 'administrador', 'admin', 'gerente', 'super_admin'].includes(user.rol?.toLowerCase() || ''))) && (
                               <button
                                 onClick={() => toggleUserStatus(user.id)}
                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -1157,7 +1173,7 @@ export function UsersPage() {
                             >
                               <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                             </button>
-                            {(currentUser?.role === 'super_admin' || !['super administrador', 'gerente', 'super_admin', 'administrador', 'admin'].includes(user.rol?.toLowerCase() || '')) && (
+                            {(currentUser?.role === 'super_admin' || (currentUser?.role === 'admin' && !['super administrador', 'administrador', 'admin', 'gerente', 'super_admin'].includes(user.rol?.toLowerCase() || ''))) && (
                               <button
                                 onClick={() => handleEditUser(user)}
                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -1173,15 +1189,19 @@ export function UsersPage() {
                             >
                               <KeyRound className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                             </button>
-                            {currentUser?.id !== user.id.toString() && (currentUser?.role === 'super_admin' || !['super administrador', 'gerente', 'super_admin', 'administrador', 'admin'].includes(user.rol?.toLowerCase() || '')) && (
-                              <button
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title="Eliminar usuario"
-                              >
-                                <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                              </button>
-                            )}
+                             {currentUser?.id !== user.id.toString() && (
+                               <button
+                                 onClick={() => {
+                                   setUserToDelete(user);
+                                   setIsDeleteDialogOpen(true);
+                                 }}
+                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-30 disabled:cursor-not-allowed"
+                                 title="Eliminar usuario"
+                                 disabled={currentUser?.role !== 'super_admin' && (user.rol?.toLowerCase() === 'super administrador' || ['administrador', 'admin'].includes(user.rol?.toLowerCase() || ''))}
+                               >
+                                 <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                               </button>
+                             )}
                           </div>
                         </td>
                       </tr>

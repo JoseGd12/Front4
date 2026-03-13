@@ -17,12 +17,16 @@ import { Textarea } from "../../../shared/components/ui/textarea";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const horasDelDia = Array.from({ length: 15 }, (_, i) => i + 9); // 9:00 AM a 11:00 PM
+const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
 
 const formatHora12 = (hora: number): string => {
-  const ampm = hora >= 12 ? 'PM' : 'AM';
-  const h12 = hora % 12 === 0 ? 12 : hora % 12;
-  return `${h12}:00 ${ampm}`;
+  const h = Math.floor(hora);
+  const m = (hora % 1) * 60;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  const minutesStr = m === 0 ? '00' : '30';
+  return `${h12}:${minutesStr} ${ampm}`;
 };
 
 // Los datos se cargan dinámicamente desde la API
@@ -178,8 +182,8 @@ export function AgendamientoPage() {
     const citasDelDia = getCitasPorDia(dia);
     return citasDelDia.filter(cita => {
       const horaSplit = (cita.hora || '').split(':');
-      const horaInicio = parseInt(horaSplit[0] || '0');
-      const horaFin = horaInicio + Math.ceil((cita.duracion || 60) / 60);
+      const horaInicio = parseInt(horaSplit[0] || '0') + (parseInt(horaSplit[1] || '0') / 60);
+      const horaFin = horaInicio + (cita.duracion || 60) / 60;
       return horaInicio <= hora && hora < horaFin;
     }).filter(cita => {
       // Aplicar filtros de búsqueda (con null-safety en todos los campos)
@@ -361,7 +365,9 @@ export function AgendamientoPage() {
     });
 
     // Preparar formulario para nueva cita
-    const horaString = hora.toString().padStart(2, '0') + ':00';
+    const h = Math.floor(hora);
+    const m = (hora % 1) * 60;
+    const horaString = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : '30'}`;
     setNuevaCita({
       clienteId: 0,
       cliente: '',
@@ -762,7 +768,7 @@ export function AgendamientoPage() {
                   const weekDays = getCurrentWeekDays();
                   const todayStr = new Date().toISOString().split('T')[0];
                   return horasDelDia.map((hora) => (
-                    <div key={hora} className="grid grid-cols-8 gap-1 h-16 border-b border-gray-dark">
+                    <div key={hora} className="grid grid-cols-8 gap-1 h-14 border-b border-gray-dark">
                       <div className="flex items-center justify-center text-xs text-gray-light font-medium">
                         {formatHora12(hora)}
                       </div>
@@ -797,7 +803,7 @@ export function AgendamientoPage() {
                               // Permitir clic si no es pasada o si es pasada pero tiene citas (para poder editarlas)
                               if (!isPastSlot || citasEnSlot.length > 0) handleSlotClick(dia, hora);
                             }}
-                            title={isPastSlot && citasEnSlot.length === 0 ? "Franja pasada y sin citas" : `Gestionar citas de ${dia} a las ${hora}:00`}
+                            title={isPastSlot && citasEnSlot.length === 0 ? "Franja pasada y sin citas" : `Gestionar citas de ${dia} a las ${formatHora12(hora)}`}
                           >
                             {/* Indicador de citas */}
                             {citasEnSlot.length > 0 && (

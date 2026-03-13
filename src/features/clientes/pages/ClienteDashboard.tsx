@@ -10,7 +10,9 @@ import {
   Menu,
   Sun,
   Moon,
-  Eye
+  Eye,
+  Scissors,
+  Package
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
@@ -19,12 +21,17 @@ const LOGO_URL = manitoLogo;
 import { ClienteMisCitasPageCalendar } from "./ClienteMisCitasPageCalendar";
 import { ClienteHistorialVentasPage } from "./ClienteHistorialVentasPage";
 import { ClienteHistorialDevolucionesPage } from "./ClienteHistorialDevolucionesPage";
+import { ClienteServiciosPage } from "../../servicios/pages/ClienteServiciosPage";
+import { ClientePerfilPage } from "./ClientePerfilPage";
+import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 
 // Navegación para clientes - Sin agrupaciones
 const navItems = [
   { icon: Calendar, label: "Mis Citas" },
+  { icon: Scissors, label: "Servicios" },
   { icon: DollarSign, label: "Mis Compras" },
   { icon: RotateCcw, label: "Mis Devoluciones" },
+  { icon: User, label: "Cuenta" },
 ];
 
 export function ClienteDashboard() {
@@ -33,6 +40,12 @@ export function ClienteDashboard() {
   const [activePage, setActivePage] = useState("Mis Citas");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
+  const [preSelectedReservation, setPreSelectedReservation] = useState<any>(null);
+
+  const handleReservationRedirect = (item: any) => {
+    setPreSelectedReservation(item);
+    setActivePage("Mis Citas");
+  };
 
   const renderNavItem = (item: any, isActive: boolean) => {
     const Icon = item.icon;
@@ -70,11 +83,18 @@ export function ClienteDashboard() {
   const renderContent = () => {
     switch (activePage) {
       case "Mis Citas":
-        return <ClienteMisCitasPageCalendar />;
+        return <ClienteMisCitasPageCalendar 
+                 initialItem={preSelectedReservation} 
+                 onClearInitialItem={() => setPreSelectedReservation(null)} 
+               />;
       case "Mis Compras":
         return <ClienteHistorialVentasPage />;
       case "Mis Devoluciones":
         return <ClienteHistorialDevolucionesPage />;
+      case "Servicios":
+        return <ClienteServiciosPage onSelectReservation={handleReservationRedirect} />;
+      case "Cuenta":
+        return <ClientePerfilPage />;
       default:
         return <ClienteMisCitasPageCalendar />;
     }
@@ -119,8 +139,12 @@ export function ClienteDashboard() {
 
             {/* Información del Usuario */}
             <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark">
-              <div className="w-8 h-8 bg-orange-primary rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-black-primary" />
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-orange-primary/30 flex items-center justify-center bg-orange-primary/10">
+                <ImageRenderer 
+                  url={user?.fotoPerfil} 
+                  className="w-full h-full object-cover"
+                  showLabel={false}
+                />
               </div>
               <div className="flex flex-col">
                 <p className="text-sm font-semibold text-white-primary">{user?.name || "Usuario"}</p>
@@ -176,8 +200,12 @@ export function ClienteDashboard() {
             {user && (
               <div className="space-y-4 py-4">
                 <div className="flex items-center gap-4 p-4 bg-gray-darker rounded-lg border border-gray-dark">
-                  <div className="w-16 h-16 bg-orange-primary rounded-full flex items-center justify-center">
-                    <User className="w-8 h-8 text-black-primary" />
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary/30 flex items-center justify-center bg-orange-primary/10">
+                    <ImageRenderer 
+                      url={user.fotoPerfil} 
+                      className="w-full h-full object-cover"
+                      showLabel={false}
+                    />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-white-primary">{user.name}</h3>

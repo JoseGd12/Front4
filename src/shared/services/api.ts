@@ -39,6 +39,7 @@ export interface Servicio {
   duracion: number;
   precio: number;
   estado: boolean;
+  imagen?: string;
 }
 
 export interface Paquete {
@@ -122,6 +123,18 @@ class ApiService {
     return await resp.json();
   }
 
+  async uploadServicioImagen(servicioId: number, file: File): Promise<{ url: string; publicId?: string }> {
+    const formData = new FormData();
+    formData.append('imagen', file);
+    const url = `${API_BASE_URL}/servicios/${servicioId}/imagen`;
+    const resp = await fetch(url, { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Error subiendo imagen de servicio (${resp.status}): ${text || resp.statusText}`);
+    }
+    return await resp.json();
+  }
+
   async deleteProductoImagen(productoId: number, borrarCloud = true): Promise<{ eliminado: boolean; publicId?: string }> {
     const url = `${API_BASE_URL}/images/producto/${productoId}?borrarCloud=${borrarCloud ? 'true' : 'false'}`;
     const resp = await fetch(url, { method: 'DELETE' });
@@ -138,6 +151,16 @@ class ApiService {
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(`Error eliminando foto de usuario (${resp.status}): ${text || resp.statusText}`);
+    }
+    return await resp.json();
+  }
+
+  async deleteServicioImagen(servicioId: number, borrarCloud = true): Promise<{ eliminado: boolean; publicId?: string }> {
+    const url = `${API_BASE_URL}/servicios/${servicioId}/imagen?borrarCloud=${borrarCloud ? 'true' : 'false'}`;
+    const resp = await fetch(url, { method: 'DELETE' });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Error eliminando imagen de servicio (${resp.status}): ${text || resp.statusText}`);
     }
     return await resp.json();
   }
@@ -229,12 +252,19 @@ class ApiService {
     const mapped: any = {};
 
     if (data.id !== undefined) mapped.Id = data.id;
-    if (data.nombre !== undefined) {
-      mapped.Nombre = data.nombre;
-      mapped.nombre = data.nombre;
+    if (data.nombre !== undefined || data.name !== undefined) {
+      const nameValue = data.nombre || data.name;
+      mapped.Nombre = nameValue;
+      mapped.nombre = nameValue;
     }
     if (data.apellido !== undefined) mapped.Apellido = data.apellido;
-    if (data.correo !== undefined) mapped.Correo = data.correo;
+    if (data.correo !== undefined || data.email !== undefined) {
+      const emailValue = data.correo || data.email;
+      mapped.Correo = emailValue;
+      mapped.correo = emailValue;
+      mapped.Email = emailValue;
+      mapped.email = emailValue;
+    }
     if (data.contrasena !== undefined) mapped.Contrasena = data.contrasena;
     if (data.rolId !== undefined) mapped.RolId = data.rolId === null ? null : Number(data.rolId);
     if (data.tipoDocumento !== undefined) mapped.TipoDocumento = data.tipoDocumento;
@@ -272,6 +302,10 @@ class ApiService {
       const p = Number(data.precio);
       mapped.Precio = p;
       mapped.precio = p;
+    }
+    if (data.imagen !== undefined) {
+      mapped.Imagen = data.imagen;
+      mapped.imagen = data.imagen;
     }
     if (data.servicios !== undefined) mapped.Servicios = data.servicios;
 
@@ -313,7 +347,8 @@ class ApiService {
         data.Estado === 1 ||
         data.Estado === '1' ||
         (data.estado !== null && data.estado !== undefined && data.estado !== false && data.estado !== 'false' && data.estado !== 0 && data.estado !== '0')
-      )
+      ),
+      imagen: data.imagen || data.Imagen || undefined
     };
   }
 

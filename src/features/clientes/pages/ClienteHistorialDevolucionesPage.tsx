@@ -131,8 +131,8 @@ export function ClienteHistorialDevolucionesPage() {
                 <tbody>
                     {filteredDevoluciones.map((dev) => (
                     <tr key={dev.id} className="border-b border-gray-dark hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-4 font-mono text-xs text-orange-primary">#D{dev.id}</td>
-                        <td className="py-4 px-4 font-mono text-xs text-gray-lightest">#V{dev.ventaId}</td>
+                        <td className="py-4 px-4 font-mono text-xs text-orange-primary">#{dev.id}</td>
+                        <td className="py-4 px-4 font-mono text-xs text-gray-lightest">#{dev.ventaId}</td>
                         <td className="py-4 px-4 text-sm text-white-primary">
                             {new Date(dev.fecha).toLocaleDateString()}
                         </td>

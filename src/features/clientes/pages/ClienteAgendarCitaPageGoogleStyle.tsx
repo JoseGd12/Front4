@@ -107,7 +107,7 @@ const citasExistentesBase = [
   }
 ];
 
-const horasDelDia = Array.from({ length: 13 }, (_, i) => i + 8); // 8:00 AM a 8:00 PM
+const horasDelDia = Array.from({ length: 25 }, (_, i) => 8 + i * 0.5); // 8:00 AM a 8:00 PM
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export function ClienteAgendarCitaPageGoogleStyle() {
@@ -119,6 +119,12 @@ export function ClienteAgendarCitaPageGoogleStyle() {
     hora: "",
     notas: ""
   });
+
+  const formatHora = (hora: number) => {
+    const h = Math.floor(hora);
+    const m = (hora % 1) * 60;
+    return `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : '30'}`;
+  };
 
   const [currentWeek, setCurrentWeek] = useState(0);
   const [selectedDate, setSelectedDate] = useState("");
@@ -150,14 +156,13 @@ export function ClienteAgendarCitaPageGoogleStyle() {
   const isHoraOcupada = (fecha: string, hora: number, barberoId: string, duracionServicio: number = 0) => {
     if (!barberoId) return false;
 
-    const horaString = `${hora.toString().padStart(2, '0')}:00`;
-    
     return citasExistentes.some(cita => {
       if (cita.barbero !== barberoId || cita.fecha !== fecha) return false;
       
-      const citaHora = parseInt(cita.hora.split(':')[0]);
-      const citaFin = citaHora + Math.ceil(cita.duracion / 60);
-      const nuevaFin = hora + Math.ceil(duracionServicio / 60);
+      const horaSplit = cita.hora.split(':');
+      const citaHora = parseInt(horaSplit[0]) + (parseInt(horaSplit[1]) / 60);
+      const citaFin = citaHora + (cita.duracion / 60);
+      const nuevaFin = hora + (duracionServicio / 60);
       
       // Verificar si hay superposición
       return (hora < citaFin && nuevaFin > citaHora);
@@ -166,12 +171,13 @@ export function ClienteAgendarCitaPageGoogleStyle() {
 
   // Función para obtener información de conflicto
   const getConflictInfo = (fecha: string, hora: number, barberoId: string) => {
-    const horaString = `${hora.toString().padStart(2, '0')}:00`;
-    const cita = citasExistentes.find(c => 
-      c.barbero === barberoId && 
-      c.fecha === fecha && 
-      parseInt(c.hora.split(':')[0]) === hora
-    );
+    const horaString = formatHora(hora);
+    const cita = citasExistentes.find(c => {
+      if (c.barbero !== barberoId || c.fecha !== fecha) return false;
+      const hSplit = c.hora.split(':');
+      const hNum = parseInt(hSplit[0]) + (parseInt(hSplit[1]) / 60);
+      return hNum === hora;
+    });
     const barbero = barberos.find(b => b.id === barberoId);
     return cita ? { 
       hora: cita.hora, 
@@ -184,8 +190,9 @@ export function ClienteAgendarCitaPageGoogleStyle() {
   const getClienteEnHora = (fecha: string, hora: number, barberoId: string) => {
     const cita = citasExistentes.find(c => {
       if (c.barbero !== barberoId || c.fecha !== fecha) return false;
-      const citaHora = parseInt(c.hora.split(':')[0]);
-      return citaHora === hora;
+      const hSplit = c.hora.split(':');
+      const hNum = parseInt(hSplit[0]) + (parseInt(hSplit[1]) / 60);
+      return hNum === hora;
     });
     return cita?.cliente || null;
   };
@@ -209,7 +216,7 @@ export function ClienteAgendarCitaPageGoogleStyle() {
       return;
     }
 
-    const horaString = `${hora.toString().padStart(2, '0')}:00`;
+    const horaString = formatHora(hora);
     setFormData({
       ...formData,
       fecha,
@@ -230,7 +237,8 @@ export function ClienteAgendarCitaPageGoogleStyle() {
     // Verificar una vez más la disponibilidad antes de confirmar
     const selectedService = servicios.find(s => s.id === formData.servicio);
     const selectedBarberoData = barberos.find(b => b.id === formData.barbero);
-    const hora = parseInt(formData.hora.split(':')[0]);
+    const hSplit = formData.hora.split(':');
+    const hora = parseInt(hSplit[0]) + (parseInt(hSplit[1]) / 60);
     
     if (isHoraOcupada(formData.fecha, hora, formData.barbero, selectedService?.duracion || 0)) {
       toast.error("La hora seleccionada ya no está disponible");
@@ -504,13 +512,12 @@ export function ClienteAgendarCitaPageGoogleStyle() {
                         ))}
                       </div>
 
-                      {/* Grid de horarios */}
                       <div className="space-y-1">
                         {horasDelDia.map((hora) => (
-                          <div key={hora} className="grid grid-cols-7 gap-1 h-14">
+                          <div key={hora} className="grid grid-cols-7 gap-1 h-12">
                             {weekDays.map(({ dia, fecha }) => {
                               const isOcupada = isHoraOcupada(fecha, hora, formData.barbero, selectedService?.duracion || 0);
-                              const isSelected = selectedDate === fecha && selectedHour === `${hora.toString().padStart(2, '0')}:00`;
+                              const isSelected = selectedDate === fecha && selectedHour === formatHora(hora);
                               const isDisabled = !formData.servicio;
                               const clienteEnHora = getClienteEnHora(fecha, hora, formData.barbero);
                               
@@ -532,13 +539,13 @@ export function ClienteAgendarCitaPageGoogleStyle() {
                                       ? "Selecciona un servicio"
                                       : isOcupada 
                                       ? `Hora ocupada - ${clienteEnHora}` 
-                                      : `Agendar cita para ${dia} a las ${hora}:00`
+                                      : `Agendar cita para ${dia} a las ${formatHora(hora)}`
                                   }
                                 >
                                   {/* Indicador de hora y estado */}
                                   {!isOcupada && (
                                     <span className="text-xs">
-                                      {hora}:00
+                                      {formatHora(hora)}
                                     </span>
                                   )}
                                   

@@ -76,7 +76,9 @@ export class AuthSyncService {
       }
 
       let usuarioSincronizado: ApiUser;
-      const isLoginSync = !allowCreateIfMissing && !additionalData;
+      // Corregimos la lógica: Si no hay datos adicionales, asumimos que es una sincronización de inicio de sesión
+      // y debemos respetar el rol que ya tiene el usuario en la Base de Datos.
+      const isLoginSync = !additionalData || Object.keys(additionalData).length === 0;
 
       if (usuarioExistente) {
         // 2. Actualizar usuario existente si es necesario
@@ -127,7 +129,9 @@ export class AuthSyncService {
           };
         }
 
-        // 3. Crear nuevo usuario
+        // 3. Crear nuevo usuario (solo números como documento)
+        const randomDoc = `${Math.floor(Math.random() * 899999) + 100000}${Date.now().toString().slice(-4)}`;
+        
         const nuevoUsuario: SyncUser = {
           correo: correo,
           contrasena: 'firebase_auth', // Contraseña por defecto para usuarios de Firebase
@@ -136,6 +140,8 @@ export class AuthSyncService {
           nombre: firebaseProfile.displayName?.split(' ')[0] || '',
           apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || 'Usuario',
           fotoPerfil: firebaseProfile.photoURL || '',
+          tipoDocumento: 'OT',
+          documento: randomDoc,
           ...additionalData
         };
 
@@ -171,14 +177,28 @@ export class AuthSyncService {
     strictMode: boolean = false
   ): Promise<void> {
     try {
+      // IMPORTANTE: Respetar siempre el rol de la base de datos (apiUser.rolId) 
+      // sobre el rol sugerido (rolId) para evitar convertir Admins en Clientes.
+      const actualRolId = apiUser.rolId || rolId;
+      
       // Determinar si es Cliente o Barbero
-      const isCliente = rolId === AppRole.CLIENTE || rolId === AppRole.CAJERO; // Ajustar según lógica de negocio
-      const isBarbero = rolId === AppRole.BARBERO;
+      const isCliente = actualRolId === AppRole.CLIENTE || actualRolId === AppRole.CAJERO; 
+      const isBarbero = actualRolId === AppRole.BARBERO;
+      const isAdmin = actualRolId === AppRole.ADMIN || actualRolId === AppRole.SUPER_ADMIN || actualRolId === AppRole.GERENTE;
+
+      if (isAdmin) {
+        console.log(`ℹ️ Usuario es Administrador (${actualRolId}), saltando creación de perfil de cliente/barbero.`);
+        return;
+      }
 
       if (isCliente) {
         const { clientesService } = await import('../../clientes/services/clientesService');
         const clientes = await clientesService.getClientes();
-        const existeCliente = clientes.some(c => c.usuarioId === apiUser.id || c.correo === apiUser.correo);
+        // Búsqueda más robusta: UsuarioId o Correo (ignoring case)
+        const existeCliente = clientes.some(c => 
+          c.usuarioId === apiUser.id || 
+          (c.correo && apiUser.correo && c.correo.toLowerCase() === apiUser.correo.toLowerCase())
+        );
 
         if (!existeCliente) {
           console.log('🔄 Sincronización Firebase: Creando perfil de Cliente automático...');

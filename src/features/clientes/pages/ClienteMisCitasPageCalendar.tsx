@@ -1,22 +1,24 @@
 import { useState, useEffect } from "react";
-import { 
-  Calendar, 
-  Clock, 
-  User, 
-  Scissors, 
-  ChevronLeft, 
-  ChevronRight, 
-  Edit, 
-  Trash2, 
-  Plus, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Calendar,
+  Clock,
+  User,
+  Scissors,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Trash2,
+  Plus,
+  AlertTriangle,
+  CheckCircle,
   Phone,
   MoreVertical,
   Search,
   CheckCircle2,
-  CalendarDays
+  CalendarDays,
+  Package
 } from "lucide-react";
+import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -33,12 +35,16 @@ import { apiService } from "../../../shared/services/api";
 import { horariosService } from "../../agendamiento/services/horariosService";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const horasDelDia = Array.from({ length: 15 }, (_, i) => i + 9); // 9:00 AM a 11:00 PM (Admin style)
+const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
 
 const formatHora12 = (hora: number): string => {
-  const ampm = hora >= 12 ? 'PM' : 'AM';
-  const h12 = hora % 12 === 0 ? 12 : hora % 12;
-  return `${h12}:00 ${ampm}`;
+  const h = Math.floor(hora);
+  const m = (hora % 1) * 60;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  const minutesStr = m === 0 ? '00' : '30';
+  return `${h12}:${minutesStr} ${ampm}`;
 };
 
 const estados = [
@@ -66,7 +72,12 @@ const getCitaColor = (estado: string) => {
   }
 };
 
-export function ClienteMisCitasPageCalendar() {
+interface ClienteMisCitasPageCalendarProps {
+  initialItem?: any;
+  onClearInitialItem?: () => void;
+}
+
+export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }: ClienteMisCitasPageCalendarProps) {
   const { user } = useAuth();
   const { success, error, AlertContainer } = useCustomAlert();
   const [citas, setCitas] = useState<any[]>([]);
@@ -96,13 +107,13 @@ export function ClienteMisCitasPageCalendar() {
 
       const allClientes = await clientesService.getClientes();
       const cliente = allClientes.find(c => (c.correo || '').toLowerCase() === user.email.toLowerCase());
-      
+
       if (!cliente) {
         error("Error de perfil", "No se encontró tu perfil de cliente en el sistema.");
         setIsLoading(false);
         return;
       }
-      
+
       console.log("Cargando datos para cliente ID:", cliente.id);
       setCurrentCliente(cliente);
 
@@ -122,16 +133,16 @@ export function ClienteMisCitasPageCalendar() {
         horariosService.getHorarios().catch(() => [])
       ]);
 
-      console.log("Datos recibidos:", { 
-        citas: citasData.length, 
-        barberos: barberosData.length, 
-        servicios: serviciosData.length, 
+      console.log("Datos recibidos:", {
+        citas: citasData.length,
+        barberos: barberosData.length,
+        servicios: serviciosData.length,
         paquetes: paquetesData.length,
         horarios: horariosData.length
       });
 
       setCitas(citasData);
-      
+
       const isRecordActive = (item: any) => {
         if (!item) return false;
         const val = item.estado !== undefined ? item.estado : (item.activo !== undefined ? item.activo : true);
@@ -147,13 +158,18 @@ export function ClienteMisCitasPageCalendar() {
       const filteredBarberos = (Array.isArray(barberosData) ? barberosData : []).filter((b: any) => {
         return isRecordActive(b) && barberosConHorarioActivo.has(Number(b.id));
       });
-      
+
       console.log("Barberos filtrados (activos y con horario):", filteredBarberos.length);
       setBarberosList(filteredBarberos);
-      
+
       setServiciosList((Array.isArray(serviciosData) ? serviciosData : []).filter(s => isRecordActive(s)));
-      setPaquetesList((Array.isArray(paquetesData) ? paquetesData : []).filter(p => isRecordActive(p))); 
+      setPaquetesList((Array.isArray(paquetesData) ? paquetesData : []).filter(p => isRecordActive(p)));
       setHorariosList(horariosData || []);
+
+      // Si venimos con un item pre-seleccionado desde Servicios
+      if (initialItem) {
+        handleSelectInitialItem(initialItem, serviciosData, paquetesData);
+      }
     } catch (err) {
       console.error("Error al cargar datos:", err);
       error("Error de carga", "No se pudieron sincronizar los datos. Verifica tu conexión.");
@@ -188,6 +204,74 @@ export function ClienteMisCitasPageCalendar() {
   const [showBarberoFormResults, setShowBarberoFormResults] = useState(false);
   const [showFormErrors, setShowFormErrors] = useState(false);
 
+  const handleSelectInitialItem = (item: any, currentServicios: any[], currentPaquetes: any[]) => {
+    setIsEditMode(false);
+    const isPaquete = item.type === 'paquete';
+    const itemId = item.id;
+
+    let price = 0;
+    let duration = 60;
+
+    if (isPaquete) {
+      const p = currentPaquetes.find(p => p.id === itemId);
+      price = p?.precio || item.precio || 0;
+      duration = p?.duracion || item.duracion || 60;
+    } else {
+      const s = currentServicios.find(s => s.id === itemId);
+      price = s?.precio || item.precio || 0;
+      duration = s?.duracion || item.duracion || 60;
+    }
+
+    const today = new Date();
+
+    // Calcular hora (una hora después: 60 min)
+    const future = new Date(today.getTime() + (60 * 60 * 1000));
+    let hours = future.getHours();
+    let minutes = future.getMinutes();
+    let targetDate = today;
+
+    // Redondear minutos al bloque de 30 más cercano (0 o 30)
+    if (minutes < 15) {
+      minutes = 0;
+    } else if (minutes < 45) {
+      minutes = 30;
+    } else {
+      minutes = 0;
+      hours += 1;
+    }
+
+    // Si la hora calculada es después del cierre (ej: 9:30 PM) o antes de la apertura (9:00 AM)
+    // Pasamos al día siguiente a las 11:00 AM como sugerencia ideal
+    if (hours >= 22 || (hours === 21 && minutes > 30)) {
+      targetDate = new Date(today.getTime() + (24 * 60 * 60 * 1000)); // Mañana
+      hours = 11;
+      minutes = 0;
+    } else if (hours < 9) {
+      hours = 11; // Si es muy temprano, sugerir también las 11 AM
+      minutes = 0;
+    }
+
+    const fechaAuto = toLocalDateString(targetDate);
+    const horaAuto = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+    setNuevaCita({
+      barberoId: 0,
+      barbero: '',
+      servicioId: isPaquete ? null : itemId,
+      paqueteId: isPaquete ? itemId : null,
+      servicio: item.nombre,
+      fecha: fechaAuto,
+      hora: horaAuto,
+      notas: '',
+      duracion: duration,
+      precio: price,
+      estado: 'Pendiente'
+    });
+
+    setIsFormDialogOpen(true);
+    if (onClearInitialItem) onClearInitialItem();
+  };
+
   const getMondayOfWeek = (weekOffset: number) => {
     const today = new Date();
     const dayOfWeek = today.getDay();
@@ -220,9 +304,9 @@ export function ClienteMisCitasPageCalendar() {
     return citas.filter(cita => {
       if (cita.fecha !== diaFechaCompleta) return false;
       const horaSplit = (cita.hora || '').split(':');
-      if (horaSplit.length < 1) return false;
-      const horaInicio = parseInt(horaSplit[0]);
-      const horaFin = horaInicio + Math.ceil((cita.duracion || 60) / 60);
+      if (horaSplit.length < 2) return false;
+      const horaInicio = parseInt(horaSplit[0]) + (parseInt(horaSplit[1]) / 60);
+      const horaFin = horaInicio + (cita.duracion || 60) / 60;
       return horaInicio <= hora && hora < horaFin;
     });
   };
@@ -264,16 +348,16 @@ export function ClienteMisCitasPageCalendar() {
     // El administrador puede ver todas las citas, el cliente solo las suyas. 
     // Para una validación real el backend es el que manda, pero validamos localmente lo que tenemos.
     const solapa = citas.find((cita: any) => {
-        if (cita.fecha !== fecha) return false;
-        if (Number(cita.barberoId) !== Number(barberoId)) return false;
-        if (ignoreCitaId && cita.id === ignoreCitaId) return false;
-        if (cita.estado === 'Cancelada') return false;
+      if (cita.fecha !== fecha) return false;
+      if (Number(cita.barberoId) !== Number(barberoId)) return false;
+      if (ignoreCitaId && cita.id === ignoreCitaId) return false;
+      if (cita.estado === 'Cancelada') return false;
 
-        const [ch, cm] = (cita.hora || '').split(':').map(Number);
-        const startExist = ch * 60 + cm;
-        const endExist = startExist + (cita.duracion || 60);
+      const [ch, cm] = (cita.hora || '').split(':').map(Number);
+      const startExist = ch * 60 + cm;
+      const endExist = startExist + (cita.duracion || 60);
 
-        return startNueva < endExist && startExist < endNueva;
+      return startNueva < endExist && startExist < endNueva;
     });
 
     if (solapa) return "Ese barbero ya tiene una cita en ese horario.";
@@ -283,15 +367,15 @@ export function ClienteMisCitasPageCalendar() {
 
   const getHorasDisponiblesParaDia = (fechaStr: string, barberoId: number, duracion: number) => {
     if (!fechaStr || !barberoId) return [];
-    
+
     // Obtener el día de la semana
     const fechaObj = new Date(`${fechaStr}T12:00:00`);
     const dayIndex = fechaObj.getDay(); // 0=Domingo..6=Sábado
     const diaStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayIndex];
-    
+
     // Obtener horarios para ese día
     const horariosBarbero = horariosList.filter((h: any) => Number(h.barberoId) === Number(barberoId) && String(h.dia) === diaStr && h.estado === true);
-    
+
     if (horariosBarbero.length === 0) return [];
 
     let availableSlots: string[] = [];
@@ -300,7 +384,7 @@ export function ClienteMisCitasPageCalendar() {
     horariosBarbero.forEach((h: any) => {
       const [hIniH, hIniM] = String(h.horaInicio || '00:00').split(':').map((x: string) => parseInt(x || '0', 10));
       const [hFinH, hFinM] = String(h.horaFin || '23:59').split(':').map((x: string) => parseInt(x || '0', 10));
-      
+
       const startH = hIniH * 60 + hIniM;
       const endH = hFinH * 60 + hFinM;
 
@@ -309,7 +393,7 @@ export function ClienteMisCitasPageCalendar() {
         const hh = Math.floor(time / 60);
         const mm = time % 60;
         const horaStr = `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
-        
+
         // Verificar si está en el pasado
         const today = new Date();
         const todayStr = today.toISOString().split('T')[0];
@@ -324,11 +408,11 @@ export function ClienteMisCitasPageCalendar() {
           if (Number(cita.barberoId) !== Number(barberoId)) return false;
           if (isEditMode && selectedCita && cita.id === selectedCita.id) return false;
           if (cita.estado === 'Cancelada') return false;
-          
+
           const [ch, cm] = String(cita.hora || '').split(':').map(Number);
           const startExist = (ch * 60) + cm;
           const endExist = startExist + (cita.duracion || 60);
-          
+
           return time < endExist && startExist < (time + duracion);
         });
 
@@ -367,6 +451,9 @@ export function ClienteMisCitasPageCalendar() {
 
     setIsEditMode(false);
     setBarberoFormSearchTerm('');
+    const h = Math.floor(hora);
+    const m = (hora % 1) * 60;
+    const horaString = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : '30'}`;
     setNuevaCita({
       barberoId: 0,
       barbero: '',
@@ -374,7 +461,7 @@ export function ClienteMisCitasPageCalendar() {
       paqueteId: null,
       servicio: '',
       fecha: fechaCompleta,
-      hora: `${hora.toString().padStart(2, '0')}:00`,
+      hora: horaString,
       notas: '',
       duracion: 60,
       precio: 0,
@@ -493,14 +580,14 @@ export function ClienteMisCitasPageCalendar() {
   return (
     <>
       <AlertContainer />
-      
+
       <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white-primary">Mis Citas</h1>
             <p className="text-sm text-gray-lightest mt-1">Gestiona tu agenda y programa nuevas visitas</p>
           </div>
-          <button 
+          <button
             onClick={handleOpenCreate}
             className="elegante-button-primary flex items-center gap-2"
           >
@@ -522,13 +609,13 @@ export function ClienteMisCitasPageCalendar() {
             {/* Navegación Semanal */}
             <div className="elegante-card">
               <div className="flex items-center justify-between">
-                <button 
+                <button
                   onClick={() => setCurrentWeek(currentWeek - 1)}
                   className="p-2 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-dark transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5 text-white-primary" />
                 </button>
-                
+
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-white-primary">
                     {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
@@ -537,13 +624,13 @@ export function ClienteMisCitasPageCalendar() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={() => setCurrentWeek(0)}
                     className="elegante-button-secondary text-xs py-2"
                   >
                     Hoy
                   </button>
-                  <button 
+                  <button
                     onClick={() => setCurrentWeek(currentWeek + 1)}
                     className="p-2 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-dark transition-colors"
                   >
@@ -581,13 +668,13 @@ export function ClienteMisCitasPageCalendar() {
                       const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
                       return horasDelDia.map((hora) => (
-                        <div key={hora} className="grid grid-cols-8 gap-1 h-20 border-b border-gray-dark">
+                        <div key={hora} className="grid grid-cols-8 gap-1 h-16 border-b border-gray-dark">
                           <div className="flex items-center justify-center text-[10px] text-gray-light font-bold">
                             {formatHora12(hora)}
                           </div>
                           {weekDays.map((day) => {
                             const citasEnSlot = getCitasEnSlot(day.fechaCompleta, hora);
-                            
+
                             let isPastSlot = false;
                             if (day.fechaCompleta < todayStr) {
                               isPastSlot = true;
@@ -599,11 +686,10 @@ export function ClienteMisCitasPageCalendar() {
                             return (
                               <div
                                 key={`${day.dia}-${hora}`}
-                                className={`relative rounded border transition-all duration-200 p-1 flex flex-col gap-1 ${
-                                  isPastSlot && citasEnSlot.length === 0
+                                className={`relative rounded border transition-all duration-200 p-1 flex flex-col gap-1 ${isPastSlot && citasEnSlot.length === 0
                                     ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
                                     : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
-                                }`}
+                                  }`}
                                 onClick={() => {
                                   if (!isPastSlot && citasEnSlot.length === 0) {
                                     handleSlotClick(day.fechaCompleta, hora);
@@ -654,7 +740,7 @@ export function ClienteMisCitasPageCalendar() {
         )}
       </main>
 
-    {/* Modal Crear / Editar Cita */}
+      {/* Modal Crear / Editar Cita */}
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
         <DialogContent className="bg-gray-darkest border-gray-dark text-white-primary max-w-3xl">
           <DialogHeader>
@@ -676,8 +762,8 @@ export function ClienteMisCitasPageCalendar() {
                     <Scissors className="w-4 h-4 text-orange-primary" />
                     Servicio o Paquete *
                   </Label>
-                  <Select 
-                    value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : (nuevaCita.servicioId ? nuevaCita.servicioId.toString() : undefined)} 
+                  <Select
+                    value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : (nuevaCita.servicioId ? nuevaCita.servicioId.toString() : undefined)}
                     onValueChange={handleItemChange}
                   >
                     <SelectTrigger className="elegante-input h-11">
@@ -714,7 +800,7 @@ export function ClienteMisCitasPageCalendar() {
                   </Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                    <Input 
+                    <Input
                       placeholder="Busca a tu barbero..."
                       value={barberoFormSearchTerm}
                       onChange={(e) => { setBarberoFormSearchTerm(e.target.value); setShowBarberoFormResults(true); }}
@@ -764,17 +850,17 @@ export function ClienteMisCitasPageCalendar() {
                           }
                           return searchMatch;
                         }).length === 0 && (
-                          <div className="p-3 text-center text-gray-lightest text-sm italic">
-                            {nuevaCita.fecha && nuevaCita.hora ? 'No hay barberos disponibles para este horario' : 'No se encontraron barberos'}
-                          </div>
-                        )}
+                            <div className="p-3 text-center text-gray-lightest text-sm italic">
+                              {nuevaCita.fecha && nuevaCita.hora ? 'No hay barberos disponibles para este horario' : 'No se encontraron barberos'}
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>
                   {showFormErrors && !nuevaCita.barberoId && (
                     <p className="text-[10px] text-red-400 italic font-medium">Debes seleccionar un barbero para continuar.</p>
                   )}
-                  
+
 
                 </div>
               </div>
@@ -787,10 +873,10 @@ export function ClienteMisCitasPageCalendar() {
                       <Calendar className="w-4 h-4 text-orange-primary" />
                       Fecha *
                     </Label>
-                    <Input 
-                      type="date" 
-                      value={nuevaCita.fecha} 
-                      onChange={(e) => setNuevaCita({...nuevaCita, fecha: e.target.value})}
+                    <Input
+                      type="date"
+                      value={nuevaCita.fecha}
+                      onChange={(e) => setNuevaCita({ ...nuevaCita, fecha: e.target.value })}
                       className="elegante-input h-11"
                       min={new Date().toISOString().split('T')[0]}
                     />
@@ -800,10 +886,10 @@ export function ClienteMisCitasPageCalendar() {
                       <Clock className="w-4 h-4 text-orange-primary" />
                       Hora *
                     </Label>
-                    <Input 
-                      type="time" 
-                      value={nuevaCita.hora} 
-                      onChange={(e) => setNuevaCita({...nuevaCita, hora: e.target.value})}
+                    <Input
+                      type="time"
+                      value={nuevaCita.hora}
+                      onChange={(e) => setNuevaCita({ ...nuevaCita, hora: e.target.value })}
                       className="elegante-input h-11"
                     />
                   </div>
@@ -814,9 +900,9 @@ export function ClienteMisCitasPageCalendar() {
                     <Edit className="w-4 h-4 text-orange-primary" />
                     Notas Adicionales
                   </Label>
-                  <Textarea 
+                  <Textarea
                     value={nuevaCita.notas}
-                    onChange={(e) => setNuevaCita({...nuevaCita, notas: e.target.value})}
+                    onChange={(e) => setNuevaCita({ ...nuevaCita, notas: e.target.value })}
                     placeholder="¿Algún detalle especial que debamos saber?"
                     className="elegante-input min-h-[120px] resize-none pt-3"
                   />
@@ -825,14 +911,14 @@ export function ClienteMisCitasPageCalendar() {
                 {isEditMode && (
                   <div className="space-y-3">
                     <Label className="text-sm font-bold text-gray-lightest">Actualizar Estado</Label>
-                    <Select value={nuevaCita.estado} onValueChange={(v) => setNuevaCita({...nuevaCita, estado: v})}>
+                    <Select value={nuevaCita.estado} onValueChange={(v) => setNuevaCita({ ...nuevaCita, estado: v })}>
                       <SelectTrigger className="elegante-input h-11">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-gray-darkest border-gray-dark">
                         <SelectItem value={selectedCita.estado} className="text-white-primary">{selectedCita.estado}</SelectItem>
                         {selectedCita.estado !== 'Cancelada' && (
-                            <SelectItem value="Cancelada" className="text-white-primary text-red-500">Cancelar Cita</SelectItem>
+                          <SelectItem value="Cancelada" className="text-white-primary text-red-500">Cancelar Cita</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -846,16 +932,30 @@ export function ClienteMisCitasPageCalendar() {
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                   {nuevaCita.precio > 0 && (
-                    <div className="bg-orange-primary/10 px-6 py-3 rounded-2xl border border-orange-primary/20">
-                      <p className="text-[10px] font-black text-orange-primary uppercase tracking-widest mb-1">Total Estimado</p>
-                      <p className="text-2xl font-bold text-white-primary leading-none">{formatearPrecio(nuevaCita.precio)}</p>
+                    <div className="flex items-center gap-3">
+                      {/* Imagen al tamaño exacto del div de precio (aprox 74px) */}
+                      <div className="w-28 h-[74px] rounded-2xl overflow-hidden border border-orange-primary/20 bg-gray-darkers flex-shrink-0">
+                        <ImageRenderer 
+                          url={nuevaCita.paqueteId 
+                            ? paquetesList.find(p => p.id === nuevaCita.paqueteId)?.imagen 
+                            : serviciosList.find(s => s.id === nuevaCita.servicioId)?.imagen
+                          }
+                          showLabel={false}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      <div className="bg-orange-primary/10 px-6 py-3 rounded-2xl border border-orange-primary/20 h-[74px] flex flex-col justify-center">
+                        <p className="text-[10px] font-black text-orange-primary uppercase tracking-widest mb-1">Total Estimado</p>
+                        <p className="text-2xl font-bold text-white-primary leading-none">{formatearPrecio(nuevaCita.precio)}</p>
+                      </div>
                     </div>
                   )}
                   <div className="text-gray-lightest text-[10px] max-w-[200px] leading-relaxed italic">
                     * El precio puede variar ligeramente según el detalle final del servicio en la barbería.
                   </div>
                 </div>
-                
+
                 <div className="flex gap-3 w-full md:w-auto">
                   <button onClick={() => setIsFormDialogOpen(false)} className="elegante-button-secondary flex-1 md:flex-none py-3 px-8">
                     Cancelar
@@ -875,16 +975,16 @@ export function ClienteMisCitasPageCalendar() {
         <DialogContent className="bg-gray-darkest border-gray-dark text-white-primary max-w-lg">
           <DialogHeader>
             <div className="flex items-center justify-between border-b border-gray-dark pb-3">
-                <DialogTitle className="text-xl">Detalle de tu Reservación</DialogTitle>
-                {selectedCita && selectedCita.estado !== 'Cancelada' && selectedCita.estado !== 'Completada' && (
-                    <button 
-                        onClick={() => handleOpenEdit(selectedCita)}
-                        className="p-2.5 bg-orange-primary/10 hover:bg-orange-primary/20 rounded-xl transition-all border border-orange-primary/20 group"
-                        title="Modificar cita"
-                    >
-                        <Edit className="w-5 h-5 text-orange-primary group-hover:scale-110 transition-transform" />
-                    </button>
-                )}
+              <DialogTitle className="text-xl">Detalle de tu Reservación</DialogTitle>
+              {selectedCita && selectedCita.estado !== 'Cancelada' && selectedCita.estado !== 'Completada' && (
+                <button
+                  onClick={() => handleOpenEdit(selectedCita)}
+                  className="p-2.5 bg-orange-primary/10 hover:bg-orange-primary/20 rounded-xl transition-all border border-orange-primary/20 group"
+                  title="Modificar cita"
+                >
+                  <Edit className="w-5 h-5 text-orange-primary group-hover:scale-110 transition-transform" />
+                </button>
+              )}
             </div>
           </DialogHeader>
           {selectedCita && (
@@ -898,20 +998,19 @@ export function ClienteMisCitasPageCalendar() {
                   <div>
                     <h3 className="text-xl font-bold text-white-primary">{selectedCita.servicioNombre || selectedCita.paqueteNombre}</h3>
                     <p className="text-sm text-gray-lightest flex items-center gap-2">
-                       <Clock className="w-3.5 h-3.5" /> {selectedCita.duracion} min &bull; 
-                       <span className="text-orange-primary font-bold">{formatearPrecio(selectedCita.precio)}</span>
+                      <Clock className="w-3.5 h-3.5" /> {selectedCita.duracion} min &bull;
+                      <span className="text-orange-primary font-bold">{formatearPrecio(selectedCita.precio)}</span>
                     </p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
-                   <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                      selectedCita.estado === 'Pendiente' ? 'bg-orange-primary/10 text-orange-primary border-orange-primary/30' :
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${selectedCita.estado === 'Pendiente' ? 'bg-orange-primary/10 text-orange-primary border-orange-primary/30' :
                       selectedCita.estado === 'Confirmada' ? 'bg-green-500/10 text-green-500 border-green-500/30' :
-                      selectedCita.estado === 'Completada' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' : 
-                      'bg-red-500/10 text-red-500 border-red-500/30'
-                   }`}>
-                     {selectedCita.estado}
-                   </div>
+                        selectedCita.estado === 'Completada' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' :
+                          'bg-red-500/10 text-red-500 border-red-500/30'
+                    }`}>
+                    {selectedCita.estado}
+                  </div>
                 </div>
               </div>
 
@@ -920,28 +1019,28 @@ export function ClienteMisCitasPageCalendar() {
                 <div className="space-y-1">
                   <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Barbero Asignado</p>
                   <p className="font-bold flex items-center gap-2 text-white-primary">
-                    <User className="w-4 h-4 text-orange-primary/70" /> 
+                    <User className="w-4 h-4 text-orange-primary/70" />
                     {selectedCita.barberoNombre}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Fecha Programada</p>
                   <p className="font-bold flex items-center gap-2 text-white-primary">
-                    <Calendar className="w-4 h-4 text-orange-primary/70" /> 
+                    <Calendar className="w-4 h-4 text-orange-primary/70" />
                     {selectedCita.fecha}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Hora de Inicio</p>
                   <p className="font-bold flex items-center gap-2 text-white-primary text-lg">
-                    <Clock className="w-4 h-4 text-orange-primary/70" /> 
+                    <Clock className="w-4 h-4 text-orange-primary/70" />
                     {selectedCita.hora}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Telf. Contacto</p>
                   <p className="font-bold flex items-center gap-2 text-white-primary">
-                    <Phone className="w-4 h-4 text-orange-primary/70" /> 
+                    <Phone className="w-4 h-4 text-orange-primary/70" />
                     Barbería Elite
                   </p>
                 </div>
@@ -950,10 +1049,10 @@ export function ClienteMisCitasPageCalendar() {
               {/* Notas */}
               {selectedCita.notas && (
                 <div className="space-y-2">
-                   <p className="text-gray-lightest text-[10px] font-bold uppercase ml-1">Observaciones / Preferencias</p>
-                   <div className="p-4 bg-gray-darker/50 rounded-xl text-sm border border-gray-dark italic text-gray-lighter leading-relaxed">
-                     "{selectedCita.notas}"
-                   </div>
+                  <p className="text-gray-lightest text-[10px] font-bold uppercase ml-1">Observaciones / Preferencias</p>
+                  <div className="p-4 bg-gray-darker/50 rounded-xl text-sm border border-gray-dark italic text-gray-lighter leading-relaxed">
+                    "{selectedCita.notas}"
+                  </div>
                 </div>
               )}
 
@@ -964,7 +1063,7 @@ export function ClienteMisCitasPageCalendar() {
                   <p className="text-[10px] text-gray-lightest text-center italic">
                     ¿No puedes asistir? Por favor cancela con al menos 2 horas de anticipación.
                   </p>
-                  <button 
+                  <button
                     onClick={() => {
                       setCitaToDelete(selectedCita);
                       setIsDetailDialogOpen(false);
@@ -972,7 +1071,7 @@ export function ClienteMisCitasPageCalendar() {
                     }}
                     className="w-full py-3 bg-red-500/5 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500 hover:text-white transition-all text-xs font-black uppercase tracking-widest shadow-lg shadow-red-500/5"
                   >
-                    Anular reservación
+                    Cancelar reservación
                   </button>
                 </div>
               )}

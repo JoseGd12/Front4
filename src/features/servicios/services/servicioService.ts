@@ -7,6 +7,7 @@ export interface Servicio {
   descripcion?: string;
   duracion?: number;
   estado?: boolean; // Add state field
+  imagen?: string;
 }
 
 class ServicioService {
@@ -56,7 +57,8 @@ class ServicioService {
         precio: item.precio || item.Precio,
         descripcion: item.descripcion || item.Descripcion,
         duracion: item.duracion || item.Duracion || item.duracionMinutes || item.DuracionMinutes || item.duracionMinutos || item.DuracionMinutos,
-        estado: item.estado === true || item.Estado === true || item.estado === 1 || item.Estado === 1
+        estado: item.estado === true || item.Estado === true || item.estado === 1 || item.Estado === 1,
+        imagen: item.imagen || item.Imagen
       })) : [];
 
       return normalizedData;

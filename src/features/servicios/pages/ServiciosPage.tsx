@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
-import { Scissors, Plus, Edit, Trash2, Search, Eye, ChevronLeft, ChevronRight, ToggleRight, ToggleLeft } from "lucide-react";
+import { Scissors, Plus, Edit, Trash2, Search, Eye, ChevronLeft, ChevronRight, ToggleRight, ToggleLeft, Image as ImageIcon, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
@@ -26,6 +26,9 @@ export function ServiciosPage() {
   const [nombreServicioDuplicado, setNombreServicioDuplicado] = useState(false);
   const [showServicioFormErrors, setShowServicioFormErrors] = useState(false);
   const [servicioValidationAttempt, setServicioValidationAttempt] = useState(0);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDeletingImage, setIsDeletingImage] = useState(false);
   const shakeClass = servicioValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
   const itemsPerPage = 5;
 
@@ -53,8 +56,54 @@ export function ServiciosPage() {
     descripcion: '',
     duracion: 30,
     precio: 0,
-    estado: true
+    estado: true,
+    imagen: ''
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) {
+        showErrorAlert("Archivo demasiado grande", "La imagen no debe superar los 15MB");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeSelectedImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const handleDeleteImage = async () => {
+    if (!editingServicio || !editingServicio.imagen) return;
+
+    try {
+      setIsDeletingImage(true);
+      await apiService.deleteServicioImagen(editingServicio.id);
+      
+      // Actualizar estado local
+      setEditingServicio({ ...editingServicio, imagen: undefined });
+      setNuevoServicio(prev => ({ ...prev, imagen: '' }));
+      setImagePreview(null);
+      
+      // Recargar lista
+      await loadServicios();
+      
+      edited("Imagen eliminada ✔️", "La imagen del servicio ha sido eliminada.");
+    } catch (err: any) {
+      console.error("Error eliminando imagen:", err);
+      showErrorAlert("Error", "No se pudo eliminar la imagen del servidor.");
+    } finally {
+      setIsDeletingImage(false);
+    }
+  };
 
   const filteredServicios = servicios.filter(servicio => {
     const matchesSearch = servicio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -107,10 +156,23 @@ export function ServiciosPage() {
       setServicios(prev => [createdServicio, ...prev]); // Mostrar inmediatamente en la lista
       await loadServicios(); // Sincronizar con backend por si hay transformaciones
       setCurrentPage(1); // Mostrar al inicio para ver el recién creado
-      setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true });
+      setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true, imagen: '' });
       setPrecioServicioInput('');
+      setImageFile(null);
+      setImagePreview(null);
       setShowServicioFormErrors(false);
       setIsDialogOpen(false);
+
+      // Subir imagen si existe
+      if (imageFile && createdServicio.id) {
+        try {
+          await apiService.uploadServicioImagen(createdServicio.id, imageFile);
+          await loadServicios(); // Recargar para obtener la URL de la imagen
+        } catch (imgErr) {
+          console.error('Error subiendo imagen:', imgErr);
+          showErrorAlert("Servicio creado, pero...", "No se pudo subir la imagen. Puedes intentarlo editando el servicio.");
+        }
+      }
 
       if (!createdServicio.id || !String(createdServicio.nombre || '').trim()) {
         created("Servicio creado (sin contenido)", "El servidor no devolvió datos del servicio; la lista se recargó para sincronizar.");
@@ -136,9 +198,12 @@ export function ServiciosPage() {
       descripcion: servicio.descripcion,
       duracion: servicio.duracion,
       precio: servicio.precio,
-      estado: servicio.estado
+      estado: servicio.estado,
+      imagen: servicio.imagen || ''
     });
     setPrecioServicioInput(servicio.precio != null ? String(servicio.precio) : '');
+    setImagePreview(servicio.imagen || null);
+    setImageFile(null);
     setShowServicioFormErrors(false);
     setNombreServicioDuplicado(false);
     setServicioValidationAttempt(0);
@@ -180,10 +245,23 @@ export function ServiciosPage() {
         });
         await loadServicios(); // Recargar todos los servicios
         setEditingServicio(null);
-        setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true });
+        setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true, imagen: '' });
         setPrecioServicioInput('');
+        setImageFile(null);
+        setImagePreview(null);
         setShowServicioFormErrors(false);
         setIsDialogOpen(false);
+
+        // Subir imagen si se seleccionó una nueva
+        if (imageFile && editingServicio.id) {
+          try {
+            await apiService.uploadServicioImagen(editingServicio.id, imageFile);
+            await loadServicios();
+          } catch (imgErr) {
+            console.error('Error subiendo imagen:', imgErr);
+            showErrorAlert("Cambios guardados, pero...", "No se pudo subir la nueva imagen.");
+          }
+        }
 
         edited("Servicio editado ✔️", `El servicio "${nuevoServicio.nombre}" ha sido actualizado exitosamente.`);
       } catch (err: any) {
@@ -277,8 +355,10 @@ export function ServiciosPage() {
                     className="elegante-button-primary gap-2 flex items-center"
                     onClick={() => {
                       setEditingServicio(null);
-                      setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true });
+                      setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true, imagen: '' });
                       setPrecioServicioInput('');
+                      setImageFile(null);
+                      setImagePreview(null);
                       setShowServicioFormErrors(false);
                       setNombreServicioDuplicado(false);
                       setServicioValidationAttempt(0);
@@ -346,8 +426,12 @@ export function ServiciosPage() {
                       <tr key={servicio.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-medium flex items-center justify-center">
-                              <Scissors className="w-5 h-5 text-orange-primary" />
+                            <div className="w-10 h-10 rounded-xl bg-gray-medium overflow-hidden flex items-center justify-center border border-gray-dark">
+                              {servicio.imagen ? (
+                                <img src={servicio.imagen} alt={servicio.nombre} className="w-full h-full object-cover" />
+                              ) : (
+                                <Scissors className="w-5 h-5 text-orange-primary" />
+                              )}
                             </div>
                             <span className="text-gray-lighter">{servicio.nombre}</span>
                           </div>
@@ -442,16 +526,63 @@ export function ServiciosPage() {
 
         {/* Dialog de Creación/Edición */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="bg-gray-darkest border-gray-dark max-w-md w-full">
+          <DialogContent className="bg-gray-darkest border-gray-dark max-w-md w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white-primary">
                 {editingServicio ? 'Editar Servicio' : 'Crear Nuevo Servicio'}
               </DialogTitle>
               <DialogDescription className="text-gray-lightest">
-                Completa la información del servicio
+                {editingServicio ? 'Modifica los datos del servicio' : 'Completa la información para el nuevo servicio'}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative mb-4">
+                <div className="w-52 h-52 rounded-2xl bg-gray-medium border-2 border-dashed border-gray-dark overflow-hidden flex items-center justify-center transition-all">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center p-4">
+                      <ImageIcon className="w-12 h-12 text-gray-lightest mx-auto mb-2 opacity-30" />
+                      <p className="text-sm text-gray-lightest opacity-50">Sin imagen</p>
+                    </div>
+                  )}
+                </div>
+
+                {(imagePreview || imageFile) && (
+                  <button
+                    onClick={imageFile ? removeSelectedImage : handleDeleteImage}
+                    className="absolute -top-2 -right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg transition-colors z-10"
+                    title="Eliminar imagen"
+                    disabled={isDeletingImage}
+                  >
+                    {isDeletingImage ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
+              
+              <Label 
+                htmlFor="servicio-imagen" 
+                className="elegante-button-primary w-fit px-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-105 active:scale-95 transition-all text-sm py-1.5"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Subir</span>
+                <input 
+                  id="servicio-imagen" 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+              </Label>
+              <p className="text-[11px] text-gray-lightest mt-2">Formatos permitidos: JPG, PNG, WEBP (Max. 15MB)</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2 md:col-span-1">
                 <Label className="text-white-primary flex items-center gap-1">
                   Nombre del Servicio
@@ -597,7 +728,7 @@ export function ServiciosPage() {
 
         {/* Dialog de Detalle */}
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-          <DialogContent className="bg-gray-darkest border-gray-dark max-w-3xl w-full overflow-visible">
+          <DialogContent className="bg-gray-darkest border-gray-dark max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white-primary">Detalle del Servicio</DialogTitle>
               <DialogDescription className="text-gray-lightest">
@@ -607,8 +738,12 @@ export function ServiciosPage() {
             {selectedServicio && (
               <div className="grid grid-cols-4 gap-6 pt-4">
                 <div className="col-span-4 flex items-center space-x-4 mb-4">
-                  <div className="w-16 h-16 rounded-xl bg-gray-medium flex items-center justify-center">
-                    <Scissors className="w-8 h-8 text-orange-primary" />
+                  <div className="w-16 h-16 rounded-xl bg-gray-medium overflow-hidden flex items-center justify-center border border-gray-dark shadow-inner">
+                    {selectedServicio.imagen ? (
+                      <img src={selectedServicio.imagen} alt={selectedServicio.nombre} className="w-full h-full object-cover" />
+                    ) : (
+                      <Scissors className="w-8 h-8 text-orange-primary" />
+                    )}
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white-primary">{selectedServicio.nombre}</h3>

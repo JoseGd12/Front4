@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
+import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import logo from "../assets/a51cd14e3664f3752eaa436dadb14492d91e40aa.png";
 import { DashboardPage } from "../pages/DashboardPage";
 import { AgendamientoPage } from "../../agendamiento/pages/AgendamientoPage";
@@ -450,8 +451,12 @@ export function Dashboard() {
 
             {/* Información del Usuario */}
             <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark">
-              <div className="w-8 h-8 bg-orange-primary rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-black-primary" />
+              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark">
+                <ImageRenderer 
+                  url={user?.fotoPerfil} 
+                  className="w-full h-full object-cover" 
+                  alt={user?.name}
+                />
               </div>
               <div className="flex flex-col">
                 <p className="text-sm font-semibold text-white-primary">{user?.name || "Usuario"}</p>
@@ -558,8 +563,12 @@ export function Dashboard() {
             {user && (
               <div className="space-y-4 py-4">
                 <div className="flex items-center gap-4 p-4 bg-gray-darker rounded-lg border border-gray-dark">
-                  <div className="w-16 h-16 bg-orange-primary rounded-full flex items-center justify-center">
-                    <User className="w-8 h-8 text-black-primary" />
+                  <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark">
+                    <ImageRenderer 
+                      url={user.fotoPerfil} 
+                      className="w-full h-full object-cover" 
+                      alt={user.name}
+                    />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-white-primary">{user.name}</h3>
