@@ -27,10 +27,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Switch } from "../../../shared/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { productoService, ApiProducto } from "../services/productos";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { apiService } from "../../../shared/services/api";
+import { isSaleOnly } from "../../../shared/utils/usagePolicy";
 
 const formatCurrency = (amount: number): string => {
   return (amount ?? 0).toLocaleString('es-CO');
@@ -68,7 +70,8 @@ export function ProductosPage() {
     minCantidad: 0,
     marca: '',
     imagenProduc: '',
-    activo: true
+    activo: true,
+    usoProducto: 'venta_e_insumo'
   });
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -80,6 +83,17 @@ export function ProductosPage() {
   const [showCategoryResults, setShowCategoryResults] = useState(false);
 
   const shakeClass = productoValidationAttempt > 0 ? 'animate-shake' : '';
+  const esProductoSoloVenta = (producto: any): boolean => {
+    const uso = (producto as any)?.usoProducto;
+    if (uso === 'solo_venta') return true;
+    if (uso === 'venta_e_insumo') return false;
+    return isSaleOnly(producto as any);
+  };
+  const getUsoProductoActual = (producto: any): 'solo_venta' | 'venta_e_insumo' => {
+    const uso = (producto as any)?.usoProducto;
+    if (uso === 'solo_venta' || uso === 'venta_e_insumo') return uso;
+    return isSaleOnly(producto as any) ? 'solo_venta' : 'venta_e_insumo';
+  };
 
   const isNombreDuplicado = useMemo(() => {
     const nombreLower = String(nuevoProducto.nombre || '').trim().toLowerCase();
@@ -90,6 +104,40 @@ export function ProductosPage() {
         (!editingProducto || p.id !== editingProducto.id)
     );
   }, [nuevoProducto.nombre, productos, editingProducto]);
+
+  const esSoloVentaProductoSeleccionado = useMemo(() => {
+    if (!selectedProducto) return false;
+    return esProductoSoloVenta(selectedProducto as any);
+  }, [selectedProducto]);
+
+  const esSoloVentaNuevoProducto = useMemo(() => {
+    const uso = (nuevoProducto as any).usoProducto;
+    if (uso === 'solo_venta') return true;
+    if (uso === 'venta_e_insumo') return false;
+    return isSaleOnly(nuevoProducto as any);
+  }, [nuevoProducto]);
+  const usoProductoValue =
+    (nuevoProducto as any).usoProducto ?? (esSoloVentaNuevoProducto ? 'solo_venta' : 'venta_e_insumo');
+
+  useEffect(() => {
+    if (esSoloVentaNuevoProducto) {
+      setNuevoProducto(prev => {
+        const stockTotalActual = editingProducto && editingStockTotal !== null
+          ? editingStockTotal
+          : Number(prev.stockVentas || 0) + Number(prev.stockInsumos || 0);
+        const stockVentasActual = Number(prev.stockVentas || 0);
+        const stockInsumosActual = Number(prev.stockInsumos || 0);
+        if (stockInsumosActual === 0 && stockVentasActual === stockTotalActual) {
+          return prev;
+        }
+        return {
+          ...prev,
+          stockVentas: stockTotalActual,
+          stockInsumos: 0
+        };
+      });
+    }
+  }, [esSoloVentaNuevoProducto, editingProducto, editingStockTotal]);
 
   // Load products and categories from API
   useEffect(() => {
@@ -220,12 +268,10 @@ export function ProductosPage() {
   const handleCreateProductoSubmit = () => {
     const isNombreValid = nuevoProducto.nombre.trim() !== '';
     const isCategoriaValid = nuevoProducto.categoria !== '';
-    const isPrecioValid = Number(nuevoProducto.precioBase) >= 0;
-
-    if (!isNombreValid || !isCategoriaValid || !isPrecioValid) {
+    if (!isNombreValid || !isCategoriaValid) {
       setShowProductoFormErrors(true);
       setProductoValidationAttempt(prev => prev + 1);
-      error("Campos obligatorios", "Por favor completa el nombre, la categoría y el precio correctamente.");
+      error("Campos obligatorios", "Por favor completa el nombre y la categoría correctamente.");
       return;
     }
     const nombreLower = String(nuevoProducto.nombre || '').trim().toLowerCase();
@@ -297,13 +343,25 @@ export function ProductosPage() {
       });
       const productosActualizados = productosActualizadosRaw.map((p: any) => {
         const cat = p?.categoria;
+        const usoProductoActualizado = Number(p.id) === Number(productoCreado?.id)
+          ? (esSoloVentaNuevoProducto ? 'solo_venta' : 'venta_e_insumo')
+          : getUsoProductoActual(p);
         if (cat && !cat.nombre && cat.id) {
           const found = categoriaByIdAfterCreate.get(cat.id);
           if (found && found.nombre) {
-            return { ...p, categoria: { id: cat.id, nombre: found.nombre } };
+            return {
+              ...p,
+              categoria: { id: cat.id, nombre: found.nombre },
+              usoProducto: usoProductoActualizado,
+              stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
+            };
           }
         }
-        return p;
+        return {
+          ...p,
+          usoProducto: usoProductoActualizado,
+          stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
+        };
       });
       const productoRecienCreado = productosActualizados.find(p => p.id === productoCreado.id || p.nombre === productoCreado.nombre);
       if (productoRecienCreado) {
@@ -324,7 +382,8 @@ export function ProductosPage() {
         minCantidad: 0,
         marca: '',
         imagenProduc: '',
-        activo: true
+        activo: true,
+        usoProducto: 'venta_e_insumo'
       });
       setCategorySearchTerm('');
       setImagenPreview(null);
@@ -357,7 +416,8 @@ export function ProductosPage() {
       minCantidad: producto.minCantidad,
       marca: producto.marca,
       imagenProduc: producto.imagenProduc,
-      activo: producto.activo
+      activo: producto.activo,
+      usoProducto: getUsoProductoActual(producto)
     });
     setCategorySearchTerm(categoriaVal || '');
     setImagenPreview(producto.imagenProduc || null);
@@ -432,13 +492,25 @@ export function ProductosPage() {
       });
       const productosActualizados = productosActualizadosRaw.map((p: any) => {
         const cat = p?.categoria;
+        const usoProductoActualizado = Number(p.id) === Number(editingProducto?.id)
+          ? (esSoloVentaNuevoProducto ? 'solo_venta' : 'venta_e_insumo')
+          : (p as any).usoProducto;
         if (cat && !cat.nombre && cat.id) {
           const found = categoriaByIdAfterUpdate.get(cat.id);
           if (found && found.nombre) {
-            return { ...p, categoria: { id: cat.id, nombre: found.nombre } };
+            return {
+              ...p,
+              categoria: { id: cat.id, nombre: found.nombre },
+              usoProducto: usoProductoActualizado,
+              stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
+            };
           }
         }
-        return p;
+        return {
+          ...p,
+          usoProducto: usoProductoActualizado,
+          stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
+        };
       });
       setProductos(productosActualizados);
 
@@ -456,7 +528,8 @@ export function ProductosPage() {
         minCantidad: 0,
         marca: '',
         imagenProduc: '',
-        activo: true
+        activo: true,
+        usoProducto: 'venta_e_insumo'
       });
       setCategorySearchTerm('');
       setImagenPreview(null);
@@ -720,7 +793,8 @@ export function ProductosPage() {
                           minCantidad: 0, // Se inicializa automáticamente en 0
                           marca: '',
                           imagenProduc: '',
-                          activo: true
+                          activo: true,
+                          usoProducto: 'venta_e_insumo'
                         });
                         setImagenPreview(null);
                         setImageError(null);
@@ -751,11 +825,95 @@ export function ProductosPage() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
-                      {/* Fila 1 (arriba): Imagen (izq) | Descripción (der) */}
                       <div className="grid grid-cols-2 gap-4">
-                        {/* Mitad izquierda: Imagen */}
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                              <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                              Nombre *
+                            </Label>
+                            <Input
+                              value={nuevoProducto.nombre}
+                              onChange={(e) => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })}
+                              placeholder="Ej: Cadena de Rodio"
+                              className={`elegante-input h-9 text-sm ${isNombreDuplicado ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                            />
+                            {showProductoFormErrors && !nuevoProducto.nombre.trim() && (
+                              <p className="text-[10px] text-red-400 mt-1">El nombre es obligatorio</p>
+                            )}
+                            {isNombreDuplicado && (
+                              <p className="text-[10px] text-red-400 mt-1">Nombre ya existe en el sistema.</p>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                              <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                              Categoría *
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                placeholder="Escribe para buscar categoría..."
+                                value={categorySearchTerm}
+                                onChange={(e) => {
+                                  setCategorySearchTerm(e.target.value);
+                                  setShowCategoryResults(true);
+                                }}
+                                onFocus={() => setShowCategoryResults(true)}
+                                className={`elegante-input h-9 text-sm ${showProductoFormErrors && !nuevoProducto.categoria ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                              />
+                              {showCategoryResults && categorySearchTerm.trim() !== '' && (
+                                <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar">
+                                  {(() => {
+                                    const q = categorySearchTerm.trim().toLowerCase();
+                                    const list = categorias
+                                      .filter(c => c.estado === true)
+                                      .filter(c => String(c.nombre || '').toLowerCase().includes(q))
+                                      .slice(0, 20);
+                                    if (list.length === 0) {
+                                      return (
+                                        <div className="p-3 text-center text-gray-lightest italic">
+                                          Sin resultados.
+                                        </div>
+                                      );
+                                    }
+                                    return list.map((c: any) => (
+                                      <div
+                                        key={c.id}
+                                        onClick={() => {
+                                          setNuevoProducto({ ...nuevoProducto, categoria: c.nombre });
+                                          setCategorySearchTerm(c.nombre);
+                                          setShowCategoryResults(false);
+                                        }}
+                                        className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer"
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-white-primary text-sm">{c.nombre}</span>
+                                        </div>
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                            {showProductoFormErrors && !nuevoProducto.categoria && (
+                              <p className="text-[10px] text-red-400 mt-1">Selecciona una categoría</p>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                              <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                              Marca
+                            </Label>
+                            <Input
+                              value={nuevoProducto.marca}
+                              onChange={(e) => setNuevoProducto({ ...nuevoProducto, marca: e.target.value })}
+                              placeholder="Nombre de la marca"
+                              className="elegante-input h-9 text-sm"
+                            />
+                          </div>
+                        </div>
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-2 h-9 mb-4">
+                          <div className="flex items-center justify-between gap-2 h-9">
                             <Label className="text-white-primary text-xs flex items-center gap-1.5">
                               <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
                               Imagen del Producto
@@ -763,7 +921,7 @@ export function ProductosPage() {
                             <button
                               onClick={triggerFileSelect}
                               disabled={uploadingImage}
-                              className="elegante-button-secondary px-4 py-2 gap-2 flex items-center text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                              className="elegante-button-secondary mb-4 px-4 py-2 gap-2 flex items-center text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                               type="button"
                             >
                               {uploadingImage ? (
@@ -805,24 +963,18 @@ export function ProductosPage() {
                               </div>
                             )}
                           </div>
-
-                          {/* Texto informativo siempre visible */}
-                          <div className="flex flex-col gap-1.5 mt-2">
-                            <p className="text-[10px] text-gray-lightest px-1 flex items-center gap-1.5 opacity-80">
-                              <Info className="w-3 h-3 text-orange-primary" />
-                              Tamaño máx: 5MB. Formatos: JPG, PNG, GIF, WEBP.
-                            </p>
-
-                            {/* Alerta de error en el formulario */}
-                            {imageError && (
-                              <div className="bg-red-500/10 border border-red-500/20 rounded-md p-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
-                                <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-red-400 font-medium">
-                                  {imageError}
-                                </p>
-                              </div>
-                            )}
-                          </div>
+                          <p className="text-[10px] text-gray-lightest px-1 flex items-center gap-1.5 opacity-80">
+                            <Info className="w-3 h-3 text-orange-primary" />
+                            Tamaño máx: 5MB. Formatos: JPG, PNG, GIF, WEBP.
+                          </p>
+                          {imageError && (
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-md p-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                              <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                              <p className="text-[10px] text-red-400 font-medium">
+                                {imageError}
+                              </p>
+                            </div>
+                          )}
                         </div>
                         <input
                           ref={fileInputRef}
@@ -831,142 +983,134 @@ export function ProductosPage() {
                           onChange={handleImageUpload}
                           className="hidden"
                         />
-
-                        {/* Mitad derecha: Descripción (tamaño grande para mucho texto) */}
-                        <div className="flex flex-col">
-                          <div className="flex items-center h-9 mb-4">
-                            <Label className="text-white-primary text-s flex items-center justify-center gap-1.5">
-                              <FileText className="w-3.5 h-3.5 mb-3 text-orange-primary" />
-                              Descripción
-                            </Label>
-                          </div>
-                          <Textarea
-                            value={nuevoProducto.descripcion}
-                            onChange={(e) => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })}
-                            placeholder="Detalles del producto, características, instrucciones de uso..."
-                            className="elegante-input w-full flex-1 resize-none text-sm"
-                          />
-                        </div>
                       </div>
 
-                      {/* Fila 2: Nombre | Categoría (50/50) */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                            <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                            Nombre *
-                          </Label>
-                          <Input
-                            value={nuevoProducto.nombre}
-                            onChange={(e) => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })}
-                            placeholder="Ej: Cadena de Rodio"
-                            className={`elegante-input h-9 text-sm ${isNombreDuplicado ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                          />
-                          {showProductoFormErrors && !nuevoProducto.nombre.trim() && (
-                            <p className="text-[10px] text-red-400 mt-1">El nombre es obligatorio</p>
-                          )}
-                          {isNombreDuplicado && (
-                            <p className="text-[10px] text-red-400 mt-1">Nombre ya existe en el sistema.</p>
-                          )}
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                            <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                            Categoría *
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              placeholder="Escribe para buscar categoría..."
-                              value={categorySearchTerm}
-                              onChange={(e) => {
-                                setCategorySearchTerm(e.target.value);
-                                setShowCategoryResults(true);
-                              }}
-                              onFocus={() => setShowCategoryResults(true)}
-                              className={`elegante-input h-9 text-sm ${showProductoFormErrors && !nuevoProducto.categoria ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-                            />
-                            {showCategoryResults && categorySearchTerm.trim() !== '' && (
-                              <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar">
-                                {(() => {
-                                  const q = categorySearchTerm.trim().toLowerCase();
-                                  const list = categorias
-                                    .filter(c => c.estado === true)
-                                    .filter(c => String(c.nombre || '').toLowerCase().includes(q))
-                                    .slice(0, 20);
-                                  if (list.length === 0) {
-                                    return (
-                                      <div className="p-3 text-center text-gray-lightest italic">
-                                        Sin resultados.
-                                      </div>
-                                    );
-                                  }
-                                  return list.map((c: any) => (
-                                    <div
-                                      key={c.id}
-                                      onClick={() => {
-                                        setNuevoProducto({ ...nuevoProducto, categoria: c.nombre });
-                                        setCategorySearchTerm(c.nombre);
-                                        setShowCategoryResults(false);
-                                      }}
-                                      className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer"
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-white-primary text-sm">{c.nombre}</span>
-                                      </div>
-                                    </div>
-                                  ));
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                          {showProductoFormErrors && !nuevoProducto.categoria && (
-                            <p className="text-[10px] text-red-400 mt-1">Selecciona una categoría</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Fila 3: Marca (ancho completo) */}
                       <div className="space-y-1.5">
                         <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                          Marca
+                          <FileText className="w-3.5 h-3.5 text-orange-primary" />
+                          Descripción
                         </Label>
-                        <Input
-                          value={nuevoProducto.marca}
-                          onChange={(e) => setNuevoProducto({ ...nuevoProducto, marca: e.target.value })}
-                          placeholder="Nombre de la marca"
-                          className="elegante-input h-9 text-sm"
+                        <Textarea
+                          value={nuevoProducto.descripcion}
+                          onChange={(e) => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })}
+                          placeholder="Detalles del producto, características, instrucciones de uso..."
+                          className="elegante-input w-full min-h-[120px] resize-none text-sm"
                         />
                       </div>
 
-                      {/* Fila 4: Precios | Stock total | Stock ventas | Stock insumos - Solo se muestra al EDITAR */}
                       {editingProducto && (
-                        <div className="w-1/2">
+                        <div className="space-y-4 border-t border-gray-dark pt-4">
+                          <Label className="text-white-primary text-xs flex items-center gap-1.5 uppercase tracking-wide opacity-80">
+                            <Info className="w-3.5 h-3.5 text-orange-primary" />
+                            Información de venta
+                          </Label>
+                          <div className="space-y-1.5">
+                            <Label className="text-white-primary text-xs flex items-center gap-1.5 opacity-70 font-medium">
+                              <Package className="w-3.5 h-3.5 text-orange-primary" />
+                              Stock Total
+                            </Label>
+                            <Input
+                              value={editingStockTotal ?? 0}
+                              disabled
+                              readOnly
+                              className="elegante-input bg-gray-dark/50 h-9 text-sm border-gray-dark/30 opacity-70 cursor-not-allowed"
+                            />
+                          </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                                <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
-                                Precio venta *
+                                <Boxes className="w-3.5 h-3.5 text-orange-primary" />
+                                Stock Ventas
                               </Label>
                               <Input
                                 type="text"
-                                inputMode="decimal"
+                                inputMode="numeric"
                                 min={0}
-                                step={0.01}
-                                value={(nuevoProducto as any).precioVenta === '' ? '' : (nuevoProducto.precioVenta ?? '')}
+                                value={(nuevoProducto.stockVentas as number | string) === '' ? '' : (nuevoProducto.stockVentas ?? '')}
                                 onChange={(e) => {
                                   const v = e.target.value;
-                                  setNuevoProducto({
-                                    ...nuevoProducto,
-                                    precioVenta: v === '' ? ('' as any) : (isNaN(Number(v)) ? (nuevoProducto as any).precioVenta : Number(v))
-                                  });
+                                  if (v === '') {
+                                    setNuevoProducto(prev => ({ ...prev, stockVentas: '' as any }));
+                                    return;
+                                  }
+                                  const n = Number(v);
+                                  if (Number.isNaN(n) || n < 0) return;
+
+                                  if (editingStockTotal !== null) {
+                                  if (esSoloVentaNuevoProducto) {
+                                    setNuevoProducto(prev => ({
+                                      ...prev,
+                                      stockVentas: editingStockTotal,
+                                      stockInsumos: 0
+                                    }));
+                                    return;
+                                  }
+                                    if (n > editingStockTotal) {
+                                      error("Stock ventas inválido", "El stock destinado a ventas no puede superar el stock total del producto.");
+                                      setNuevoProducto(prev => ({
+                                        ...prev,
+                                        stockVentas: editingStockTotal - Number(prev.stockInsumos || 0) >= 0
+                                          ? editingStockTotal - Number(prev.stockInsumos || 0)
+                                          : prev.stockVentas
+                                      }));
+                                      return;
+                                    }
+                                    const nuevoInsumos = editingStockTotal - n;
+                                    setNuevoProducto(prev => ({
+                                      ...prev,
+                                      stockVentas: n,
+                                      stockInsumos: nuevoInsumos
+                                    }));
+                                  }
                                 }}
                                 className="elegante-input h-9 text-sm"
                               />
-                              {showProductoFormErrors && (String(nuevoProducto.precioVenta) === '' || Number(nuevoProducto.precioVenta) < 0) && (
-                                <p className="text-[10px] text-red-400 mt-1">Precio venta inválido</p>
-                              )}
                             </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                                <Boxes className="w-3.5 h-3.5 text-orange-primary" />
+                                Stock Insumos
+                              </Label>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                min={0}
+                                value={(nuevoProducto.stockInsumos as number | string) === '' ? '' : (nuevoProducto.stockInsumos ?? '')}
+                                disabled={esSoloVentaNuevoProducto}
+                                onChange={(e) => {
+                                  if (esSoloVentaNuevoProducto) return;
+                                  const v = e.target.value;
+                                  if (v === '') {
+                                    setNuevoProducto(prev => ({ ...prev, stockInsumos: '' as any }));
+                                    return;
+                                  }
+                                  const n = Number(v);
+                                  if (Number.isNaN(n) || n < 0) return;
+
+                                  if (editingStockTotal !== null) {
+                                    if (n > editingStockTotal) {
+                                      error("Stock insumos inválido", "El stock destinado a insumos no puede superar el stock total del producto.");
+                                      setNuevoProducto(prev => ({
+                                        ...prev,
+                                        stockInsumos: editingStockTotal - Number(prev.stockVentas || 0) >= 0
+                                          ? editingStockTotal - Number(prev.stockVentas || 0)
+                                          : prev.stockInsumos
+                                      }));
+                                      return;
+                                    }
+                                    const nuevoVentas = editingStockTotal - n;
+                                    setNuevoProducto(prev => ({
+                                      ...prev,
+                                      stockInsumos: n,
+                                      stockVentas: nuevoVentas
+                                    }));
+                                  }
+                                }}
+                                className={`elegante-input h-9 text-sm ${esSoloVentaNuevoProducto ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <Label className="text-white-primary text-xs flex items-center gap-1.5">
                                 <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
@@ -992,118 +1136,62 @@ export function ProductosPage() {
                               )}
                             </div>
                             <div className="space-y-1.5">
-                              <Label className="text-white-primary text-xs flex items-center gap-1.5 opacity-70 font-medium">
-                                <Package className="w-3.5 h-3.5 text-orange-primary" />
-                                Stock Total
-                              </Label>
-                              <Input
-                                value={
-                                  editingProducto
-                                    ? (editingStockTotal ?? 0)
-                                    : Number(nuevoProducto.stockVentas || 0) + Number(nuevoProducto.stockInsumos || 0)
-                                }
-                                disabled
-                                readOnly
-                                className="elegante-input bg-gray-dark/50 h-9 text-sm border-gray-dark/30 opacity-70 cursor-not-allowed"
-                              />
-                            </div>
-                            <div className="space-y-1.5">
                               <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                                <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                                Stock Ventas
+                                <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
+                                Precio venta *
                               </Label>
                               <Input
                                 type="text"
-                                inputMode="numeric"
+                                inputMode="decimal"
                                 min={0}
-                                value={(nuevoProducto.stockVentas as number | string) === '' ? '' : (nuevoProducto.stockVentas ?? '')}
+                                step={0.01}
+                                value={(nuevoProducto as any).precioVenta === '' ? '' : (nuevoProducto.precioVenta ?? '')}
                                 onChange={(e) => {
                                   const v = e.target.value;
-                                  if (v === '') {
-                                    setNuevoProducto(prev => ({ ...prev, stockVentas: '' as any }));
-                                    return;
-                                  }
-                                  const n = Number(v);
-                                  if (Number.isNaN(n) || n < 0) return;
-
-                                  if (editingProducto && editingStockTotal !== null) {
-                                    if (n > editingStockTotal) {
-                                      error("Stock ventas inválido", "El stock destinado a ventas no puede superar el stock total del producto.");
-                                      setNuevoProducto(prev => ({
-                                        ...prev,
-                                        stockVentas: editingStockTotal - Number(prev.stockInsumos || 0) >= 0
-                                          ? editingStockTotal - Number(prev.stockInsumos || 0)
-                                          : prev.stockVentas
-                                      }));
-                                      return;
-                                    }
-                                    const nuevoInsumos = editingStockTotal - n;
-                                    setNuevoProducto(prev => ({
-                                      ...prev,
-                                      stockVentas: n,
-                                      stockInsumos: nuevoInsumos
-                                    }));
-                                  } else {
-                                    setNuevoProducto(prev => ({
-                                      ...prev,
-                                      stockVentas: n
-                                    }));
-                                  }
+                                  setNuevoProducto({
+                                    ...nuevoProducto,
+                                    precioVenta: v === '' ? ('' as any) : (isNaN(Number(v)) ? (nuevoProducto as any).precioVenta : Number(v))
+                                  });
                                 }}
                                 className="elegante-input h-9 text-sm"
                               />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                                <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                                Stock Insumos
-                              </Label>
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                min={0}
-                                value={(nuevoProducto.stockInsumos as number | string) === '' ? '' : (nuevoProducto.stockInsumos ?? '')}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  if (v === '') {
-                                    setNuevoProducto(prev => ({ ...prev, stockInsumos: '' as any }));
-                                    return;
-                                  }
-                                  const n = Number(v);
-                                  if (Number.isNaN(n) || n < 0) return;
-
-                                  if (editingProducto && editingStockTotal !== null) {
-                                    if (n > editingStockTotal) {
-                                      error("Stock insumos inválido", "El stock destinado a insumos no puede superar el stock total del producto.");
-                                      setNuevoProducto(prev => ({
-                                        ...prev,
-                                        stockInsumos: editingStockTotal - Number(prev.stockVentas || 0) >= 0
-                                          ? editingStockTotal - Number(prev.stockVentas || 0)
-                                          : prev.stockInsumos
-                                      }));
-                                      return;
-                                    }
-                                    const nuevoVentas = editingStockTotal - n;
-                                    setNuevoProducto(prev => ({
-                                      ...prev,
-                                      stockInsumos: n,
-                                      stockVentas: nuevoVentas
-                                    }));
-                                  } else {
-                                    setNuevoProducto(prev => ({
-                                      ...prev,
-                                      stockInsumos: n
-                                    }));
-                                  }
-                                }}
-                                className="elegante-input h-9 text-sm"
-                              />
+                              {showProductoFormErrors && (String(nuevoProducto.precioVenta) === '' || Number(nuevoProducto.precioVenta) < 0) && (
+                                <p className="text-[10px] text-red-400 mt-1">Precio venta inválido</p>
+                              )}
                             </div>
                           </div>
                         </div>
                       )}
-                      {!editingProducto && (
-                        <div className="space-y-2 border-t border-gray-dark pt-4 mt-4">
+
+                      <div className="grid grid-cols-2 gap-4 border-t border-gray-dark pt-4 mt-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 text-orange-primary" />
+                            Uso del producto
+                          </Label>
+                          <Select
+                            value={usoProductoValue}
+                            onValueChange={(value) => {
+                              setNuevoProducto(prev => ({
+                                ...prev,
+                                usoProducto: value,
+                                stockVentas: value === 'solo_venta'
+                                  ? (editingProducto && editingStockTotal !== null ? editingStockTotal : prev.stockVentas)
+                                  : prev.stockVentas,
+                                stockInsumos: value === 'solo_venta' ? 0 : prev.stockInsumos
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="elegante-input h-9 text-sm">
+                              <SelectValue placeholder="Selecciona el uso" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                              <SelectItem value="solo_venta" className="text-white-primary">Solo venta</SelectItem>
+                              <SelectItem value="venta_e_insumo" className="text-white-primary">Venta e insumo</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
                           <Label className="text-white-primary flex items-center gap-2">
                             Estado
                           </Label>
@@ -1120,28 +1208,7 @@ export function ProductosPage() {
                             </span>
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    {editingProducto && (
-                      <div className="space-y-2 border-t border-gray-dark pt-4 mt-4">
-                        <Label className="text-white-primary flex items-center gap-2">
-                          Estado
-                        </Label>
-                        <div className="flex items-center space-x-3">
-                          <Switch
-                            checked={!!(nuevoProducto as any).activo}
-                            onCheckedChange={(checked) =>
-                              setNuevoProducto({ ...nuevoProducto, activo: !!checked })
-                            }
-                            className="data-[state=checked]:bg-orange-primary"
-                          />
-                          <span className={`text-sm font-medium ${nuevoProducto.activo ? 'text-orange-primary' : 'text-gray-lightest'}`}>
-                            {nuevoProducto.activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </div>
                       </div>
-                    )}
 
                     <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
                       <button onClick={() => setIsDialogOpen(false)} className="elegante-button-secondary px-6">
@@ -1153,6 +1220,7 @@ export function ProductosPage() {
                       >
                         {editingProducto ? 'Actualizar' : 'Agregar'} Producto
                       </button>
+                    </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -1198,11 +1266,13 @@ export function ProductosPage() {
                     <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
 
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock total</th>
+                   
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio venta</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio compra</th>
-                    <th className="text-right  py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock total</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Ventas</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Uso</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
 
 
@@ -1215,6 +1285,7 @@ export function ProductosPage() {
                     const stockVentas = producto.stockVentas ?? 0;
                     const stockInsumos = producto.stockInsumos ?? 0;
                     const totalVentasProducto = stockVentas * (producto.precioBase || 0);
+                    const soloVenta = esProductoSoloVenta(producto as any);
                     return (
                       <tr key={producto.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                         <td className="py-4 px-4">
@@ -1228,9 +1299,7 @@ export function ProductosPage() {
                         <td className="py-4 text-center px-4">
                           <span className="text-gray-lighter">{producto.nombre}</span>
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{stockTotal}</span>
-                        </td>
+                        
                         <td className="py-4 px-4 text-center">
                           <span className="text-gray-lighter">{formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0)}</span>
                         </td>
@@ -1238,10 +1307,24 @@ export function ProductosPage() {
                           <span className="text-gray-lighter">{formatearPrecio((producto as any).precioCompra ?? 0)}</span>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter" style={{ paddingLeft: '20px' }}>{stockInsumos}</span>
+                          <span className="text-gray-lighter">{stockTotal}</span>
                         </td>
                         <td className="py-4 px-4 text-center">
+                          <span className="text-gray-lighter" style={{ paddingLeft: '20px' }}>
+                            {soloVenta ? 0 : stockInsumos}
+                          </span>
+                        </td>
+                        
+                        <td className="py-4 px-4 text-center">
                           <span className="text-gray-lighter">{stockVentas}</span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs border ${soloVenta
+                            ? 'bg-gray-500/10 text-gray-300 border-gray-600/50'
+                            : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          }`}>
+                            {soloVenta ? 'Solo venta' : 'Venta e insumo'}
+                          </span>
                         </td>
 
 
@@ -1408,9 +1491,38 @@ export function ProductosPage() {
 
               {selectedProducto && (
                 <div className="space-y-4 pt-4">
-                  {/* Fila 1 (arriba): Imagen (izq) | Descripción (der) */}
                   <div className="grid grid-cols-2 gap-4">
-                    {/* Mitad izquierda: Imagen (solo lectura) */}
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                          Nombre
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                          {selectedProducto.nombre}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                          Categoría
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                          {typeof selectedProducto.categoria === 'string'
+                            ? selectedProducto.categoria
+                            : (selectedProducto.categoria as any)?.nombre ?? 'Sin categoría'}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                          Marca
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                          {selectedProducto.marca || 'Sin marca'}
+                        </div>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <Label className="text-white-primary text-xs flex items-center gap-1.5">
                         <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
@@ -1431,74 +1543,23 @@ export function ProductosPage() {
                         )}
                       </div>
                     </div>
-
-                    {/* Mitad derecha: Descripción (solo lectura) */}
-                    <div className="space-y-2">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-orange-primary" />
-                        Descripción
-                      </Label>
-                      <div className="elegante-input w-full min-h-[200px] resize-none text-sm p-3 rounded-md border border-gray-dark bg-gray-darker overflow-y-auto">
-                        {selectedProducto.descripcion || 'Sin descripción'}
-                      </div>
-                    </div>
                   </div>
 
-                  {/* Fila 2: Nombre | Categoría (50/50) */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                        Nombre *
-                      </Label>
-                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                        {selectedProducto.nombre}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                        Categoría *
-                      </Label>
-                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                        {typeof selectedProducto.categoria === 'string'
-                          ? selectedProducto.categoria
-                          : (selectedProducto.categoria as any)?.nombre ?? 'Sin categoría'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fila 3: Marca (ancho completo) */}
                   <div className="space-y-1.5">
                     <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                      <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                      Marca
+                      <FileText className="w-3.5 h-3.5 text-orange-primary" />
+                      Descripción
                     </Label>
-                    <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                      {selectedProducto.marca || 'Sin marca'}
+                    <div className="elegante-input w-full min-h-[120px] text-sm p-3 rounded-md border border-gray-dark bg-gray-darker overflow-y-auto">
+                      {selectedProducto.descripcion || 'Sin descripción'}
                     </div>
                   </div>
 
-                  {/* Fila 4: Precios | Stock Total | Stock Ventas | Stock Insumos */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
-                        Precio venta
-                      </Label>
-                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                        {formatearPrecio((selectedProducto as any).precioVenta ?? selectedProducto.precioBase ?? 0)}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
-                        Precio compra
-                      </Label>
-                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                        {formatearPrecio((selectedProducto as any).precioCompra ?? 0)}
-                      </div>
-                    </div>
+                  <div className="space-y-4 border-t border-gray-dark pt-4">
+                    <Label className="text-white-primary text-xs flex items-center gap-1.5 uppercase tracking-wide opacity-80">
+                      <Info className="w-3.5 h-3.5 text-orange-primary" />
+                      Información de venta
+                    </Label>
                     <div className="space-y-1.5">
                       <Label className="text-white-primary text-xs flex items-center gap-1.5">
                         <Package className="w-3.5 h-3.5 text-orange-primary" />
@@ -1508,22 +1569,69 @@ export function ProductosPage() {
                         {(selectedProducto.stockVentas ?? 0) + (selectedProducto.stockInsumos ?? 0)} unidades
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                        Stock Ventas
-                      </Label>
-                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark border-green-500/10">
-                        {(selectedProducto.stockVentas ?? 0)} unidades
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <Boxes className="w-3.5 h-3.5 text-orange-primary" />
+                          Stock Ventas
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark border-green-500/10">
+                          {(selectedProducto.stockVentas ?? 0)} unidades
+                        </div>
+                      </div>
+                      {!esSoloVentaProductoSeleccionado && (
+                        <div className="space-y-1.5">
+                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                            <Boxes className="w-3.5 h-3.5 text-orange-primary" />
+                            Stock Insumos
+                          </Label>
+                          <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark border-blue-500/10">
+                            {(selectedProducto.stockInsumos ?? 0)} unidades
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
+                          Precio compra
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                          {formatearPrecio((selectedProducto as any).precioCompra ?? 0)}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
+                          Precio venta
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                          {formatearPrecio((selectedProducto as any).precioVenta ?? selectedProducto.precioBase ?? 0)}
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                        Stock Insumos
-                      </Label>
-                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark border-blue-500/10">
-                        {(selectedProducto.stockInsumos ?? 0)} unidades
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-orange-primary" />
+                          Uso del producto
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                          {esProductoSoloVenta(selectedProducto as any) ? 'Solo venta' : 'Venta e insumo'}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          Estado
+                        </Label>
+                        <div className={`elegante-input h-9 text-sm flex items-center px-3 border ${
+                          selectedProducto.activo
+                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                            : 'bg-red-500/10 text-red-400 border-red-500/20'
+                        }`}>
+                          {selectedProducto.activo ? 'Activo' : 'Inactivo'}
+                        </div>
                       </div>
                     </div>
                   </div>

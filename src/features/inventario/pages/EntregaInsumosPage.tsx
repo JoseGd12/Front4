@@ -40,6 +40,7 @@ import { barberosService, Barbero } from "../../administracion/services/barberos
 import { insumosService, Insumo } from "../services/insumosService";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { canBeUsedInService, isSaleOnly } from "../../../shared/utils/usagePolicy";
 
 // Función para formatear moneda colombiana con puntos para separar miles
 const formatCurrency = (amount: number | undefined | null): string => {
@@ -121,7 +122,10 @@ export function EntregaInsumosPage() {
   const cantidadInputRef = useRef<HTMLInputElement | null>(null);
   const addProductoRowRef = useRef<HTMLDivElement | null>(null);
   const productosAgregadosRef = useRef<HTMLDivElement | null>(null);
-  const numeroEntregas = 21 + entregas.length;
+  const numeroEntregas = (entregas || []).reduce((max, entrega) => {
+    const id = Number((entrega as any)?.id ?? 0);
+    return Number.isFinite(id) && id > max ? id : max;
+  }, 0) + 1;
   const [isProductoDetalleOpen, setIsProductoDetalleOpen] = useState(false);
   const [productoDetalle, setProductoDetalle] = useState<any | null>(null);
 
@@ -577,6 +581,12 @@ export function EntregaInsumosPage() {
       return;
     }
 
+    // Verificar política de uso: no permitir agregar productos solo venta
+    if (isSaleOnly(insumo as any)) {
+      error('No permitido', 'Este producto es solo para venta y no puede entregarse como insumo.');
+      return;
+    }
+
     // Verificar stock disponible (usar stock de insumos si está disponible)
     const stockDisponible = insumo.stockInsumos ?? insumo.stock;
     let cantidadAUsar = cantidadInsumo;
@@ -704,8 +714,6 @@ export function EntregaInsumosPage() {
         return;
       }
 
-
-      const numeroEntrega = `ENT${String(Date.now())}`;
       const total = calcularTotalEntrega();
       const insumosActuales = nuevaEntrega.insumos || [];
       const cantidadTotal = insumosActuales.length > 0
@@ -762,9 +770,10 @@ export function EntregaInsumosPage() {
       setCantidadInsumoInput('');
       setTarjetaInputsEntrega({});
       setIsDialogOpen(false);
+      const numeroEntregaCreada = Number((entregaCreada as any)?.id ?? 0);
       created(
         "Entrega creada ✔️",
-        `La entrega ${numeroEntrega} ha sido registrada exitosamente para ${getFullName(barbero?.nombre, barbero?.apellido) || 'Sin asignar'}.`
+        `La entrega #${numeroEntregaCreada > 0 ? numeroEntregaCreada : numeroEntregas} ha sido registrada exitosamente para ${getFullName(barbero?.nombre, barbero?.apellido) || 'Sin asignar'}.`
       );
     } catch (error: any) {
       console.error('Error creando entrega:', error);
@@ -890,8 +899,6 @@ export function EntregaInsumosPage() {
   // Generar reporte PDF individual por entrega
   const generateIndividualEntregaPDF = async (entrega: EntregaInsumo) => {
     try {
-      toast.loading("Generando comprobante PDF...", { id: "loading-pdf" });
-      
       // 1. Asegurarse de tener la data completa (detalles de insumos)
       let entregaFull = entrega;
       const initialDetails = getDetalleInsumosNormalized(entrega);
@@ -921,6 +928,20 @@ export function EntregaInsumosPage() {
       } catch (e) {
         console.warn("No se pudo cargar el logo en el PDF", e);
       }
+
+      const negocioNombre = "Manito BarberShop";
+      const negocioEmail = "Edwainsolano007@gmail.com";
+      const negocioDireccion = "Calle 79 #52 12 Aranjuez, Medellín";
+      const negocioTelefono = "301 4836189";
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(negocioNombre, pageWidth - hMargin, 12, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(negocioEmail, pageWidth - hMargin, 18, { align: "right" });
+      doc.text(negocioDireccion, pageWidth - hMargin, 24, { align: "right" });
+      doc.text(negocioTelefono, pageWidth - hMargin, 30, { align: "right" });
 
       doc.setTextColor(216, 176, 129); // Dorado
       doc.setFont("helvetica", "bold");
@@ -954,6 +975,12 @@ export function EntregaInsumosPage() {
       y += 15;
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
+      doc.text("N. de entrega:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(entregaFull.id ?? 'N/A'), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
       doc.text("Barbero:", hMargin, y);
       doc.setFont("helvetica", "normal");
       doc.text(getBarberoDisplay(entregaFull), hMargin + 40, y);
@@ -977,22 +1004,8 @@ export function EntregaInsumosPage() {
       doc.setFont("helvetica", "normal");
       doc.text(getResponsableDisplay(entregaFull), hMargin + 40, y);
 
-      // Resumen de Totales
-      y += 15;
-      doc.setFillColor(248, 249, 250);
-      doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 22, 2, 2, 'F');
-      
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`TOTAL INSUMOS: ${entregaFull.cantidadTotal} UNIDADES`, pageWidth / 2, y + 8, { align: "center" });
-      
-      doc.setFontSize(14);
-      doc.setTextColor(216, 176, 129);
-      doc.text(`VALOR TOTAL: $ ${formatCurrency(entregaFull.valorTotal)}`, pageWidth / 2, y + 17, { align: "center" });
-
       // --- TABLA DE INSUMOS ---
-      y += 35;
+      y += 15;
       doc.setFontSize(14);
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "bold");
@@ -1050,8 +1063,20 @@ export function EntregaInsumosPage() {
         });
       }
 
+      y += 8;
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFillColor(248, 249, 250);
+      doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 12, 2, 2, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL PRODUCTOS: ${entregaFull.cantidadTotal} UNIDADES`, pageWidth / 2, y + 8, { align: "center" });
+
       // --- PIE DE PÁGINA ---
-      y = 275;
+      y = Math.max(275, y + 18);
       doc.setDrawColor(216, 176, 129);
       doc.line(hMargin, y, pageWidth - hMargin, y);
       
@@ -1066,12 +1091,10 @@ export function EntregaInsumosPage() {
       const fileName = `Entrega_${deliveryId}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
 
-      toast.dismiss("loading-pdf");
-      toast.success("PDF generado exitosamente");
+      created("PDF generado exitosamente", "El comprobante de entrega fue descargado correctamente.");
     } catch (err) {
       console.error("Error generando PDF:", err);
-      toast.dismiss("loading-pdf");
-      toast.error("Error al generar el PDF");
+      error("Error al generar el PDF", "No se pudo generar el comprobante de entrega.");
     }
   };
 
@@ -1327,6 +1350,7 @@ export function EntregaInsumosPage() {
                                   {(() => {
                                     const query = normalizeSearchText(insumoSearchTerm);
                                     const filteredResults = insumos
+                                      .filter(i => canBeUsedInService(i as any))
                                       .filter(i =>
                                         normalizeSearchText([
                                              i.id,

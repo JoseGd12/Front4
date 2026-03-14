@@ -440,8 +440,18 @@ export function VentasPage() {
   const [showAddServicioErrors, setShowAddServicioErrors] = useState(false);
   const [ventaValidationAttempt, setVentaValidationAttempt] = useState(0);
 
-  // Calculate next venta number for display
-  const numeroVenta = ventas.length + 1;
+  const numeroVenta = useMemo(() => {
+    const maxId = (ventas || []).reduce((max, venta) => {
+      const idFromEntity = Number((venta as any)?.id ?? 0);
+      const idFromNumero = Number((venta as any)?.numeroVenta ?? 0);
+      const candidate = Math.max(
+        Number.isFinite(idFromEntity) ? idFromEntity : 0,
+        Number.isFinite(idFromNumero) ? idFromNumero : 0
+      );
+      return candidate > max ? candidate : max;
+    }, 0);
+    return maxId + 1;
+  }, [ventas]);
   const shakeClass = ventaValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
   const noItemsAgregados = (nuevaVenta.productos?.length || 0) === 0 && serviciosAgregados.length === 0;
   const mustChooseProducto = showVentaFormErrors && noItemsAgregados && !servicioSeleccionado;
@@ -1417,7 +1427,8 @@ export function VentasPage() {
       setServiciosAgregados([]);
       setIsDialogOpen(false);
 
-      created("Venta creada ✔️", `La venta #${numeroVenta} ha sido registrada exitosamente por ${formatCurrency(total)}.`);
+      const ventaIdCreada = Number((nuevaVentaCreada as any)?.id ?? (nuevaVentaCreada as any)?.numeroVenta ?? 0);
+      created("Venta creada ✔️", `La venta #${ventaIdCreada > 0 ? ventaIdCreada : numeroVenta} ha sido registrada exitosamente por ${formatCurrency(total)}.`);
     } catch (error: any) {
       console.error('Error creando venta:', error);
       const errorMessage = error?.message || 'Error desconocido al crear la venta';

@@ -40,6 +40,8 @@ import { productoService } from "../../productos/services/productos";
 import { apiService, ApiUser } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import jsPDF from "jspdf";
+import { canBeUsedInService, isSaleOnly } from "../../../shared/utils/usagePolicy";
+import manitoLogo from "../../../assets/Manito.jpeg";
 
 // Función para formatear moneda colombiana con puntos para separar miles
 const formatCurrency = (amount: number): string => {
@@ -296,8 +298,25 @@ export function ComprasPage() {
   const baseErrorGate = (showCompraFormErrors || showAddCompraProductoErrors) && cantidadProducto > 0;
   const showExcesoVentas = baseErrorGate && stockVentas > cantidadProducto;
   const showExcesoEntregas = baseErrorGate && stockInsumos > cantidadProducto;
-  const numeroCompras = 121 + compras.length; 
+  const numeroCompras = useMemo(() => {
+    const maxId = (compras || []).reduce((max, compra) => {
+      const id = Number((compra as any)?.id ?? 0);
+      return Number.isFinite(id) && id > max ? id : max;
+    }, 0);
+    return maxId + 1;
+  }, [compras]);
   // Cargar datos de forma separada y perezosa con cache SWR
+
+  const selectedProductoObj = useMemo(() => {
+    const id = Number(productoSeleccionado);
+    if (!id) return undefined;
+    return productos.find(p => Number(p.id) === id);
+  }, [productoSeleccionado, productos]);
+
+  const esSoloVentaSeleccionado = useMemo(() => {
+    if (!selectedProductoObj) return false;
+    return isSaleOnly(selectedProductoObj as any);
+  }, [selectedProductoObj]);
   const loadCompras = async (useCache = false) => {
     if (useCache) {
       const cached = sessionStorage.getItem('compras_cache');
@@ -755,13 +774,20 @@ export function ComprasPage() {
 
   useEffect(() => {
     const max = Math.max(0, Number.isFinite(cantidadProducto) ? Math.floor(cantidadProducto) : 0);
+    if (esSoloVentaSeleccionado) {
+      setStockVentas(max);
+      setStockInsumos(0);
+      setStockVentasInput(String(max));
+      setStockInsumosInput('0');
+      return;
+    }
     const ventas = Math.max(0, Math.min(Math.floor(stockVentas), max));
     const insumos = Math.max(0, max - ventas);
     setStockVentas(ventas);
     setStockInsumos(insumos);
     setStockVentasInput(String(ventas));
     setStockInsumosInput(String(insumos));
-  }, [cantidadProducto]);
+  }, [cantidadProducto, esSoloVentaSeleccionado]);
 
   const actualizarCantidadProducto = (productId: number, nuevaCantidad: number) => {
     if (nuevaCantidad < 1) return;
@@ -769,7 +795,29 @@ export function ComprasPage() {
     const producto = productosActuales.find(p => p.id === productId);
     if (!producto) return;
 
-    // Mantener la proporción de stocks o ajustar si es necesario
+    if (isSaleOnly(producto as any)) {
+      const nuevoStockVentas = nuevaCantidad;
+      const nuevoStockInsumos = 0;
+      setNuevaCompra({
+        ...nuevaCompra,
+        productos: productosActuales.map(p =>
+          p.id === productId
+            ? { ...p, cantidad: nuevaCantidad, stockVentas: nuevoStockVentas, stockInsumos: nuevoStockInsumos }
+            : p
+        )
+      });
+      setTarjetaInputs((prev) => ({
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          cantidad: String(nuevaCantidad),
+          stockVentas: String(nuevoStockVentas),
+          stockInsumos: String(nuevoStockInsumos)
+        }
+      }));
+      return;
+    }
+
     const diferencia = nuevaCantidad - producto.cantidad;
     let nuevoStockVentas = producto.stockVentas + diferencia;
     let nuevoStockInsumos = producto.stockInsumos;
@@ -848,8 +896,13 @@ export function ComprasPage() {
     if (!producto) return;
 
     const cantidadTotal = Math.max(0, Math.floor(producto.cantidad));
-    const clampedVentas = Math.max(0, Math.min(Math.floor(nuevoStock), cantidadTotal));
-    const clampedInsumos = cantidadTotal - clampedVentas;
+    let clampedVentas = Math.max(0, Math.min(Math.floor(nuevoStock), cantidadTotal));
+    let clampedInsumos = cantidadTotal - clampedVentas;
+
+    if (isSaleOnly(producto as any)) {
+      clampedVentas = cantidadTotal;
+      clampedInsumos = 0;
+    }
 
     setNuevaCompra({
       ...nuevaCompra,
@@ -876,8 +929,13 @@ export function ComprasPage() {
     if (!producto) return;
 
     const cantidadTotal = Math.max(0, Math.floor(producto.cantidad));
-    const clampedInsumos = Math.max(0, Math.min(Math.floor(nuevoStock), cantidadTotal));
-    const clampedVentas = cantidadTotal - clampedInsumos;
+    let clampedInsumos = Math.max(0, Math.min(Math.floor(nuevoStock), cantidadTotal));
+    let clampedVentas = cantidadTotal - clampedInsumos;
+
+    if (isSaleOnly(producto as any)) {
+      clampedInsumos = 0;
+      clampedVentas = cantidadTotal;
+    }
 
     setNuevaCompra({
       ...nuevaCompra,
@@ -999,7 +1057,7 @@ export function ComprasPage() {
 
     setCreatingPurchase(true);
     try {
-      await compraService.createCompra(compraRequest);
+      const compraCreada = await compraService.createCompra(compraRequest);
 
       try {
         const updates = nuevaCompra.productos.map(async (p) => {
@@ -1020,7 +1078,8 @@ export function ComprasPage() {
 
       // El backend ajusta los stocks según los detalles enviados
 
-      created("Compra creada ✔️", `La compra ha sido registrada exitosamente.`);
+      const compraIdCreada = Number((compraCreada as any)?.id ?? 0);
+      created("Compra creada ✔️", `La compra #${compraIdCreada > 0 ? compraIdCreada : numeroCompras} ha sido registrada exitosamente.`);
       setIsDialogOpen(false);
       setNuevaCompra({
         ...inicialNuevaCompra,
@@ -1123,183 +1182,211 @@ export function ComprasPage() {
       let detalles = (compra as any).detalles || [];
       if (!detalles || detalles.length === 0) {
         try {
-          const toastId = toast.loading("Obteniendo detalles de la compra...");
           detalles = await compraService.getDetallesPorCompra(compra.id);
-          toast.dismiss(toastId);
         } catch {
-          toast.error("No se pudieron cargar los detalles de la compra.");
+          showErrorAlert("No se pudieron cargar los detalles de la compra.");
           return;
         }
       }
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const vMargin = 40; // margen superior/inferior
-      const hMargin = 28; // margen lateral reducido
-      let y = vMargin;
+      const hMargin = 20;
+
+      doc.setFillColor(26, 26, 26);
+      doc.rect(0, 0, pageWidth, 65, 'F');
+
+      try {
+        doc.addImage(manitoLogo, 'JPEG', pageWidth / 2 - 12.5, 5, 25, 25);
+      } catch {}
+
+      const negocioNombre = "Manito BarberShop";
+      const negocioEmail = "Edwainsolano007@gmail.com";
+      const negocioDireccion = "Calle 79 #52 12 Aranjuez, Medellín";
+      const negocioTelefono = "301 4836189";
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(28);
+      doc.setFontSize(10);
+      doc.text(negocioNombre, pageWidth - hMargin, 12, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(negocioEmail, pageWidth - hMargin, 18, { align: "right" });
+      doc.text(negocioDireccion, pageWidth - hMargin, 24, { align: "right" });
+      doc.text(negocioTelefono, pageWidth - hMargin, 30, { align: "right" });
+
       doc.setTextColor(216, 176, 129);
-      doc.text("MANITO BARBERSHOP", pageWidth / 2, y, { align: "center" });
-      y += 28;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(20);
-      doc.setTextColor(60, 60, 60);
-      doc.text("Reporte de Compra", pageWidth / 2, y, { align: "center" });
-      y += 18;
-      doc.setFontSize(10);
-      doc.text(`Fecha de generación: ${formatDate(new Date())}`, pageWidth / 2, y, { align: "center" });
-      y += 24;
-      doc.setDrawColor(216, 176, 129);
-      doc.line(hMargin, y, pageWidth - hMargin, y);
-      y += 14;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(60, 60, 60);
-      doc.text("Información General", hMargin, y);
-      y += 10;
-      const info = [
-        ["ID de Compra", String((compra.numeroCompra || "").toString().replace(/^(FC|CPR)-?/i, "") || compra.id)],
-        ["N factura", String((compra.numeroFactura || "N/A").toString().replace(/^(FC|CPR)-?/i, ""))],
-        ["Estado", String(compra.estado || "N/A")],
-        ["Proveedor", String((compra as any).proveedorNombre || "N/A")],
-        ["Responsable", String((compra as any).responsableNombre || "N/A")],
-        ["Fecha de Registro", formatDate((compra as any).fecha)],
-        ["Fecha de Factura", (compra as any).fechaFactura ? formatDate((compra as any).fechaFactura) : "N/A"],
-        ["Método de Pago", String((compra as any).metodoPago || "N/A")]
-      ];
-      const col1X = hMargin;
-      const col2X = pageWidth / 2;
-      doc.setFont("helvetica", "normal");
+      doc.setFontSize(24);
+      doc.text("MANITO BARBERSHOP", pageWidth / 2, 40, { align: "center" });
+
       doc.setFontSize(10);
-      for (const [label, value] of info) {
-        if (y > pageHeight - vMargin - 60) {
-          doc.addPage();
-          y = vMargin;
-        }
-        doc.setTextColor(102, 102, 102);
-        doc.text(`${label}:`, col1X, y);
-        doc.setTextColor(33, 33, 33);
-        doc.text(String(value), col1X + 120, y);
-        y += 16;
-      }
-      y += 4;
+      doc.setTextColor(170, 170, 170);
+      doc.text("Comprobante de Compra", pageWidth / 2, 48, { align: "center" });
+
+      doc.setFillColor(216, 176, 129);
+      doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, 'F');
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      const compraId = String((compra as any).numeroCompra || compra.id || "N/A");
+      doc.text(`COMPRA #${compraId}`, pageWidth / 2, 56.5, { align: "center" });
+
+      let y = 80;
+      doc.setTextColor(40, 40, 40);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMACIÓN GENERAL", hMargin, y);
+
       doc.setDrawColor(216, 176, 129);
-      doc.line(hMargin, y, pageWidth - hMargin, y);
-      y += 14;
-      if (Array.isArray(detalles) && detalles.length > 0) {
-        // se omite el título "Productos" para un diseño más limpio
-        y += 6;
-        const headers = ["Producto", "Cantidad", "P. Unitario", "Subtotal"];
-        const colWidths = [pageWidth * 0.40, pageWidth * 0.15, pageWidth * 0.20, pageWidth * 0.15];
-        const colsX = [
-          hMargin,
-          hMargin + colWidths[0],
-          hMargin + colWidths[0] + colWidths[1],
-          hMargin + colWidths[0] + colWidths[1] + colWidths[2]
-        ];
-        const colRights = [
-          colsX[0] + colWidths[0],
-          colsX[1] + colWidths[1],
-          colsX[2] + colWidths[2],
-          colsX[3] + colWidths[3]
-        ];
-        const headerHeight = 24;
-        const rowHeight = 26;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(255, 255, 255);
-        // Encabezado de tabla con color de marca
-        doc.setFillColor(216, 176, 129);
-        doc.rect(hMargin, y - 14, pageWidth - hMargin * 2, headerHeight, "F");
-        doc.text(headers[0], colsX[0] + 8, y);
-        doc.text(headers[1], colRights[1] - 8, y, { align: "right" });
-        doc.text(headers[2], colRights[2] - 8, y, { align: "right" });
-        doc.text(headers[3], colRights[3] - 8, y, { align: "right" });
-        y += headerHeight;
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(33, 33, 33);
-        let altRow = false;
-        for (const d of detalles) {
-          if (y > pageHeight - vMargin - rowHeight) {
-            doc.addPage();
-            y = vMargin;
-          }
-          if (altRow) {
-            doc.setFillColor(248, 242, 236);
-            doc.rect(hMargin, y - 16, pageWidth - hMargin * 2, rowHeight, "F");
-          }
-          const nombre = String((d as any).productoNombre || (d as any).nombre || "Producto");
-          const cantidad = Number((d as any).cantidad || 0);
-          const punit = Number((d as any).precioUnitario || (d as any).precio || 0);
-          const subtotal = Number((d as any).subtotal || cantidad * punit || 0);
-          const cantidadStr = String(cantidad);
-          doc.text(nombre, colsX[0] + 8, y);
-          doc.text(cantidadStr, colRights[1] - 8, y, { align: "right" });
-          doc.text(`$ ${formatCurrency(punit)}`, colRights[2] - 8, y, { align: "right" });
-          doc.text(`$ ${formatCurrency(subtotal)}`, colRights[3] - 8, y, { align: "right" });
-          y += rowHeight;
-          altRow = !altRow;
-        }
-      }
+      doc.setLineWidth(0.5);
+      doc.line(hMargin, y + 2, 85, y + 2);
+
+      const responsableCompra = getCompraResponsableDisplay(compra as any);
+      const fechaRegistro = formatDate((compra as any).fecha || '');
+      const fechaFactura = (compra as any).fechaFactura ? formatDate((compra as any).fechaFactura) : 'N/A';
+      const numeroCompraRegistro = String((compra as any).id ?? 'N/A');
+
+      y += 15;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("N. de compra:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(numeroCompraRegistro, hMargin + 40, y);
+
       y += 8;
-      if (y > pageHeight - vMargin - 80) {
-        doc.addPage();
-        y = vMargin;
-      }
-      doc.setDrawColor(216, 176, 129);
-      doc.line(hMargin, y, pageWidth - hMargin, y);
-      y += 14;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(60, 60, 60);
-      doc.text("Resumen Financiero", hMargin, y);
-      y += 12;
+      doc.text("Proveedor:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String((compra as any).proveedorNombre || "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Fecha y Hora:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(fechaRegistro, hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Estado:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(compra.estado || "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Responsable:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(responsableCompra, hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Fecha Factura:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(fechaFactura, hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Método Pago:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String((compra as any).metodoPago || "N/A"), hMargin + 40, y);
+
+      const totalItems = Array.isArray(detalles) ? detalles.reduce((sum, d) => sum + Number((d as any).cantidad || 0), 0) : 0;
       const subtotalNum = Number((compra as any).subtotal || 0);
       const ivaNum = Number((compra as any).iva || 0);
       const descuentoNum = Number((compra as any).descuento || 0);
       const totalNum = Number((compra as any).total || subtotalNum + ivaNum - descuentoNum);
-      const totals = [
-        ["Subtotal", `$ ${formatCurrency(subtotalNum)}`],
-        ["IVA", `$ ${formatCurrency(ivaNum)}`],
-        ["Descuento", `- $ ${formatCurrency(descuentoNum)}`],
-        ["TOTAL", `$ ${formatCurrency(totalNum)}`]
-      ];
+      y += 15;
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("DETALLE DE PRODUCTOS", hMargin, y);
+      doc.line(hMargin, y + 2, 87, y + 2);
+
+      y += 12;
+      doc.setFillColor(26, 26, 26);
+      doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, 'F');
+      doc.setTextColor(216, 176, 129);
+      doc.setFontSize(9);
+      doc.text("PRODUCTO", hMargin + 2, y + 6.5);
+      doc.text("CATEGORÍA", hMargin + 60, y + 6.5);
+      doc.text("CANT.", hMargin + 100, y + 6.5, { align: "right" });
+      doc.text("PREC. UNIT", hMargin + 130, y + 6.5, { align: "right" });
+      doc.text("SUBTOTAL", hMargin + 160, y + 6.5, { align: "right" });
+
+      y += 10;
+      doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      totals.forEach(([k, v], idx) => {
-        if (y > pageHeight - vMargin - 60) {
-          doc.addPage();
-          y = vMargin;
-        }
-        const isFinal = idx === totals.length - 1;
-        if (isFinal) {
-          doc.setDrawColor(216, 176, 129);
-          doc.line(hMargin, y - 6, pageWidth - hMargin, y - 6);
-        }
-        doc.setTextColor(102, 102, 102);
-        doc.text(`${k}:`, hMargin, y);
-        doc.setTextColor(isFinal ? 216 : 33, isFinal ? 176 : 33, isFinal ? 129 : 33);
-        doc.setFont(isFinal ? "bold" : "normal");
-        doc.text(String(v), pageWidth - hMargin - 140, y);
-        y += 16;
-      });
-      // Línea divisoria y pie de página coherente con Ventas
-      if (y < pageHeight - vMargin - 40) {
-        y = pageHeight - vMargin - 40;
+
+      if (!Array.isArray(detalles) || detalles.length === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay detalles disponibles para esta compra.", pageWidth / 2, y + 10, { align: "center" });
+      } else {
+        detalles.forEach((item: any, index: number) => {
+          if (y > 250) {
+            doc.addPage();
+            y = 20;
+          }
+
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 249, 250);
+            doc.rect(hMargin, y, pageWidth - (hMargin * 2), 8, 'F');
+          }
+
+          const nombre = String(item?.productoNombre || item?.nombre || 'Producto');
+          const prodId = Number(item?.productoId || item?.id || 0);
+          const prodMatch = productos.find(p => Number(p.id) === prodId);
+          const categoriaRaw = prodMatch ? (prodMatch as any).categoria : (item?.categoria || 'N/A');
+          const categoria = typeof categoriaRaw === 'string' ? categoriaRaw : String(categoriaRaw?.nombre || 'N/A');
+          const cantidad = Number(item?.cantidad || 0);
+          const precioUnitario = Number(item?.precioUnitario || item?.precio || 0);
+          const subtotal = Number(item?.subtotal || (cantidad * precioUnitario) || 0);
+
+          const nombreTruncado = nombre.length > 35 ? `${nombre.substring(0, 32)}...` : nombre;
+          const catTruncada = categoria.length > 20 ? `${categoria.substring(0, 17)}...` : categoria;
+
+          doc.setFontSize(8);
+          doc.text(nombreTruncado, hMargin + 2, y + 5.5);
+          doc.text(catTruncada || 'N/A', hMargin + 60, y + 5.5);
+
+          doc.setFont("helvetica", "bold");
+          doc.text(String(cantidad), hMargin + 100, y + 5.5, { align: "right" });
+          doc.setFont("helvetica", "normal");
+          doc.text(`$${formatCurrency(precioUnitario)}`, hMargin + 125, y + 5.5, { align: "right" });
+          doc.setFont("helvetica", "bold");
+          doc.text(`$${formatCurrency(subtotal)}`, hMargin + 160, y + 5.5, { align: "right" });
+          doc.setFont("helvetica", "normal");
+
+          y += 8;
+        });
       }
+
+      y += 8;
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFillColor(248, 249, 250);
+      doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 22, 2, 2, 'F');
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL INSUMOS: ${totalItems} UNIDADES`, pageWidth / 2, y + 8, { align: "center" });
+      doc.setFontSize(14);
+      doc.setTextColor(216, 176, 129);
+      doc.text(`VALOR TOTAL: $ ${formatCurrency(totalNum)}`, pageWidth / 2, y + 17, { align: "center" });
+
+      y = Math.max(275, y + 28);
       doc.setDrawColor(216, 176, 129);
       doc.line(hMargin, y, pageWidth - hMargin, y);
-      y += 20;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(102, 102, 102);
-      doc.text("Documento generado automáticamente por el Sistema de Gestión - Manito Barbershop", pageWidth / 2, y, { align: "center" });
+
+      y += 8;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Documento generado automáticamente el ${new Date().toLocaleString('es-CO')}`, pageWidth / 2, y, { align: "center" });
+      doc.text("MANITO BARBERSHOP - Sistema de Gestión de Insumos", pageWidth / 2, y + 4, { align: "center" });
       const filename = `Reporte_Compra_${(compra as any).numeroCompra || compra.id}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(filename);
-      toast.success("PDF generado exitosamente");
+      created("PDF generado exitosamente", "El reporte de compra fue descargado correctamente.");
     } catch {
-      toast.error("Error al generar PDF");
+      showErrorAlert("Error al generar PDF", "No se pudo generar el reporte de compra.");
     }
   };
 
@@ -1906,7 +1993,12 @@ export function ComprasPage() {
                       <div className="p-4 bg-orange-primary/10 border border-orange-primary/30 rounded-lg space-y-4">
                         <div className="flex items-center gap-2 text-orange-primary text-sm font-medium">
                           <Boxes className="w-4 h-4" />
-                          <span>Distribución de Stock (debe sumar {cantidadProducto})</span>
+                              <span>Distribución de Stock (debe sumar {cantidadProducto})</span>
+                              {esSoloVentaSeleccionado && (
+                                <span className="ml-2 px-2 py-0.5 text-[11px] rounded bg-gray-dark text-gray-lightest border border-gray-600">
+                                  Producto solo para venta
+                                </span>
+                              )}
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-2">
@@ -1956,6 +2048,7 @@ export function ComprasPage() {
                             <Input
                               type="number"
                               value={stockInsumosInput}
+                                  disabled={esSoloVentaSeleccionado}
                             onKeyDown={(e) => {
                               if (e.key === '-' || e.key === 'e' || e.key === '+' || e.key === '.') {
                                 e.preventDefault();
@@ -1970,6 +2063,7 @@ export function ComprasPage() {
                               }
                             }}
                             onChange={(e) => {
+                                    if (esSoloVentaSeleccionado) return;
                               const cleaned = e.target.value.replace(/\D+/g, '');
                               const max = Math.max(0, Number.isFinite(cantidadProducto) ? cantidadProducto : 0);
                               const clamped = cleaned ? String(Math.min(parseInt(cleaned, 10) || 0, max)) : '';
@@ -2110,12 +2204,17 @@ export function ComprasPage() {
                                       type="number"
                                       min={0}
                                       value={getTarjetaInput(producto, 'stockInsumos')}
+                                      disabled={isSaleOnly(producto as any)}
                                       onKeyDown={(e) => {
                                         if (e.key === '-' || e.key === 'e' || e.key === '+') {
                                           e.preventDefault();
                                         }
                                       }}
                                       onPaste={(e) => {
+                                        if (isSaleOnly(producto as any)) {
+                                          e.preventDefault();
+                                          return;
+                                        }
                                         const text = e.clipboardData?.getData('text') || '';
                                         if (/[^\d]/.test(text)) {
                                           e.preventDefault();
@@ -2124,6 +2223,7 @@ export function ComprasPage() {
                                         }
                                       }}
                                       onChange={(e) => {
+                                        if (isSaleOnly(producto as any)) return;
                                         const cleaned = e.target.value.replace(/-/g, '');
                                         actualizarTarjetaInput(producto.id, 'stockInsumos', cleaned);
                                       }}
