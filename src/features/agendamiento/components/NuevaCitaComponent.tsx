@@ -15,7 +15,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 
 // Datos de servicios y paquetes
 const serviciosIndividuales = [

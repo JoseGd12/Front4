@@ -112,13 +112,24 @@ export default function App() {
             <GlobalAlertContainer />
             <Toaster
               position="bottom-right"
+              theme="dark"
               duration={8000}
               closeButton
+              visibleToasts={6}
+              expand
+              gap={10}
               toastOptions={{
+                classNames: {
+                  toast: "elegante-card !bg-gray-darkest !border-2 !border-gray-dark !text-white-primary !shadow-lg !rounded-xl !pr-10",
+                  title: "!text-white-primary !font-semibold !text-base",
+                  description: "!text-gray-lightest !text-sm !leading-relaxed",
+                  closeButton: "!bg-transparent !border-0 !text-gray-lighter hover:!text-white-primary hover:!bg-gray-darker !rounded-lg"
+                },
                 style: {
                   fontSize: '0.95rem',
                   lineHeight: '1.4',
-                  zIndex: 100000
+                  zIndex: 100000,
+                  pointerEvents: 'auto'
                 },
               }}
             />

@@ -134,9 +134,9 @@ class ProductoService {
       precioCompra: Number(data.PrecioCompra || data.precioCompra || data.Precio || data.precio || 0),
       iva: Number(data.Iva || data.iva || 0),
       porcentajeIva: Number(data.PorcentajeIva || data.porcentajeIva || 0),
-      stockVentas: Number(data.StockVentas || data.stockVentas || 0),
-      stockInsumos: Number(data.StockInsumos || data.stockInsumos || 0),
-      cantidad: Number(data.Cantidad || data.cantidad || 0),
+      stockVentas: Number(data.StockVentas ?? data.stockVentas ?? data.CantidadVentas ?? data.cantidadVentas ?? 0),
+      stockInsumos: Number(data.StockInsumos ?? data.stockInsumos ?? data.CantidadInsumos ?? data.cantidadInsumos ?? 0),
+      cantidad: Number(data.Cantidad ?? data.cantidad ?? data.StockTotal ?? data.stockTotal ?? 0),
       minCantidad: Number(data.MinCantidad || data.minCantidad || data.stockMinimo || 0),
       marca: data.Marca || data.marca || '',
       imagenProduc: data.imagenProduc || data.ImagenProduc || '',
@@ -297,7 +297,32 @@ class ProductoService {
 
     console.log(`📦 Actualizando producto ${id} - CategoriaId final: ${categoriaId}`);
 
-    const apiBody = {
+    let stockVentasFinal = Number(productoData.stockVentas) || 0;
+    let stockInsumosFinal = Number(productoData.stockInsumos) || 0;
+    const usoProducto = (productoData as any).usoProducto;
+    const consolidarStockEnVentas = !!(productoData as any).consolidarStockEnVentas || usoProducto === 'solo_venta';
+
+    if (consolidarStockEnVentas) {
+      stockVentasFinal = stockVentasFinal + stockInsumosFinal;
+      stockInsumosFinal = 0;
+    }
+
+    if (consolidarStockEnVentas && stockInsumosFinal === 0 && id > 0) {
+      try {
+        const productoActual = await this.getProductoById(id);
+        if (productoActual) {
+          const stockVentasActual = Number(productoActual.stockVentas) || 0;
+          const stockInsumosActual = Number(productoActual.stockInsumos) || 0;
+          const totalActual = stockVentasActual + stockInsumosActual;
+          if (stockInsumosActual > 0 && stockVentasFinal <= stockVentasActual) {
+            stockVentasFinal = totalActual;
+          }
+        }
+      } catch {}
+    }
+
+    const totalStockFinal = stockVentasFinal + stockInsumosFinal;
+    const apiBody: any = {
       Id: id,
       Nombre: productoData.nombre,
       Descripcion: productoData.descripcion,
@@ -307,8 +332,18 @@ class ProductoService {
       PrecioCompra: (productoData as any).precioCompra !== undefined
         ? Number((productoData as any).precioCompra)
         : Number(productoData.precioBase),
-      StockVentas: Number(productoData.stockVentas),
-      StockInsumos: Number(productoData.stockInsumos),
+      StockVentas: stockVentasFinal,
+      StockInsumos: stockInsumosFinal,
+      CantidadVentas: stockVentasFinal,
+      CantidadInsumos: stockInsumosFinal,
+      StockTotal: totalStockFinal,
+      Cantidad: totalStockFinal,
+      stockVentas: stockVentasFinal,
+      stockInsumos: stockInsumosFinal,
+      cantidadVentas: stockVentasFinal,
+      cantidadInsumos: stockInsumosFinal,
+      stockTotal: totalStockFinal,
+      cantidad: totalStockFinal,
       StockMinimo: Number(productoData.minCantidad),
       CategoriaId: categoriaId,
       Marca: productoData.marca || '',
@@ -317,12 +352,51 @@ class ProductoService {
       Activo: productoData.activo !== undefined ? !!productoData.activo : true
     };
 
-    const response = await this.request(`/Productos/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(apiBody),
-    });
-    const text = await response.text();
-    const result = text ? JSON.parse(text) : { ...apiBody, id };
+    const doUpdate = async (body: any) => {
+      const response = await this.request(`/Productos/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+      const text = await response.text();
+      return text ? JSON.parse(text) : { ...body, id };
+    };
+
+    const result = await doUpdate(apiBody);
+    const persisted = await this.getProductoById(id);
+    const stockPersistidoCoincide = persisted
+      ? (
+        Number(persisted.stockVentas ?? 0) === Number(stockVentasFinal) &&
+        Number(persisted.stockInsumos ?? 0) === Number(stockInsumosFinal)
+      )
+      : false;
+    if (
+      persisted &&
+      (
+        Number(persisted.stockVentas ?? 0) !== Number(stockVentasFinal) ||
+        Number(persisted.stockInsumos ?? 0) !== Number(stockInsumosFinal)
+      )
+    ) {
+      await doUpdate({
+        ...apiBody,
+        StockVentas: stockVentasFinal,
+        StockInsumos: stockInsumosFinal,
+        StockTotal: totalStockFinal,
+        Cantidad: totalStockFinal
+      });
+      const persistedRetry = await this.getProductoById(id);
+      const stockPersistidoTrasRetry = persistedRetry
+        ? (
+          Number(persistedRetry.stockVentas ?? 0) === Number(stockVentasFinal) &&
+          Number(persistedRetry.stockInsumos ?? 0) === Number(stockInsumosFinal)
+        )
+        : false;
+      if (persistedRetry && stockPersistidoTrasRetry) return persistedRetry;
+      throw new Error('El servidor no persistió la transferencia de stock solicitada. El cambio no se guardó en base de datos.');
+    }
+    if (persisted && stockPersistidoCoincide) return persisted;
+    if (persisted && !stockPersistidoCoincide) {
+      throw new Error('El servidor respondió correctamente pero el stock persistido no coincide con el enviado.');
+    }
     return this.mapFromApiFormat(result);
   }
 
@@ -381,12 +455,21 @@ class ProductoService {
   }
 
   async transferirStock(id: number, cantidad: number, origen: 'ventas' | 'insumos', destino: 'ventas' | 'insumos'): Promise<ApiProducto> {
-    const response = await this.request(`/Productos/${id}/transferir-stock`, {
-      method: 'POST',
-      body: JSON.stringify({ cantidad, origen, destino }),
-    });
-    const result = await response.json();
-    return this.mapFromApiFormat(result);
+    try {
+      const response = await this.request(`/Productos/${id}/transferir-stock`, {
+        method: 'POST',
+        body: JSON.stringify({ cantidad, origen, destino }),
+      });
+      const result = await response.json();
+      return this.mapFromApiFormat(result);
+    } catch {
+      const response = await this.request(`/Productos/${id}/transferir-stock`, {
+        method: 'POST',
+        body: JSON.stringify({ Cantidad: cantidad, Origen: origen, Destino: destino }),
+      });
+      const result = await response.json();
+      return this.mapFromApiFormat(result);
+    }
   }
 
   async searchProductos(query: string): Promise<ApiProducto[]> {

@@ -30,6 +30,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "../../../shared/components/ui/label";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { categoriaService, Categoria } from "../services/categoriaService";
 import { productoService, ApiProducto } from "../../productos/services/productos";
 
@@ -285,17 +288,6 @@ export function CategoriasPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <main className="flex-1 overflow-auto p-8 bg-black-primary flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary mx-auto mb-4"></div>
-          <p className="text-white-primary text-lg">Cargando categorías...</p>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <>
       {/* Header */}
@@ -311,9 +303,8 @@ export function CategoriasPage() {
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         {/* Sección Principal */}
         <div className="elegante-card">
-          {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+          <TableHeaderSection
+            leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
@@ -432,55 +423,33 @@ export function CategoriasPage() {
                   </div>
                 </DialogContent>
               </Dialog>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar categorías..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="elegante-input pl-11 pr-8 w-64"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="elegante-input w-48"
-              >
-                <option value="all">Todos los estados</option>
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Mostrando {displayedCategorias.length} de {filteredCategorias.length} categorías
-              </div>
-            </div>
-          </div>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar categorías..."
+            statusFilter={{
+              value: filterStatus,
+              onChange: (value) => {
+                setFilterStatus(value as "all" | "active" | "inactive");
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "active", label: "Activos" },
+                { value: "inactive", label: "Inactivos" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedCategorias.length} de ${filteredCategorias.length} categorías`}
+            recordsPlacement="left"
+          />
 
           {/* Tabla de Categorías */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
+              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
 
                   <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
@@ -490,19 +459,18 @@ export function CategoriasPage() {
                 </tr>
               </thead>
               <tbody>
-                {displayedCategorias.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-12 text-center">
-                      <Tags className="w-12 h-12 text-gray-medium mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-white-primary mb-2">
-                        No hay categorías
-                      </h3>
-                      <p className="text-gray-lightest">
-                        {searchTerm ? 'No se encontraron categorías con ese criterio de búsqueda.' :
-                            'Comience agregando una nueva categoría.'}
-                      </p>
-                    </td>
-                  </tr>
+                {loading ? (
+                  <TableLoadingStateRow
+                    colSpan={4}
+                    title="Cargando categorías..."
+                  />
+                ) : displayedCategorias.length === 0 ? (
+                  <TableEmptyStateRow
+                    colSpan={4}
+                    title="No se encontraron categorías"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={() => loadCategorias()}
+                  />
                 ) : (
                   displayedCategorias.map((categoria) => (
                     <tr
@@ -515,7 +483,7 @@ export function CategoriasPage() {
                           <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center">
                             <Tags className="w-4 h-4 text-black-primary" />
                           </div>
-                          <span className="font-medium text-white-primary">{categoria.nombre}</span>
+                          <span className="text-medium text-gray-lightest">{categoria.nombre}</span>
                         </div>
                       </td>
                       <td className="py-4 px-4">

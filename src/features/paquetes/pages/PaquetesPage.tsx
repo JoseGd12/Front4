@@ -5,7 +5,6 @@ import {
   Edit,
   ToggleLeft,
   ToggleRight,
-  Search,
   Eye,
   Clock,
   DollarSign,
@@ -22,8 +21,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { apiService, Paquete } from "../../../shared/services/api";
 
 import { servicioService, Servicio } from "../../servicios/services/servicioService";
@@ -46,7 +49,7 @@ export function PaquetesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(8);
+  const [itemsPerPage, setItemsPerPage] = useState(8);
 
   // Servicios disponibles cargados desde la API
   const [serviciosDisponibles, setServiciosDisponibles] = useState<Servicio[]>([]);
@@ -178,7 +181,7 @@ export function PaquetesPage() {
     return matchesSearch && matchesEstado;
   });
 
-  const totalPages = Math.ceil(filteredPaquetes.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredPaquetes.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedPaquetes = filteredPaquetes.slice(startIndex, startIndex + itemsPerPage);
 
@@ -550,8 +553,8 @@ export function PaquetesPage() {
         {viewMode === 'list' && (
           <div className="elegante-card">
             {/* Barra de Controles */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-              <div className="flex flex-wrap items-center gap-4">
+            <TableHeaderSection
+              leftContent={(
                 <button
                   className="elegante-button-primary gap-2 flex items-center"
                   onClick={() => {
@@ -569,58 +572,49 @@ export function PaquetesPage() {
                   <Plus className="w-4 h-4" />
                   Nuevo Paquete
                 </button>
-
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                  <Input
-                    placeholder="Buscar paquetes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="elegante-input pl-11 w-80"
-                  />
-                </div>
-
-                <select
-                  value={filterEstado}
-                  onChange={(e) => setFilterEstado(e.target.value)}
-                  className="elegante-input"
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="activos">Activos</option>
-                  <option value="inactivos">Inactivos</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-lightest">
-                  Mostrando {displayedPaquetes.length} de {filteredPaquetes.length} paquetes
-                </div>
-              </div>
-            </div>
+              )}
+              searchValue={searchTerm}
+              onSearchChange={(value) => {
+                setSearchTerm(value);
+                setCurrentPage(1);
+              }}
+              searchPlaceholder="Buscar paquetes..."
+              statusFilter={{
+                value: filterEstado,
+                onChange: (value) => {
+                  setFilterEstado(value);
+                  setCurrentPage(1);
+                },
+                options: [
+                  { value: "all", label: "Todos" },
+                  { value: "activos", label: "Activos" },
+                  { value: "inactivos", label: "Inactivos" },
+                ],
+              }}
+              recordsText={`Mostrando ${displayedPaquetes.length} de ${filteredPaquetes.length} paquetes`}
+              recordsPlacement="left"
+            />
 
             <div className="overflow-x-auto">
-              {loading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary mx-auto mb-4"></div>
-                  <h3 className="text-lg font-semibold text-white-primary mb-2">Cargando paquetes...</h3>
-                  <p className="text-gray-lightest">Por favor espera un momento</p>
-                </div>
-              ) : (
-                <>
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-dark">
-                        <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                        <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Paquete</th>
-                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
-                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
-                        <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
-                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                        <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedPaquetes.map((paquete) => (
+              <table className="w-full">
+                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+                  <tr className="border-b border-gray-dark">
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Paquete</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
+                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <TableLoadingStateRow
+                      colSpan={7}
+                      title="Cargando paquetes..."
+                    />
+                  ) : displayedPaquetes.length > 0 ? displayedPaquetes.map((paquete) => (
                         <tr key={paquete.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                           <td className="py-4 px-4">
                             <span className="text-gray-lighter">{paquete.nombre}</span>
@@ -698,25 +692,44 @@ export function PaquetesPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {displayedPaquetes.length === 0 && !loading && (
-                    <div className="text-center py-8">
-                      <Gift className="w-16 h-16 text-gray-medium mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white-primary mb-2">No se encontraron paquetes</h3>
-                      <p className="text-gray-lightest">Intenta con otros términos de búsqueda</p>
-                    </div>
+                  )) : (
+                    <TableEmptyStateRow
+                      colSpan={7}
+                      title="No se encontraron paquetes"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={loadPaquetes}
+                    />
                   )}
-                </>
-              )}
+                </tbody>
+              </table>
             </div>
 
             {/* Paginación */}
             <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-lightest">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-lightest">Filas por página:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                      <SelectValue placeholder={itemsPerPage.toString()} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -726,6 +739,32 @@ export function PaquetesPage() {
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-lightest" />
                 </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                          ? 'bg-orange-primary text-black-primary font-medium'
+                          : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                          }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}

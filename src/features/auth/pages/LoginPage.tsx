@@ -7,6 +7,7 @@ import { Eye, EyeOff, Lock, AlertCircle, Mail, ArrowRight } from 'lucide-react';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 import { PasswordResetPage } from './PasswordResetPage';
 import { SimpleCaptcha } from '../components/captcha/index';
+import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
 
@@ -19,6 +20,7 @@ interface LoginPageProps {
 
 export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData, onResetComplete }: LoginPageProps) {
   const { login, loginWithGoogle, resendEmailVerification } = useAuth();
+  const { success } = useCustomAlert();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -125,8 +127,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
     setResetToken('');
     setResetEmail('');
     if (onResetComplete) onResetComplete();
-    // Mostrar mensaje de éxito
-    alert('Contraseña actualizada correctamente. Ya puedes iniciar sesión con tu nueva contraseña.');
+    success('Contraseña actualizada', 'Ya puedes iniciar sesión con tu nueva contraseña.');
   };
 
   if (currentView === 'forgot-password') {

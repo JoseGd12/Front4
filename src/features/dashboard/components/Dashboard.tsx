@@ -192,6 +192,9 @@ const menuSections = [
   },
 ];
 
+// Lista de todos los labels del menú para fallback cuando la API de módulos falla
+const ALL_MENU_LABELS = menuSections.flatMap((s) => s.items.map((i) => i.label));
+
 export function Dashboard() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -229,9 +232,11 @@ export function Dashboard() {
           .filter(m => validModuleIds.includes(m.id.toString()))
           .map(m => m.nombre);
 
-        setAllowedModules(allowedNames);
+        setAllowedModules(allowedNames.length > 0 ? allowedNames : getFallbackModulesForRole(user.role));
       } catch (error) {
         console.error("Error fetching role modules:", error);
+        // Si la API falla (ej. 500), mostrar todos los módulos a admin/super_admin para que pueda usar el sistema
+        setAllowedModules(getFallbackModulesForRole(user.role));
       } finally {
         setLoadingModules(false);
       }
@@ -239,6 +244,17 @@ export function Dashboard() {
 
     fetchModules();
   }, [user]);
+
+  function getFallbackModulesForRole(role: string | undefined): string[] {
+    const r = (role || "").toLowerCase();
+    if (r === "super_admin" || r === "super administrador" || r === "admin" || r === "administrador" || r === "gerente") {
+      return ALL_MENU_LABELS;
+    }
+    if (r === "barbero" || r === "recepcionista" || r === "cajero") {
+      return ["Agendamientos", "Horarios", "Barberos", "Ventas", "Servicios", "Paquetes", "Devoluciones", "Clientes", "Compras", "Productos", "Categorías", "Proveedores", "Entregas de Insumos"];
+    }
+    return ["Agendamientos", "Horarios", "Servicios", "Paquetes", "Clientes"];
+  }
 
   // Filtrar las secciones del menú basado en los módulos permitidos
   const checkModuleAccess = (itemLabel: string) => {

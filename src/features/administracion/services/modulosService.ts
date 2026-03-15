@@ -1,4 +1,5 @@
 const API_BASE_URL = '/api';
+import { auth } from "../../../shared/services/firebase";
 
 /* =======================
    INTERFACE
@@ -24,9 +25,15 @@ class ModulosService {
 
     const url = `${API_BASE_URL}${endpoint}`;
 
+    let token = localStorage.getItem('authToken');
+    if (auth.currentUser) {
+      token = await auth.currentUser.getIdToken();
+    }
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
       ...options,

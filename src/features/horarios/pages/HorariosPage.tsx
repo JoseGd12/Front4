@@ -16,6 +16,7 @@ import {
   ToggleRight,
   ToggleLeft,
   Loader2,
+  Filter,
 } from "lucide-react";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import {
 } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +40,8 @@ import {
   AlertDialogTitle,
 } from "../../../shared/components/ui/alert-dialog";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
 import { horariosService, HorarioBarbero } from "../../agendamiento/services/horariosService";
 
@@ -93,10 +97,9 @@ export function HorariosPage() {
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterBarbero, setFilterBarbero] = useState("all");
-  const [showInactivos] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Estado para el formulario de nuevo horario
   const [nuevoHorario, setNuevoHorario] = useState<{
@@ -190,14 +193,24 @@ export function HorariosPage() {
   };
 
   const filteredHorarios = horarios.filter((horario) => {
-    const matchesSearch = horario.barbero.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesBarbero = filterBarbero === "all" || horario.barberoId.toString() === filterBarbero;
-    const matchesActivo = showInactivos || horario.activo;
-    return matchesSearch && matchesBarbero && matchesActivo;
+    const matchesActivo =
+      statusFilter === "all" ||
+      (statusFilter === "active" ? horario.activo : !horario.activo);
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return matchesActivo;
+    // Buscar en todos los campos mostrados en la tabla: Documento, Barbero, Días, Horas, Bloques, Estado
+    const docStr = `${horario.tipoDocumento ?? ""} ${horario.documento ?? ""}`.toLowerCase();
+    const barberoStr = (horario.barbero ?? "").toLowerCase();
+    const diasStr = [...new Set(horario.bloques.map((b) => b.dia))].join(" ").toLowerCase();
+    const horasStr = horario.bloques.map((b) => `${b.horaInicio} ${b.horaFin}`).join(" ").toLowerCase();
+    const bloquesStr = `${horario.bloques.length} bloque${horario.bloques.length !== 1 ? "s" : ""}`.toLowerCase();
+    const estadoStr = horario.activo ? "activo" : "inactivo";
+    const searchable = [docStr, barberoStr, diasStr, horasStr, bloquesStr, estadoStr].join(" ");
+    return searchable.includes(q) && matchesActivo;
   });
 
   // Paginación
-  const totalPages = Math.ceil(filteredHorarios.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredHorarios.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedHorarios = filteredHorarios.slice(startIndex, startIndex + itemsPerPage);
 
@@ -511,41 +524,60 @@ export function HorariosPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
                 <Input
-                  placeholder="Buscar barbero..."
+                  placeholder="Buscar por documento, barbero, días, horas..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="elegante-input pl-11 w-80"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    title="Limpiar búsqueda"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
-              <select
-                value={filterBarbero}
-                onChange={(e) => setFilterBarbero(e.target.value)}
-                className="elegante-input"
-              >
-                <option value="all">Todos los barberos</option>
-                {barberos.filter(b => b.estado === true).map((barbero) => (
-                  <option key={barbero.id} value={barbero.id}>
-                    {barbero.nombre} {barbero.apellido}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Mostrando {displayedHorarios.length} de {filteredHorarios.length} registros
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <Filter className="w-4 h-4 text-gray-lightest" />
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) => {
+                      setStatusFilter(value as "all" | "active" | "inactive");
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-48 elegante-input">
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark">
+                      <SelectItem value="all" className="text-white-primary">Todos</SelectItem>
+                      <SelectItem value="active" className="text-white-primary">Activos</SelectItem>
+                      <SelectItem value="inactive" className="text-white-primary">Inactivos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="text-sm text-gray-lightest">
+                  Mostrando {displayedHorarios.length} de {filteredHorarios.length} registros
+                </div>
               </div>
             </div>
           </div>
 
           {/* Tabla */}
           <div className="overflow-x-auto">
-            {loading ? (
-              <div className="text-center py-8 text-gray-lightest">Cargando horarios de barberos...</div>
-            ) : (
-              <table className="w-full">
-                <thead>
+            <table className="w-full">
+                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">
                       Documento
@@ -568,7 +600,12 @@ export function HorariosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayedHorarios.map((horario) => (
+                  {loading ? (
+                    <TableLoadingStateRow
+                      colSpan={6}
+                      title="Cargando horarios..."
+                    />
+                  ) : displayedHorarios.length > 0 ? displayedHorarios.map((horario) => (
                     <tr
                       key={horario.id}
                       className="border-b border-gray-dark hover:bg-gray-darker transition-colors"
@@ -647,48 +684,88 @@ export function HorariosPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <TableEmptyStateRow
+                      colSpan={6}
+                      title="No se encontraron horarios"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={loadData}
+                    />
+                  )}
                 </tbody>
               </table>
-            )}
-
-            {!loading && displayedHorarios.length === 0 && (
-              <div className="text-center py-8">
-                <Clock className="w-16 h-16 text-gray-medium mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-white-primary mb-2">
-                  No se encontraron horarios
-                </h3>
-                <p className="text-gray-lightest">
-                  No hay horarios asignados o intenta con otros filtros.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Paginación */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+            <div className="flex items-center gap-4">
               <div className="text-sm text-gray-lightest">
                 Página {currentPage} de {totalPages}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                <span className="text-xs text-gray-lightest">Filas por página:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
                 >
-                  <ChevronLeft className="w-4 h-4 text-gray-lightest" />
-                </button>
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4 text-gray-lightest" />
-                </button>
+                  <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                    <SelectValue placeholder={itemsPerPage.toString()} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-lightest" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                        ? 'bg-orange-primary text-black-primary font-medium'
+                        : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-lightest" />
+              </button>
+            </div>
+          </div>
         </div>
       </main>
 

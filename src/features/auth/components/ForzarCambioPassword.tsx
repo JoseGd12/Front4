@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { auth } from '../../../shared/services/firebase'; // Ruta al config de tu app firebase
 import { updatePassword } from 'firebase/auth'; // Paquete de Firebase Client Auth
 import { apiService } from '../../../shared/services/api'; // Tu servicio de subida Axios/Fetch
+import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 
 interface ForzarCambioPasswordProps {
     reason: 'first_login' | 'expired' | null;
@@ -10,6 +11,7 @@ interface ForzarCambioPasswordProps {
 }
 
 export const ForzarCambioPassword = ({ reason, onComplete, onCancelLogout }: ForzarCambioPasswordProps) => {
+    const { success } = useCustomAlert();
     const [newPwd, setNewPwd] = useState('');
     const [confirmPwd, setConfirmPwd] = useState('');
     const [error, setError] = useState('');
@@ -48,7 +50,7 @@ export const ForzarCambioPassword = ({ reason, onComplete, onCancelLogout }: For
             await user.getIdToken(true);
 
             // ¡Triunfo absoluto!
-            alert("Contraseña actualizada con éxito.");
+            success("Contraseña actualizada", "Tu contraseña se actualizó correctamente.");
             onComplete(); // Regresamos al flujo normal
 
         } catch (err: any) {

@@ -1,19 +1,23 @@
 import React, { useState, useMemo } from 'react';
-import { Package, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Package, Loader2, User } from 'lucide-react';
 import { cn } from "./utils";
+
+export type ImageRendererFallbackVariant = 'person' | 'product';
 
 interface ImageRendererProps {
     url?: string | null;
     alt?: string;
     className?: string;
     showLabel?: boolean;
+    /** 'person' = icono de persona (clientes, barberos, usuarios). 'product' = icono de caja (productos). */
+    fallbackVariant?: ImageRendererFallbackVariant;
 }
 
 /**
  * Componente unificado para renderizar imágenes de productos, servicios, clientes, etc.
  * Maneja automáticamente URLs de Cloudinary, Base64, rutas locales y legacy a través del proxy.
  */
-const ImageRenderer = ({ url, alt = "Imagen", className, showLabel = true }: ImageRendererProps) => {
+const ImageRenderer = ({ url, alt = "Imagen", className, showLabel = true, fallbackVariant = 'product' }: ImageRendererProps) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
@@ -61,7 +65,8 @@ const ImageRenderer = ({ url, alt = "Imagen", className, showLabel = true }: Ima
         console.error('❌ Error al cargar imagen:', normalizedUrl);
     };
 
-    // Renderizar placeholder si no hay URL o si hubo un error
+    // Renderizar placeholder si no hay URL o si hubo un error (siempre el mismo icono Person/Product)
+    const FallbackIcon = fallbackVariant === 'person' ? User : Package;
     if (!normalizedUrl || error) {
         return (
             <div className={cn(
@@ -70,16 +75,14 @@ const ImageRenderer = ({ url, alt = "Imagen", className, showLabel = true }: Ima
                 error ? "border-red-500/20" : ""
             )}>
                 <div className="flex flex-col items-center gap-1.5 opacity-40">
-                    {error ? (
-                        <ImageIcon className="w-5 h-5 text-red-400/60" />
-                    ) : (
-                        <Package className="w-5 h-5 text-gray-400" />
-                    )}
+                    <FallbackIcon className="w-5 h-5 text-gray-400" />
                     {showLabel && (
-                        <>
-                            {!error && <span className="text-[9px] uppercase tracking-wider font-semibold text-gray-500">Sin imagen</span>}
-                            {error && <span className="text-[9px] uppercase tracking-wider font-semibold text-red-400/60">Error</span>}
-                        </>
+                        <span className={cn(
+                            "text-[9px] uppercase tracking-wider font-semibold",
+                            error ? "text-red-400/60" : "text-gray-500"
+                        )}>
+                            {error ? "Error" : "Sin imagen"}
+                        </span>
                     )}
                 </div>
             </div>

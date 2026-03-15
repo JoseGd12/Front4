@@ -23,13 +23,18 @@ import {
   TrendingDown,
   Calendar,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Hash
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../shared/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { devolucionService } from "../services/devolucionService";
 import { ventaService } from "../services/ventaService";
@@ -143,7 +148,7 @@ export function DevolucionesPage() {
   const [selectedDevolucion, setSelectedDevolucion] = useState<Devolucion | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [isPdfPopoverOpen, setIsPdfPopoverOpen] = useState(false);
   const [showDevolucionFormErrors, setShowDevolucionFormErrors] = useState(false);
@@ -435,7 +440,7 @@ export function DevolucionesPage() {
     return matchesSearch && matchesEstado;
   }), [devoluciones, searchTerm, filtroEstado]);
 
-  const totalPages = Math.ceil(filteredDevoluciones.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredDevoluciones.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedDevoluciones = filteredDevoluciones.slice(startIndex, startIndex + itemsPerPage);
 
@@ -1508,9 +1513,8 @@ export function DevolucionesPage() {
 
         {/* Sección Principal */}
         <div className="elegante-card">
-          {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+          <TableHeaderSection
+            leftContent={(
               <button
                 onClick={() => {
                   setShowDevolucionFormErrors(false);
@@ -1521,83 +1525,59 @@ export function DevolucionesPage() {
                 <Plus className="w-4 h-4" />
                 Nueva Devolución
               </button>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar por cualquier campo de la tabla..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="elegante-input pl-11 w-80"
-                />
-              </div>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button className="elegante-button-secondary gap-2 flex items-center">
-                    <Filter className="w-4 h-4" />
-                    Filtrar: {filtroEstado}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 bg-gray-darkest border-gray-dark">
-                  <div className="space-y-2">
-                    <Label className="text-white-primary">Estado</Label>
-                    <div className="grid gap-2">
-                      {['Todos', 'Completada', 'Anulada',].map((estado) => (
-                        <button
-                          key={estado}
-                          onClick={() => setFiltroEstado(estado)}
-                          className={`text-left p-2 rounded text-sm transition-colors ${filtroEstado === estado
-                            ? 'bg-orange-primary text-black-primary'
-                            : 'hover:bg-gray-darker text-gray-lightest'
-                            }`}
-                        >
-                          {estado}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Mostrando {displayedDevoluciones.length} de {filteredDevoluciones.length} devoluciones
-              </div>
-            </div>
-          </div>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por cualquier campo de la tabla..."
+            statusFilter={{
+              value: filtroEstado,
+              onChange: (value) => {
+                setFiltroEstado(value);
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "Todos", label: "Todos" },
+                { value: "Completada", label: "Completadas" },
+                { value: "Anulada", label: "Anuladas" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedDevoluciones.length} de ${filteredDevoluciones.length} devoluciones`}
+            recordsPlacement="left"
+          />
 
           {/* Tabla de Devoluciones - MODIFICADA PARA ELIMINAR COLUMNAS */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-dark">
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuario</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Tipo</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto Devolución</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha de Registro</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center text-gray-lighter">
-                      Cargando devoluciones...
-                    </td>
+                <thead className={isLoading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+                  <tr className="border-b border-gray-dark">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuario</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Tipo</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto Devolución</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha de Registro</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
-                ) : displayedDevoluciones.length > 0 ? (
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <TableLoadingStateRow
+                      colSpan={9}
+                      title="Cargando devoluciones..."
+                    />
+                  ) : displayedDevoluciones.length > 0 ? (
                   displayedDevoluciones.map((devolucion) => (
                     <tr key={devolucion.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                       <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">{devolucion.id}</span>
+                        <div className="flex items-center justify-center gap-2">
+                          <Hash className="w-4 h-4 text-orange-primary" />
+                          <span className="text-gray-lighter">{String(devolucion.id)}</span>
+                        </div>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter">
@@ -1666,36 +1646,55 @@ export function DevolucionesPage() {
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-gray-lightest">
-                      <div className="flex flex-col items-center gap-4">
-                        <RotateCcw className="w-12 h-12 text-gray-medium" />
-                        <div>
-                          <p className="font-medium">No hay devoluciones registradas</p>
-                          <p className="text-sm">Crea tu primera devolución para comenzar</p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setShowDevolucionFormErrors(false);
-                            setIsDialogOpen(true);
-                          }}
-                          className="elegante-button-primary gap-2 flex items-center"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Nueva Devolución
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  <TableEmptyStateRow
+                    colSpan={9}
+                    title="No se encontraron devoluciones"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={loadData}
+                    extraAction={(
+                      <button
+                        onClick={() => {
+                          setShowDevolucionFormErrors(false);
+                          setIsDialogOpen(true);
+                        }}
+                        className="elegante-button-primary gap-2 flex items-center"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Nueva devolución
+                      </button>
+                    )}
+                  />
+                  )}
+                </tbody>
+              </table>
           </div>
 
           {/* Paginación */}
           <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="text-sm text-gray-lightest">
-              Página {currentPage} de {totalPages}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-lightest">Filas por página:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                    <SelectValue placeholder={itemsPerPage.toString()} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1705,6 +1704,32 @@ export function DevolucionesPage() {
               >
                 <ChevronLeft className="w-4 h-4 text-gray-lightest" />
               </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                        ? 'bg-orange-primary text-black-primary font-medium'
+                        : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
@@ -2051,8 +2076,33 @@ export function DevolucionesPage() {
                     setShowVentaResults(true);
                   }}
                   onFocus={() => setShowVentaResults(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowVentaResults(false), 120);
+                  }}
                   className={`elegante-input pl-11 w-full ${showVentaError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
+                {ventaSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVentaSearchTerm('');
+                      setShowVentaResults(false);
+                      setSelectedVentaId(null);
+                      setSelectedBarbero(null);
+                      setSelectedEntrega(null);
+                      setEntregasBarbero([]);
+                      setResumenEntregas([]);
+                      setVentaDetalles([]);
+                      setProductosDeVenta([]);
+                      setProductosInsumosSeleccionados({});
+                      setTipoDevolucion('venta');
+                    }}
+                    title="Limpiar búsqueda"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
 
                 {showVentaResults && ventaSearchTerm.trim() !== "" && (
                   <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">

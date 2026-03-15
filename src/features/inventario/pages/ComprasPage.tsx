@@ -30,9 +30,12 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { compraService, Compra, CreateCompraRequest } from "../services/compraService";
 import { proveedorService, Proveedor } from "../services/proveedorService";
 import { insumosService, Insumo } from "../services/insumosService";
@@ -171,6 +174,7 @@ export function ComprasPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedCompra, setSelectedCompra] = useState<Compra | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "completada" | "anulada">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
@@ -419,19 +423,27 @@ export function ComprasPage() {
   // Memoized filtered compras based on debounced term
   const filteredCompras = useMemo(() => {
     const query = normalizeSearchText(debouncedSearch);
-    if (!query) return compras;
     return compras.filter(compra => {
+      const estadoTxt = String((compra as any).estado || '');
+      const estadoNormalizado = estadoTxt.toLowerCase().trim();
+      const isAnulada = estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado';
+      const isCompletada = estadoNormalizado === 'completada' || estadoNormalizado === 'completado';
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "anulada" && isAnulada) ||
+        (statusFilter === "completada" && isCompletada);
+      if (!matchesStatus) return false;
+      if (!query) return true;
       // Solo campos visibles en la tabla: Número, Documento/NIT, Proveedor, Total, Fecha, Estado
       const numero = String((compra as any).numeroCompra || (compra as any).numeroFactura || (compra as any).id || '');
       const documento = String((compra as any).proveedorDocumento || '');
       const proveedor = String((compra as any).proveedorNombre || '');
       const totalTxt = String((compra as any).total ?? '');
       const fechaTxt = formatDate((compra as any).fecha || '');
-      const estadoTxt = String((compra as any).estado || '');
       const visible = normalizeSearchText([numero, documento, proveedor, totalTxt, fechaTxt, estadoTxt].join(' '));
       return visible.includes(query);
     });
-  }, [compras, debouncedSearch]);
+  }, [compras, debouncedSearch, statusFilter]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredCompras.length / itemsPerPage)), [filteredCompras, itemsPerPage]);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1546,17 +1558,6 @@ export function ComprasPage() {
     toast.success("Reporte HTML generado exitosamente");
   };
 
-  if (loading) {
-    return (
-      <main className="flex-1 overflow-auto p-8 bg-black-primary flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary mx-auto mb-4"></div>
-          <p className="text-white-primary text-lg">Cargando compras...</p>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <>
       <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
@@ -1574,8 +1575,8 @@ export function ComprasPage() {
         </div>
 
         <div className="elegante-card">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+          <TableHeaderSection
+            leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
@@ -1743,6 +1744,20 @@ export function ComprasPage() {
                             }}
                             className={`elegante-input pl-11 w-full ${showCompraFormErrors && !nuevaCompra.proveedorId ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                           />
+                          {proveedorSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProveedorSearchTerm('');
+                                setShowProveedorResults(false);
+                                setNuevaCompra({ ...nuevaCompra, proveedorId: 0 });
+                              }}
+                              title="Limpiar búsqueda"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
                           {(proveedorSearchFocused && showProveedorResults && proveedorSearchTerm.trim() !== "") && (
                             <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
                               {(() => {
@@ -1872,6 +1887,20 @@ export function ComprasPage() {
                             }}
                               className={`elegante-input pl-11 w-full ${showProductoSelectorError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                             />
+                            {productSearchTerm && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProductSearchTerm('');
+                                  setShowProductResults(false);
+                                  setProductoSeleccionado('');
+                                }}
+                                title="Limpiar búsqueda"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
                             {(productSearchFocused && showProductResults && productSearchTerm.trim() !== "") && (
                               <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
                                 {(() => {
@@ -2371,38 +2400,32 @@ export function ComprasPage() {
                   </div>
                 </DialogContent>
               </Dialog>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar por cualquier campo de la tabla..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="elegante-input pl-11 pr-8 w-80"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por cualquier campo de la tabla..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value as "all" | "completada" | "anulada");
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "completada", label: "Completadas" },
+                { value: "anulada", label: "Anuladas" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedCompras.length} de ${filteredCompras.length} compras`}
+            recordsPlacement="left"
+          />
 
           <div className="overflow-x-auto">
             <table className="w-full">
-                  <thead>
+                  <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                     <tr className="border-b border-gray-dark">
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento/NIT Prov.</th>
@@ -2414,7 +2437,12 @@ export function ComprasPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedCompras.length > 0 ? displayedCompras.map((compra) => (
+                    {loading ? (
+                      <TableLoadingStateRow
+                        colSpan={7}
+                        title="Cargando compras..."
+                      />
+                    ) : displayedCompras.length > 0 ? displayedCompras.map((compra) => (
                       <CompraRow
                         key={compra.id}
                         compra={compra as any}
@@ -2424,9 +2452,12 @@ export function ComprasPage() {
                         getEstadoColor={getEstadoColor}
                       />
                     )) : (
-                      <tr>
-                        <td colSpan={7} className="text-center py-4 text-gray-lighter">No se encontraron compras.</td>
-                      </tr>
+                      <TableEmptyStateRow
+                        colSpan={7}
+                        title="No se encontraron compras"
+                        description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                        onReload={() => loadCompras(false)}
+                      />
                     )}
                   </tbody>
                 </table>

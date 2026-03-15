@@ -17,6 +17,7 @@ import {
   Menu
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
+import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
@@ -42,6 +43,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPageProps) {
   const { isAuthenticated } = useAuth();
+  const { info, success } = useCustomAlert();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -142,7 +144,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
   
-  const handleCheckout = () => { if (!isAuthenticated) { onRequestLogin?.(); return; } alert('Redirigiendo al proceso de compra...'); };
+  const handleCheckout = () => {
+    if (!isAuthenticated) { onRequestLogin?.(); return; }
+    info('Proceso de compra', 'Redirigiendo al proceso de compra...');
+  };
   
   const scrollToSection = (id: string) => { 
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -152,7 +157,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) { onRequestLogin?.(); return; }
-    alert('¡Reserva enviada con éxito! Nos pondremos en contacto contigo pronto.');
+    success('Reserva enviada', 'Nos pondremos en contacto contigo pronto.');
     setFormData({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
   };
 

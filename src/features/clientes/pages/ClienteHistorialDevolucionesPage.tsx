@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Eye, Calendar, DollarSign, RotateCcw, Package, Loader2 } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { devolucionService, type Devolucion } from "../../ventas/services/devolucionService";
 import { clientesService } from "../services/clientesService";

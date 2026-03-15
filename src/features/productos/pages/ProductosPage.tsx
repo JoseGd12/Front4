@@ -21,7 +21,8 @@ import {
   Tags,
   Loader2,
   Info,
-  AlertCircle
+  AlertCircle,
+  Filter
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
@@ -29,10 +30,14 @@ import { Label } from "../../../shared/components/ui/label";
 import { Switch } from "../../../shared/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { productoService, ApiProducto } from "../services/productos";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { apiService } from "../../../shared/services/api";
 import { isSaleOnly } from "../../../shared/utils/usagePolicy";
+import { getStoredUsage, saveStoredUsage, removeStoredUsage } from "../utils/usagePersistence";
 
 const formatCurrency = (amount: number): string => {
   return (amount ?? 0).toLocaleString('es-CO');
@@ -92,7 +97,42 @@ export function ProductosPage() {
   const getUsoProductoActual = (producto: any): 'solo_venta' | 'venta_e_insumo' => {
     const uso = (producto as any)?.usoProducto;
     if (uso === 'solo_venta' || uso === 'venta_e_insumo') return uso;
+    const stored = getStoredUsage(Number(producto.id));
+    if (stored) return stored;
     return isSaleOnly(producto as any) ? 'solo_venta' : 'venta_e_insumo';
+  };
+  const normalizarProductosParaUI = (productosRaw: any[], categoriasBase: any[]) => {
+    const categoriaById = new Map<string | number, any>();
+    categoriasBase.forEach((c: any) => {
+      if (c && (c.id !== undefined || c.Id !== undefined)) {
+        const id = c.id ?? c.Id;
+        categoriaById.set(id, c);
+      }
+    });
+    return productosRaw.map((p: any) => {
+      const usoProducto = getUsoProductoActual(p);
+      const stockVentas = Number(p.stockVentas ?? 0);
+      const stockInsumos = Number(p.stockInsumos ?? 0);
+      const cat = p?.categoria;
+      if (cat && !cat.nombre && cat.id) {
+        const found = categoriaById.get(cat.id);
+        if (found?.nombre) {
+          return {
+            ...p,
+            categoria: { id: cat.id, nombre: found.nombre },
+            usoProducto,
+            stockVentas,
+            stockInsumos
+          };
+        }
+      }
+      return {
+        ...p,
+        usoProducto,
+        stockVentas,
+        stockInsumos
+      };
+    });
   };
 
   const isNombreDuplicado = useMemo(() => {
@@ -122,9 +162,7 @@ export function ProductosPage() {
   useEffect(() => {
     if (esSoloVentaNuevoProducto) {
       setNuevoProducto(prev => {
-        const stockTotalActual = editingProducto && editingStockTotal !== null
-          ? editingStockTotal
-          : Number(prev.stockVentas || 0) + Number(prev.stockInsumos || 0);
+        const stockTotalActual = Number(prev.stockVentas || 0) + Number(prev.stockInsumos || 0);
         const stockVentasActual = Number(prev.stockVentas || 0);
         const stockInsumosActual = Number(prev.stockInsumos || 0);
         if (stockInsumosActual === 0 && stockVentasActual === stockTotalActual) {
@@ -156,27 +194,7 @@ export function ProductosPage() {
         ]);
 
         console.log('🔍 Datos cargados - Productos:', productosData.length, 'Categorías:', categoriasData.length);
-        const categoriaById = new Map<string | number, any>();
-        categoriasData.forEach((c: any) => {
-          if (c && (c.id !== undefined || c.Id !== undefined)) {
-            const id = c.id ?? c.Id;
-            categoriaById.set(id, c);
-          }
-        });
-        const enriquecidos = productosData.map((p: any) => {
-          const cat = p?.categoria;
-          if (cat && !cat.nombre && cat.id) {
-            const found = categoriaById.get(cat.id);
-            if (found && found.nombre) {
-              return {
-                ...p,
-                categoria: { id: cat.id, nombre: found.nombre }
-              };
-            }
-          }
-          return p;
-        });
-        setProductos(enriquecidos);
+        setProductos(normalizarProductosParaUI(productosData, categoriasData));
         setCategorias(categoriasData);
       } catch (err: any) {
         console.error('Error loading data:', err);
@@ -190,12 +208,34 @@ export function ProductosPage() {
   }, []);
 
   const filteredProductos = productos.filter(producto => {
-    const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.trim().toLowerCase();
+    const categoriaNombre = typeof producto.categoria === 'string'
+      ? producto.categoria
+      : producto.categoria?.nombre ?? '';
+    const stockVentas = Number(producto.stockVentas ?? 0);
+    const stockInsumos = Number(producto.stockInsumos ?? 0);
+    const stockTotal = stockVentas + stockInsumos;
+    const precioVenta = Number((producto as any).precioVenta ?? producto.precioBase ?? 0);
+    const precioCompra = Number((producto as any).precioCompra ?? 0);
+    const usoLabel = esProductoSoloVenta(producto as any) ? 'solo venta' : 'venta e insumo';
+    const estadoLabel = producto.activo ? 'activo' : 'inactivo';
+    const searchableFields = [
+      String(producto.nombre ?? ''),
+      String(precioVenta),
+      String(precioCompra),
+      String(stockTotal),
+      String(stockInsumos),
+      String(stockVentas),
+      usoLabel,
+      estadoLabel,
+      String(categoriaNombre)
+    ].map(v => v.toLowerCase());
+    const matchesSearch = term === '' || searchableFields.some(value => value.includes(term));
     const matchesCategoria = filterCategoria === "all" || producto.categoria?.nombre === filterCategoria;
     return matchesSearch && matchesCategoria;
   });
 
-  const totalPages = Math.ceil(filteredProductos.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredProductos.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedProductos = filteredProductos.slice(startIndex, startIndex + itemsPerPage);
 
@@ -322,6 +362,11 @@ export function ProductosPage() {
       console.log('📤 Estado completo de nuevoProducto antes de crear:', nuevoProducto);
 
       const productoCreado = await productoService.createProducto(productoData as any);
+      if (productoCreado && productoCreado.id) {
+        const usoInicial = (nuevoProducto as any).usoProducto === 'solo_venta' ? 'solo_venta' : 'venta_e_insumo';
+        saveStoredUsage(Number(productoCreado.id), usoInicial);
+      }
+
       if ((nuevoProducto as any).activo === false && productoCreado && productoCreado.id) {
         try {
           await productoService.toggleProductoActivo(Number(productoCreado.id));
@@ -334,35 +379,7 @@ export function ProductosPage() {
       // Refresh products list
       const productosActualizadosRaw = await productoService.getProductos();
       console.log('📦 Productos actualizados después de crear:', productosActualizadosRaw);
-      const categoriaByIdAfterCreate = new Map<string | number, any>();
-      categorias.forEach((c: any) => {
-        if (c && (c.id !== undefined || c.Id !== undefined)) {
-          const id = c.id ?? c.Id;
-          categoriaByIdAfterCreate.set(id, c);
-        }
-      });
-      const productosActualizados = productosActualizadosRaw.map((p: any) => {
-        const cat = p?.categoria;
-        const usoProductoActualizado = Number(p.id) === Number(productoCreado?.id)
-          ? (esSoloVentaNuevoProducto ? 'solo_venta' : 'venta_e_insumo')
-          : getUsoProductoActual(p);
-        if (cat && !cat.nombre && cat.id) {
-          const found = categoriaByIdAfterCreate.get(cat.id);
-          if (found && found.nombre) {
-            return {
-              ...p,
-              categoria: { id: cat.id, nombre: found.nombre },
-              usoProducto: usoProductoActualizado,
-              stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
-            };
-          }
-        }
-        return {
-          ...p,
-          usoProducto: usoProductoActualizado,
-          stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
-        };
-      });
+      const productosActualizados = normalizarProductosParaUI(productosActualizadosRaw, categorias);
       const productoRecienCreado = productosActualizados.find(p => p.id === productoCreado.id || p.nombre === productoCreado.nombre);
       if (productoRecienCreado) {
         console.log('🔍 Producto recién creado encontrado en lista:', productoRecienCreado);
@@ -461,8 +478,14 @@ export function ProductosPage() {
       }
       const precioVentaFinal = Number((nuevoProducto as any).precioVenta) || 0;
       const precioCompraFinal = Number((nuevoProducto as any).precioCompra) || 0;
-      const stockVentas = Number(nuevoProducto.stockVentas) || 0;
-      const stockInsumos = Number(nuevoProducto.stockInsumos) || 0;
+      const usoProductoFinal = (nuevoProducto as any).usoProducto === 'solo_venta' ? 'solo_venta' : 'venta_e_insumo';
+      const productoId = Number(editingProducto.id);
+      const stockVentasBase = Number(nuevoProducto.stockVentas) || 0;
+      const stockInsumosBase = Number(nuevoProducto.stockInsumos) || 0;
+      const stockVentasFinal = usoProductoFinal === 'solo_venta'
+        ? (editingStockTotal !== null ? Number(editingStockTotal) : (stockVentasBase + stockInsumosBase))
+        : stockVentasBase;
+      const stockInsumosFinal = usoProductoFinal === 'solo_venta' ? 0 : stockInsumosBase;
 
       const selectedCat = categorias.find(c => c.nombre === nuevoProducto.categoria);
 
@@ -473,45 +496,25 @@ export function ProductosPage() {
         categoriaId: selectedCat?.id,
         precioVenta: precioVentaFinal,
         precioCompra: precioCompraFinal,
-        stockVentas,
-        stockInsumos,
+        stockVentas: stockVentasFinal,
+        stockInsumos: stockInsumosFinal,
         minCantidad: nuevoProducto.minCantidad,
         marca: nuevoProducto.marca,
         imagenProduc: nuevoProducto.imagenProduc,
-        activo: nuevoProducto.activo
+        activo: nuevoProducto.activo,
+        usoProducto: usoProductoFinal,
+        consolidarStockEnVentas: usoProductoFinal === 'solo_venta'
       };
 
-      const productoActualizado = await productoService.updateProducto(editingProducto.id, productoData as any);
+      const productoActualizado = await productoService.updateProducto(productoId, productoData as any);
+      if (usoProductoFinal === 'solo_venta') {
+        saveStoredUsage(productoId, 'solo_venta');
+      } else {
+        removeStoredUsage(productoId);
+      }
 
-      // Refresh products list
       const productosActualizadosRaw = await productoService.getProductos();
-      const categoriaByIdAfterUpdate = new Map<string | number, any>();
-      categorias.forEach((c: any) => {
-        const id = c.id ?? c.Id;
-        categoriaByIdAfterUpdate.set(id, c);
-      });
-      const productosActualizados = productosActualizadosRaw.map((p: any) => {
-        const cat = p?.categoria;
-        const usoProductoActualizado = Number(p.id) === Number(editingProducto?.id)
-          ? (esSoloVentaNuevoProducto ? 'solo_venta' : 'venta_e_insumo')
-          : (p as any).usoProducto;
-        if (cat && !cat.nombre && cat.id) {
-          const found = categoriaByIdAfterUpdate.get(cat.id);
-          if (found && found.nombre) {
-            return {
-              ...p,
-              categoria: { id: cat.id, nombre: found.nombre },
-              usoProducto: usoProductoActualizado,
-              stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
-            };
-          }
-        }
-        return {
-          ...p,
-          usoProducto: usoProductoActualizado,
-          stockInsumos: usoProductoActualizado === 'solo_venta' ? 0 : (p.stockInsumos ?? 0)
-        };
-      });
+      const productosActualizados = normalizarProductosParaUI(productosActualizadosRaw, categorias);
       setProductos(productosActualizados);
 
       setEditingProducto(null);
@@ -556,10 +559,9 @@ export function ProductosPage() {
 
     try {
       await productoService.deleteProducto(productoToDelete.id);
-
-      // Refresh products list
+      removeStoredUsage(Number(productoToDelete.id));
       const productosActualizados = await productoService.getProductos();
-      setProductos(productosActualizados);
+      setProductos(normalizarProductosParaUI(productosActualizados, categorias));
 
       setIsDeleteDialogOpen(false);
       const stillExists = productosActualizados.find(p => p.id === productoToDelete.id);
@@ -593,9 +595,8 @@ export function ProductosPage() {
         try {
           if (productoToDelete.activo) {
             await productoService.toggleProductoActivo(productoToDelete.id);
-            // Actualizar lista local
             const productosActualizados = await productoService.getProductos();
-            setProductos(productosActualizados);
+            setProductos(normalizarProductosParaUI(productosActualizados, categorias));
             setIsDeleteDialogOpen(false);
             setProductoToDelete(null);
             error(
@@ -761,20 +762,11 @@ export function ProductosPage() {
 
   return (
     <>
-      {loading ? (
-        <main className="flex-1 overflow-auto p-8 bg-black-primary flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary mx-auto mb-4"></div>
-            <p className="text-white-primary text-lg">Cargando productos...</p>
-          </div>
-        </main>
-      ) : (
-        <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto p-8 bg-black-primary">
           {/* Sección Principal */}
           <div className="elegante-card">
-            {/* Barra de Controles */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-              <div className="flex flex-wrap items-center gap-4">
+            <TableHeaderSection
+              leftContent={(
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <button
@@ -828,7 +820,7 @@ export function ProductosPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-3">
                           <div className="space-y-1.5">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                            <Label className="text-white-primary text-xs flex items-center gap-1.5 py-2">
                               <Tags className="w-3.5 h-3.5 text-orange-primary" />
                               Nombre *
                             </Label>
@@ -859,8 +851,25 @@ export function ProductosPage() {
                                   setShowCategoryResults(true);
                                 }}
                                 onFocus={() => setShowCategoryResults(true)}
+                                onBlur={() => {
+                                  setTimeout(() => setShowCategoryResults(false), 120);
+                                }}
                                 className={`elegante-input h-9 text-sm ${showProductoFormErrors && !nuevoProducto.categoria ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                               />
+                              {categorySearchTerm && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCategorySearchTerm('');
+                                    setShowCategoryResults(false);
+                                    setNuevoProducto({ ...nuevoProducto, categoria: '' });
+                                  }}
+                                  title="Limpiar búsqueda"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
                               {showCategoryResults && categorySearchTerm.trim() !== '' && (
                                 <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar">
                                   {(() => {
@@ -921,45 +930,43 @@ export function ProductosPage() {
                             <button
                               onClick={triggerFileSelect}
                               disabled={uploadingImage}
-                              className="elegante-button-secondary mb-4 px-4 py-2 gap-2 flex items-center text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                              className="elegante-button-secondary  px-4 py-2 gap-2 flex items-center text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                               type="button"
                             >
                               {uploadingImage ? (
                                 <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...</>
                               ) : (
-                                <><Camera className="w-3.5 h-3.5" /> {imagenPreview ? 'Cambiar' : 'Subir Imagen'}</>
+                                <><Camera className="w-4 h-4" /> {imagenPreview ? 'Cambiar' : 'Subir Imagen'}</>
                               )}
                             </button>
                           </div>
-                          <div className="w-full h-52 rounded-lg border-2 border-dashed border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden relative">
+                          <div className={`w-full rounded-lg border-2 border-dashed border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden relative ${imagenPreview ? 'h-52' : 'h-[14rem]'}`}>
                             {uploadingImage ? (
                               <div className="flex flex-col items-center gap-2">
                                 <Loader2 className="w-10 h-10 text-orange-primary animate-spin" />
                                 <span className="text-xs text-gray-lighter">Subiendo...</span>
                               </div>
-                            ) : imagenPreview ? (
+                            ) : (
                               <div className="relative w-full h-full group">
                                 <ImageRenderer
-                                  url={imagenPreview}
+                                  url={imagenPreview ?? undefined}
                                   alt="Vista previa"
                                   className="w-full h-full border-0 bg-transparent"
+                                  fallbackVariant="product"
+                                  showLabel={false}
                                 />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <button
-                                    onClick={removeImage}
-                                    className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors shadow-lg"
-                                    type="button"
-                                    title="Eliminar imagen"
-                                  >
-                                    <X className="w-5 h-5" />
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center text-gray-lighter py-8">
-                                <ImageIcon className="w-14 h-14 mb-2 opacity-30" />
-                                <span className="text-sm font-medium">Sin imagen</span>
-                                <span className="text-xs opacity-50 mt-1">Sube una foto del producto</span>
+                                {imagenPreview && (
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button
+                                      onClick={removeImage}
+                                      className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors shadow-lg"
+                                      type="button"
+                                      title="Eliminar imagen"
+                                    >
+                                      <X className="w-5 h-5" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1176,7 +1183,7 @@ export function ProductosPage() {
                                 ...prev,
                                 usoProducto: value,
                                 stockVentas: value === 'solo_venta'
-                                  ? (editingProducto && editingStockTotal !== null ? editingStockTotal : prev.stockVentas)
+                                  ? Number(prev.stockVentas || 0) + Number(prev.stockInsumos || 0)
                                   : prev.stockVentas,
                                 stockInsumos: value === 'solo_venta' ? 0 : prev.stockInsumos
                               }));
@@ -1191,11 +1198,12 @@ export function ProductosPage() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-white-primary flex items-center gap-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 text-orange-primary" />
                             Estado
                           </Label>
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-3 h-9">
                             <Switch
                               checked={!!(nuevoProducto as any).activo}
                               onCheckedChange={(checked) =>
@@ -1224,63 +1232,68 @@ export function ProductosPage() {
                     </div>
                   </DialogContent>
                 </Dialog>
-
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                  <Input
-                    placeholder="Buscar productos y accesorios..."
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="elegante-input pl-11 pr-8 w-80"
-                  />
-                  {searchTerm && (
-                    <button
-                      type="button"
-                      onClick={() => handleSearchChange('')}
-                      title="Limpiar búsqueda"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+              )}
+              searchValue={searchTerm}
+              onSearchChange={handleSearchChange}
+              searchPlaceholder="Buscar productos y accesorios..."
+              extraFilters={(
+                <div className="flex items-center gap-3">
+                  <Filter className="w-4 h-4 text-gray-lightest" />
+                  <Select
+                    value={filterCategoria}
+                    onValueChange={(value) => handleCategoriaChange(value)}
+                  >
+                    <SelectTrigger className="w-48 elegante-input">
+                      <SelectValue placeholder="Categoría" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark">
+                      <SelectItem value="all" className="text-white-primary">Todas las categorías</SelectItem>
+                      {categorias.map((categoria) => (
+                        <SelectItem key={categoria.id} value={categoria.nombre} className="text-white-primary">
+                          {categoria.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-
-                <select
-                  value={filterCategoria}
-                  onChange={(e) => handleCategoriaChange(e.target.value)}
-                  className="elegante-input w-48"
-                >
-                  <option value="all">Todas las categorías</option>
-                  {categorias.map((categoria) => (
-                    <option key={categoria.id} value={categoria.nombre}>{categoria.nombre}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+              )}
+              recordsText={`Mostrando ${displayedProductos.length} de ${filteredProductos.length} productos`}
+              recordsPlacement="left"
+            />
 
             {/* Tabla de Productos */}
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
+                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
-
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                   
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio venta</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio compra</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock total</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Ventas</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Uso</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm min-w-[8.5rem]">Uso</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
 
 
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm" style={{ paddingLeft: '70px' }}>Acciones</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayedProductos.map((producto) => {
+                  {loading ? (
+                    <TableLoadingStateRow
+                      colSpan={10}
+                      title="Cargando productos..."
+                    />
+                  ) : displayedProductos.length === 0 ? (
+                    <TableEmptyStateRow
+                      colSpan={10}
+                      title="No se encontraron productos"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={() => window.location.reload()}
+                    />
+                  ) : displayedProductos.map((producto) => {
                     const stockTotal = getStockTotal(producto);
                     const stockVentas = producto.stockVentas ?? 0;
                     const stockInsumos = producto.stockInsumos ?? 0;
@@ -1288,11 +1301,13 @@ export function ProductosPage() {
                     const soloVenta = esProductoSoloVenta(producto as any);
                     return (
                       <tr key={producto.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-8  ">
                           <ImageRenderer
                             url={producto.imagenProduc}
                             alt={producto.nombre}
-                            className="w-10 h-10"
+                            className="w-12 h-12 object-cover rounded-lg"
+                            fallbackVariant="product"
+                            showLabel={false}
                           />
                         </td>
 
@@ -1309,17 +1324,20 @@ export function ProductosPage() {
                         <td className="py-4 px-4 text-center">
                           <span className="text-gray-lighter">{stockTotal}</span>
                         </td>
+
                         <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter" style={{ paddingLeft: '20px' }}>
+                          <span className="text-gray-lighter">{stockVentas}</span>
+                        </td>
+
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-gray-lighter" >
                             {soloVenta ? 0 : stockInsumos}
                           </span>
                         </td>
                         
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{stockVentas}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs border ${soloVenta
+                        
+                        <td className="py-4 px-4 text-center min-w-[8.5rem] overflow-visible">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs border whitespace-nowrap ${soloVenta
                             ? 'bg-gray-500/10 text-gray-300 border-gray-600/50'
                             : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                           }`}>
@@ -1385,8 +1403,30 @@ export function ProductosPage() {
             {/* Paginación */}
             {/* Paginación */}
             <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-lightest">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-lightest">Filas por página:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                      <SelectValue placeholder={itemsPerPage.toString()} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1396,6 +1436,32 @@ export function ProductosPage() {
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-lightest" />
                 </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                          ? 'bg-orange-primary text-black-primary font-medium'
+                          : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                          }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
@@ -1529,18 +1595,13 @@ export function ProductosPage() {
                         Imagen del Producto
                       </Label>
                       <div className="w-full min-h-[200px] rounded-lg border-2 border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden">
-                        {selectedProducto.imagenProduc ? (
-                          <ImageRenderer
+                        <ImageRenderer
                             url={selectedProducto.imagenProduc}
                             alt={selectedProducto.nombre}
                             className="w-full h-full min-h-[200px] border-0 bg-transparent"
+                            fallbackVariant="product"
+                            showLabel={false}
                           />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-gray-lighter py-8">
-                            <ImageIcon className="w-14 h-14 mb-2 opacity-50" />
-                            <span className="text-sm">Sin imagen</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -1650,8 +1711,7 @@ export function ProductosPage() {
           </Dialog>
 
           <AlertContainer />
-        </main>
-      )}
+      </main>
     </>
   );
 }

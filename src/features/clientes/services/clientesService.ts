@@ -53,8 +53,20 @@ export interface CreateClienteData {
 const API_BASE_URL = '/api/Clientes';
 const USUARIOS_API_URL = '/api/Usuarios';
 import { apiService, type ApiUser } from '../../../shared/services/api';
+import { auth } from '../../../shared/services/firebase';
 
 class ClientesService {
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    let token: string | null = localStorage.getItem('authToken');
+    if (auth.currentUser) {
+      token = await auth.currentUser.getIdToken();
+    }
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }
+
   // Mapear datos de la API al formato del componente (usando campos aplanados)
   mapApiToComponent(apiCliente: any): Cliente {
     const documentoStr = apiCliente.documento || (apiCliente.usuario?.documento) || '';
@@ -97,7 +109,8 @@ class ClientesService {
   }
 
   async getClientes(): Promise<ClienteAPI[]> {
-    const response = await fetch(API_BASE_URL);
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(API_BASE_URL, { headers });
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     const text = await response.text();
     const data = text ? JSON.parse(text) : [];
@@ -120,7 +133,8 @@ class ClientesService {
   }
 
   async getClienteById(id: number): Promise<ClienteAPI> {
-    const response = await fetch(`${API_BASE_URL}/${id}`);
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/${id}`, { headers });
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
   }
@@ -134,9 +148,10 @@ class ClientesService {
         UsuarioId: clienteData.usuarioId
       };
       console.log('🔵 Creando Perfil Cliente directo en /api/clientes:', apiData.Correo);
+      const headers = await this.getAuthHeaders();
       const response = await fetch(API_BASE_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(apiData)
       });
       if (!response.ok) {
@@ -155,9 +170,10 @@ class ClientesService {
 
     console.log('🔵 Creando Usuario+Cliente vía /api/Usuarios:', apiData.Correo);
 
+    const headers = await this.getAuthHeaders();
     const response = await fetch(USUARIOS_API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(apiData),
     });
 
@@ -192,9 +208,10 @@ class ClientesService {
       Estado: clienteData.estado !== undefined ? clienteData.estado : true
     };
 
+    const headers = await this.getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(apiData),
     });
 
@@ -205,7 +222,8 @@ class ClientesService {
   async deleteCliente(id: number, info?: { correo?: string; documento?: string; tipoDocumento?: string }): Promise<void> {
     // 1) Intentar eliminar perfil Cliente directamente
     try {
-      const response = await fetch(`${API_BASE_URL}/${id}`, { method: 'DELETE' });
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/${id}`, { method: 'DELETE', headers });
       if (response.ok) return;
       const errText = await response.text();
       throw new Error(`Error ${response.status}: ${errText}`);
@@ -249,9 +267,10 @@ class ClientesService {
   }
 
   async toggleClienteEstado(id: number, estado: boolean): Promise<void> {
+    const headers = await this.getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/${id}/estado`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ estado }),
     });
     if (!response.ok) throw new Error(`Error: ${response.status}`);

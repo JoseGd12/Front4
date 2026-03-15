@@ -150,7 +150,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isApiSyncUnavailableError = (errorMessage?: string): boolean => {
     const msg = String(errorMessage || '').toLowerCase();
-    return msg.includes('no se pudo validar tu cuenta en la api');
+    if (msg.includes('no se pudo validar tu cuenta en la api')) return true;
+    if (msg.includes('500') || msg.includes('internal server error') || msg.includes('error del servidor')) return true;
+    if (msg.includes('error creando usuario en la api') || msg.includes('error actualizando usuario en la api')) return true;
+    if (msg.includes('error buscando usuario')) return true;
+    return false;
   };
 
   const buildFirebaseOnlyUser = (

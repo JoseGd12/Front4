@@ -19,21 +19,26 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { rolesApiService, RoleWithModules, CreateRoleData, UpdateRoleData, PermisoModulo } from "../services/rolesApiService";
 import { modulosService, Modulo } from "../services/modulosService";
 
 const API_BASE_URL = '/api';
+import { auth } from "../../../shared/services/firebase";
 
-// Función para obtener headers de autenticación
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken');
+// Headers con token de Firebase (prioridad) o localStorage para compatibilidad
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  let token: string | null = localStorage.getItem('authToken');
+  if (auth.currentUser) {
+    token = await auth.currentUser.getIdToken();
+  }
   return {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` })
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-};
+}
 
 // Interfaz extendida para módulos con propiedades adicionales
 interface ModuloExtendido {
@@ -426,9 +431,10 @@ export function RolesPage() {
   const loadRolesModulosByRole = useCallback(async (roleId: string) => {
     try {
       console.log(`📋 Cargando rolesmodulos para rol ${roleId}...`);
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/RolesModulos/role/${roleId}`, {
         method: 'GET',
-        headers: getAuthHeaders(),
+        headers,
       });
 
       if (!response.ok) {
@@ -712,14 +718,8 @@ export function RolesPage() {
 
           {/* Tabla de Roles */}
           <div className="overflow-x-auto">
-            {loading && roles.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-primary mr-3" />
-                <span className="text-gray-lightest">Cargando roles...</span>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
+            <table className="w-full">
+                <thead className={loading && roles.length === 0 ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuarios</th>
@@ -729,7 +729,12 @@ export function RolesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayedRoles.map((rol) => (
+                  {loading && roles.length === 0 ? (
+                    <TableLoadingStateRow
+                      colSpan={5}
+                      title="Cargando roles..."
+                    />
+                  ) : displayedRoles.map((rol) => (
                     <tr key={rol.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                       <td className="py-4 px-4">
                         <span className="text-gray-lighter">{rol.nombre}</span>
@@ -825,7 +830,6 @@ export function RolesPage() {
                   ))}
                 </tbody>
               </table>
-            )}
           </div>
 
           {/* Paginación */}

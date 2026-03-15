@@ -39,6 +39,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "../../../shared/components/ui/label";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { proveedorService, Proveedor } from "../services/proveedorService";
 import { Switch } from "../../../shared/components/ui/switch";
 import { compraService } from "../services/compraService";
@@ -132,6 +135,7 @@ export function ProveedoresPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedProveedor, setSelectedProveedor] = useState<Proveedor | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [formData, setFormData] = useState({
@@ -611,6 +615,12 @@ export function ProveedoresPage() {
     .trim();
   const term = norm(searchTerm);
   const filteredProveedores = proveedores.filter(p => {
+    const isActive = (p.estado !== undefined ? p.estado : (p as any).activo) !== false;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && isActive) ||
+      (statusFilter === "inactive" && !isActive);
+    if (!matchesStatus) return false;
     if (!term) return true;
     const nombre = norm(p.nombre);
     const nit = norm(p.nit);
@@ -621,21 +631,10 @@ export function ProveedoresPage() {
     return nombre.includes(term) || nit.includes(term) || correo.includes(term) || telefono.includes(term) || fecha.includes(term) || estadoTxt.includes(term);
   });
 
-  const totalPages = Math.ceil(filteredProveedores.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredProveedores.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentProveedores = filteredProveedores.slice(startIndex, endIndex);
-
-  if (loading) {
-    return (
-      <main className="flex-1 overflow-auto p-8 bg-black-primary flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary mx-auto mb-4"></div>
-          <p className="text-white-primary text-lg">Cargando proveedores...</p>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <>
@@ -652,9 +651,8 @@ export function ProveedoresPage() {
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         {/* Sección Principal */}
         <div className="elegante-card">
-          {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+          <TableHeaderSection
+            leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
@@ -1005,45 +1003,33 @@ export function ProveedoresPage() {
                   </form>
                 </DialogContent>
               </Dialog>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar por nombre, NIT, correo o tipo..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="elegante-input pl-11 w-80"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Mostrando {currentProveedores.length} de {filteredProveedores.length} proveedores
-              </div>
-            </div>
-          </div>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por nombre, NIT, correo o tipo..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value as "all" | "active" | "inactive");
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "active", label: "Activos" },
+                { value: "inactive", label: "Inactivos" },
+              ],
+            }}
+            recordsText={`Mostrando ${currentProveedores.length} de ${filteredProveedores.length} proveedores`}
+            recordsPlacement="left"
+          />
 
           {/* Tabla de Proveedores */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
+              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">NIT/Documento</th>
                   <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
@@ -1055,15 +1041,10 @@ export function ProveedoresPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 border-2 border-orange-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <h3 className="text-lg font-medium text-white-primary mb-2">Cargando proveedores...</h3>
-                        <p className="text-gray-lightest">Obteniendo información desde el servidor</p>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableLoadingStateRow
+                    colSpan={6}
+                    title="Cargando proveedores..."
+                  />
                 ) : pageError ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center">
@@ -1079,15 +1060,13 @@ export function ProveedoresPage() {
                     </td>
                   </tr>
                 ) : currentProveedores.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center">
-                      <Truck className="w-12 h-12 text-gray-medium mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-white-primary mb-2">No hay proveedores</h3>
-                      <p className="text-gray-lightest">
-                        {searchTerm ? 'No se encontraron proveedores con ese criterio de búsqueda.' : 'Comience agregando un nuevo proveedor.'}
-                      </p>
-                    </td>
-                  </tr>
+                  <TableEmptyStateRow
+                    colSpan={6}
+                    title="No se encontraron proveedores"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={cargarProveedores}
+                    reloadLabel="Recargar tabla"
+                  />
                 ) : (
                   currentProveedores.map((proveedor) => (
                     <tr
@@ -1170,7 +1149,7 @@ export function ProveedoresPage() {
           </div>
 
           {/* Paginación */}
-          {!pageError && filteredProveedores.length > 0 && (
+          {!pageError && (
             <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-lightest">
@@ -1313,7 +1292,7 @@ export function ProveedoresPage() {
 
                     {/* Estado */}
                     <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs ${proveedor.activo ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                      <span className={`px-2 text-sm py-1 rounded-full text-[2px]  ${proveedor.activo ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
                         {proveedor.activo ? 'Activo' : 'Inactivo'}
                       </span>
                       <button

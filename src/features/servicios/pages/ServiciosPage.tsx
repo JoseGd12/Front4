@@ -1,12 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "../../../shared/components/ui/input";
-import { Scissors, Plus, Edit, Trash2, Search, Eye, ChevronLeft, ChevronRight, ToggleRight, ToggleLeft, Image as ImageIcon, Upload, X } from "lucide-react";
+import { Scissors, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ToggleRight, ToggleLeft, Image as ImageIcon, Upload, X, Loader2, Camera, Info, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
+import { Switch } from "../../../shared/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { apiService, Servicio } from "../../../shared/services/api";
+import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 
 export function ServiciosPage() {
   const { created, edited, deleted, error: showErrorAlert, AlertContainer } = useCustomAlert();
@@ -21,16 +27,20 @@ export function ServiciosPage() {
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [submitting, setSubmitting] = useState(false);
   const [precioServicioInput, setPrecioServicioInput] = useState<string>('');
   const [nombreServicioDuplicado, setNombreServicioDuplicado] = useState(false);
   const [showServicioFormErrors, setShowServicioFormErrors] = useState(false);
   const [servicioValidationAttempt, setServicioValidationAttempt] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDeletingImage, setIsDeletingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const shakeClass = servicioValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
-  const itemsPerPage = 5;
 
   // Cargar servicios desde la API
   const loadServicios = async () => {
@@ -60,21 +70,30 @@ export function ServiciosPage() {
     imagen: ''
   });
 
+  const MAX_IMAGE_MB = 5;
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        showErrorAlert("Archivo demasiado grande", "La imagen no debe superar los 15MB");
-        return;
-      }
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    setImageError(null);
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImageError("Formato no válido. Solo JPG, PNG, GIF o WEBP.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      setImageError(`La imagen no debe superar los ${MAX_IMAGE_MB} MB.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
+
+  const triggerFileSelect = () => fileInputRef.current?.click();
 
   const removeSelectedImage = () => {
     setImageFile(null);
@@ -108,10 +127,13 @@ export function ServiciosPage() {
   const filteredServicios = servicios.filter(servicio => {
     const matchesSearch = servicio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       servicio.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" ? servicio.estado === true : servicio.estado === false);
+    return matchesSearch && matchesStatus;
   });
 
-  const totalPages = Math.ceil(filteredServicios.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredServicios.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedServicios = filteredServicios.slice(startIndex, startIndex + itemsPerPage);
 
@@ -347,8 +369,8 @@ export function ServiciosPage() {
         {/* Tabla de Servicios */}
         <div className="elegante-card">
           {/* Controles y Filtros */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+          <TableHeaderSection
+            leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
@@ -369,31 +391,31 @@ export function ServiciosPage() {
                   </button>
                 </DialogTrigger>
               </Dialog>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar servicios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="elegante-input pl-11 w-80"
-                />
-              </div>
-            </div>
-          </div>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar servicios..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value as "all" | "active" | "inactive");
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "active", label: "Activos" },
+                { value: "inactive", label: "Inactivos" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedServicios.length} de ${filteredServicios.length} servicios`}
+            recordsPlacement="left"
+          />
 
           <div className="overflow-x-auto">
-            {/* Loading State */}
-            {loading && (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary mx-auto mb-4"></div>
-                <h3 className="text-lg font-semibold text-white-primary mb-2">Cargando servicios...</h3>
-                <p className="text-gray-lightest">Por favor espera un momento</p>
-              </div>
-            )}
-
-            {/* Error State */}
-            {error && !loading && (
+            {error ? (
               <div className="text-center py-8">
                 <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-4">
                   <h3 className="text-lg font-semibold text-red-400 mb-2">Error al cargar los servicios</h3>
@@ -406,104 +428,126 @@ export function ServiciosPage() {
                   </button>
                 </div>
               </div>
-            )}
-
-            {/* Data Table */}
-            {!loading && !error && (
-              <>
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-dark">
-                      <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Servicio</th>
-                      <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
-                      <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
-                      <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+            ) : (
+              <table className="w-full">
+                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+                  <tr className="border-b border-gray-dark">
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Servicio</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
+                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
+                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <TableLoadingStateRow
+                      colSpan={5}
+                      title="Cargando servicios..."
+                    />
+                  ) : displayedServicios.length > 0 ? displayedServicios.map((servicio) => (
+                    <tr key={servicio.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-xl bg-gray-medium overflow-hidden flex items-center justify-center border border-gray-dark">
+                            {servicio.imagen ? (
+                              <img src={servicio.imagen} alt={servicio.nombre} className="w-full h-full object-cover" />
+                            ) : (
+                              <Scissors className="w-5 h-5 text-orange-primary" />
+                            )}
+                          </div>
+                          <span className="text-gray-lighter">{servicio.nombre}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-gray-lighter">{servicio.descripcion}</span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter">{servicio.duracion} min</span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <span className="text-gray-lighter">${(servicio.precio ?? 0).toLocaleString('es-CO')}</span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => toggleActivo(servicio.id)}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            title="Cambiar estado"
+                          >
+                            {servicio.estado ? (
+                              <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedServicio(servicio);
+                              setIsDetailDialogOpen(true);
+                            }}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            title="Ver detalles"
+                          >
+                            <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                          </button>
+                          <button
+                            onClick={() => handleEditServicio(servicio)}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteServicio(servicio)}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {displayedServicios.map((servicio) => (
-                      <tr key={servicio.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-medium overflow-hidden flex items-center justify-center border border-gray-dark">
-                              {servicio.imagen ? (
-                                <img src={servicio.imagen} alt={servicio.nombre} className="w-full h-full object-cover" />
-                              ) : (
-                                <Scissors className="w-5 h-5 text-orange-primary" />
-                              )}
-                            </div>
-                            <span className="text-gray-lighter">{servicio.nombre}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="text-gray-lighter">{servicio.descripcion}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{servicio.duracion} min</span>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          <span className="text-gray-lighter">${(servicio.precio ?? 0).toLocaleString('es-CO')}</span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => toggleActivo(servicio.id)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Cambiar estado"
-                            >
-                              {servicio.estado ? (
-                                <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
-                              ) : (
-                                <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedServicio(servicio);
-                                setIsDetailDialogOpen(true);
-                              }}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Ver detalles"
-                            >
-                              <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                            </button>
-                            <button
-                              onClick={() => handleEditServicio(servicio)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Editar"
-                            >
-                              <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteServicio(servicio)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {displayedServicios.length === 0 && (
-                  <div className="text-center py-8">
-                    <Scissors className="w-16 h-16 text-gray-medium mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-white-primary mb-2">No se encontraron servicios</h3>
-                    <p className="text-gray-lightest">Intenta con otros términos de búsqueda</p>
-                  </div>
-                )}
-              </>
+                  )) : (
+                    <TableEmptyStateRow
+                      colSpan={5}
+                      title="No se encontraron servicios"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={loadServicios}
+                      reloadLabel="Recargar tabla"
+                    />
+                  )}
+                </tbody>
+              </table>
             )}
           </div>
 
           {/* Paginación */}
           <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="text-sm text-gray-lightest">
-              Página {currentPage} de {totalPages}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-lightest">Filas por página:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                    <SelectValue placeholder={itemsPerPage.toString()} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -513,6 +557,32 @@ export function ServiciosPage() {
               >
                 <ChevronLeft className="w-4 h-4 text-gray-lightest" />
               </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                        ? 'bg-orange-primary text-black-primary font-medium'
+                        : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
@@ -526,9 +596,10 @@ export function ServiciosPage() {
 
         {/* Dialog de Creación/Edición */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="bg-gray-darkest border-gray-dark max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-white-primary">
+              <DialogTitle className="text-white-primary flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-orange-primary" />
                 {editingServicio ? 'Editar Servicio' : 'Crear Nuevo Servicio'}
               </DialogTitle>
               <DialogDescription className="text-gray-lightest">
@@ -536,244 +607,286 @@ export function ServiciosPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex flex-col items-center mb-6">
-              <div className="relative mb-4">
-                <div className="w-52 h-52 rounded-2xl bg-gray-medium border-2 border-dashed border-gray-dark overflow-hidden flex items-center justify-center transition-all">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center p-4">
-                      <ImageIcon className="w-12 h-12 text-gray-lightest mx-auto mb-2 opacity-30" />
-                      <p className="text-sm text-gray-lightest opacity-50">Sin imagen</p>
-                    </div>
-                  )}
-                </div>
-
-                {(imagePreview || imageFile) && (
-                  <button
-                    onClick={imageFile ? removeSelectedImage : handleDeleteImage}
-                    className="absolute -top-2 -right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg transition-colors z-10"
-                    title="Eliminar imagen"
-                    disabled={isDeletingImage}
-                  >
-                    {isDeletingImage ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <X className="w-4 h-4" />
+            <div className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-white-primary text-xs flex items-center gap-1.5 py-2">
+                      <Scissors className="w-3.5 h-3.5 text-orange-primary" />
+                      Nombre del Servicio *
+                    </Label>
+                    <Input
+                      value={nuevoServicio.nombre}
+                      onChange={(e) => setNuevoServicio({ ...nuevoServicio, nombre: e.target.value })}
+                      placeholder="Ej: Corte Moderno"
+                      className={`elegante-input h-9 text-sm ${
+                        showServicioFormErrors && (!nuevoServicio.nombre.trim() || nombreServicioDuplicado)
+                          ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
+                      }`}
+                    />
+                    {showServicioFormErrors && !nuevoServicio.nombre.trim() && (
+                      <p className="text-[10px] text-red-400 mt-1">Este campo es obligatorio.</p>
                     )}
-                  </button>
-                )}
-              </div>
-              
-              <Label 
-                htmlFor="servicio-imagen" 
-                className="elegante-button-primary w-fit px-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-105 active:scale-95 transition-all text-sm py-1.5"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Subir</span>
-                <input 
-                  id="servicio-imagen" 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
-              </Label>
-              <p className="text-[11px] text-gray-lightest mt-2">Formatos permitidos: JPG, PNG, WEBP (Max. 15MB)</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2 md:col-span-1">
-                <Label className="text-white-primary flex items-center gap-1">
-                  Nombre del Servicio
-                  <span className="text-red-400">*</span>
-                </Label>
-                <Input
-                  value={nuevoServicio.nombre}
-                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, nombre: e.target.value })}
-                  placeholder="Ej: Corte Moderno"
-                  className={`elegante-input ${
-                    showServicioFormErrors &&
-                    (!nuevoServicio.nombre.trim() || nombreServicioDuplicado)
-                      ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                      : ''
-                  }`}
-                />
-                {showServicioFormErrors && !nuevoServicio.nombre.trim() && (
-                  <p className="text-xs text-red-400">Este campo es obligatorio.</p>
-                )}
-                {showServicioFormErrors && nombreServicioDuplicado && nuevoServicio.nombre.trim() && (
-                  <p className="text-xs text-red-400">El nombre ya existe.</p>
-                )}
-              </div>
-              <div className="space-y-2 md:col-span-1">
-                <Label className="text-white-primary flex items-center gap-1">
-                  Precio ($)
-                  <span className="text-red-400">*</span>
-                </Label>
-                <Input
-                  type="number"
-                  value={precioServicioInput}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val.length <= 15) {
-                      setPrecioServicioInput(val);
-                      if (val.trim() === '') {
-                        setNuevoServicio({ ...nuevoServicio, precio: 0 });
-                      } else {
-                        const numero = Number(val);
-                        if (!Number.isNaN(numero)) {
-                          setNuevoServicio({ ...nuevoServicio, precio: Math.max(0, numero) });
+                    {showServicioFormErrors && nombreServicioDuplicado && nuevoServicio.nombre.trim() && (
+                      <p className="text-[10px] text-red-400 mt-1">El nombre ya existe.</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <Scissors className="w-3.5 h-3.5 text-orange-primary" />
+                      Precio ($) *
+                    </Label>
+                    <Input
+                      type="number"
+                      value={precioServicioInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val.length <= 15) {
+                          setPrecioServicioInput(val);
+                          setNuevoServicio(prev => ({
+                            ...prev,
+                            precio: val.trim() === '' ? 0 : Math.max(0, Number(val) || 0)
+                          }));
                         }
-                      }
-                    }
-                  }}
-                  className={`elegante-input no-spin ${showServicioFormErrors && (nuevoServicio.precio || 0) <= 0 ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-                  min="0"
-                  step="100"
+                      }}
+                      className={`elegante-input h-9 text-sm no-spin ${
+                        showServicioFormErrors && (nuevoServicio.precio || 0) <= 0 ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
+                      }`}
+                      min={0}
+                      step={100}
+                    />
+                    {showServicioFormErrors && (nuevoServicio.precio || 0) <= 0 && (
+                      <p className="text-[10px] text-red-400 mt-1">El precio debe ser mayor a cero.</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <Scissors className="w-3.5 h-3.5 text-orange-primary" />
+                      Duración (minutos) *
+                    </Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      step={5}
+                      value={nuevoServicio.duracion || ''}
+                      onChange={(e) => setNuevoServicio({ ...nuevoServicio, duracion: parseInt(e.target.value, 10) || 0 })}
+                      placeholder="Ej: 30"
+                      className={`elegante-input h-9 text-sm no-spin ${
+                        showServicioFormErrors && (nuevoServicio.duracion || 0) <= 0 ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
+                      }`}
+                    />
+                    {showServicioFormErrors && (nuevoServicio.duracion || 0) <= 0 && (
+                      <p className="text-[10px] text-red-400 mt-1">La duración debe ser mayor a 0.</p>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 h-9">
+                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
+                      Imagen del Servicio
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={triggerFileSelect}
+                      disabled={uploadingImage}
+                      className="elegante-button-secondary px-4 py-4 gap-2 flex items-center text-xs disabled:opacity-50 shrink-0"
+                    >
+                      {uploadingImage ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...</>
+                      ) : (
+                        <><Camera className="w-4 h-4" /> {imagePreview ? 'Cambiar' : 'Subir Imagen'}</>
+                      )}
+                    </button>
+                  </div>
+                  <div className={`w-full rounded-lg border-2 border-dashed border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden relative ${imagePreview ? 'h-52' : 'min-h-[280px]'}`}>
+                    {imagePreview ? (
+                      <div className="relative w-full h-full group">
+                        <ImageRenderer
+                          url={imagePreview}
+                          alt="Vista previa"
+                          className="w-full h-full border-0 bg-transparent object-cover"
+                          fallbackVariant="product"
+                          showLabel={false}
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={editingServicio && !imageFile ? handleDeleteImage : removeSelectedImage}
+                            disabled={isDeletingImage}
+                            className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors shadow-lg disabled:opacity-50"
+                            title="Eliminar imagen"
+                          >
+                            {isDeletingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <X className="w-5 h-5" />}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-gray-lightest opacity-50">
+                        <ImageIcon className="w-12 h-12" />
+                        <span className="text-xs">Sin imagen</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-lightest px-1 flex items-center gap-1.5 opacity-80">
+                    <Info className="w-3 h-3 text-orange-primary" />
+                    Tamaño máx: {MAX_IMAGE_MB}MB. Formatos: JPG, PNG, GIF, WEBP.
+                  </p>
+                  {imageError && (
+                    <p className="text-[10px] text-red-400 font-medium">{imageError}</p>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-orange-primary" />
+                  Descripción
+                </Label>
+                <Textarea
+                  value={nuevoServicio.descripcion}
+                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, descripcion: e.target.value })}
+                  placeholder="Describe el servicio detalladamente"
+                  className="elegante-input w-full min-h-[120px] resize-none text-sm"
                 />
-                <div className="flex justify-start mt-1">
-                  <span className="text-xs text-gray-500 font-medium">
-                    {precioServicioInput.length}/15 caracteres
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                  Estado
+                </Label>
+                <div className="flex items-center space-x-3">
+                  <Switch
+                    checked={!!nuevoServicio.estado}
+                    onCheckedChange={(checked) => setNuevoServicio({ ...nuevoServicio, estado: !!checked })}
+                    className="data-[state=checked]:bg-orange-primary"
+                  />
+                  <span className={`text-sm font-medium ${nuevoServicio.estado ? 'text-orange-primary' : 'text-gray-lightest'}`}>
+                    {nuevoServicio.estado ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
-                {showServicioFormErrors && (nuevoServicio.precio || 0) <= 0 && (
-                  <p className="text-xs text-red-400">El precio debe ser mayor a cero.</p>
-                )}
               </div>
-              <div className="space-y-2 md:col-span-1">
-              <Label className="text-white-primary flex items-center gap-1">
-                Duración (minutos)
-                <span className="text-red-400">*</span>
-              </Label>
-              <Input
-                type="number"
-                min={1}
-                step={5}
-                value={nuevoServicio.duracion || ''}
-                onChange={(e) => setNuevoServicio({ ...nuevoServicio, duracion: parseInt(e.target.value, 10) || 0 })}
-                placeholder="Ej: 30"
-                className={`elegante-input no-spin ${showServicioFormErrors && (nuevoServicio.duracion || 0) <= 0 ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-              />
-              {showServicioFormErrors && (nuevoServicio.duracion || 0) <= 0 && (
-                <p className="text-xs text-red-400">La duración debe ser mayor a 0 minutos.</p>
-              )}
-                <p className="text-[11px] text-gray-400 mt-1">Ingresa los minutos manualmente.</p>
-              </div> <div className="space-y-2 md:col-span-1">
-              <Label className="text-white-primary">Descripción</Label>
-                  <Textarea
-                    value={nuevoServicio.descripcion}
-                    onChange={(e) => setNuevoServicio({ ...nuevoServicio, descripcion: e.target.value })}
-                    placeholder="Describe el servicio detalladamente"
-                    className="elegante-input"
-                    rows={3}
-                  /> 
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
+                <button onClick={() => setIsDialogOpen(false)} className="elegante-button-secondary px-6">
+                  Cancelar
+                </button>
+                <button
+                  onClick={editingServicio ? handleUpdateServicio : handleCreateServicio}
+                  className="elegante-button-primary px-8"
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2 inline" />
+                      {editingServicio ? 'Actualizando...' : 'Creando...'}
+                    </>
+                  ) : (
+                    <>{editingServicio ? 'Actualizar' : 'Crear'} Servicio</>
+                  )}
+                </button>
               </div>
-            </div>
-            {/* Vista Previa UI/UX */}
-            <div className="bg-gray-darker p-2 rounded-md border border-gray-dark mt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-lightest text-xs">Vista previa</span>
-                <Scissors className="w-3 h-3 text-orange-primary" />
-              </div>
-              <div className="grid grid-cols-3 gap-2 mt-1">
-                <div>
-                  <p className="text-[10px] text-gray-400">Nombre</p>
-                  <p className="text-white-primary font-medium text-xs truncate">{nuevoServicio.nombre || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400">Duración</p>
-                  <p className="text-white-primary font-medium text-xs">{(nuevoServicio.duracion || 0) > 0 ? `${nuevoServicio.duracion} min` : '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-400">Precio</p>
-                  <p className="text-orange-primary font-semibold text-xs">${(nuevoServicio.precio || 0).toLocaleString('es-CO')}</p>
-                </div>
-              </div>
-              <div className="mt-2">
-                <p className="text-[10px] text-gray-400">Descripción</p>
-                <p className="text-gray-lightest text-xs line-clamp-1">{nuevoServicio.descripcion || '—'}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={nuevoServicio.estado}
-                onChange={(e) => setNuevoServicio({ ...nuevoServicio, estado: e.target.checked })}
-                className="rounded"
-              />
-              <Label className="text-white-primary">Servicio activo</Label>
-            </div>
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-dark mt-6">
-              <button onClick={() => setIsDialogOpen(false)} className="elegante-button-secondary">
-                Cancelar
-              </button>
-              <button
-                onClick={editingServicio ? handleUpdateServicio : handleCreateServicio}
-                className="elegante-button-primary"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {editingServicio ? 'Actualizando...' : 'Creando...'}
-                  </>
-                ) : (
-                  <>{editingServicio ? 'Actualizar' : 'Crear'} Servicio</>
-                )}
-              </button>
             </div>
           </DialogContent>
         </Dialog>
 
         {/* Dialog de Detalle */}
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-          <DialogContent className="bg-gray-darkest border-gray-dark max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-white-primary">Detalle del Servicio</DialogTitle>
+              <DialogTitle className="text-white-primary flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-orange-primary" />
+                Detalle del Servicio
+              </DialogTitle>
               <DialogDescription className="text-gray-lightest">
                 Información completa del servicio
               </DialogDescription>
             </DialogHeader>
             {selectedServicio && (
-              <div className="grid grid-cols-4 gap-6 pt-4">
-                <div className="col-span-4 flex items-center space-x-4 mb-4">
-                  <div className="w-16 h-16 rounded-xl bg-gray-medium overflow-hidden flex items-center justify-center border border-gray-dark shadow-inner">
-                    {selectedServicio.imagen ? (
-                      <img src={selectedServicio.imagen} alt={selectedServicio.nombre} className="w-full h-full object-cover" />
-                    ) : (
-                      <Scissors className="w-8 h-8 text-orange-primary" />
-                    )}
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <Scissors className="w-3.5 h-3.5 text-orange-primary" />
+                        Nombre
+                      </Label>
+                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                        {selectedServicio.nombre}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <Scissors className="w-3.5 h-3.5 text-orange-primary" />
+                        Precio
+                      </Label>
+                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                        ${(selectedServicio.precio ?? 0).toLocaleString('es-CO')}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <Scissors className="w-3.5 h-3.5 text-orange-primary" />
+                        Duración
+                      </Label>
+                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                        {selectedServicio.duracion} min
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        Estado
+                      </Label>
+                      <div className={`elegante-input h-9 text-sm flex items-center px-3 border ${
+                        selectedServicio.estado
+                          ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                          : 'bg-red-500/10 text-red-400 border-red-500/20'
+                      }`}>
+                        {selectedServicio.estado ? 'Activo' : 'Inactivo'}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white-primary">{selectedServicio.nombre}</h3>
+                  <div className="space-y-2">
+                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
+                      Imagen del Servicio
+                    </Label>
+                    <div className="w-full min-h-[200px] rounded-lg border-2 border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden">
+                      <ImageRenderer
+                        url={selectedServicio.imagen}
+                        alt={selectedServicio.nombre}
+                        className="w-full h-full min-h-[200px] border-0 bg-transparent object-cover"
+                        fallbackVariant="product"
+                        showLabel={false}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="col-span-4">
-                  <p className="text-sm text-gray-light mb-2">Descripción del Servicio</p>
-                  <div className="bg-gray-medium p-3 rounded-lg border border-gray-dark">
-                    <p className="text-white-primary">{selectedServicio.descripcion}</p>
+                <div className="space-y-1.5">
+                  <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-orange-primary" />
+                    Descripción
+                  </Label>
+                  <div className="elegante-input w-full min-h-[120px] text-sm p-3 rounded-md border border-gray-dark bg-gray-darker overflow-y-auto">
+                    {selectedServicio.descripcion || 'Sin descripción'}
                   </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-light mb-2">Duración</p>
-                  <p className="font-semibold text-white-primary text-lg">{selectedServicio.duracion} min</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-light mb-2">Precio</p>
-                  <p className="font-semibold text-orange-primary text-lg">${(selectedServicio.precio ?? 0).toLocaleString('es-CO')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-light mb-2">Estado del Servicio</p>
+
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
                   <button
-                    onClick={() => toggleActivo(selectedServicio.id)}
-                    className={`px-3 py-1 rounded-lg text-xs transition-colors bg-gray-medium text-gray-lighter`}
+                    onClick={() => setIsDetailDialogOpen(false)}
+                    className="elegante-button-secondary px-6"
                   >
-                    {selectedServicio.estado ? 'ACTIVO' : 'INACTIVO'}
+                    Cerrar
                   </button>
-                </div>
-                <div>
                 </div>
               </div>
             )}

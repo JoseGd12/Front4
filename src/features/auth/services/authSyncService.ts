@@ -66,6 +66,12 @@ export class AuthSyncService {
       } catch (error) {
         lookupFailed = true;
         console.error('Error buscando usuario existente:', error);
+        if (allowCreateIfMissing) {
+          return {
+            success: false,
+            error: 'No se pudo validar tu cuenta en la API. Intenta nuevamente en unos minutos.'
+          };
+        }
       }
 
       if (lookupFailed && !allowCreateIfMissing) {

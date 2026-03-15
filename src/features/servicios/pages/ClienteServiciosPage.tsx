@@ -3,7 +3,7 @@ import { Search, Star, Clock, DollarSign, Scissors, Check, Calendar, Sparkles, A
 import { Input } from "../../../shared/components/ui/input";
 import { Button } from "../../../shared/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { apiService, Servicio, Paquete } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Loader2, Package } from "lucide-react";

@@ -1,15 +1,5 @@
 const API_BASE_URL = '/api';
-
-const getAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('authToken');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json'
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-};
+import { auth } from "../../../shared/services/firebase";
 
 // Tipos para RolesModulos (Permisos Granulares) - Basado en estructura del backend
 export interface PermisoModulo {
@@ -88,6 +78,17 @@ export interface UpdateRoleData extends CreateRoleData {
 // ==================== SERVICIO ADAPTER ====================
 
 class RolesApiService {
+  private async getHeadersWithFirebaseAuth(): Promise<Record<string, string>> {
+    let token = localStorage.getItem('authToken');
+    if (auth.currentUser) {
+      token = await auth.currentUser.getIdToken();
+    }
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+  }
+
   /**
    * Normaliza la respuesta de la API convirtiendo rolesModulos a array de IDs y extrae permisos
    */
@@ -138,7 +139,8 @@ class RolesApiService {
   async getRolesWithModules(): Promise<RoleWithModules[]> {
     try {
       console.time('🚀 Fetch Roles');
-      const response = await fetch(`${API_BASE_URL}/roles`, { headers: getAuthHeaders() });
+      const headers = await this.getHeadersWithFirebaseAuth();
+      const response = await fetch(`${API_BASE_URL}/Roles`, { headers });
       
       if (!response.ok) throw new Error(`Error roles: ${response.status}`);
 
@@ -162,9 +164,10 @@ class RolesApiService {
    */
   async getRoleById(roleId: number): Promise<RoleWithModules> {
     try {
-      const response = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
+      const headers = await this.getHeadersWithFirebaseAuth();
+      const response = await fetch(`${API_BASE_URL}/Roles/${roleId}`, {
         method: 'GET',
-        headers: getAuthHeaders(),
+        headers,
       });
 
       if (!response.ok) {
@@ -200,9 +203,10 @@ class RolesApiService {
         Estado: true
       };
 
-      const roleResponse = await fetch(`${API_BASE_URL}/roles`, {
+      const headers = await this.getHeadersWithFirebaseAuth();
+      const roleResponse = await fetch(`${API_BASE_URL}/Roles`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers,
         body: JSON.stringify(rolePayload),
       });
 
@@ -237,9 +241,9 @@ class RolesApiService {
 
         console.log(`📤 Enviando asignación módulo ${moduloId}:`, rolesModulosPayload);
 
-        const response = await fetch(`${API_BASE_URL}/rolesmodulos`, {
+        const response = await fetch(`${API_BASE_URL}/RolesModulos`, {
           method: 'POST',
-          headers: getAuthHeaders(),
+          headers,
           body: JSON.stringify(rolesModulosPayload),
         });
 
@@ -282,9 +286,10 @@ class RolesApiService {
         Estado: roleData.estado
       };
 
-      const updateResponse = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
+      const headers = await this.getHeadersWithFirebaseAuth();
+      const updateResponse = await fetch(`${API_BASE_URL}/Roles/${roleId}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
+        headers,
         body: JSON.stringify(updatePayload),
       });
 
@@ -306,9 +311,9 @@ class RolesApiService {
       for (const moduloId of modulosToDelete) {
         const rolesModulo = currentAssignments.find(rm => String((rm as any).moduloId) === String(moduloId));
         if (rolesModulo && (rolesModulo as any).id != null) {
-          await fetch(`${API_BASE_URL}/rolesmodulos/${(rolesModulo as any).id}`, {
+          await fetch(`${API_BASE_URL}/RolesModulos/${(rolesModulo as any).id}`, {
             method: 'DELETE',
-            headers: getAuthHeaders(),
+            headers,
           });
         }
       }
@@ -333,9 +338,9 @@ class RolesApiService {
           PuedeEliminar: permisosDefault.puedeEliminar
         };
 
-        const response = await fetch(`${API_BASE_URL}/rolesmodulos`, {
+        const response = await fetch(`${API_BASE_URL}/RolesModulos`, {
           method: 'POST',
-          headers: getAuthHeaders(),
+          headers,
           body: JSON.stringify(rolesModulosPayload),
         });
 
@@ -349,9 +354,9 @@ class RolesApiService {
         for (const [moduloId, permisos] of Object.entries(roleData.permisos)) {
           const rolesModulo = currentAssignments.find(rm => String((rm as any).moduloId) === String(moduloId));
           if (rolesModulo && (rolesModulo as any).id != null) {
-            const response = await fetch(`${API_BASE_URL}/rolesmodulos/${(rolesModulo as any).id}`, {
+            const response = await fetch(`${API_BASE_URL}/RolesModulos/${(rolesModulo as any).id}`, {
               method: 'PUT',
-              headers: getAuthHeaders(),
+              headers,
               body: JSON.stringify({
                 Id: (rolesModulo as any).id,
                 RolId: typeof roleId === 'string' ? parseInt(roleId, 10) : roleId,
@@ -400,9 +405,10 @@ class RolesApiService {
    */
   async deleteRole(roleId: number): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
+      const headers = await this.getHeadersWithFirebaseAuth();
+      const response = await fetch(`${API_BASE_URL}/Roles/${roleId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers,
       });
 
       if (!response.ok) {
@@ -420,9 +426,10 @@ class RolesApiService {
    */
   async getRoleModules(roleId: number): Promise<RolesModulos[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/rolesmodulos/role/${roleId}`, {
+      const headers = await this.getHeadersWithFirebaseAuth();
+      const response = await fetch(`${API_BASE_URL}/RolesModulos/role/${roleId}`, {
         method: 'GET',
-        headers: getAuthHeaders(),
+        headers,
       });
 
       if (!response.ok) {

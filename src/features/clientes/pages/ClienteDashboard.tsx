@@ -144,6 +144,7 @@ export function ClienteDashboard() {
                   url={user?.fotoPerfil} 
                   className="w-full h-full object-cover"
                   showLabel={false}
+                  fallbackVariant="person"
                 />
               </div>
               <div className="flex flex-col">
@@ -205,6 +206,7 @@ export function ClienteDashboard() {
                       url={user.fotoPerfil} 
                       className="w-full h-full object-cover"
                       showLabel={false}
+                      fallbackVariant="person"
                     />
                   </div>
                   <div>

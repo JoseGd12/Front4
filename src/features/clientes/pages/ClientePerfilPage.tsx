@@ -4,7 +4,7 @@ import { User, Mail, Shield, UserCircle, Briefcase, Phone, MapPin, Calendar, Edi
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { firebaseAuthService } from "../../../shared/services/firebase";
 import { apiService } from "../../../shared/services/api";
@@ -143,17 +143,12 @@ export function ClientePerfilPage() {
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="relative group">
                 <div className="w-32 h-32 bg-gray-darker rounded-full flex items-center justify-center shadow-2xl shadow-orange-primary/20 overflow-hidden border-4 border-gray-darkest">
-                  {user?.fotoPerfil ? (
-                    <ImageRenderer 
-                      url={user.fotoPerfil} 
-                      className="w-full h-full object-cover"
-                      showLabel={false}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-orange-primary">
-                      <User className="w-16 h-16 text-black-primary" />
-                    </div>
-                  )}
+<ImageRenderer
+                    url={user?.fotoPerfil}
+                    className="w-full h-full object-cover"
+                    showLabel={false}
+                    fallbackVariant="person"
+                  />
                 </div>
                 <button 
                   onClick={() => setIsEditDialogOpen(true)}
@@ -338,7 +333,7 @@ export function ClientePerfilPage() {
 
                    <div className="flex items-center gap-4 p-3 bg-black/30 rounded-xl border border-gray-dark">
                       <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-dark border-2 border-orange-primary/20">
-                         <ImageRenderer url={formData.fotoPerfil} className="w-full h-full object-cover" showLabel={false} />
+                         <ImageRenderer url={formData.fotoPerfil} className="w-full h-full object-cover" showLabel={false} fallbackVariant="person" />
                       </div>
                       <div className="flex-1">
                         <p className="text-[10px] font-black text-white-primary uppercase tracking-tight">Vista Previa</p>

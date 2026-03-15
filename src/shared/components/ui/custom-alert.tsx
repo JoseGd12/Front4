@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext, type ReactNode } from "react";
 import { CheckCircle, AlertTriangle, X, Info, AlertCircle, Trash2, Edit, Plus } from "lucide-react";
+import { normalizeNotificationMessage, normalizeNotificationTitle } from "../../utils/notificationText";
 
 export type AlertType = 'success' | 'error' | 'warning' | 'info' | 'created' | 'edited' | 'deleted';
 
@@ -186,11 +187,13 @@ export function useCustomAlert() {
     }
   ) => {
     const id = Date.now().toString();
+    const normalizedTitle = normalizeNotificationTitle(title);
+    const normalizedMessage = normalizeNotificationMessage(message);
     const alert: AlertItem = {
       id,
       type,
-      title,
-      message,
+      title: normalizedTitle,
+      message: normalizedMessage,
       autoClose: options?.autoClose ?? true,
       autoCloseDelay: options?.autoCloseDelay ?? 8000,
     };

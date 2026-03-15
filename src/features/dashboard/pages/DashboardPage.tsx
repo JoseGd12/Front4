@@ -6,6 +6,7 @@ import { useThemeColors } from "../../../shared/utils/themeColors";
 import { Skeleton } from "../../../shared/components/ui/skeleton";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
+import { auth } from "../../../shared/services/firebase";
 import * as XLSX from "xlsx";
 
 type PeriodoClave = "semanal" | "mensual" | "anual";
@@ -57,8 +58,20 @@ type Insumo = {
   categoria?: string | null;
 };
 
+const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  let token = localStorage.getItem("authToken");
+  if (auth.currentUser) {
+    token = await auth.currentUser.getIdToken();
+  }
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> | undefined),
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+  return fetch(url, { ...options, headers });
+};
+
 const getVentas = async (): Promise<Venta[]> => {
-  const dashRes = await fetch("/api/Dashboard").catch(() => null);
+  const dashRes = await fetchWithAuth("/api/Dashboard").catch(() => null);
   if (dashRes && dashRes.ok) {
     const jd = await dashRes.json();
     const lista = Array.isArray(jd?.ventas) ? jd.ventas : [];
@@ -98,7 +111,7 @@ const getVentas = async (): Promise<Venta[]> => {
     });
     return ventasDash;
   }
-  const res = await fetch("/api/Ventas").catch(() => null);
+  const res = await fetchWithAuth("/api/Ventas").catch(() => null);
   if (!res || !res.ok) return [];
   const raw = await res.json();
   const ventasBase: Venta[] = (Array.isArray(raw) ? raw : []).map((v: any) => ({
@@ -119,7 +132,7 @@ const getVentas = async (): Promise<Venta[]> => {
   }));
   const ids = ventasBase.slice(0, 50).map(v => v.id);
   const detallesPorVenta = await Promise.all(ids.map(async id => {
-    const dr = await fetch(`/api/DetallesVenta/venta/${id}`).catch(() => null);
+    const dr = await fetchWithAuth(`/api/DetallesVenta/venta/${id}`).catch(() => null);
     if (!dr || !dr.ok) return { id, detalles: [] as any[] };
     const dj = await dr.json();
     return { id, detalles: Array.isArray(dj) ? dj : [] };
@@ -153,7 +166,7 @@ const getVentas = async (): Promise<Venta[]> => {
 };
 
 const getAgendamientos = async (): Promise<Agendamiento[]> => {
-  const res = await fetch("/api/Agendamientos");
+  const res = await fetchWithAuth("/api/Agendamientos");
   if (!res.ok) return [];
   const raw = await res.json();
   const list = Array.isArray(raw) ? raw : [];
@@ -177,7 +190,7 @@ const getAgendamientos = async (): Promise<Agendamiento[]> => {
 };
 
 const getInsumosBajos = async (): Promise<Insumo[]> => {
-  const res = await fetch("/api/Productos/stock-bajo");
+  const res = await fetchWithAuth("/api/Productos/stock-bajo");
   if (!res.ok) return [];
   const raw = await res.json();
   const list = Array.isArray(raw) ? raw : [];
@@ -1422,8 +1435,30 @@ export function DashboardPage() {
             </div>
           </div>
           {errorMsg && (
-            <div className="rounded-lg border border-red-600/40 bg-red-900/30 text-red-300 px-4 py-2 mb-4">
-              {errorMsg}
+            <div className="rounded-lg border border-red-600/40 bg-red-900/30 text-red-300 px-4 py-3 mb-4 flex flex-wrap items-center justify-between gap-3">
+              <span>{errorMsg}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMsg("");
+                  setIsLoading(true);
+                  Promise.all([
+                    getVentas().catch(() => []),
+                    getAgendamientos().catch(() => []),
+                    getInsumosBajos().catch(() => [])
+                  ]).then(([v, a, i]) => {
+                    setVentas(Array.isArray(v) ? v : []);
+                    setAgendamientos(Array.isArray(a) ? a : []);
+                    setInsumos(Array.isArray(i) ? i : []);
+                  }).catch(() => {
+                    setErrorMsg("No se pudo cargar la información del backend");
+                  }).finally(() => setIsLoading(false));
+                }}
+                className="elegante-button-primary text-sm py-1.5 px-3 gap-1.5 flex items-center"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reintentar
+              </button>
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">

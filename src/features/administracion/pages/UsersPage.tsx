@@ -9,10 +9,12 @@ import {
   Search, UserCheck, UserX, Eye, User as UserIcon, ChevronLeft,
   ChevronRight, MapPin, CreditCard, Home, Camera,
   ToggleRight, ToggleLeft, X, Loader2, IdCard, KeyRound,
-  Users2
+  Users2, Filter
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { apiService, ApiUser } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { clientesService } from "../../clientes/services/clientesService";
@@ -826,7 +828,7 @@ export function UsersPage() {
                       </Label>
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                          <ImageRenderer url={userPreviewUrl} className="w-16 h-16 rounded-full" />
+                          <ImageRenderer url={userPreviewUrl} className="w-16 h-16 rounded-full" fallbackVariant="person" showLabel={false} />
                           {userPreviewUrl && (
                             <button
                               onClick={removeUserProfileImage}
@@ -1062,11 +1064,28 @@ export function UsersPage() {
                 <Input
                   placeholder="Buscar usuarios..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="elegante-input pl-11 w-80"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    title="Limpiar búsqueda"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center gap-3">
+                <Filter className="w-4 h-4 text-gray-lightest" />
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-48 elegante-input">
                     <SelectValue placeholder="Estado" />
@@ -1078,18 +1097,15 @@ export function UsersPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="text-sm text-gray-lightest whitespace-nowrap">
+                Mostrando {displayedUsers.length} de {filteredUsers.length} usuarios
+              </div>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 text-orange-primary animate-spin" />
-                <span className="ml-2 text-gray-lighter">Cargando usuarios...</span>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
+            <table className="w-full">
+                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuario</th>
@@ -1102,20 +1118,18 @@ export function UsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayedUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-12">
-                        <div className="flex flex-col items-center">
-                          <Users className="w-12 h-12 text-gray-lighter mb-4" />
-                          <p className="text-gray-lighter">No se encontraron usuarios</p>
-                          <p className="text-gray-lightest text-sm mt-2">
-                            {searchTerm || filterStatus !== "all"
-                              ? "Intenta ajustar los filtros de búsqueda"
-                              : "Crea tu primer usuario usando el botón 'Nuevo Usuario'"}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
+                  {loading ? (
+                    <TableLoadingStateRow
+                      colSpan={7}
+                      title="Cargando usuarios..."
+                    />
+                  ) : displayedUsers.length === 0 ? (
+                    <TableEmptyStateRow
+                      colSpan={7}
+                      title="No se encontraron usuarios"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={loadInitialData}
+                    />
                   ) : (
                     displayedUsers.map(user => (
                       <tr key={user.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
@@ -1128,12 +1142,17 @@ export function UsersPage() {
                               url={user.imagenUrl}
                               alt={`Foto de ${user.nombres}`}
                               className="w-10 h-10 rounded-full border-2 border-orange-primary shadow-sm"
+                              fallbackVariant="person"
+                              showLabel={false}
                             />
                             <span className="text-gray-lighter">{user.nombres}</span>
                           </div>
                         </td>
                         <td className="text-left py-4 px-4">
-                          <span className="text-gray-lighter">{user.celular || "—"}</span>
+                          <div className="flex flex-col">
+                            <span className="text-gray-lighter text-sm">{user.correo || '—'}</span>
+                            <span className="text-gray-lightest text-xs">{user.celular || '—'}</span>
+                          </div>
                         </td>
                         <td className="text-left py-4 px-4">
                           <span className="text-gray-lighter">
@@ -1144,7 +1163,7 @@ export function UsersPage() {
                           <span className="text-gray-lighter">{user.direccion || "—"}</span>
                         </td>
                         <td className="text-center py-4 px-4">
-                          <span className={`px-3 py-1 rounded-full text-[2px]   ${user.status ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                          <span className={`px-2 text-xs py-1 rounded-full text-[2px]   ${user.status ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
                             {user.status ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
@@ -1209,26 +1228,78 @@ export function UsersPage() {
                   )}
                 </tbody>
               </table>
-            )}
           </div>
 
           {/* Paginación */}
           <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="text-sm text-gray-lightest">
-              Página {currentPage} de {totalPages}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-lightest">Filas por página:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                    <SelectValue placeholder={itemsPerPage.toString()} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Página anterior"
               >
                 <ChevronLeft className="w-4 h-4 text-gray-lightest" />
               </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                        ? 'bg-orange-primary text-black-primary font-medium'
+                        : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
                 className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Página siguiente"
               >
                 <ChevronRight className="w-4 h-4 text-gray-lightest" />
               </button>
@@ -1303,7 +1374,7 @@ export function UsersPage() {
                       Foto de Perfil
                     </Label>
                     <div className="flex items-center gap-3">
-                      <ImageRenderer url={selectedUser.imagenUrl} className="w-16 h-16 rounded-full" />
+                      <ImageRenderer url={selectedUser.imagenUrl} className="w-16 h-16 rounded-full" fallbackVariant="person" showLabel={false} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4">

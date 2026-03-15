@@ -26,7 +26,8 @@ import {
   UserX,
   Trash2,
   FileText,
-  Hash
+  Hash,
+  Filter
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
@@ -35,6 +36,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { notifyEntityCreated } from "../../../shared/services/notificationService";
 import { AppRole } from "../../auth/services/authSyncService";
@@ -261,7 +265,7 @@ export function ClientesPage() {
     return searchMatch && statusMatch;
   });
 
-  const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredClientes.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedClientes = filteredClientes.slice(startIndex, startIndex + itemsPerPage);
 
@@ -933,9 +937,8 @@ export function ClientesPage() {
 
         {/* Sección Principal */}
         <div className="elegante-card">
-          {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+          <TableHeaderSection
+            leftContent={(
               <button
                 onClick={handleCreateClick}
                 className="elegante-button-primary gap-2 flex items-center"
@@ -943,126 +946,127 @@ export function ClientesPage() {
                 <UserPlus className="w-4 h-4" />
                 Añadir Cliente
               </button>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar por documento, nombre, email o teléfono"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="elegante-input pl-11 w-80"
-                />
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por documento, nombre, email o teléfono"
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value as "all" | "active" | "inactive");
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "active", label: "Activos" },
+                { value: "inactive", label: "Inactivos" },
+              ],
+            }}
+            rightContent={(
+              <div className="flex items-center space-x-2">
+                {searchTerm && (
+                  <div className="flex items-center space-x-2 px-3 py-1 bg-orange-primary/20 border border-orange-primary rounded-full">
+                    <Search className="w-3 h-3 text-orange-primary" />
+                    <span className="text-xs text-orange-primary font-medium">
+                      "{searchTerm}"
+                    </span>
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="text-orange-primary hover:text-orange-secondary"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+                {statusFilter !== 'all' && (
+                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${statusFilter === 'active'
+                    ? 'bg-green-600/20 border-green-600 text-green-400'
+                    : 'bg-red-600/20 border-red-600 text-red-400'
+                    }`}>
+                    {statusFilter === 'active' ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
+                    <span className="text-xs font-medium">
+                      {statusFilter === 'active' ? 'Activos' : 'Inactivos'}
+                    </span>
+                    <button
+                      onClick={() => setStatusFilter('all')}
+                      className="hover:opacity-70"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
               </div>
-
-              {/* Filtros de Estado */}
-              <div className="flex items-center">
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                  <SelectTrigger className="w-48 elegante-input">
-                    <SelectValue placeholder="Estado" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-darkest border-gray-dark">
-                    <SelectItem value="all" className="text-white-primary">Todos</SelectItem>
-                    <SelectItem value="active" className="text-white-primary">Activos</SelectItem>
-                    <SelectItem value="inactive" className="text-white-primary">Inactivos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Información de filtros activos */}
-            <div className="flex items-center space-x-4">
-              {(searchTerm || statusFilter !== 'all') && (
-                <div className="flex items-center space-x-2">
-                  {searchTerm && (
-                    <div className="flex items-center space-x-2 px-3 py-1 bg-orange-primary/20 border border-orange-primary rounded-full">
-                      <Search className="w-3 h-3 text-orange-primary" />
-                      <span className="text-xs text-orange-primary font-medium">
-                        "{searchTerm}"
-                      </span>
-                      <button
-                        onClick={() => setSearchTerm('')}
-                        className="text-orange-primary hover:text-orange-secondary"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                  {statusFilter !== 'all' && (
-                    <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${statusFilter === 'active'
-                      ? 'bg-green-600/20 border-green-600 text-green-400'
-                      : 'bg-red-600/20 border-red-600 text-red-400'
-                      }`}>
-                      {statusFilter === 'active' ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
-                      <span className="text-xs font-medium">
-                        {statusFilter === 'active' ? 'Activos' : 'Inactivos'}
-                      </span>
-                      <button
-                        onClick={() => setStatusFilter('all')}
-                        className="hover:opacity-70"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <span className="text-sm text-gray-lightest">
-                {filteredClientes.length} cliente{filteredClientes.length !== 1 ? 's' : ''}
-                {(searchTerm || statusFilter !== 'all') && ` (de ${clientes.length} total)`}
-              </span>
-            </div>
-          </div>
+            )}
+            recordsText={`Mostrando ${displayedClientes.length} de ${filteredClientes.length} clientes`}
+            recordsPlacement="left"
+          />
 
           {/* Tabla de Clientes */}
           <div className="overflow-x-auto">
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="w-8 h-8 border-4 border-orange-primary border-t-transparent rounded-full animate-spin mr-3"></div>
-                <span className="text-white-primary">Cargando clientes...</span>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Documento</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Cliente</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Teléfono</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Saldo a Favor</th>
-                    <th className="text-right py-3 px-4 text-gray-lightest font-medium text-sm">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedClientes.map((cliente) => (
+            <table className="w-full">
+              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+                <tr className="border-b border-gray-dark">
+                  <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Documento</th>
+                  <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Cliente</th>
+                  <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Contacto</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Saldo a Favor</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <TableLoadingStateRow
+                    colSpan={6}
+                    title="Cargando clientes..."
+                  />
+                ) : displayedClientes.length === 0 ? (
+                  <TableEmptyStateRow
+                    colSpan={6}
+                    title="No se encontraron clientes"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={loadClientes}
+                  />
+                ) : (
+                  displayedClientes.map((cliente) => (
                     <tr key={cliente.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-left">
                         <div className="flex items-center space-x-2">
                           <IdCard className="w-4 h-4 text-orange-primary" />
                           <span className="text-gray-lighter">{cliente.numeroDocumento}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-left">
                         <div className="flex items-center space-x-3">
                           <ImageRenderer
                             url={cliente.fotoPerfil}
                             alt={`Foto de ${cliente.nombre}`}
                             className="w-10 h-10 rounded-full border-2 border-orange-primary"
+                            fallbackVariant="person"
+                            showLabel={false}
                           />
                           <span className="text-gray-lighter">{cliente.nombre} {cliente.apellido}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
-                        <span className="text-gray-lighter">{cliente.telefono}</span>
+                      <td className="py-4 px-4 text-left">
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-lighter">{cliente.email || '-'}</span>
+                          <span className="text-xs text-gray-lightest">{cliente.telefono || '-'}</span>
+                        </div>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        {(cliente.saldoAFavor || 0) > 0 ? (
-                          <span className="text-gray-lighter">${formatCurrency((cliente.saldoAFavor || 0))}</span>
-                        ) : (
-                          <span className="text-gray-medium">$0</span>
-                        )}
+                        <span className="text-gray-lighter">${formatCurrency(cliente.saldoAFavor ?? 0)}</span>
                       </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-4 px-4 text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs ${cliente.activo ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                          {cliente.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => toggleClienteStatus(cliente.id)}
                             className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -1098,16 +1102,38 @@ export function ClientesPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Paginación */}
           <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="text-sm text-gray-lightest">
-              Página {currentPage} de {totalPages}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-lightest">Filas por página:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                    <SelectValue placeholder={itemsPerPage.toString()} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1117,6 +1143,32 @@ export function ClientesPage() {
               >
                 <ChevronLeft className="w-4 h-4 text-gray-lightest" />
               </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                        ? 'bg-orange-primary text-black-primary font-medium'
+                        : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
@@ -1127,27 +1179,6 @@ export function ClientesPage() {
             </div>
           </div>
 
-          {/* Mensaje cuando no hay resultados */}
-          {filteredClientes.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-medium mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-white-primary mb-2">No se encontraron clientes</h3>
-              <p className="text-gray-lightest mb-4">
-                {searchTerm ?
-                  `No hay clientes que coincidan con "${searchTerm}"` :
-                  'No hay clientes registrados en el sistema'
-                }
-              </p>
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="elegante-button-secondary"
-                >
-                  Limpiar búsqueda
-                </button>
-              )}
-            </div>
-          )}
         </div>
       </main>
 
@@ -1311,13 +1342,15 @@ export function ClientesPage() {
                 </Label>
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    {editPreviewUrl ? (
-                      <div className="relative w-16 h-16 rounded-full object-cover border-2 border-orange-primary overflow-hidden">
-                        <ImageRenderer
-                          url={editPreviewUrl}
-                          alt="Vista previa"
-                          className="w-full h-full rounded-2xl"
-                        />
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary flex items-center justify-center bg-gray-dark">
+                      <ImageRenderer
+                        url={editPreviewUrl ?? undefined}
+                        alt="Vista previa"
+                        className="w-full h-full rounded-full"
+                        fallbackVariant="person"
+                        showLabel={false}
+                      />
+                      {editPreviewUrl && (
                         <button
                           onClick={removeEditProfileImage}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
@@ -1325,12 +1358,8 @@ export function ClientesPage() {
                         >
                           <X className="w-3 h-3" />
                         </button>
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
-                        <UserIcon className="w-6 h-6 text-gray-lightest" />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={triggerEditFileSelect}
@@ -1538,13 +1567,15 @@ export function ClientesPage() {
                 </Label>
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    {previewUrl ? (
-                      <div className="relative w-16 h-16 rounded-full object-cover border-2 border-orange-primary overflow-hidden">
-                        <ImageRenderer
-                          url={previewUrl}
-                          alt="Vista previa"
-                          className="w-full h-full rounded-2xl"
-                        />
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary flex items-center justify-center bg-gray-dark">
+                      <ImageRenderer
+                        url={previewUrl ?? undefined}
+                        alt="Vista previa"
+                        className="w-full h-full rounded-full"
+                        fallbackVariant="person"
+                        showLabel={false}
+                      />
+                      {previewUrl && (
                         <button
                           onClick={removeProfileImage}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
@@ -1552,12 +1583,8 @@ export function ClientesPage() {
                         >
                           <X className="w-3 h-3" />
                         </button>
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
-                        <UserIcon className="w-6 h-6 text-gray-lightest" />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={triggerFileSelect}

@@ -16,7 +16,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { EmailSimulatorCita } from "./EmailSimulatorCita";
 
 // Datos de servicios simplificados para clientes

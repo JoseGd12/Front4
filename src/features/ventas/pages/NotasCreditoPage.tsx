@@ -20,13 +20,16 @@ import {
   CheckCircle,
   AlertTriangle,
   FileSpreadsheet,
-  CalendarDays
+  CalendarDays,
+  X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../shared/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { 
   downloadCSV, 
@@ -503,30 +506,56 @@ export function NotasCreditoPage() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-3">
                 <Filter className="w-4 h-4 text-gray-lighter" />
-                <select
+                <Select
                   value={filtroEstado}
-                  onChange={(e) => setFiltroEstado(e.target.value)}
-                  className="elegante-input"
+                  onValueChange={(value) => {
+                    setFiltroEstado(value);
+                    setCurrentPage(1);
+                  }}
                 >
-                  <option value="Todos">Todos los estados</option>
-                  <option value="Activa">Activas</option>
-                  <option value="Utilizada">Utilizadas</option>
-                  <option value="Vencida">Vencidas</option>
-                </select>
+                  <SelectTrigger className="w-48 elegante-input">
+                    <SelectValue placeholder="Estado" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    <SelectItem value="Todos" className="text-white-primary">Todos</SelectItem>
+                    <SelectItem value="Activa" className="text-white-primary">Activas</SelectItem>
+                    <SelectItem value="Utilizada" className="text-white-primary">Utilizadas</SelectItem>
+                    <SelectItem value="Vencida" className="text-white-primary">Vencidas</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-lighter w-4 h-4" />
                 <Input
                   placeholder="Buscar notas de crédito..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="elegante-input pl-10 w-64"
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="elegante-input pl-11 w-80"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentPage(1);
+                    }}
+                    title="Limpiar búsqueda"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <div className="text-sm text-gray-lightest">
+                Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredNotas.length)} de {filteredNotas.length} notas
               </div>
             </div>
           </div>
@@ -548,7 +577,14 @@ export function NotasCreditoPage() {
                 </tr>
               </thead>
               <tbody>
-                {displayedNotas.map((nota) => {
+                {displayedNotas.length === 0 ? (
+                  <TableEmptyStateRow
+                    colSpan={9}
+                    title="No se encontraron notas de crédito"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={() => window.location.reload()}
+                  />
+                ) : displayedNotas.map((nota) => {
                   const diasVencimiento = getDiasParaVencimiento(nota.vencimiento);
                   const clienteFrecuente = getNotasClienteFrecuente(nota.clienteId) > 2;
                   
@@ -655,9 +691,7 @@ export function NotasCreditoPage() {
           {/* Paginación */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-6 border-t border-gray-dark">
-              <div className="text-sm text-gray-lightest">
-                Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredNotas.length)} de {filteredNotas.length} notas
-              </div>
+              <div />
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
@@ -787,26 +821,27 @@ export function NotasCreditoPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-4">
-              {devolucionesPendientes.length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                  <p className="text-gray-lightest">No hay devoluciones pendientes de generar nota de crédito</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-dark">
-                        <th className="text-left font-semibold text-white-primary pb-4">ID Devolución</th>
-                        <th className="text-left font-semibold text-white-primary pb-4">Cliente</th>
-                        <th className="text-left font-semibold text-white-primary pb-4">Producto</th>
-                        <th className="text-right font-semibold text-white-primary pb-4">Monto</th>
-                        <th className="text-center font-semibold text-white-primary pb-4">Fecha</th>
-                        <th className="text-center font-semibold text-white-primary pb-4">Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {devolucionesPendientes.map((devolucion) => (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-dark">
+                      <th className="text-left font-semibold text-white-primary pb-4">ID Devolución</th>
+                      <th className="text-left font-semibold text-white-primary pb-4">Cliente</th>
+                      <th className="text-left font-semibold text-white-primary pb-4">Producto</th>
+                      <th className="text-right font-semibold text-white-primary pb-4">Monto</th>
+                      <th className="text-center font-semibold text-white-primary pb-4">Fecha</th>
+                      <th className="text-center font-semibold text-white-primary pb-4">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {devolucionesPendientes.length === 0 ? (
+                      <TableEmptyStateRow
+                        colSpan={6}
+                        title="No se encontraron devoluciones pendientes"
+                        description="Recarga la tabla para verificar si hay nuevas devoluciones aprobadas."
+                        onReload={() => window.location.reload()}
+                      />
+                    ) : devolucionesPendientes.map((devolucion) => (
                         <tr key={devolucion.id} className="border-b border-gray-dark">
                           <td className="py-4">
                             <span className="font-medium text-orange-primary">{devolucion.id}</span>
@@ -834,10 +869,9 @@ export function NotasCreditoPage() {
                           </td>
                         </tr>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import {
   Users, Plus, Edit, Trash2, Mail, Phone, Calendar, User as UserIcon,
-  Search, Filter, UserCheck, UserX, Eye, ChevronLeft, FileText, Hash,
+  UserCheck, UserX, Eye, ChevronLeft, FileText, Hash,
   ChevronRight, Scissors, Star, 
   TrendingUp, TrendingDown, Target, Award, Crown, Medal,
   MapPin, Home, Camera,
@@ -17,6 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { barberosService, Barbero, CreateBarberoData } from "../services/barberosService";
 import { notifyEntityCreated } from "../../../shared/services/notificationService";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { apiService } from "../../../shared/services/api";
 import { clientesService } from "../../clientes/services/clientesService";
 import { useAuth } from "../../../shared/contexts/AuthContext";
@@ -53,7 +56,7 @@ export function BarberosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [newBarbero, setNewBarbero] = useState<CreateBarberoData>({
     nombre: '',
     apellido: '',
@@ -488,48 +491,46 @@ export function BarberosPage() {
 
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         <div className="elegante-card">
-
-          <div className="flex flex-wrap   gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <button
-              onClick={() => {
-                setEditingBarbero(null);
-                resetForm();
-                generatePassword();
-                setIsDialogOpen(true);
-              }}
-              className="elegante-button-primary gap-2 flex items-center"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo Barbero
-            </button>
-            <div className="relative flex-1 max-w-md mt-2">
-
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-lightest w-4 h-4" />
-              <Input
-                placeholder="Buscar por nombre, correo o documento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="elegante-input pl-10 w-full"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Filter className="w-4 h-4 text-gray-lightest" />
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-48 elegante-input">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-darkest border-gray-dark">
-                  <SelectItem value="all" className="text-white-primary">Todos</SelectItem>
-                  <SelectItem value="active" className="text-white-primary">Activos</SelectItem>
-                  <SelectItem value="inactive" className="text-white-primary">Inactivos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <TableHeaderSection
+            leftContent={(
+              <button
+                onClick={() => {
+                  setEditingBarbero(null);
+                  resetForm();
+                  generatePassword();
+                  setIsDialogOpen(true);
+                }}
+                className="elegante-button-primary gap-2 flex items-center"
+              >
+                <Plus className="w-4 h-4" />
+                Nuevo Barbero
+              </button>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por nombre, correo o documento..."
+            statusFilter={{
+              value: filterStatus,
+              onChange: (value) => {
+                setFilterStatus(value);
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "active", label: "Activos" },
+                { value: "inactive", label: "Inactivos" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedBarberos.length} de ${filteredBarberos.length} barberos`}
+            recordsPlacement="left"
+          />
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
+              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="text-left border-b border-gray-dark">
                   <th className="py-4 px-4 text-gray-lightest font-medium">Documento</th>
                   <th className="py-4 px-4 text-gray-lightest font-medium">Barbero</th>
@@ -541,23 +542,17 @@ export function BarberosPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-20">
-                      <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-10 h-10 text-orange-primary animate-spin" />
-                        <p className="text-gray-lightest">Cargando barberos...</p>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableLoadingStateRow
+                    colSpan={6}
+                    title="Cargando barberos..."
+                  />
                 ) : displayedBarberos.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-20">
-                      <div className="flex flex-col items-center gap-3">
-                        <Users className="w-12 h-12 text-gray-dark" />
-                        <p className="text-gray-lightest">No se encontraron barberos</p>
-                      </div>
-                    </td>
-                  </tr>
+                  <TableEmptyStateRow
+                    colSpan={6}
+                    title="No se encontraron barberos"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={loadBarberos}
+                  />
                 ) : (
                   displayedBarberos.map(barbero => (
                     <tr key={barbero.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
@@ -570,6 +565,8 @@ export function BarberosPage() {
                             url={barbero.fotoPerfil}
                             alt={`Foto de ${barbero.nombre}`}
                             className="w-10 h-10 rounded-full border-2 border-orange-primary shadow-sm"
+                            fallbackVariant="person"
+                            showLabel={false}
                           />
                           <span className="text-gray-lighter">{barbero.nombre} {barbero.apellido}</span>
                         </div>
@@ -646,25 +643,71 @@ export function BarberosPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark text-sm">
-            <p className="text-gray-lightest">
-              Mostrando {displayedBarberos.length} de {filteredBarberos.length} barberos
-            </p>
+          {/* Paginación */}
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-lightest">Filas por página:</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                    <SelectValue placeholder={itemsPerPage.toString()} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 transition-colors"
+                className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4 text-gray-lightest" />
               </button>
-              <span className="text-white-primary px-4">
-                Página {currentPage} de {totalPages}
-              </span>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                        ? 'bg-orange-primary text-black-primary font-medium'
+                        : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 transition-colors"
+                className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4 text-gray-lightest" />
               </button>
@@ -697,9 +740,14 @@ export function BarberosPage() {
                 </Label>
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    {previewUrl ? (
-                      <div className="relative w-16 h-16 rounded-full object-cover border-2 border-orange-primary overflow-hidden">
-                        <ImageRenderer url={previewUrl} className="w-full h-full rounded-2xl" />
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary flex items-center justify-center bg-gray-dark">
+                      <ImageRenderer
+                        url={previewUrl ?? undefined}
+                        className="w-full h-full rounded-full"
+                        fallbackVariant="person"
+                        showLabel={false}
+                      />
+                      {previewUrl && (
                         <button
                           onClick={removeProfileImage}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
@@ -707,12 +755,8 @@ export function BarberosPage() {
                         >
                           <X className="w-3 h-3" />
                         </button>
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
-                        <UserIcon className="w-6 h-6 text-gray-lightest" />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={triggerFileSelect}
@@ -952,7 +996,7 @@ export function BarberosPage() {
           {selectedBarbero && (
             <div className="space-y-6 pt-4">
               <div className="flex items-center gap-6 p-4 bg-gray-darker rounded-lg border border-gray-dark">
-                <ImageRenderer url={selectedBarbero.fotoPerfil} className="h-24 w-24 rounded-full border-2 border-orange-primary" />
+                <ImageRenderer url={selectedBarbero.fotoPerfil} className="h-24 w-24 rounded-full border-2 border-orange-primary" fallbackVariant="person" showLabel={false} />
                 <div>
                   <h3 className="text-2xl font-bold text-white-primary">{selectedBarbero.nombre} {selectedBarbero.apellido}</h3>
                   <p className="text-orange-primary font-medium">{selectedBarbero.especialidad || 'General'}</p>

@@ -32,12 +32,15 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "../../../shared/components/ui/notify";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { entregaInsumosService, EntregaInsumo, InsumoEntrega, CreateEntregaData, UpdateEntregaData } from "../services/entregaInsumosService";
 import { apiService, ApiUser } from "../../../shared/services/api";
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
 import { insumosService, Insumo } from "../services/insumosService";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { canBeUsedInService, isSaleOnly } from "../../../shared/utils/usagePolicy";
@@ -100,6 +103,7 @@ export function EntregaInsumosPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedEntrega, setSelectedEntrega] = useState<EntregaInsumo | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "completada" | "anulada">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [insumoSearchTerm, setInsumoSearchTerm] = useState("");
@@ -384,6 +388,12 @@ export function EntregaInsumosPage() {
 
   // Filtros y paginación
   const filteredEntregas = entregas.filter((entrega) => {
+    const estadoRaw = String(entrega.estado || '');
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "completada" && isCompletadaEstado(estadoRaw)) ||
+      (statusFilter === "anulada" && isAnuladaEstado(estadoRaw));
+    if (!matchesStatus) return false;
     const q = normalizeSearchText(searchTerm);
     if (!q) return true;
     const numero = String(entrega.id || '');
@@ -1101,17 +1111,6 @@ export function EntregaInsumosPage() {
   // Estadísticas
   const totalEntregas = entregas.reduce((sum: number, entrega: EntregaInsumo) => sum + entrega.valorTotal, 0);
 
-  if (loading) {
-    return (
-      <main className="flex-1 overflow-auto p-8 bg-black-primary flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary mx-auto mb-4"></div>
-          <p className="text-white-primary text-lg">Cargando entregas...</p>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <>
       {/* Header */}
@@ -1128,9 +1127,8 @@ export function EntregaInsumosPage() {
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         {/* Sección Principal */}
         <div className="elegante-card">
-          {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+          <TableHeaderSection
+            leftContent={(
               <Dialog
                 open={isDialogOpen}
                 onOpenChange={(open) => {
@@ -1658,45 +1656,33 @@ export function EntregaInsumosPage() {
                   </div>
                 </DialogContent>
               </Dialog>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar por número, documento, nombre, responsable, insumos, fecha o estado..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="elegante-input pl-11 pr-8 w-80"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Mostrando {displayedEntregas.length} de {filteredEntregas.length} entregas
-              </div>
-            </div>
-          </div>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por número, documento, nombre, responsable, insumos, fecha o estado..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value as "all" | "completada" | "anulada");
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "completada", label: "Completadas" },
+                { value: "anulada", label: "Anuladas" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedEntregas.length} de ${filteredEntregas.length} entregas`}
+            recordsPlacement="left"
+          />
 
           {/* Tabla de entregas */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
+              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                   <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
@@ -1708,7 +1694,19 @@ export function EntregaInsumosPage() {
                 </tr>
               </thead>
               <tbody>
-                {displayedEntregas.map((entrega) => (
+                {loading ? (
+                  <TableLoadingStateRow
+                    colSpan={7}
+                    title="Cargando entregas..."
+                  />
+                ) : displayedEntregas.length === 0 ? (
+                  <TableEmptyStateRow
+                    colSpan={7}
+                    title="No se encontraron entregas"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={() => window.location.reload()}
+                  />
+                ) : displayedEntregas.map((entrega) => (
                   <tr key={entrega.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">

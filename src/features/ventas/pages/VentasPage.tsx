@@ -23,13 +23,17 @@ import {
   Scissors,
   AlertCircle,
   FileText,
-  ShieldCheck
+  ShieldCheck,
+  Filter
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Checkbox } from "../../../shared/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "sonner";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { ventaService, Venta } from "../services/ventaService";
@@ -187,6 +191,7 @@ export function VentasPage() {
   // Valor especial para representar "sin barbero" en el formulario de nueva venta
   const VALOR_SIN_BARBERO = "sin-barbero";
   const [barberoSeleccionado, setBarberoSeleccionado] = useState<string>(VALOR_TODOS_BARBEROS);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Versión optimizada que recibe los Map ya construidos
   const enriquecerVentaConClienteOptimizado = (
@@ -433,6 +438,9 @@ export function VentasPage() {
   const [showClientResults, setShowClientResults] = useState(false);
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [showProductResults, setShowProductResults] = useState(false);
+  const [barberoSearchTerm, setBarberoSearchTerm] = useState("");
+  const [showBarberoResults, setShowBarberoResults] = useState(false);
+  const [barberoSearchFocused, setBarberoSearchFocused] = useState(false);
   const [serviceSearchTerm, setServiceSearchTerm] = useState("");
   const [showServiceResults, setShowServiceResults] = useState(false);
   const [showVentaFormErrors, setShowVentaFormErrors] = useState(false);
@@ -517,9 +525,14 @@ export function VentasPage() {
       const matchesBarbero =
         barberoSeleccionado === VALOR_TODOS_BARBEROS ||
         barberoStr === barberoSeleccionado;
-      return matchesSearch && matchesBarbero;
+      const estadoNormalizado = String(venta.estado || '').toLowerCase().trim();
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'completada' && (estadoNormalizado === 'completada' || estadoNormalizado === 'completado' || estadoNormalizado === 'activo')) ||
+        (statusFilter === 'anulada' && (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado'));
+      return matchesSearch && matchesBarbero && matchesStatus;
     });
-  }, [ventas, searchTerm, barberoSeleccionado]);
+  }, [ventas, searchTerm, barberoSeleccionado, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredVentas.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1425,6 +1438,9 @@ export function VentasPage() {
       setTarjetaProductoInputs({});
       setTarjetaServicioInputs({});
       setServiciosAgregados([]);
+      setBarberoSearchTerm('');
+      setShowBarberoResults(false);
+      setBarberoSearchFocused(false);
       setIsDialogOpen(false);
 
       const ventaIdCreada = Number((nuevaVentaCreada as any)?.id ?? (nuevaVentaCreada as any)?.numeroVenta ?? 0);
@@ -1945,16 +1961,6 @@ export function VentasPage() {
       </header>
 
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
-        {/* Estado de carga */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-primary mx-auto mb-4"></div>
-              <p className="text-gray-lightest">Cargando ventas...</p>
-            </div>
-          </div>
-        )}
-
         {/* Estado de error */}
         {error && !loading && (
           <div className="flex items-center justify-center py-12">
@@ -1974,8 +1980,8 @@ export function VentasPage() {
           </div>
         )}
 
-        {/* Contenido principal cuando no hay error ni carga */}
-        {!loading && !error && (
+        {/* Contenido principal */}
+        {!error && (
           <>
             {/* Stats Cards */}
             <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -2005,11 +2011,8 @@ export function VentasPage() {
 
             {/* Sección Principal */}
             <div className="elegante-card">
-              {/* Barra de Controles */}
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-                {/* Lado izquierdo: botón + búsqueda + filtro de barbero */}
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Botón Nueva Venta */}
+              <TableHeaderSection
+                leftContent={(
                   <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                       <button
@@ -2032,6 +2035,9 @@ export function VentasPage() {
                           setShowClientResults(false);
                           setProductSearchTerm('');
                           setShowProductResults(false);
+                          setBarberoSearchTerm('');
+                          setShowBarberoResults(false);
+                          setBarberoSearchFocused(false);
                           setServiceSearchTerm('');
                           setShowServiceResults(false);
                         }}
@@ -2095,8 +2101,29 @@ export function VentasPage() {
                                   setShowClientResults(true);
                                 }}
                                 onFocus={() => setShowClientResults(true)}
+                                  onBlur={() => {
+                                    setTimeout(() => setShowClientResults(false), 120);
+                                  }}
                                 className={`elegante-input pl-11 w-full ${showVentaFormErrors && !nuevaVenta.clienteId ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                               />
+                                {clientSearchTerm && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setClientSearchTerm('');
+                                      setShowClientResults(false);
+                                      setNuevaVenta(prev => ({
+                                        ...prev,
+                                        clienteId: '',
+                                        clienteDocumento: ''
+                                      }));
+                                    }}
+                                    title="Limpiar búsqueda"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
 
                               {showClientResults && clientSearchTerm.trim() !== "" && (
                                 <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
@@ -2276,8 +2303,25 @@ export function VentasPage() {
                                     setShowProductResults(true);
                                   }}
                                   onFocus={() => setShowProductResults(true)}
+                                  onBlur={() => {
+                                    setTimeout(() => setShowProductResults(false), 120);
+                                  }}
                                   className={`elegante-input pl-11 w-full ${showProductoSelectorError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                                 />
+                                {productSearchTerm && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setProductSearchTerm('');
+                                      setShowProductResults(false);
+                                      setProductoSeleccionado('');
+                                    }}
+                                    title="Limpiar búsqueda"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
 
                                 {showProductResults && productSearchTerm.trim() !== "" && (
                                   <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
@@ -2454,39 +2498,123 @@ export function VentasPage() {
                           <h3 className="text-lg font-semibold text-white-primary">Agregar Servicios</h3>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Barbero */}
-                            <div className="space-y-2">
+                            <div className="space-y-2 relative">
                               <Label className="text-white-primary flex items-center gap-2">
                                 <User className="w-4 h-4 text-orange-primary" />
                                 Barbero {serviciosAgregados.length > 0 ? "*" : "(opcional)"}
                               </Label>
-                              <Select
-                                value={nuevaVenta.barberoId ? nuevaVenta.barberoId.toString() : VALOR_SIN_BARBERO}
-                                onValueChange={(value) => {
-                                  if (value === VALOR_SIN_BARBERO) {
-                                    setNuevaVenta({ ...nuevaVenta, barberoId: null, barberoNombre: "Sin asignar" });
-                                  } else {
-                                    const id = parseInt(value);
-                                    const barbero = barberosAPI.find(b => b.id === id);
-                                    setNuevaVenta({
-                                      ...nuevaVenta,
-                                      barberoId: id,
-                                      barberoNombre: barbero ? `${barbero.nombre} ${barbero.apellido || ''}`.trim() : ""
-                                    });
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className={`elegante-input bg-gray-darker border-gray-dark ${serviciosAgregados.length > 0 && !nuevaVenta.barberoId ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}>
-                                  <SelectValue placeholder={serviciosAgregados.length > 0 ? "Selecciona un barbero" : "Sin barbero asignado"} />
-                                </SelectTrigger>
-                                <SelectContent className="bg-gray-darkest border border-gray-dark text-white-primary">
-                                  <SelectItem value={VALOR_SIN_BARBERO}>Sin barbero</SelectItem>
-                                  {barberosAPI.map((barbero) => (
-                                    <SelectItem key={barbero.id} value={barbero.id.toString()}>
-                                      {barbero.nombre} {barbero.apellido || ''}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
+                                <Input
+                                  placeholder={serviciosAgregados.length > 0 ? "Escribe para buscar un barbero..." : "Escribe para asignar barbero (opcional)..."}
+                                  value={barberoSearchTerm}
+                                  onChange={(e) => {
+                                    setBarberoSearchTerm(e.target.value);
+                                    setShowBarberoResults(true);
+                                    if (nuevaVenta.barberoId) {
+                                      setNuevaVenta({ ...nuevaVenta, barberoId: null, barberoNombre: "Sin asignar" });
+                                    }
+                                  }}
+                                  onFocus={() => {
+                                    setBarberoSearchFocused(true);
+                                    setShowBarberoResults(true);
+                                  }}
+                                  onBlur={() => {
+                                    setTimeout(() => {
+                                      setBarberoSearchFocused(false);
+                                      setShowBarberoResults(false);
+                                    }, 120);
+                                  }}
+                                  className={`elegante-input pl-11 w-full ${serviciosAgregados.length > 0 && !nuevaVenta.barberoId ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                                />
+                                {barberoSearchTerm && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBarberoSearchTerm('');
+                                      setShowBarberoResults(false);
+                                      setNuevaVenta({ ...nuevaVenta, barberoId: null, barberoNombre: "Sin asignar" });
+                                    }}
+                                    title="Limpiar búsqueda"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
+
+                                {(barberoSearchFocused && showBarberoResults && barberoSearchTerm.trim() !== "") && (
+                                  <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
+                                    {(() => {
+                                      const query = normalizeSearchText(barberoSearchTerm);
+                                      const filteredResults = barberosAPI.filter((b: any) => {
+                                        const searchableText = normalizeSearchText([
+                                          b.id,
+                                          b.nombre,
+                                          b.apellido,
+                                          b.documento,
+                                          b.email,
+                                          b.rol
+                                        ].join(' '));
+                                        return searchableText.includes(query);
+                                      }).slice(0, 50);
+
+                                      if (filteredResults.length === 0) {
+                                        return (
+                                          <div className="p-4 text-center text-gray-lightest italic">
+                                            No se encontraron barberos que coincidan.
+                                          </div>
+                                        );
+                                      }
+
+                                      return filteredResults.map((barbero: any) => {
+                                        const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ''}`.trim();
+                                        return (
+                                          <div
+                                            key={barbero.id}
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              setNuevaVenta({
+                                                ...nuevaVenta,
+                                                barberoId: Number(barbero.id),
+                                                barberoNombre: nombreCompleto
+                                              });
+                                              setBarberoSearchTerm(
+                                                `${nombreCompleto}${barbero.documento ? ` — CC ${barbero.documento}` : ''}`
+                                              );
+                                              setShowBarberoResults(false);
+                                            }}
+                                            onClick={() => {
+                                              setNuevaVenta({
+                                                ...nuevaVenta,
+                                                barberoId: Number(barbero.id),
+                                                barberoNombre: nombreCompleto
+                                              });
+                                              setBarberoSearchTerm(
+                                                `${nombreCompleto}${barbero.documento ? ` — CC ${barbero.documento}` : ''}`
+                                              );
+                                              setShowBarberoResults(false);
+                                            }}
+                                            className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer group"
+                                          >
+                                            <div className="flex justify-between items-center">
+                                              <div>
+                                                <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                                                  {nombreCompleto}
+                                                </p>
+                                                <p className="text-[10px] text-gray-lightest">{barbero.documento || 'Sin documento'}</p>
+                                              </div>
+                                              <div className="text-right">
+                                                <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">Rol</p>
+                                                <p className="text-xs font-bold text-gray-lightest">{barbero.rol || 'Barbero'}</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
                             {/* Servicio con buscador */}
@@ -2505,8 +2633,25 @@ export function VentasPage() {
                                     setShowServiceResults(true);
                                   }}
                                   onFocus={() => setShowServiceResults(true)}
+                                  onBlur={() => {
+                                    setTimeout(() => setShowServiceResults(false), 120);
+                                  }}
                                   className={`elegante-input pl-11 w-full ${showServicioSelectorError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                                 />
+                                {serviceSearchTerm && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setServiceSearchTerm('');
+                                      setShowServiceResults(false);
+                                      setServicioSeleccionado('');
+                                    }}
+                                    title="Limpiar búsqueda"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
 
                                 {showServiceResults && serviceSearchTerm.trim() !== "" && (
                                   <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
@@ -2667,6 +2812,9 @@ export function VentasPage() {
                               setTarjetaServicioInputs({});
                               setProductSearchTerm('');
                               setShowProductResults(false);
+                              setBarberoSearchTerm('');
+                              setShowBarberoResults(false);
+                              setBarberoSearchFocused(false);
                               setServiceSearchTerm('');
                               setShowServiceResults(false);
                             }}
@@ -2684,22 +2832,23 @@ export function VentasPage() {
                       </div>
                     </DialogContent>
                   </Dialog>
-                  <div className="flex items-center gap-4">
-                    {/* Búsqueda */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                      <Input
-                        placeholder="Buscar por cualquier campo de la tabla..."
-                        value={searchTerm}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                        className="elegante-input pl-11 w-80"
-                      />
-                    </div>
-
-                    {/* Filtro de barbero eliminado */}
-                  </div>
-
-                  {/* Lado derecho: resumen de comisiones + contador */}
+                )}
+                searchValue={searchTerm}
+                onSearchChange={handleSearchChange}
+                searchPlaceholder="Buscar por cualquier campo de la tabla..."
+                statusFilter={{
+                  value: statusFilter,
+                  onChange: (value) => {
+                    setStatusFilter(value);
+                    setCurrentPage(1);
+                  },
+                  options: [
+                    { value: "all", label: "Todos" },
+                    { value: "completada", label: "Completadas" },
+                    { value: "anulada", label: "Anuladas" },
+                  ],
+                }}
+                rightContent={(
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     {barberoSeleccionado !== VALOR_TODOS_BARBEROS && (
                       <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
@@ -2723,19 +2872,18 @@ export function VentasPage() {
                         </span>
                       </div>
                     )}
-                    <div className="text-xs sm:text-sm text-gray-lightest sm:ml-2">
-                      Mostrando {displayedVentas.length} de {filteredVentas.length} ventas
-                    </div>
                   </div>
-                </div>
-              </div>
+                )}
+                recordsText={`Mostrando ${displayedVentas.length} de ${filteredVentas.length} ventas`}
+                recordsPlacement="left"
+              />
 
               {/* Tabla de Ventas */}
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead>
+                  <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                     <tr className="border-b border-gray-dark">
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
+                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento Cliente</th>
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre Cliente</th>
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
@@ -2745,10 +2893,18 @@ export function VentasPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedVentas.length > 0 ? displayedVentas.map((venta) => (
+                    {loading ? (
+                      <TableLoadingStateRow
+                        colSpan={7}
+                        title="Cargando ventas..."
+                      />
+                    ) : displayedVentas.length > 0 ? displayedVentas.map((venta) => (
                       <tr key={venta.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                         <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{venta.id}</span>
+                          <div className="flex items-center justify-center gap-2">
+                            <Hash className="w-4 h-4 text-orange-primary" />
+                            <span className="text-gray-lighter">{String((venta as any).numeroVenta ?? venta.id)}</span>
+                          </div>
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className="text-center">
@@ -2838,9 +2994,12 @@ export function VentasPage() {
                         </td>
                       </tr>
                     )) : (
-                      <tr>
-                        <td colSpan={7} className="text-center py-4 text-gray-lighter">No se encontraron ventas.</td>
-                      </tr>
+                      <TableEmptyStateRow
+                        colSpan={7}
+                        title="No se encontraron ventas"
+                        description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                        onReload={cargarVentas}
+                      />
                     )}
                   </tbody>
                 </table>
@@ -2848,8 +3007,30 @@ export function VentasPage() {
 
               {/* Paginación Funcional */}
               <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-                <div className="text-sm text-gray-lightest">
-                  Página {currentPage} de {totalPages}
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-lightest">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-lightest">Filas por página:</span>
+                    <Select
+                      value={itemsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
+                        <SelectValue placeholder={itemsPerPage.toString()} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -2859,6 +3040,32 @@ export function VentasPage() {
                   >
                     <ChevronLeft className="w-4 h-4 text-gray-lightest" />
                   </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
+                            ? 'bg-orange-primary text-black-primary font-medium'
+                            : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
+                            }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
@@ -2869,32 +3076,6 @@ export function VentasPage() {
                 </div>
               </div>
 
-              {/* Sin resultados */}
-              {filteredVentas.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="text-gray-lightest mb-4">
-                    <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <h3 className="text-lg font-medium mb-2">No se encontraron ventas</h3>
-                    <p className="text-sm">
-                      {searchTerm
-                        ? `No hay ventas que coincidan con "${searchTerm}"`
-                        : "No hay ventas registradas en el sistema"
-                      }
-                    </p>
-                  </div>
-                  {searchTerm && (
-                    <button
-                      onClick={() => {
-                        setSearchTerm('');
-                        setCurrentPage(1);
-                      }}
-                      className="elegante-button-secondary mt-4"
-                    >
-                      Limpiar búsqueda
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           </>
         )}
