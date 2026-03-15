@@ -21,7 +21,7 @@ import {
   User as UserIcon,
   HandHelping,
   FileText,
-  Download,
+  FileDown,
   AlertTriangle,
   CheckCircle,
   Ban,
@@ -1023,16 +1023,17 @@ export function EntregaInsumosPage() {
       doc.line(hMargin, y + 2, 80, y + 2);
 
       y += 12;
-      // Headers Tabla
+      // Headers Tabla: INSUMO, CATEGORÍA, CANT., Stock insumos, Total actual
       doc.setFillColor(26, 26, 26);
       doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, 'F');
       doc.setTextColor(216, 176, 129);
       doc.setFontSize(9);
-      doc.text("INSUMO", hMargin + 2, y + 6.5);
-      doc.text("CATEGORÍA", hMargin + 60, y + 6.5);
-      doc.text("CANT.", hMargin + 100, y + 6.5, { align: "right" });
-      doc.text("PREC. UNIT", hMargin + 130, y + 6.5, { align: "right" });
-      doc.text("SUBTOTAL", hMargin + 160, y + 6.5, { align: "right" });
+      const colInsumo = 45, colCat = 85, colCant = 108, colStockInsumos = 133, colTotal = 169;
+      doc.text("INSUMO", colInsumo, y + 6.5, { align: "center" });
+      doc.text("CATEGORÍA", colCat, y + 6.5, { align: "center" });
+      doc.text("CANT.", colCant, y + 6.5, { align: "center" });
+      doc.text("STOCK INSUMOS", colStockInsumos, y + 6.5, { align: "center" });
+      doc.text("TOTAL ACTUAL", colTotal, y + 6.5, { align: "center" });
 
       y += 10;
       doc.setTextColor(40, 40, 40);
@@ -1053,21 +1054,33 @@ export function EntregaInsumosPage() {
             doc.rect(hMargin, y, pageWidth - (hMargin * 2), 8, 'F');
           }
 
+          const productoActual = insumos.find((i: any) => Number(i.id) === Number(insumo.id));
+          const stockInsumos = productoActual != null
+            ? Number((productoActual as any).stockInsumos ?? (productoActual as any).stock ?? 0)
+            : 0;
+          const stockVentas = productoActual != null
+            ? Number((productoActual as any).stockVentas ?? 0)
+            : 0;
+          const stockTotalDirecto = productoActual != null
+            ? Number((productoActual as any).stock ?? 0)
+            : 0;
+          const usaStockSegmentado = productoActual != null && ((productoActual as any).stockInsumos !== undefined || (productoActual as any).stockVentas !== undefined);
+          const totalStockProducto = usaStockSegmentado
+            ? ((Number.isFinite(stockInsumos) ? stockInsumos : 0) + (Number.isFinite(stockVentas) ? stockVentas : 0))
+            : (Number.isFinite(stockTotalDirecto) ? stockTotalDirecto : 0);
+
           doc.setFontSize(8);
-          // Truncar nombre si es muy largo
           const nombreTruncado = insumo.nombre.length > 35 ? insumo.nombre.substring(0, 32) + "..." : insumo.nombre;
-          doc.text(nombreTruncado, hMargin + 2, y + 5.5);
-          
+          doc.text(nombreTruncado, colInsumo, y + 5.5, { align: "center" });
+
           const catTruncada = (insumo.categoria || 'N/A').length > 20 ? (insumo.categoria || '').substring(0, 17) + "..." : (insumo.categoria || 'N/A');
-          doc.text(catTruncada, hMargin + 60, y + 5.5);
+          doc.text(catTruncada, colCat, y + 5.5, { align: "center" });
 
           doc.setFont("helvetica", "bold");
-          doc.text(String(insumo.cantidad), hMargin + 100, y + 5.5, { align: "right" });
+          doc.text(String(insumo.cantidad), colCant, y + 5.5, { align: "center" });
           doc.setFont("helvetica", "normal");
-          doc.text(`$${formatCurrency(insumo.precio)}`, hMargin + 125, y + 5.5, { align: "right" });
-          doc.setFont("helvetica", "bold");
-          doc.text(`$${formatCurrency(insumo.cantidad * insumo.precio)}`, hMargin + 160, y + 5.5, { align: "right" });
-          doc.setFont("helvetica", "normal");
+          doc.text(String(stockInsumos), colStockInsumos, y + 5.5, { align: "center" });
+          doc.text(String(totalStockProducto), colTotal, y + 5.5, { align: "center" });
 
           y += 8;
         });
@@ -1746,15 +1759,14 @@ export function EntregaInsumosPage() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center justify-center gap-2">
-                      {isCompletadaEstado(entrega.estado || '') && (
-                          <button
-                            onClick={() => handleAnularClick(entrega)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Anular entrega"
+                        <button
+                            onClick={() => !isAnuladaEstado(entrega.estado || '') && handleAnularClick(entrega)}
+                            disabled={isAnuladaEstado(entrega.estado || '')}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={isAnuladaEstado(entrega.estado || '') ? 'Entrega anulada' : 'Anular entrega'}
                           >
                             <Ban className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>
-                        )}
                         <button
                           onClick={() => handleViewDetails(entrega)}
                           className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -1767,7 +1779,7 @@ export function EntregaInsumosPage() {
                           className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
                           title="Descargar PDF"
                         >
-                          <Download className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                          <FileDown className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                         </button>
                         
                       </div>
@@ -2055,7 +2067,7 @@ export function EntregaInsumosPage() {
                   onClick={() => generateIndividualEntregaPDF(selectedEntrega)}
                   className="elegante-button-primary flex items-center gap-2"
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileDown className="w-4 h-4" />
                   Descargar PDF
                 </button>
             </div>

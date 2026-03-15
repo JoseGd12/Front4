@@ -84,23 +84,32 @@ class ProductoService {
   private mapFromApiFormat(data: any): ApiProducto {
     if (!data) return data as any;
 
-    // Normalizar categoría para asegurar que tenga 'id' y 'nombre'
+    // Normalizar categoría: leer id y nombre desde objeto, ID suelto o nombres en raíz
     const catRaw = data.Categoria || data.categoria;
     const catIdRaw = data.CategoriaId || data.categoriaId || data.IdCategoria || data.idCategoria;
+    const nombreDesdeRaiz = [
+      data.CategoriaNombre,
+      data.categoriaNombre,
+      data.NombreCategoria,
+      data.nombreCategoria,
+      data.productoCategoria,
+      data.ProductoCategoria
+    ].find((v) => typeof v === 'string' && v.trim()) as string | undefined;
+    const nombreCategoriaRaiz = nombreDesdeRaiz ? String(nombreDesdeRaiz).trim() : '';
 
-    let categoriaNormalizada = null;
+    let categoriaNormalizada: { id: number; nombre: string } | null = null;
 
     if (catRaw && typeof catRaw === 'object') {
-      categoriaNormalizada = {
-        id: Number(catRaw.Id || catRaw.id || catIdRaw || 0),
-        nombre: String(catRaw.Nombre || catRaw.nombre || "")
-      };
+      const id = Number(catRaw.Id || catRaw.id || catIdRaw || 0);
+      const nombre = String(catRaw.Nombre || catRaw.nombre || nombreCategoriaRaiz || '').trim();
+      categoriaNormalizada = { id, nombre: nombre || '' };
     } else if (catIdRaw || (catRaw && typeof catRaw === 'number')) {
-      // Si la API devuelve el ID directamente en Categoria o CategoriaId
       categoriaNormalizada = {
         id: Number(catIdRaw || catRaw),
-        nombre: "" // El nombre se resolverá después si es necesario
+        nombre: nombreCategoriaRaiz
       };
+    } else if (nombreCategoriaRaiz) {
+      categoriaNormalizada = { id: Number(catIdRaw || 0), nombre: nombreCategoriaRaiz };
     }
 
     // Normalizar flags de estado/activo provenientes de la API

@@ -39,6 +39,7 @@ import { TableLoadingStateRow } from "../../../shared/components/ui/table-loadin
 import { compraService, Compra, CreateCompraRequest } from "../services/compraService";
 import { proveedorService, Proveedor } from "../services/proveedorService";
 import { insumosService, Insumo } from "../services/insumosService";
+import { categoriaService } from "../services/categoriaService";
 import { productoService } from "../../productos/services/productos";
 import { apiService, ApiUser } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
@@ -133,15 +134,14 @@ const CompraRow = React.memo(({
     </td>
     <td className="py-4 px-4 text-center">
       <div className="flex items-center justify-center gap-2">
-        {compra.estado?.toLowerCase() !== "anulada" && compra.estado?.toLowerCase() !== "anulado" && (
-          <button
-            onClick={() => onAnular(compra.id)}
-            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-            title="Anular"
+        <button
+            onClick={() => compra.estado?.toLowerCase() !== "anulada" && compra.estado?.toLowerCase() !== "anulado" && onAnular(compra.id)}
+            disabled={compra.estado?.toLowerCase() === "anulada" || compra.estado?.toLowerCase() === "anulado"}
+            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            title={compra.estado?.toLowerCase() === "anulada" || compra.estado?.toLowerCase() === "anulado" ? "Compra anulada" : "Anular"}
           >
             <Ban className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
           </button>
-        )}
         <button
           onClick={() => onViewDetails(compra)}
           className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -360,8 +360,24 @@ export function ComprasPage() {
 
   const loadProductos = async () => {
     try {
-      const productosData = await productoService.getProductos();
-      setProductos((productosData as any[]).filter((p: any) => p.activo === true) as any);
+      const [productosData, categoriasData] = await Promise.all([
+        productoService.getProductos(),
+        categoriaService.getCategorias().catch(() => [])
+      ]);
+      const lista = (productosData as any[]).filter((p: any) => p.activo === true);
+      const categoriasById = new Map<number, string>();
+      (categoriasData || []).forEach((c: any) => {
+        const id = Number(c?.id ?? 0);
+        if (id && c?.nombre) categoriasById.set(id, String(c.nombre));
+      });
+      const enriquecidos = lista.map((p: any) => {
+        const cat = p?.categoria;
+        if (cat && typeof cat === 'object' && cat.id && !String(cat.nombre || '').trim() && categoriasById.has(cat.id)) {
+          return { ...p, categoria: { ...cat, nombre: categoriasById.get(cat.id) || cat.nombre } };
+        }
+        return p;
+      });
+      setProductos(enriquecidos);
     } catch (error) {
       toast.error("Error al cargar productos", { description: "No se pudieron obtener los productos." });
       console.error(error);
@@ -1343,9 +1359,10 @@ export function ComprasPage() {
 
           const nombre = String(item?.productoNombre || item?.nombre || 'Producto');
           const prodId = Number(item?.productoId || item?.id || 0);
+          const categoriaDesdeDetalle = typeof item?.categoria === 'string' ? item.categoria : '';
           const prodMatch = productos.find(p => Number(p.id) === prodId);
-          const categoriaRaw = prodMatch ? (prodMatch as any).categoria : (item?.categoria || 'N/A');
-          const categoria = typeof categoriaRaw === 'string' ? categoriaRaw : String(categoriaRaw?.nombre || 'N/A');
+          const categoriaRaw = categoriaDesdeDetalle || (prodMatch ? (prodMatch as any).categoria : null) || (item as any)?.categoria;
+          const categoria = typeof categoriaRaw === 'string' ? categoriaRaw : String(categoriaRaw?.nombre || categoriaRaw || 'N/A');
           const cantidad = Number(item?.cantidad || 0);
           const precioUnitario = Number(item?.precioUnitario || item?.precio || 0);
           const subtotal = Number(item?.subtotal || (cantidad * precioUnitario) || 0);

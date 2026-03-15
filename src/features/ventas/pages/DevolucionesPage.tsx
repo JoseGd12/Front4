@@ -8,6 +8,7 @@ import {
   ChevronRight,
   RotateCcw,
   FileText,
+  FileDown,
   Download,
   User as UserIcon,
   IdCard as IdCard,
@@ -40,10 +41,12 @@ import { devolucionService } from "../services/devolucionService";
 import { ventaService } from "../services/ventaService";
 import { clientesService } from "../../clientes/services/clientesService";
 import { productoService } from "../../productos/services/productos";
+import { categoriaService } from "../../inventario/services/categoriaService";
 import { barberosService } from "../../administracion/services/barberosService";
 import { entregaInsumosService } from "../../inventario/services/entregaInsumosService";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { useAuth } from "../../../shared/contexts/AuthContext"; // Added
+import manitoLogo from "../../../assets/Manito.jpeg";
 
 // Función para formatear moneda colombiana
 const formatCurrency = (amount: number): string => {
@@ -101,6 +104,7 @@ interface Devolucion {
   clienteId: string;
   clienteDocumento?: string;
   producto: string;
+  categoria?: string;
   productoImagen?: string;
   cantidad: number;
   precioUnitario: number;
@@ -172,20 +176,38 @@ export function DevolucionesPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [devs, sales, clientes, productos, barberos] = await Promise.all([
+      const [devs, sales, clientes, productos, barberos, categorias] = await Promise.all([
         devolucionService.getDevoluciones(),
         ventaService.getVentas(),
         clientesService.getClientes(),
         productoService.getProductos().catch(() => []),
-        barberosService.getBarberos().catch(() => [])
+        barberosService.getBarberos().catch(() => []),
+        categoriaService.getCategorias().catch(() => [])
       ]);
 
+      const categoriasById = new Map<number, string>();
+      (categorias || []).forEach((c: any) => {
+        const id = Number(c?.id ?? 0);
+        if (id && c?.nombre) categoriasById.set(id, String(c.nombre));
+      });
+
       const imagenesProductoMap = new Map<number, string>();
+      const categoriasProductoMap = new Map<number, string>();
       (productos || []).forEach((producto: any) => {
         const id = Number(producto?.id || 0);
         const imagen = String(producto?.imagen || producto?.imagenProduc || producto?.imagenUrl || '');
+        const categoriaRaw = producto?.categoria;
+        let categoria = typeof categoriaRaw === 'string'
+          ? categoriaRaw
+          : String(categoriaRaw?.nombre || categoriaRaw?.descripcion || '');
+        if (!categoria.trim() && categoriaRaw && typeof categoriaRaw === 'object' && categoriaRaw.id && categoriasById.has(categoriaRaw.id)) {
+          categoria = categoriasById.get(categoriaRaw.id) || '';
+        }
         if (id > 0 && imagen.trim()) {
           imagenesProductoMap.set(id, imagen);
+        }
+        if (id > 0 && categoria.trim()) {
+          categoriasProductoMap.set(id, categoria.trim());
         }
       });
       setImagenesProductosCatalogo(Object.fromEntries(imagenesProductoMap.entries()));
@@ -268,6 +290,7 @@ export function DevolucionesPage() {
           barbero: (d as any).barberoNombre || '',
           barberoId: Number((d as any).barberoId || 0),
           producto: d.productoNombre || 'Producto',
+          categoria: categoriasProductoMap.get(Number(d.productoId || 0)) || String((d as any).categoria || 'N/A'),
           productoImagen: String(
             (d as any).productoImagen ||
             (d as any).imagenProducto ||
@@ -1237,169 +1260,189 @@ export function DevolucionesPage() {
   const generateIndividualPdf = async (devolucion: Devolucion) => {
     try {
       const jsPDF = (await import('jspdf')).default;
-
       const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const hMargin = 20;
 
-      // Configuración de fuentes y colores
+      doc.setFillColor(26, 26, 26);
+      doc.rect(0, 0, pageWidth, 65, 'F');
+
+      try {
+        doc.addImage(manitoLogo, 'JPEG', pageWidth / 2 - 12.5, 5, 25, 25);
+      } catch {}
+
+      const negocioNombre = "Manito BarberShop";
+      const negocioEmail = "Edwainsolano007@gmail.com";
+      const negocioDireccion = "Calle 79 #52 12 Aranjuez, Medellín";
+      const negocioTelefono = "301 4836189";
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(negocioNombre, pageWidth - hMargin, 12, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(negocioEmail, pageWidth - hMargin, 18, { align: "right" });
+      doc.text(negocioDireccion, pageWidth - hMargin, 24, { align: "right" });
+      doc.text(negocioTelefono, pageWidth - hMargin, 30, { align: "right" });
+
+      doc.setTextColor(216, 176, 129);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text("MANITO BARBERSHOP", pageWidth / 2, 40, { align: "center" });
+
+      doc.setFontSize(10);
+      doc.setTextColor(170, 170, 170);
+      doc.text("Comprobante de Devolución", pageWidth / 2, 48, { align: "center" });
+
+      doc.setFillColor(216, 176, 129);
+      doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, 'F');
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      const devolucionId = String(devolucion.id || "N/A");
+      doc.text(`DEVOLUCIÓN #${devolucionId}`, pageWidth / 2, 56.5, { align: "center" });
+
+      let y = 80;
       doc.setTextColor(40, 40, 40);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMACIÓN GENERAL", hMargin, y);
 
-      // Header del documento
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text('COMPROBANTE DE DEVOLUCIÓN', 105, 25, { align: 'center' });
-
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Barbería - Sistema de Gestión`, 105, 35, { align: 'center' });
-
-      // Línea separadora
+      doc.setDrawColor(216, 176, 129);
       doc.setLineWidth(0.5);
-      doc.line(20, 45, 190, 45);
+      doc.line(hMargin, y + 2, 85, y + 2);
 
-      // Información de la devolución
-      let yPos = 60;
+      y += 15;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("N. de devolución:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(devolucion.id ?? "N/A"), hMargin + 40, y);
 
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Usuario:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(devolucion.cliente || devolucion.barbero || "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Fecha y Hora:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${devolucion.fecha || "N/A"}${devolucion.hora ? ` ${devolucion.hora}` : ""}`, hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Estado:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(devolucion.estado || "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Responsable:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(devolucion.responsable || "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Tipo:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(devolucion.ventaId ? "Venta" : "Insumos", hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Motivo de devolución:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(devolucion.motivoDetalle || getMotivoLabel(devolucion.motivoCategoria) || "N/A"), hMargin + 40, y);
+
+      y += 15;
       doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('INFORMACIÓN DE LA DEVOLUCIÓN', 20, yPos);
-      yPos += 15;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("DETALLE DE DEVOLUCIÓN", hMargin, y);
+      doc.line(hMargin, y + 2, 88, y + 2);
 
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
+      y += 12;
+      doc.setFillColor(26, 26, 26);
+      doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, 'F');
+      doc.setTextColor(216, 176, 129);
+      doc.setFontSize(9);
+      const col1 = 44, col2 = 83, col3 = 108, col4 = 133, col5 = 169;
+      doc.text("ITEM", col1, y + 6.5, { align: "center" });
+      doc.text("CATEGORÍA", col2, y + 6.5, { align: "center" });
+      doc.text("CANT.", col3, y + 6.5, { align: "center" });
+      doc.text("PREC. UNIT", col4, y + 6.5, { align: "center" });
+      doc.text("SUBTOTAL", col5, y + 6.5, { align: "center" });
 
-      // Datos en dos columnas
-      const leftColumn = 20;
-      const rightColumn = 110;
+      y += 10;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "normal");
 
-      doc.setFont('helvetica', 'bold');
-      doc.text('ID Devolución:', leftColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.id, leftColumn + 35, yPos);
+      const nombreItem = String(devolucion.producto || "Producto");
+      const categoria = String(devolucion.categoria || "N/A");
+      const cantidad = Number(devolucion.cantidad || 0);
+      const precioUnitario = Number(devolucion.precioUnitario || 0);
+      const subtotal = Number(devolucion.monto || cantidad * precioUnitario);
 
-      doc.setFont('helvetica', 'bold');
-      doc.text('Estado:', rightColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.estado, rightColumn + 20, yPos);
-      yPos += 12;
+      doc.setFillColor(248, 249, 250);
+      doc.rect(hMargin, y, pageWidth - (hMargin * 2), 8, 'F');
+      doc.setFontSize(8);
+      const nombreTrunc = nombreItem.length > 42 ? `${nombreItem.substring(0, 39)}...` : nombreItem;
+      const catTrunc = categoria.length > 20 ? `${categoria.substring(0, 17)}...` : categoria;
+      doc.text(nombreTrunc, col1, y + 5.5, { align: "center" });
+      doc.text(catTrunc, col2, y + 5.5, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.text(String(cantidad), col3, y + 5.5, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.text(`$${formatCurrency(precioUnitario)}`, col4, y + 5.5, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.text(`$${formatCurrency(subtotal)}`, col5, y + 5.5, { align: "center" });
+      doc.setFont("helvetica", "normal");
 
-      doc.setFont('helvetica', 'bold');
-      doc.text('Cliente:', leftColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.cliente, leftColumn + 25, yPos);
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Fecha:', rightColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.fecha, rightColumn + 20, yPos);
-      yPos += 12;
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('No. Venta:', leftColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.numeroVenta, leftColumn + 30, yPos);
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Hora:', rightColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.hora, rightColumn + 20, yPos);
-      yPos += 20;
-
-      // Información del producto
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('INFORMACIÓN DEL PRODUCTO', 20, yPos);
-      yPos += 15;
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Producto:', leftColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.producto, leftColumn + 25, yPos);
-      yPos += 12;
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Cantidad:', leftColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.cantidad.toString(), leftColumn + 25, yPos);
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Precio Unitario:', rightColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${formatCurrency(devolucion.precioUnitario)}`, rightColumn + 35, yPos);
-      yPos += 12;
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Monto Total:', leftColumn, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(12);
-      doc.text(`${formatCurrency(devolucion.monto)}`, leftColumn + 30, yPos);
-      yPos += 20;
-
-      // Motivo y observaciones
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('MOTIVO DE LA DEVOLUCIÓN', 20, yPos);
-      yPos += 15;
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(devolucion.motivoDetalle, 20, yPos);
-      yPos += 15;
+      y += 12;
 
       if (devolucion.observaciones) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Observaciones:', 20, yPos);
-        yPos += 10;
-        doc.setFont('helvetica', 'normal');
-
-        // Dividir observaciones en líneas si es muy largo
-        const splitObservaciones = doc.splitTextToSize(devolucion.observaciones, 170);
-        doc.text(splitObservaciones, 20, yPos);
-        yPos += splitObservaciones.length * 6;
+        y += 3;
+        doc.setFont("helvetica", "bold");
+        doc.text("Observaciones:", hMargin, y);
+        doc.setFont("helvetica", "normal");
+        const observacionesLines = doc.splitTextToSize(String(devolucion.observaciones), pageWidth - (hMargin * 2));
+        doc.text(observacionesLines, hMargin, y + 6);
+        y += 6 + (observacionesLines.length * 5);
       }
 
-      yPos += 20;
-
-      // Información del saldo
-      if (devolucion.estado === 'Completada' && devolucion.saldoAFavor > 0) {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('SALDO A FAVOR', 20, yPos);
-        yPos += 15;
-
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`El cliente ${devolucion.cliente} tiene un saldo a favor de:`, 20, yPos);
-        yPos += 10;
-
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${formatCurrency(devolucion.saldoAFavor)}`, 20, yPos);
-        yPos += 20;
+      y += 6;
+      if (y > 258) {
+        doc.addPage();
+        y = 20;
       }
-
-      // Responsable
+      doc.setFillColor(248, 249, 250);
+      doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 22, 2, 2, 'F');
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Responsable: ${devolucion.responsable}`, 20, yPos);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL DEVUELTO: $ ${formatCurrency(subtotal)}`, pageWidth / 2, y + 8, { align: "center" });
+      doc.setFontSize(14);
+      doc.setTextColor(216, 176, 129);
+      doc.text(`SALDO A FAVOR: $ ${formatCurrency(Number(devolucion.saldoAFavor || 0))}`, pageWidth / 2, y + 17, { align: "center" });
 
-      // Footer
-      yPos = 270;
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'italic');
-      doc.text('Este documento es un comprobante oficial de devolución.', 105, yPos, { align: 'center' });
-      doc.text(`Generado el ${new Date().toLocaleDateString('es-CO')} a las ${new Date().toLocaleTimeString('es-CO')}`, 105, yPos + 5, { align: 'center' });
+      y = Math.max(275, y + 28);
+      doc.setDrawColor(216, 176, 129);
+      doc.line(hMargin, y, pageWidth - hMargin, y);
 
-      // Guardar el PDF
-      const fileName = `Devolucion_${devolucion.id}_${devolucion.cliente.replace(/\s+/g, '_')}.pdf`;
+      y += 8;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Documento generado automáticamente el ${new Date().toLocaleString('es-CO')}`, pageWidth / 2, y, { align: "center" });
+      doc.text("MANITO BARBERSHOP - Sistema de Gestión de Devoluciones", pageWidth / 2, y + 4, { align: "center" });
+
+      const fileName = `Reporte_Devolucion_${devolucion.id}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
-
       toast.success(`PDF generado exitosamente`, {
-        description: `Archivo: ${fileName} para ${devolucion.cliente}`
+        description: `Archivo: ${fileName}`
       });
-
     } catch (error) {
-      // Error handling - could be replaced with proper logging service
+      console.error("Error al generar PDF de devolución:", error);
       toast.error('Error al generar el PDF de la devolución');
     }
   };
@@ -1637,9 +1680,9 @@ export function DevolucionesPage() {
                           <button
                             onClick={() => generateIndividualPdf(devolucion)}
                             className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Generar PDF de devolución"
+                            title="Descargar PDF"
                           >
-                            <FileText className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                            <FileDown className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
                         </div>
                       </td>

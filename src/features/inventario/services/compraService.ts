@@ -25,6 +25,8 @@ export interface DetalleCompra {
     productoId: number;
     productoNombre?: string;
     productoImagen?: string;
+    /** Nombre de la categoría del producto (para listados y reportes) */
+    categoria?: string;
     cantidad: number;
     precioUnitario: number;
     subtotal?: number;
@@ -285,11 +287,19 @@ class CompraService {
             const text = await response.text();
             const data = text ? JSON.parse(text) : [];
 
+            const catFromDetalle = (d: any): string => {
+                const prod = d.producto || d.Producto;
+                const cat = d.categoria ?? d.Categoria ?? prod?.categoria ?? prod?.Categoria;
+                if (typeof cat === 'string' && cat.trim()) return String(cat).trim();
+                if (cat && typeof cat === 'object') return String(cat.nombre ?? cat.Nombre ?? '').trim();
+                return '';
+            };
             return (data || []).map((d: any) => ({
                 id: d.id || d.Id,
                 productoId: d.productoId || d.ProductoId,
                 productoNombre: d.producto?.nombre || d.producto?.Nombre || d.Producto?.Nombre || d.Producto?.nombre || 'Producto',
                 productoImagen: d.producto?.imagenProduc || d.producto?.ImagenProduc || d.Producto?.ImagenProduc || d.Producto?.imagenProduc || '',
+                categoria: catFromDetalle(d) || undefined,
                 cantidad: d.cantidad || d.Cantidad || 0,
                 precioUnitario: d.precioUnitario || d.PrecioUnitario || d.precioCompra || d.PrecioCompra || 0,
                 subtotal: (Number(d.cantidad || d.Cantidad || 0)) * (Number(d.precioUnitario || d.PrecioUnitario || d.precioCompra || d.PrecioCompra || 0)),

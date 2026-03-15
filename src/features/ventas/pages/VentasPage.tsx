@@ -18,7 +18,7 @@ import {
   Receipt,
   Hash,
   Ban,
-  Download,
+  FileDown,
   Calculator,
   Scissors,
   AlertCircle,
@@ -45,6 +45,7 @@ import { devolucionService, Devolucion as ApiDevolucion } from "../services/devo
 import { AppRole } from "../../auth/services/authSyncService";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import manitoLogo from "../../../assets/Manito.jpeg";
 
 // Función para formatear moneda colombiana con puntos para separar miles
 const formatCurrency = (amount: number): string => {
@@ -1555,27 +1556,6 @@ export function VentasPage() {
   };
 
   const generateVentaPDF = async (venta: any) => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Generando documento...</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #333; }
-            .loading { text-align: center; margin-top: 40px; color: #666; }
-          </style>
-        </head>
-        <body>
-          <div class="loading">Generando PDF de la venta ${venta?.id || ''}...</div>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
-
     let ventaData = venta;
     try {
       const noTieneDetalles =
@@ -1601,346 +1581,259 @@ export function VentasPage() {
     } catch (e) {
       console.warn('No se pudieron cargar los detalles completos de la venta para el PDF:', e);
     }
+    try {
+      const jsPDF = (await import("jspdf")).default;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const hMargin = 20;
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Detalle de Venta ${ventaData.id}</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #fff;
-            color: #000;
-            line-height: 1.5;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 2px solid #d8b081;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-          }
-          .company-name {
-            font-size: 28px;
-            font-weight: bold;
-            color: #d8b081;
-            margin-bottom: 10px;
-          }
-          .invoice-title {
-            font-size: 24px;
-            color: #333;
-            margin-bottom: 5px;
-          }
-          .invoice-subtitle {
-            font-size: 14px;
-            color: #666;
-          }
-          .section {
-            margin-bottom: 25px;
-            border: 1px solid #d8b081;
-            border-radius: 8px;
-            padding: 15px;
-            background-color: #f9f9f9;
-          }
-          .section-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #d8b081;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid #d8b081;
-            padding-bottom: 8px;
-          }
-          .section-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-          }
-          .field {
-            margin-bottom: 12px;
-          }
-          .field-label {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
-            font-size: 14px;
-          }
-          .field-value {
-            color: #666;
-            padding: 8px 12px;
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-          }
-          .products-section, .services-section {
-            margin-bottom: 20px;
-          }
-          .item-card {
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .item-details {
-            flex: 1;
-          }
-          .item-name {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 4px;
-          }
-          .item-description {
-            font-size: 12px;
-            color: #666;
-          }
-          .item-price {
-            font-weight: bold;
-            color: #d8b081;
-            font-size: 16px;
-          }
-          .totals-section {
-            background-color: #f8f9fa;
-            border: 2px solid #d8b081;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-          }
-          .total-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            padding: 4px 0;
-            font-size: 14px;
-          }
-          .total-label {
-            color: #666;
-          }
-          .total-value {
-            font-weight: bold;
-            color: #333;
-          }
-          .final-total {
-            border-top: 2px solid #d8b081;
-            padding-top: 12px;
-            margin-top: 12px;
-            font-size: 18px;
-          }
-          .final-total .total-value {
-            color: #d8b081;
-            font-size: 20px;
-            font-weight: bold;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 12px;
-            color: white;
-            background-color: ${venta.estado === 'Completada' ? '#10B981' : venta.estado === 'Anulada' ? '#DC2626' : '#d8b081'};
-          }
-          .additional-info {
-            background-color: #f5f5f5;
-            border: 1px solid #d8b081;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-          }
-          .empty-state {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 20px;
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-          }
-          .footer {
-            margin-top: 40px;
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-            border-top: 1px solid #d8b081;
-            padding-top: 20px;
-          }
-          @media print {
-            body { margin: 0; padding: 15px; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="company-name">MANITO BARBERSHOP</div>
-          <div class="invoice-title">Detalles de Venta ${ventaData.id}</div>
-          <div class="invoice-subtitle">Información completa de la transacción</div>
-        </div>
+      doc.setFillColor(26, 26, 26);
+      doc.rect(0, 0, pageWidth, 65, "F");
 
-        <!-- Información básica -->
-        <div class="section">
-          <div class="section-grid">
-            <div class="field">
-              <div class="field-label">📋 Número de Venta</div>
-              <div class="field-value">${ventaData.id}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">📅 Fecha de Registro</div>
-              <div class="field-value">${formatDate(ventaData.fecha)}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">👤 Cliente</div>
-              <div class="field-value">${normalizeCliente(ventaData.cliente)}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">💳 Método de Pago</div>
-              <div class="field-value">${ventaData.metodoPago}</div>
-            </div>
-          </div>
-        </div>
+      try {
+        doc.addImage(manitoLogo, "JPEG", pageWidth / 2 - 12.5, 5, 25, 25);
+      } catch {}
 
-        <!-- Productos -->
-        <div class="section">
-          <div class="section-title">🛍️ Productos</div>
-          <div class="products-section">
-            ${ventaData.productosDetalle && ventaData.productosDetalle.length > 0 ?
-        ventaData.productosDetalle.map((producto: any) => `
-                <div class="item-card">
-                  <div class="item-details">
-                    <div class="item-name">${producto.nombre}</div>
-                    <div class="item-description">Cantidad: ${producto.cantidad} × ${formatCurrency(producto.precio)} = ${formatCurrency(producto.cantidad * producto.precio)}</div>
-                  </div>
-                  <div class="item-price">${formatCurrency(producto.cantidad * producto.precio)}</div>
-                </div>
-              `).join('') :
-        '<div class="empty-state">Ningún producto agregado</div>'
-      }
-          </div>
-        </div>
+      const negocioNombre = "Manito BarberShop";
+      const negocioEmail = "Edwainsolano007@gmail.com";
+      const negocioDireccion = "Calle 79 #52 12 Aranjuez, Medellín";
+      const negocioTelefono = "301 4836189";
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(negocioNombre, pageWidth - hMargin, 12, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(negocioEmail, pageWidth - hMargin, 18, { align: "right" });
+      doc.text(negocioDireccion, pageWidth - hMargin, 24, { align: "right" });
+      doc.text(negocioTelefono, pageWidth - hMargin, 30, { align: "right" });
 
-        <!-- Servicios -->
-        <div class="section">
-          <div class="section-title">✂️ Servicios</div>
-          <div class="services-section">
-            ${ventaData.serviciosDetalle && ventaData.serviciosDetalle.length > 0 ?
-        ventaData.serviciosDetalle.map((servicio: any) => `
-                <div class="item-card">
-                  <div class="item-details">
-                    <div class="item-name">${servicio.nombre}</div>
-                    <div class="item-description">Precio del servicio</div>
-                  </div>
-                  <div class="item-price">${formatCurrency(servicio.precio)}</div>
-                </div>
-              `).join('') :
-        '<div class="empty-state">Ningún servicio registrado</div>'
-      }
-          </div>
-        </div>
+      doc.setTextColor(216, 176, 129);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text("MANITO BARBERSHOP", pageWidth / 2, 40, { align: "center" });
 
-        <!-- Porcentajes -->
-        <div class="section">
-          <div class="section-title">📊 IVA (%) & Descuento (%)</div>
-          <div class="section-grid">
-            <div class="field">
-              <div class="field-label">📈 IVA (%)</div>
-              <div class="field-value">${(Number(ventaData.subtotal) > 0 && Number(ventaData.iva) >= 0)
-                ? Math.round((Number(ventaData.iva) / Number(ventaData.subtotal)) * 100)
-                : 0}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">📉 Descuento (%)</div>
-              <div class="field-value">${ventaData.descuento > 0 ? Math.round((ventaData.descuento / ventaData.subtotal) * 100) : "0"}</div>
-            </div>
-          </div>
-        </div>
+      doc.setFontSize(10);
+      doc.setTextColor(170, 170, 170);
+      doc.text("Comprobante de Venta", pageWidth / 2, 48, { align: "center" });
 
-        <!-- Resumen de Totales -->
-        <div class="section">
-          <div class="section-title">🧮 Resumen de Totales</div>
-          <div class="totals-section">
-            <div class="total-row">
-              <span class="total-label">Subtotal:</span>
-              <span class="total-value">${formatCurrency(ventaData.subtotal)}</span>
-            </div>
-            <div class="total-row">
-              <span class="total-label">IVA (19%):</span>
-              <span class="total-value">${formatCurrency(ventaData.iva)}</span>
-            </div>
-            ${ventaData.descuento > 0 ? `
-            <div class="total-row">
-              <span class="total-label">Descuento:</span>
-              <span class="total-value" style="color: #DC2626;">-${formatCurrency(ventaData.descuento)}</span>
-            </div>
-            ` : ''}
-            <div class="total-row final-total">
-              <span class="total-label">Total:</span>
-              <span class="total-value">${formatCurrency(ventaData.total)}</span>
-            </div>
-          </div>
-        </div>
+      doc.setFillColor(216, 176, 129);
+      doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, "F");
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      const ventaId = String((ventaData as any).numeroVenta || ventaData.id || "N/A");
+      doc.text(`VENTA #${ventaId}`, pageWidth / 2, 56.5, { align: "center" });
 
-        <!-- Información Adicional -->
-        <div class="additional-info">
-          <div class="section-title">📄 Información Adicional</div>
-          <div class="info-grid">
-            <div>
-              <div class="field-label">Barbero asignado:</div>
-              <div style="color: #333; font-weight: 500; margin-top: 5px;">${normalizeBarbero(ventaData.barbero)}</div>
-              <div class="field-label" style="margin-top: 8px;">ID Barbero</div>
-              <div class="field-value">${String((ventaData as any).barberoId ?? '')}</div>
-            </div>
-            <div>
-              <div class="field-label">Estado de la venta:</div>
-              <div style="margin-top: 8px;">
-                <span class="status-badge">${ventaData.estado}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      let y = 80;
+      doc.setTextColor(40, 40, 40);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("INFORMACIÓN GENERAL", hMargin, y);
 
-        <div class="footer">
-          <p><strong>Manito Barbershop</strong> - Sistema de Gestión</p>
-          <p>Documento generado automáticamente el ${new Date().toLocaleDateString('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}</p>
-          <p style="margin-top: 10px; color: #d8b081;">
-            <strong>¡Gracias por preferirnos!</strong>
-          </p>
-        </div>
-      </body>
-      </html>
-    `;
+      doc.setDrawColor(216, 176, 129);
+      doc.setLineWidth(0.5);
+      doc.line(hMargin, y + 2, 85, y + 2);
 
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-
-      // Esperar a que se cargue el contenido y luego imprimir
-      printWindow.onload = () => {
-        printWindow.print();
-        // Opcional: cerrar la ventana después de imprimir
-        // printWindow.close();
+      const fechaRegistro = formatDate((ventaData as any).fecha || "");
+      const responsableVenta = normalizeBarbero((ventaData as any).barbero);
+      const clienteIdVenta = Number((ventaData as any).clienteId || 0);
+      const clienteDocumentoVenta = String((ventaData as any).clienteDocumento || "").trim();
+      const clienteNombreVenta = normalizeCliente((ventaData as any).cliente);
+      const clientesFuente = (clientesCatalogo?.length ? clientesCatalogo : clientesAPI) || [];
+      const clienteMatch = clientesFuente.find((c: any) => {
+        const idMatch = !Number.isNaN(clienteIdVenta) && clienteIdVenta > 0 && Number(c?.id) === clienteIdVenta;
+        if (idMatch) return true;
+        if (!clienteDocumentoVenta) return false;
+        const docCatalogo = String(c?.documento || c?.numeroDocumento || "").trim();
+        return docCatalogo !== "" && (docCatalogo === clienteDocumentoVenta || docCatalogo.endsWith(clienteDocumentoVenta) || clienteDocumentoVenta.endsWith(docCatalogo));
+      });
+      const clienteNombreCatalogo = `${String(clienteMatch?.nombre || "").trim()} ${String(clienteMatch?.apellido || "").trim()}`.trim();
+      const clienteDocumentoCatalogo = String(clienteMatch?.documento || clienteMatch?.numeroDocumento || "").trim();
+      const clienteTipoDocumentoCatalogo = String((clienteMatch as any)?.tipoDocumento || "").trim();
+      const clienteNombreEsGenerico =
+        !clienteNombreVenta ||
+        ["cliente", "n/a", "na", "sin cliente", "null", "undefined"].includes(clienteNombreVenta.toLowerCase()) ||
+        /^cliente\s*\d*$/i.test(clienteNombreVenta);
+      const clienteNombreFinal = (clienteNombreEsGenerico ? clienteNombreCatalogo : clienteNombreVenta) || clienteNombreCatalogo || "Cliente";
+      const parseDocumento = (docRaw: string) => {
+        const value = String(docRaw || "").trim().replace(/\s+/g, " ");
+        if (!value) return { tipo: "", numero: "" };
+        const match = value.match(/^([A-Za-z\.]+)\s+(.+)$/);
+        if (match) {
+          return { tipo: String(match[1] || "").trim(), numero: String(match[2] || "").trim() };
+        }
+        return { tipo: "", numero: value };
       };
-    }
+      const normalizeTipoDocumento = (tipoRaw: string) => {
+        const tipo = String(tipoRaw || "").toUpperCase().replace(/\./g, "").trim();
+        const map: Record<string, string> = {
+          CC: "C.C.",
+          CE: "C.E.",
+          TI: "T.I.",
+          NIT: "N.I.T.",
+          RC: "R.C.",
+          PP: "P.P."
+        };
+        return map[tipo] || "";
+      };
+      const docFuente = clienteDocumentoVenta || clienteDocumentoCatalogo;
+      const docParsed = parseDocumento(docFuente);
+      const tipoFromParsed = normalizeTipoDocumento(docParsed.tipo);
+      const tipoFromCatalog = normalizeTipoDocumento(clienteTipoDocumentoCatalogo);
+      const tipoDocumentoFinal = tipoFromParsed || tipoFromCatalog;
+      const numeroDocumentoFinal = docParsed.numero || "N/A";
+      const documentoFormateado = tipoDocumentoFinal ? `${tipoDocumentoFinal} ${numeroDocumentoFinal}` : numeroDocumentoFinal;
+      const clienteDisplay = `${clienteNombreFinal} - ${documentoFormateado}`;
 
-    created("PDF generado ✔️", `La factura de la venta ${ventaData.id} ha sido generada y está lista para imprimir.`);
+      y += 15;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("N. de venta:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String((ventaData as any).id ?? "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Cliente:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(clienteDisplay, hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Fecha y Hora:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(fechaRegistro, hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Estado:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String((ventaData as any).estado || "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Responsable:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(responsableVenta || "N/A", hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("Método Pago:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String((ventaData as any).metodoPago || "N/A"), hMargin + 40, y);
+
+      const productosDetalle = Array.isArray((ventaData as any).productosDetalle) ? (ventaData as any).productosDetalle : [];
+      const serviciosDetalle = Array.isArray((ventaData as any).serviciosDetalle) ? (ventaData as any).serviciosDetalle : [];
+      const detalles = [
+        ...productosDetalle.map((item: any) => ({
+          nombre: String(item?.nombre || "Producto"),
+          tipo: "Producto",
+          cantidad: Number(item?.cantidad || 1),
+          precioUnitario: Number(item?.precio || 0)
+        })),
+        ...serviciosDetalle.map((item: any) => ({
+          nombre: String(item?.nombre || "Servicio"),
+          tipo: "Servicio",
+          cantidad: Number(item?.cantidad || 1),
+          precioUnitario: Number(item?.precio || 0)
+        }))
+      ];
+
+      const totalItems = detalles.reduce((sum, d) => sum + Number(d.cantidad || 0), 0);
+      const subtotalNum = Number((ventaData as any).subtotal || 0);
+      const ivaNum = Number((ventaData as any).iva || 0);
+      const descuentoNum = Number((ventaData as any).descuento || 0);
+      const totalNum = Number((ventaData as any).total || subtotalNum + ivaNum - descuentoNum);
+
+      y += 15;
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text("DETALLE DE ÍTEMS", hMargin, y);
+      doc.line(hMargin, y + 2, 80, y + 2);
+
+      y += 12;
+      doc.setFillColor(26, 26, 26);
+      doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, "F");
+      doc.setTextColor(216, 176, 129);
+      doc.setFontSize(9);
+      doc.text("ITEM", hMargin + 2, y + 6.5);
+      doc.text("TIPO", hMargin + 75, y + 6.5);
+      doc.text("CANT.", hMargin + 105, y + 6.5, { align: "right" });
+      doc.text("PREC. UNIT", hMargin + 133, y + 6.5, { align: "right" });
+      doc.text("SUBTOTAL", hMargin + 160, y + 6.5, { align: "right" });
+
+      y += 10;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "normal");
+
+      if (detalles.length === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay detalles disponibles para esta venta.", pageWidth / 2, y + 10, { align: "center" });
+      } else {
+        detalles.forEach((item, index) => {
+          if (y > 250) {
+            doc.addPage();
+            y = 20;
+          }
+
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 249, 250);
+            doc.rect(hMargin, y, pageWidth - (hMargin * 2), 8, "F");
+          }
+
+          const nombreTruncado = item.nombre.length > 42 ? `${item.nombre.substring(0, 39)}...` : item.nombre;
+          const subtotal = Number(item.cantidad || 0) * Number(item.precioUnitario || 0);
+
+          doc.setFontSize(8);
+          doc.text(nombreTruncado, hMargin + 2, y + 5.5);
+          doc.text(item.tipo, hMargin + 75, y + 5.5);
+          doc.setFont("helvetica", "bold");
+          doc.text(String(item.cantidad), hMargin + 105, y + 5.5, { align: "right" });
+          doc.setFont("helvetica", "normal");
+          doc.text(`$${formatCurrency(item.precioUnitario)}`, hMargin + 133, y + 5.5, { align: "right" });
+          doc.setFont("helvetica", "bold");
+          doc.text(`$${formatCurrency(subtotal)}`, hMargin + 160, y + 5.5, { align: "right" });
+          doc.setFont("helvetica", "normal");
+
+          y += 8;
+        });
+      }
+
+      y += 8;
+      if (y > 258) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFillColor(248, 249, 250);
+      doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 24, 2, 2, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL ÍTEMS: ${totalItems}`, pageWidth / 2, y + 7, { align: "center" });
+      doc.text(`DESCUENTO: $ ${formatCurrency(descuentoNum)}`, pageWidth / 2, y + 13, { align: "center" });
+      doc.setFontSize(14);
+      doc.setTextColor(216, 176, 129);
+      doc.text(`TOTAL: $ ${formatCurrency(totalNum)}`, pageWidth / 2, y + 20, { align: "center" });
+
+      y = Math.max(275, y + 30);
+      doc.setDrawColor(216, 176, 129);
+      doc.line(hMargin, y, pageWidth - hMargin, y);
+
+      y += 8;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Documento generado automáticamente el ${new Date().toLocaleString("es-CO")}`, pageWidth / 2, y, { align: "center" });
+      doc.text("MANITO BARBERSHOP - Sistema de Gestión de Ventas", pageWidth / 2, y + 4, { align: "center" });
+
+      const fileName = `Reporte_Venta_${(ventaData as any).numeroVenta || ventaData.id}_${new Date().toISOString().split("T")[0]}.pdf`;
+      doc.save(fileName);
+      created("PDF generado ✔️", `La factura de la venta ${ventaData.id} fue descargada correctamente.`);
+    } catch (error) {
+      console.error("Error generando PDF de venta:", error);
+      toast.error("No se pudo generar el PDF de la venta.");
+    }
   };
 
   const totalVentas = ventas.reduce((sum, venta) => sum + venta.total, 0);
@@ -2986,9 +2879,9 @@ export function VentasPage() {
                             <button
                               onClick={() => generateVentaPDF(venta)}
                               className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Generar PDF"
+                              title="Descargar PDF"
                             >
-                              <Download className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                              <FileDown className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                             </button>
                           </div>
                         </td>

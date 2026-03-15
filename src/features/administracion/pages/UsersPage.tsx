@@ -174,11 +174,11 @@ export function UsersPage() {
   const isDocDuplicateCreateUser = React.useMemo(() => {
     const docVal = String(newUser.documento || '').trim();
     if (!docVal) return false;
-    const existeEnUsuarios = users.some((u: any) => String(u.documento || '').trim() === docVal);
+    const existeEnUsuarios = users.some((u: any) => (editingUser && Number(u.id) === Number(editingUser.id)) ? false : String(u.documento || '').trim() === docVal);
     const existeEnClientes = clientesCatalogo.some((c: any) => String((c as any).documento || (c as any).numeroDocumento || '').trim() === docVal);
     const existeEnBarberos = barberosCatalogo.some((b: any) => String((b as any).documento || '').trim() === docVal);
     return existeEnUsuarios || existeEnClientes || existeEnBarberos;
-  }, [newUser.documento, users, clientesCatalogo, barberosCatalogo]);
+  }, [newUser.documento, users, clientesCatalogo, barberosCatalogo, editingUser?.id]);
   const isEmailDuplicateCreateUser = React.useMemo(() => {
     const emailVal = String(newUser.correo || '').trim().toLowerCase();
     if (!emailVal) return false;
@@ -876,7 +876,6 @@ export function UsersPage() {
                           value={newUser.tipoDocumento}
                           onChange={(e) => setNewUser({ ...newUser, tipoDocumento: e.target.value })}
                           className={`elegante-input w-full ${showUserFormErrors && !newUser.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                          disabled={editingUser !== null}
                         >
                           <option value="">Selecciona tipo de documento</option>
                           {tiposDocumento.map(tipo => (
@@ -906,10 +905,9 @@ export function UsersPage() {
                           maxLength={18}
                           className={`elegante-input w-full ${showUserFormErrors && !newUser.documento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="Número de documento (solo números)"
-                          disabled={editingUser !== null}
                         />
                         {showUserFormErrors && !newUser.documento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
-                        {isDocDuplicateCreateUser && !editingUser && <p className="text-xs text-red-400">Documento ya existe en el sistema.</p>}
+                        {isDocDuplicateCreateUser && <p className="text-xs text-red-400">Documento ya existe en el sistema.</p>}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-white-primary flex items-center gap-2">
@@ -1131,7 +1129,16 @@ export function UsersPage() {
                       onReload={loadInitialData}
                     />
                   ) : (
-                    displayedUsers.map(user => (
+                    displayedUsers.map(user => {
+                      const isSelfUser = currentUser?.id === user.id.toString();
+                      const isPrivilegedTargetRole = ['super administrador', 'administrador', 'admin', 'gerente', 'super_admin'].includes(user.rol?.toLowerCase() || '');
+                      const canManageByRole = currentUser?.role === 'super_admin' || (currentUser?.role === 'admin' && !isPrivilegedTargetRole);
+                      const canEditUser = canManageByRole || isSelfUser;
+                      const showStatusAction = canManageByRole || isSelfUser;
+                      const showDeleteAction = canManageByRole || isSelfUser;
+                      const isDeleteBlockedByRole = currentUser?.role !== 'super_admin' && (user.rol?.toLowerCase() === 'super administrador' || ['administrador', 'admin'].includes(user.rol?.toLowerCase() || ''));
+
+                      return (
                       <tr key={user.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                         <td className="text-left py-4 px-4">
                           <span className="text-gray-lighter">{user.documento || "—"}</span>
@@ -1169,11 +1176,15 @@ export function UsersPage() {
                         </td>
                         <td className="text-right py-4 px-4">
                           <div className="flex justify-end gap-1">
-                            {currentUser?.id !== user.id.toString() && (currentUser?.role === 'super_admin' || (currentUser?.role === 'admin' && !['super administrador', 'administrador', 'admin', 'gerente', 'super_admin'].includes(user.rol?.toLowerCase() || ''))) && (
+                            {showStatusAction && (
                               <button
-                                onClick={() => toggleUserStatus(user.id)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title={user.status ? "Desactivar usuario" : "Activar usuario"}
+                                onClick={() => {
+                                  if (isSelfUser) return;
+                                  toggleUserStatus(user.id);
+                                }}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-30 disabled:cursor-not-allowed"
+                                title={isSelfUser ? "No puedes cambiar tu propio estado" : (user.status ? "Desactivar usuario" : "Activar usuario")}
+                                disabled={isSelfUser}
                               >
                                 {user.status ? (
                                   <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
@@ -1192,7 +1203,7 @@ export function UsersPage() {
                             >
                               <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                             </button>
-                            {(currentUser?.role === 'super_admin' || (currentUser?.role === 'admin' && !['super administrador', 'administrador', 'admin', 'gerente', 'super_admin'].includes(user.rol?.toLowerCase() || ''))) && (
+                            {canEditUser && (
                               <button
                                 onClick={() => handleEditUser(user)}
                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -1208,15 +1219,16 @@ export function UsersPage() {
                             >
                               <KeyRound className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                             </button>
-                             {currentUser?.id !== user.id.toString() && (
+                             {showDeleteAction && (
                                <button
                                  onClick={() => {
+                                   if (isSelfUser) return;
                                    setUserToDelete(user);
                                    setIsDeleteDialogOpen(true);
                                  }}
                                  className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-30 disabled:cursor-not-allowed"
-                                 title="Eliminar usuario"
-                                 disabled={currentUser?.role !== 'super_admin' && (user.rol?.toLowerCase() === 'super administrador' || ['administrador', 'admin'].includes(user.rol?.toLowerCase() || ''))}
+                                 title={isSelfUser ? "No puedes eliminar tu propio usuario" : "Eliminar usuario"}
+                                 disabled={isSelfUser || isDeleteBlockedByRole}
                                >
                                  <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                                </button>
@@ -1224,7 +1236,7 @@ export function UsersPage() {
                           </div>
                         </td>
                       </tr>
-                    ))
+                    )})
                   )}
                 </tbody>
               </table>
