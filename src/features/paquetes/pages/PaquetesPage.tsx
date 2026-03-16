@@ -95,17 +95,17 @@ export function PaquetesPage() {
     fetchData();
   }, []);
 
-  // Function to reload paquetes
-  const loadPaquetes = async () => {
+  // Function to reload paquetes. silent=true evita parpadeo tras crear/editar/eliminar/toggle.
+  const loadPaquetes = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await apiService.getPaquetes();
       setPaquetes(data);
       await enrichPaquetesWithServicios();
     } catch (error) {
       console.error('Error loading paquetes:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -444,7 +444,7 @@ export function PaquetesPage() {
             }))
           );
 
-          await loadPaquetes(); // Recargar todos los paquetes como en ServiciosPage
+          await loadPaquetes(true);
           setEditingPaquete(null);
           setNuevoPaquete({ ...estadoInicialPaquete });
           setServiciosAgregados([]);
@@ -472,7 +472,7 @@ export function PaquetesPage() {
     (async () => {
       try {
         await apiService.updatePaqueteStatus(paquete.id, nuevoEstado);
-        await loadPaquetes(); // Recargar todos los paquetes como en ServiciosPage
+        await loadPaquetes(true);
         edited(`Paquete ${nuevoEstado ? 'activado' : 'desactivado'} ✔️`, `El paquete "${nombrePaquete}" ha sido ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente.`);
       } catch (error) {
         console.error('Error updating paquete status:', error);
@@ -493,14 +493,14 @@ export function PaquetesPage() {
         if (exists) {
           try {
             await apiService.updatePaqueteStatus(paquete.id, false);
-            await loadPaquetes();
+            await loadPaquetes(true);
             edited("Paquete desactivado", `El paquete "${nombrePaquete}" se desactivó automáticamente porque tiene conexiones.`);
           } catch {
             showErrorAlert("No se puede eliminar", "Este paquete tiene conexiones. Solo se puede desactivar para conservar el historial.");
           }
           return;
         }
-        await loadPaquetes();
+        await loadPaquetes(true);
         deleted("Paquete eliminado ✔️", `El paquete "${nombrePaquete}" ha sido eliminado del sistema.`);
       } catch (error: any) {
         const msg = String(error?.message || '').toLowerCase();
@@ -516,7 +516,7 @@ export function PaquetesPage() {
         if (related) {
           try {
             await apiService.updatePaqueteStatus(paquete.id, false);
-            await loadPaquetes();
+            await loadPaquetes(true);
             edited("Paquete desactivado", `El paquete "${nombrePaquete}" se desactivó automáticamente porque tiene conexiones.`);
           } catch {
             showErrorAlert("No se puede eliminar", "Este paquete tiene conexiones. Solo se puede desactivar para conservar el historial.");

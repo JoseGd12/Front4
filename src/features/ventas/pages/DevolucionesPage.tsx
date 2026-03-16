@@ -173,8 +173,8 @@ export function DevolucionesPage() {
     loadData();
   }, []);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const [devs, sales, clientes, productos, barberos, categorias] = await Promise.all([
         devolucionService.getDevoluciones(),
@@ -399,7 +399,7 @@ export function DevolucionesPage() {
       toast.error("Error al cargar datos");
       console.error(error);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -806,7 +806,7 @@ export function DevolucionesPage() {
       });
       toast.success("Devolución de insumos registrada");
       setIsDialogOpen(false);
-      loadData();
+      loadData(true);
       resetFormularios();
     } catch (e: any) {
       toast.error("Error al registrar devolución de insumos");
@@ -978,7 +978,7 @@ export function DevolucionesPage() {
         await devolucionService.createDevolucionBatch(batchPayload);
         toast.success(`Devolución registrada exitosamente.`);
         setIsDialogOpen(false);
-        loadData();
+        loadData(true);
         resetFormularios();
       } catch (error) {
         toast.error("Error al registrar la devolución");
@@ -1053,7 +1053,7 @@ export function DevolucionesPage() {
           }
 
           // La alerta de éxito la maneja confirmEditAction en sus opciones
-          loadData();
+          loadData(true);
 
         } catch (error: any) {
           console.error(`❌ Error al ${accion} devolución:`, error);

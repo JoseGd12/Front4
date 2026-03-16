@@ -12,7 +12,9 @@ import {
   Moon,
   Eye,
   Scissors,
-  Package
+  Package,
+  Search,
+  X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
@@ -24,6 +26,8 @@ import { ClienteHistorialDevolucionesPage } from "./ClienteHistorialDevoluciones
 import { ClienteServiciosPage } from "../../servicios/pages/ClienteServiciosPage";
 import { ClientePerfilPage } from "./ClientePerfilPage";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
+import { Input } from "../../../shared/components/ui/input";
 
 // Navegación para clientes - Sin agrupaciones
 const navItems = [
@@ -41,6 +45,23 @@ export function ClienteDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(null);
+  const [sidebarSearch, setSidebarSearch] = useState("");
+
+  const normalizedSidebarSearch = sidebarSearch
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+  const filteredNavItems = normalizedSidebarSearch
+    ? navItems.filter((item) =>
+        item.label
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .includes(normalizedSidebarSearch)
+      )
+    : navItems;
 
   const handleReservationRedirect = (item: any) => {
     setPreSelectedReservation(item);
@@ -104,27 +125,50 @@ export function ClienteDashboard() {
     <TooltipProvider>
       <div className="flex flex-col h-screen bg-black-primary" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
         {/* Barra Superior */}
-        <header className="bg-black-primary border-b border-gray-dark px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-              title={sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}
-            >
-              <Menu className="w-5 h-5 text-orange-primary" />
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center elegante-shadow-lg relative overflow-hidden">
-                <img src={LOGO_URL} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white-primary">MANITO BARBERSHOP</h1>
-                <p className="text-xs text-gray-lighter font-medium">Panel de Clientes</p>
+        <header className="bg-black-primary border-b border-gray-dark py-4 flex items-center">
+          <div className="flex items-center w-full">
+            <div className="w-72 shrink-0 px-4 flex items-center gap-3">
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
+                title={sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}
+              >
+                <Menu className="w-5 h-5 text-orange-primary" />
+              </button>
+
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter" />
+                <Input
+                  value={sidebarSearch}
+                  onChange={(e) => setSidebarSearch(e.target.value)}
+                  placeholder="Buscar módulo..."
+                  className="elegante-input pl-10 w-full"
+                />
+                {sidebarSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setSidebarSearch("")}
+                    title="Limpiar búsqueda"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
+            <div className="flex-1 px-6 lg:px-8 flex items-center justify-between gap-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center elegante-shadow-lg relative overflow-hidden shrink-0">
+                  <img src={LOGO_URL} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-lg font-bold text-white-primary truncate">MANITO BARBERSHOP</h1>
+                  <p className="text-xs text-gray-lighter font-medium truncate">Panel de Clientes</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 shrink-0">
             <button
               onClick={toggleTheme}
               className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
@@ -168,24 +212,36 @@ export function ClienteDashboard() {
             >
               <LogOut className="w-5 h-5 text-orange-primary" />
             </button>
+              </div>
+            </div>
           </div>
         </header>
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
           <aside
-            className={`bg-black-primary border-r border-gray-dark flex flex-col transition-all duration-300 ${sidebarCollapsed ? "w-20" : "w-72"
-              }`}
+            className={`bg-black-primary border-r border-gray-dark flex flex-col transition-all duration-300 w-72`}
           >
             {/* Navigation */}
             <nav className={`flex-1 px-3 py-6 overflow-y-auto ${sidebarCollapsed ? "space-y-2" : "space-y-2"}`}>
-              {navItems.map((item) => renderNavItem(item, activePage === item.label))}
+              {filteredNavItems.map((item) => renderNavItem(item, activePage === item.label))}
             </nav>
           </aside>
 
           {/* Main Content */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {renderContent()}
+            <ModuleSubNav
+              title={activePage}
+              icon={(() => {
+                const match = navItems.find((n) => n.label === activePage);
+                if (!match?.icon) return undefined;
+                const Icon = match.icon;
+                return <Icon className="w-5 h-5 text-orange-primary" />;
+              })()}
+            />
+            <div className="module-content flex-1 overflow-y-auto px-6 lg:px-8 pt-4 pb-6">
+              {renderContent()}
+            </div>
           </div>
         </div>
 

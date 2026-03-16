@@ -175,7 +175,7 @@ export function CategoriasPage() {
         }
       }
 
-      await loadCategorias(); // Recargar las categorías
+      await loadCategorias(true); // Recargar sin parpadear
 
       setIsDialogOpen(false);
       setNuevaCategoria({
@@ -227,7 +227,7 @@ export function CategoriasPage() {
         estado: editCategoria.estado
       });
 
-      await loadCategorias(); // Recargar las categorías
+      await loadCategorias(true); // Recargar sin parpadear
 
       setIsEditDialogOpen(false);
       setSelectedCategoria(null);
@@ -262,7 +262,7 @@ export function CategoriasPage() {
       async () => {
         try {
           await categoriaService.deleteCategoria(categoria.id);
-          await loadCategorias(); // Recargar las categorías y productos
+          await loadCategorias(true); // Recargar sin parpadear y productos
         } catch (error) {
           console.error('Error eliminando categoría:', error);
           setError('Error al eliminar la categoría');

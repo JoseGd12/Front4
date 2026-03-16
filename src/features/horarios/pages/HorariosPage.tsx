@@ -129,9 +129,9 @@ export function HorariosPage() {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [barberosData, horariosData] = await Promise.all([
         barberosService.getBarberos(),
         horariosService.getHorarios()
@@ -312,7 +312,7 @@ export function HorariosPage() {
       resetFormulario();
       setIsDialogOpen(false);
       setIsCreateDialogOpen(false);
-      await loadData();
+      await loadData(true);
       success("¡Horario creado!", "Se han registrado los horarios correctamente.");
     } catch (err) {
       console.error(err);
@@ -391,7 +391,7 @@ export function HorariosPage() {
       resetFormulario();
       setIsDialogOpen(false);
       setIsEditDialogOpen(false);
-      await loadData();
+      await loadData(true);
 
       success("¡Horario actualizado!", "Los cambios han sido guardados exitosamente.");
     } catch (err) {
@@ -415,7 +415,7 @@ export function HorariosPage() {
 
         setIsDeleteDialogOpen(false);
         setHorarioToDelete(null);
-        await loadData();
+        await loadData(true);
         success("¡Horario eliminado!", `El horario de ${horarioToDelete.barbero} ha sido eliminado.`);
       } catch (err) {
         console.error(err);
@@ -440,7 +440,7 @@ export function HorariosPage() {
         });
       });
       await Promise.all(promises);
-      await loadData();
+      await loadData(true);
       success("Estado actualizado", `El horario de ${horario.barbero} ahora está ${nuevoEstado ? 'activo' : 'inactivo'}`);
     } catch (err) {
       console.error(err);

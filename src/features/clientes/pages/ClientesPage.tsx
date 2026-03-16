@@ -1009,12 +1009,12 @@ export function ClientesPage() {
             <table className="w-full">
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
-                  <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Documento</th>
-                  <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Cliente</th>
-                  <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Contacto</th>
-                  <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Saldo a Favor</th>
-                  <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Estado</th>
-                  <th className="text-center py-3 px-4 text-gray-lightest font-medium text-sm">Acciones</th>
+                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
+                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Cliente</th>
+                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody>

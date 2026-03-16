@@ -532,12 +532,12 @@ export function BarberosPage() {
             <table className="w-full">
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="text-left border-b border-gray-dark">
-                  <th className="py-4 px-4 text-gray-lightest font-medium">Documento</th>
-                  <th className="py-4 px-4 text-gray-lightest font-medium">Barbero</th>
-                  <th className="py-4 px-4 text-gray-lightest font-medium">Contacto</th>
-                  <th className="py-4 px-4 text-gray-lightest font-medium">Especialidad</th>
-                  <th className="py-4 px-4 text-gray-lightest font-medium">Estado</th>
-                  <th className="py-4 px-4 text-gray-lightest font-medium text-right">Acciones</th>
+                  <th className="py-4 px-4 text-white-primary font-bold">Documento</th>
+                  <th className="py-4 px-4 text-white-primary font-bold">Barbero</th>
+                  <th className="py-4 px-4 text-white-primary font-bold">Contacto</th>
+                  <th className="py-4 px-4 text-white-primary font-bold">Especialidad</th>
+                  <th className="py-4 px-4 text-white-primary font-bold">Estado</th>
+                  <th className="py-4 px-4 text-white-primary font-bold text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>

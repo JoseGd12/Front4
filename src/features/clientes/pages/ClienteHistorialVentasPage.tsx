@@ -248,14 +248,14 @@ export function ClienteHistorialVentasPage() {
                 <table className="w-full">
                 <thead>
                     <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">N° Venta</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Fecha</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Servicios</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Barbero</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Total</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Pago</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Estado</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-medium text-sm">Acciones</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">N° Venta</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Total</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>

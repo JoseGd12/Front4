@@ -469,7 +469,7 @@ export function ProveedoresPage() {
       setIsEditDialogOpen(false);
       if (tempSelectedProveedor.id) {
         await proveedorService.actualizarProveedor(tempSelectedProveedor.id, tempFormData);
-        await cargarProveedores();
+        await cargarProveedores(true);
       }
       edited('Proveedor actualizado ✔️', `La información del proveedor "${formData.nombre}" ha sido actualizada exitosamente.`);
       setSelectedProveedor(null);
@@ -518,7 +518,7 @@ export function ProveedoresPage() {
           if (proveedor.id) {
             await proveedorService.eliminarProveedor(proveedor.id);
           }
-          await cargarProveedores();
+          await cargarProveedores(true);
         } catch (err: any) {
           console.error('Error eliminando proveedor:', err);
           error('Error al eliminar proveedor', err?.message || 'No se pudo eliminar el proveedor.');
@@ -570,7 +570,7 @@ export function ProveedoresPage() {
       } else {
         // Si la lista está vacía, recargar los datos
         console.log('📥 Provider list is empty, reloading...');
-        await cargarProveedores();
+        await cargarProveedores(true);
       }
     }
   };

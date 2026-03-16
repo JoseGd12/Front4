@@ -565,15 +565,15 @@ export function NotasCreditoPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-dark">
-                  <th className="text-left font-semibold text-white-primary pb-4">ID</th>
-                  <th className="text-left font-semibold text-white-primary pb-4">Cliente</th>
-                  <th className="text-right font-semibold text-white-primary pb-4">Monto</th>
-                  <th className="text-left font-semibold text-white-primary pb-4">Motivo</th>
-                  <th className="text-center font-semibold text-white-primary pb-4">Fecha</th>
-                  <th className="text-center font-semibold text-white-primary pb-4">Estado</th>
-                  <th className="text-center font-semibold text-white-primary pb-4">Vencimiento</th>
-                  <th className="text-center font-semibold text-white-primary pb-4">Asociación</th>
-                  <th className="text-center font-semibold text-white-primary pb-4">Acciones</th>
+                  <th className="text-left font-bold text-white-primary pb-4">ID</th>
+                  <th className="text-left font-bold text-white-primary pb-4">Cliente</th>
+                  <th className="text-right font-bold text-white-primary pb-4">Monto</th>
+                  <th className="text-left font-bold text-white-primary pb-4">Motivo</th>
+                  <th className="text-center font-bold text-white-primary pb-4">Fecha</th>
+                  <th className="text-center font-bold text-white-primary pb-4">Estado</th>
+                  <th className="text-center font-bold text-white-primary pb-4">Vencimiento</th>
+                  <th className="text-center font-bold text-white-primary pb-4">Asociación</th>
+                  <th className="text-center font-bold text-white-primary pb-4">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -825,12 +825,12 @@ export function NotasCreditoPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-dark">
-                      <th className="text-left font-semibold text-white-primary pb-4">ID Devolución</th>
-                      <th className="text-left font-semibold text-white-primary pb-4">Cliente</th>
-                      <th className="text-left font-semibold text-white-primary pb-4">Producto</th>
-                      <th className="text-right font-semibold text-white-primary pb-4">Monto</th>
-                      <th className="text-center font-semibold text-white-primary pb-4">Fecha</th>
-                      <th className="text-center font-semibold text-white-primary pb-4">Acción</th>
+                      <th className="text-left font-bold text-white-primary pb-4">ID Devolución</th>
+                      <th className="text-left font-bold text-white-primary pb-4">Cliente</th>
+                      <th className="text-left font-bold text-white-primary pb-4">Producto</th>
+                      <th className="text-right font-bold text-white-primary pb-4">Monto</th>
+                      <th className="text-center font-bold text-white-primary pb-4">Fecha</th>
+                      <th className="text-center font-bold text-white-primary pb-4">Acción</th>
                     </tr>
                   </thead>
                   <tbody>

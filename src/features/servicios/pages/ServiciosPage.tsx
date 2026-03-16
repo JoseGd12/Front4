@@ -42,10 +42,10 @@ export function ServiciosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const shakeClass = servicioValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
 
-  // Cargar servicios desde la API
-  const loadServicios = async () => {
+  // Cargar servicios desde la API. silent=true evita setLoading para no parpadear la tabla tras crear/editar/eliminar/toggle.
+  const loadServicios = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const data = await apiService.getServicios();
       setServicios(data);
@@ -53,7 +53,7 @@ export function ServiciosPage() {
       console.error('Error cargando servicios:', err);
       setError(err.message || 'Error al cargar los servicios');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -112,8 +112,8 @@ export function ServiciosPage() {
       setNuevoServicio(prev => ({ ...prev, imagen: '' }));
       setImagePreview(null);
       
-      // Recargar lista
-      await loadServicios();
+      // Recargar lista sin mostrar loading (evitar parpadeo)
+      await loadServicios(true);
       
       edited("Imagen eliminada ✔️", "La imagen del servicio ha sido eliminada.");
     } catch (err: any) {
@@ -176,7 +176,7 @@ export function ServiciosPage() {
       });
 
       setServicios(prev => [createdServicio, ...prev]); // Mostrar inmediatamente en la lista
-      await loadServicios(); // Sincronizar con backend por si hay transformaciones
+      await loadServicios(true); // Sincronizar con backend sin parpadear la tabla
       setCurrentPage(1); // Mostrar al inicio para ver el recién creado
       setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true, imagen: '' });
       setPrecioServicioInput('');
@@ -189,7 +189,7 @@ export function ServiciosPage() {
       if (imageFile && createdServicio.id) {
         try {
           await apiService.uploadServicioImagen(createdServicio.id, imageFile);
-          await loadServicios(); // Recargar para obtener la URL de la imagen
+          await loadServicios(true); // Recargar para obtener la URL de la imagen sin parpadear
         } catch (imgErr) {
           console.error('Error subiendo imagen:', imgErr);
           showErrorAlert("Servicio creado, pero...", "No se pudo subir la imagen. Puedes intentarlo editando el servicio.");
@@ -265,7 +265,7 @@ export function ServiciosPage() {
           duracion,
           precio,
         });
-        await loadServicios(); // Recargar todos los servicios
+        await loadServicios(true); // Recargar sin parpadear la tabla
         setEditingServicio(null);
         setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true, imagen: '' });
         setPrecioServicioInput('');
@@ -329,8 +329,8 @@ export function ServiciosPage() {
         } else {
           showErrorAlert('Error al eliminar servicio', 'El servidor rechazó la eliminación. Revisa que no tenga dependencias activas.');
         }
-        // Asegurar que la lista quede sincronizada con el backend aunque falle la eliminación
-        await loadServicios();
+        // Asegurar que la lista quede sincronizada con el backend aunque falle la eliminación (sin parpadear)
+        await loadServicios(true);
         setIsDeleteDialogOpen(false);
         setServicioToDelete(null);
       }
@@ -358,8 +358,8 @@ export function ServiciosPage() {
       );
       console.error('Error actualizando estado del servicio:', err);
       setError(err.message || 'Error al actualizar el estado del servicio');
-      // Intentar recargar para sincronizar
-      await loadServicios();
+      // Intentar recargar para sincronizar sin parpadear
+      await loadServicios(true);
     }
   };
 
@@ -432,44 +432,56 @@ export function ServiciosPage() {
               <table className="w-full">
                 <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Servicio</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre del servicio</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
-                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
-                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <TableLoadingStateRow
-                      colSpan={5}
+                      colSpan={7}
                       title="Cargando servicios..."
                     />
                   ) : displayedServicios.length > 0 ? displayedServicios.map((servicio) => (
                     <tr key={servicio.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                       <td className="py-4 px-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-xl bg-gray-medium overflow-hidden flex items-center justify-center border border-gray-dark">
-                            {servicio.imagen ? (
-                              <img src={servicio.imagen} alt={servicio.nombre} className="w-full h-full object-cover" />
-                            ) : (
-                              <Scissors className="w-5 h-5 text-orange-primary" />
-                            )}
-                          </div>
-                          <span className="text-gray-lighter">{servicio.nombre}</span>
+                        <div className="flex justify-center">
+                          <ImageRenderer
+                            url={servicio.imagen}
+                            alt={servicio.nombre}
+                            className="w-12 h-12 object-cover rounded-lg"
+                            fallbackVariant="product"
+                            showLabel={false}
+                          />
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter">{servicio.nombre}</span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter">{servicio.descripcion}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter">{servicio.duracion} min</span>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter">${(servicio.precio ?? 0).toLocaleString('es-CO')}</span>
                       </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`px-3 py-1 rounded-full text-xs ${servicio.estado
+                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          }`}>
+                          {servicio.estado ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => toggleActivo(servicio.id)}
                             className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -510,7 +522,7 @@ export function ServiciosPage() {
                     </tr>
                   )) : (
                     <TableEmptyStateRow
-                      colSpan={5}
+                      colSpan={7}
                       title="No se encontraron servicios"
                       description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                       onReload={loadServicios}
