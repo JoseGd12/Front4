@@ -588,6 +588,24 @@ export function AgendamientoPage() {
   // Cambiar estado de cita
   const handleChangeEstado = async (citaId: number, nuevoEstado: string) => {
     try {
+      // Bloquear cambios en citas pasadas
+      const citaActual = citas.find(c => c.id === citaId);
+      if (citaActual) {
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        let esPasada = false;
+        if (citaActual.fecha < todayStr) {
+          esPasada = true;
+        } else if (citaActual.fecha === todayStr) {
+          const [hh] = String(citaActual.hora || '0').split(':');
+          if (parseInt(hh, 10) <= today.getHours()) esPasada = true;
+        }
+        if (esPasada) {
+          error("Acción no permitida", "No se puede cambiar el estado de una cita pasada.");
+          return;
+        }
+      }
+
       const estadoLower = String(nuevoEstado).toLowerCase();
       if (estadoLower === 'completada') {
         const citaActual = citas.find(c => c.id === citaId);
@@ -766,7 +784,7 @@ export function AgendamientoPage() {
               <div className="relative">
                 {(() => {
                   const weekDays = getCurrentWeekDays();
-                  const todayStr = new Date().toISOString().split('T')[0];
+                  const todayStr = toLocalDateString(new Date());
                   return horasDelDia.map((hora) => (
                     <div key={hora} className="grid grid-cols-8 gap-1 h-14 border-b border-gray-dark">
                       <div className="flex items-center justify-center text-xs text-gray-light font-medium">
@@ -794,10 +812,10 @@ export function AgendamientoPage() {
                           <div
                             key={`${dia}-${hora}`}
                             className={`relative rounded border transition-all duration-200 ${isPastSlot && citasEnSlot.length === 0
-                                ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
+                                ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-40"
                                 : isPastSlot && citasEnSlot.length > 0
-                                  ? "bg-gray-darker border-gray-dark hover:bg-gray-dark opacity-80 cursor-pointer hover:border-orange-primary/50 group"
-                                  : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
+                                  ? "bg-gray-dark/40 border-gray-dark hover:bg-gray-dark opacity-80 cursor-pointer hover:border-orange-primary/50 group"
+                                  : "bg-gray-dark/40 border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
                               }`}
                             onClick={() => {
                               // Permitir clic si no es pasada o si es pasada pero tiene citas (para poder editarlas)
@@ -1005,8 +1023,8 @@ export function AgendamientoPage() {
 
                         <div className="flex gap-2">
                           {/* Cambio rápido de estado */}
-                          <Select value={cita.estado} onValueChange={(value) => handleChangeEstado(cita.id, value)}>
-                            <SelectTrigger className="w-32 h-8 text-xs">
+                          <Select value={cita.estado} onValueChange={(value) => handleChangeEstado(cita.id, value)} disabled={isPasada}>
+                            <SelectTrigger className={`w-32 h-8 text-xs ${isPasada ? 'opacity-50 cursor-not-allowed' : ''}`}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-gray-darkest border-gray-dark">
@@ -1410,33 +1428,52 @@ export function AgendamientoPage() {
                 )}
 
                 <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-dark">
-                  <button
-                    onClick={() => setActiveTab('lista')}
-                    className="elegante-button-secondary"
-                  >
-                    Volver a Lista
-                  </button>
-                  <button
-                    onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
-                    className="elegante-button-primary"
-                    title="Marcar como Completada y generar venta"
-                  >
-                    Completar Cita
-                  </button>
-                  <button
-                    onClick={() => handleEditCita(selectedCita)}
-                    className="elegante-button-primary"
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Editar Cita
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCita(selectedCita)}
-                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center transition-all"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Eliminar Cita
-                  </button>
+                  {(() => {
+                    const today = new Date();
+                    const todayStr = today.toISOString().split('T')[0];
+                    let citaEsPasada = false;
+                    if (selectedCita.fecha < todayStr) {
+                      citaEsPasada = true;
+                    } else if (selectedCita.fecha === todayStr) {
+                      const [hh] = String(selectedCita.hora || '0').split(':');
+                      if (parseInt(hh, 10) <= today.getHours()) citaEsPasada = true;
+                    }
+                    return (
+                      <>
+                        <button
+                          onClick={() => setActiveTab('lista')}
+                          className="elegante-button-secondary"
+                        >
+                          Volver a Lista
+                        </button>
+                        {!citaEsPasada && (
+                          <>
+                            <button
+                              onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
+                              className="elegante-button-primary"
+                              title="Marcar como Completada y generar venta"
+                            >
+                              Completar Cita
+                            </button>
+                            <button
+                              onClick={() => handleEditCita(selectedCita)}
+                              className="elegante-button-primary"
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Editar Cita
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCita(selectedCita)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center transition-all"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Eliminar Cita
+                            </button>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

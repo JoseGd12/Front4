@@ -413,11 +413,19 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
       {/* Footer */}
       <footer id="footer" className="border-t border-white/10" style={{ backgroundColor: '#0d0d0d', paddingTop: '6rem', paddingBottom: '4rem' }}>
         <div className="content-max-width">
+<<<<<<< HEAD
           <div className="grid md:grid-cols-4 gap-14 mb-16">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
                 <img src={LOGO_URL} alt="Logo" className="w-10 h-10 rounded-full object-cover" />
                 <span className="text-2xl font-black font-title tracking-tight text-white uppercase">Manito</span>
+=======
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Scissors className="w-6 h-6 text-[#d8b081]" />
+                <span className="text-xl font-black font-title tracking-tight text-white uppercase">Manito Barbershop</span>
+>>>>>>> 72b35ca2d21adb97f2ae4e9ac99c303dfca04dc3
               </div>
               <p className="text-gray-400 text-sm italic leading-relaxed">"El estilo es una forma de decir quién eres sin tener que hablar."</p>
             </div>

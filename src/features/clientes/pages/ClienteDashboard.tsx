@@ -7,7 +7,6 @@ import {
   RotateCcw,
   User,
   LogOut,
-  Menu,
   Sun,
   Moon,
   Eye,
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
+import { BarberPole } from "../../../shared/components/ui/BarberPole";
 import manitoLogo from "../../../assets/Manito.jpeg";
 const LOGO_URL = manitoLogo;
 import { ClienteMisCitasPageCalendar } from "./ClienteMisCitasPageCalendar";
@@ -25,6 +25,7 @@ import { ClienteHistorialVentasPage } from "./ClienteHistorialVentasPage";
 import { ClienteHistorialDevolucionesPage } from "./ClienteHistorialDevolucionesPage";
 import { ClienteServiciosPage } from "../../servicios/pages/ClienteServiciosPage";
 import { ClientePerfilPage } from "./ClientePerfilPage";
+import { ClienteProductosPage } from "./ClienteProductosPage";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
 import { Input } from "../../../shared/components/ui/input";
@@ -33,6 +34,7 @@ import { Input } from "../../../shared/components/ui/input";
 const navItems = [
   { icon: Calendar, label: "Mis Citas" },
   { icon: Scissors, label: "Servicios" },
+  { icon: Package, label: "Productos" },
   { icon: DollarSign, label: "Mis Compras" },
   { icon: RotateCcw, label: "Mis Devoluciones" },
   { icon: User, label: "Cuenta" },
@@ -114,6 +116,8 @@ export function ClienteDashboard() {
         return <ClienteHistorialDevolucionesPage />;
       case "Servicios":
         return <ClienteServiciosPage onSelectReservation={handleReservationRedirect} />;
+      case "Productos":
+        return <ClienteProductosPage />;
       case "Cuenta":
         return <ClientePerfilPage />;
       default:
@@ -125,16 +129,43 @@ export function ClienteDashboard() {
     <TooltipProvider>
       <div className="flex flex-col h-screen bg-black-primary" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
         {/* Barra Superior */}
-        <header className="bg-black-primary border-b border-gray-dark py-4 flex items-center">
+        <header
+          className="border-b border-gray-dark py-4 flex items-center transition-colors z-[100] relative"
+          style={{
+            backgroundColor: theme === 'dark' ? '#111111' : '#c9b7a3',
+            boxShadow: theme === 'dark' ? '0px 0px 25px rgba(0,0,0,0.8)' : '0px 0px 25px rgba(0,0,0,0.35)'
+          }}
+        >
           <div className="flex items-center w-full">
             <div className="w-72 shrink-0 px-4 flex items-center gap-3">
-              <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-                title={sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}
-              >
-                <Menu className="w-5 h-5 text-orange-primary" />
-              </button>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible"
+                    style={{ boxShadow: 'none' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(174, 120, 14, 0.81), 0 4px 8px rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.borderColor = 'rgba(244, 194, 69, 0.6)';
+                      e.currentTarget.style.backgroundColor = 'rgba(145, 129, 112, 0.98)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.borderColor = 'rgba(93, 64, 55, 0.4)';
+                      e.currentTarget.style.backgroundColor = '';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div className="transition-transform duration-150 ease-out group-hover:scale-110">
+                      <BarberPole />
+                    </div>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-gray-darkest border-gray-dark text-white-primary">
+                  <p>{sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}</p>
+                </TooltipContent>
+              </Tooltip>
 
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter" />
@@ -220,10 +251,14 @@ export function ClienteDashboard() {
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
           <aside
-            className={`bg-black-primary border-r border-gray-dark flex flex-col transition-all duration-300 w-72`}
+            className={`border-r border-gray-dark flex flex-col transition-[width] duration-200 ease-out will-change-[width] shrink-0 z-[90] relative ${sidebarCollapsed ? "w-20" : "w-72"}`}
+            style={{
+              backgroundColor: theme === 'dark' ? '#111111' : '#c9b7a3',
+              boxShadow: theme === 'dark' ? '0px 0px 25px rgba(0,0,0,0.8)' : '0px 0px 25px rgba(0,0,0,0.35)'
+            }}
           >
             {/* Navigation */}
-            <nav className={`flex-1 px-3 py-6 overflow-y-auto ${sidebarCollapsed ? "space-y-2" : "space-y-2"}`}>
+            <nav className="flex-1 px-3 py-6 overflow-y-auto space-y-1">
               {filteredNavItems.map((item) => renderNavItem(item, activePage === item.label))}
             </nav>
           </aside>

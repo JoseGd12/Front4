@@ -581,29 +581,26 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
     <>
       <AlertContainer />
 
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white-primary">Mis Citas</h1>
-            <p className="text-sm text-gray-lightest mt-1">Gestiona tu agenda y programa nuevas visitas</p>
-          </div>
-          <button
-            onClick={handleOpenCreate}
-            className="elegante-button-primary flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Agendar Nueva Cita
-          </button>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white-primary">Mis Citas</h1>
+          <p className="text-sm text-gray-lightest mt-1">Gestiona tu agenda y programa nuevas visitas</p>
         </div>
-      </header>
+        <button
+          onClick={handleOpenCreate}
+          className="elegante-button-primary flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Agendar Nueva Cita
+        </button>
+      </div>
 
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-orange-primary animate-pulse text-xl font-medium">Cargando tus citas...</div>
-          </div>
-        ) : (
-          <div className="max-w-7xl mx-auto space-y-8">
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-orange-primary animate-pulse text-xl font-medium">Cargando tus citas...</div>
+        </div>
+      ) : (
+        <div className="space-y-8">
 
 
             {/* Navegación Semanal */}
@@ -663,7 +660,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
                   {/* Grid de horarios */}
                   <div className="relative">
                     {(() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayStr = toLocalDateString(new Date());
                       const now = new Date();
                       const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -687,8 +684,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
                               <div
                                 key={`${day.dia}-${hora}`}
                                 className={`relative rounded border transition-all duration-200 p-1 flex flex-col gap-1 ${isPastSlot && citasEnSlot.length === 0
-                                    ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
-                                    : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
+                                    ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-40"
+                                    : "bg-gray-dark/40 border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
                                   }`}
                                 onClick={() => {
                                   if (!isPastSlot && citasEnSlot.length === 0) {
@@ -738,7 +735,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
             </div>
           </div>
         )}
-      </main>
 
       {/* Modal Crear / Editar Cita */}
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>

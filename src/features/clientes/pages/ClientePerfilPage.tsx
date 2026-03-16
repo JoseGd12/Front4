@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../shared/contexts/AuthContext";
-import { User, Mail, Shield, UserCircle, Briefcase, Phone, MapPin, Calendar, Edit, Camera, Save, X, Loader2, Upload } from "lucide-react";
+import { User, Mail, Shield, UserCircle, Briefcase, Phone, MapPin, Calendar, Edit, Camera, Save, X, Loader2, Upload, LogOut } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
@@ -11,6 +11,7 @@ import { apiService } from "../../../shared/services/api";
 
 export function ClientePerfilPage() {
   const { user, updateUser, resendEmailVerification, logout } = useAuth();
+  const { success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -120,118 +121,115 @@ export function ClientePerfilPage() {
 
   return (
     <>
-    <div className="flex-1 p-8 overflow-y-auto bg-black-primary">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header de Perfil */}
-        <div className="relative overflow-hidden rounded-3xl bg-gray-darkest border border-gray-dark p-8">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <UserCircle className="w-64 h-64 text-orange-primary" />
-          </div>
-          
-          <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="relative group">
-                <div className="w-32 h-32 bg-gray-darker rounded-full flex items-center justify-center shadow-2xl shadow-orange-primary/20 overflow-hidden border-4 border-gray-darkest">
-<ImageRenderer
-                    url={user?.fotoPerfil}
-                    className="w-full h-full object-cover"
-                    showLabel={false}
-                    fallbackVariant="person"
-                  />
-                </div>
-                <button 
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="absolute bottom-1 right-1 p-2 bg-gray-darker hover:bg-orange-primary rounded-full border border-gray-dark transition-all group-hover:scale-110"
-                >
-                  <Camera className="w-4 h-4 text-white-primary group-hover:text-black-primary" />
-                </button>
-              </div>
-              
-              <div className="text-center md:text-left space-y-2">
-                <h1 className="text-4xl font-black text-white-primary tracking-tight">
-                  {user?.name || "Cliente"}
-                </h1>
-                <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                  <span className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-primary/10 text-orange-primary border border-orange-primary/20 text-xs font-bold uppercase tracking-widest">
-                    <Shield className="w-3.5 h-3.5" />
-                    Cliente Verificado
-                  </span>
-                </div>
-              </div>
-            </div>
+    <div>
 
-            <button 
+      <div className="elegante-card space-y-6">
+
+        {/* Fila superior: Foto | Datos Personales */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Foto y perfil */}
+          <div className="lg:col-span-1 flex flex-col items-center text-center gap-6 border border-gray-dark rounded-2xl p-6">
+            <div className="relative group mt-2">
+              <div className="w-28 h-28 bg-gray-darker rounded-full flex items-center justify-center shadow-2xl shadow-orange-primary/20 overflow-hidden border-4 border-gray-darkest">
+                <ImageRenderer
+                  url={user?.fotoPerfil}
+                  className="w-full h-full object-cover"
+                  showLabel={false}
+                  fallbackVariant="person"
+                />
+              </div>
+              <button
+                onClick={() => setIsEditDialogOpen(true)}
+                className="absolute bottom-1 right-1 p-2 bg-gray-darker hover:bg-orange-primary rounded-full border border-gray-dark transition-all group-hover:scale-110"
+              >
+                <Camera className="w-4 h-4 text-white-primary group-hover:text-black-primary" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <h1 className="text-2xl font-black text-white-primary tracking-tight">
+                {user?.name || "Cliente"}
+              </h1>
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-primary/10 text-orange-primary border border-orange-primary/20 text-xs font-bold uppercase tracking-widest">
+                <Shield className="w-3.5 h-3.5" />
+                Cliente Verificado
+              </span>
+            </div>
+            <button
               onClick={() => setIsEditDialogOpen(true)}
-              className="elegante-button-primary flex items-center gap-2 py-3 px-6 shadow-lg shadow-orange-primary/10"
+              className="elegante-button-primary flex items-center gap-2 py-3 px-6 shadow-lg shadow-orange-primary/10 w-full justify-center"
             >
               <Edit className="w-4 h-4" />
               Editar Perfil
             </button>
           </div>
-        </div>
 
-        {/* Información Detallada */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="elegante-card space-y-6">
+          {/* Datos Personales */}
+          <div className="lg:col-span-2 border border-gray-dark rounded-2xl p-6 space-y-4">
             <h2 className="text-lg font-bold text-white-primary flex items-center gap-3">
               <UserCircle className="w-5 h-5 text-orange-primary" />
               Datos Personales
             </h2>
-            
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors group">
+            <div className="space-y-3">
+              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Nombre Completo</p>
                 <div className="flex items-center gap-3">
-                  <User className="w-4 h-4 text-orange-primary/70" />
+                  <User className="w-4 h-4 text-orange-primary/70 shrink-0" />
                   <p className="text-white-primary font-medium">{user?.name || "No disponible"}</p>
                 </div>
               </div>
-
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors group">
+              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Correo Electrónico</p>
                 <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-orange-primary/70" />
+                  <Mail className="w-4 h-4 text-orange-primary/70 shrink-0" />
                   <p className="text-white-primary font-medium">{user?.email || "No disponible"}</p>
                 </div>
               </div>
-
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors group">
+              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Número de Teléfono</p>
                 <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-orange-primary/70" />
+                  <Phone className="w-4 h-4 text-orange-primary/70 shrink-0" />
                   <p className="text-white-primary font-medium">{user?.telefono || "No especificado"}</p>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="elegante-card space-y-6">
-            <h2 className="text-lg font-bold text-white-primary flex items-center gap-3">
-              <Shield className="w-5 h-5 text-orange-primary" />
-              Seguridad y Cuenta
-            </h2>
-            
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors group">
-                <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Rol en el Sistema</p>
-                <div className="flex items-center gap-3">
-                  <Briefcase className="w-4 h-4 text-orange-primary/70" />
-                  <p className="text-white-primary font-medium">Cliente</p>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors group">
-                <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Estado de la Cuenta</p>
-                <div className="flex items-center gap-3 text-green-500">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <p className="font-bold">Activa</p>
-                </div>
+        {/* Fila inferior: Seguridad y Cuenta — ancho completo */}
+        <div className="border border-gray-dark rounded-2xl p-6 space-y-4">
+          <h2 className="text-lg font-bold text-white-primary flex items-center gap-3">
+            <Shield className="w-5 h-5 text-orange-primary" />
+            Seguridad y Cuenta
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+              <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Rol en el Sistema</p>
+              <div className="flex items-center gap-3">
+                <Briefcase className="w-4 h-4 text-orange-primary/70" />
+                <p className="text-white-primary font-medium">Cliente</p>
               </div>
             </div>
+            <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+              <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Estado de la Cuenta</p>
+              <div className="flex items-center gap-3 text-green-500">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <p className="font-bold">Activa</p>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 hover:border-red-500/50 hover:bg-red-500/20 transition-colors flex items-center gap-3 group"
+            >
+              <LogOut className="w-4 h-4 text-red-400 group-hover:text-red-300" />
+              <span className="text-red-400 group-hover:text-red-300 font-medium">Cerrar Sesión</span>
+            </button>
           </div>
         </div>
 
       </div>
+
+    </div>
 
       {/* Dialog para Editar Perfil */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -372,7 +370,6 @@ export function ClientePerfilPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
     <AlertContainer />
     </>
   );
