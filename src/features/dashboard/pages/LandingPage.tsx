@@ -365,7 +365,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Scissors className="w-6 h-6 text-[#d8b081]" />
-                <span className="text-xl font-black font-title tracking-tight text-white uppercase">Elite</span>
+                <span className="text-xl font-black font-title tracking-tight text-white uppercase">Manito Barbershop</span>
               </div>
               <p className="text-gray-500 text-xs italic leading-relaxed">"El estilo es una forma de decir quién eres sin tener que hablar."</p>
             </div>
