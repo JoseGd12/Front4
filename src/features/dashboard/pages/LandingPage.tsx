@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
-import { 
-  Scissors, 
-  Star, 
-  Clock, 
-  Phone, 
-  Mail, 
-  ChevronRight, 
-  ShoppingCart, 
-  X, 
-  Plus, 
-  Minus, 
-  ArrowRight, 
-  ShoppingBag, 
+import {
+  Scissors,
+  Star,
+  Clock,
+  Phone,
+  Mail,
+  ChevronRight,
+  ShoppingCart,
+  X,
+  Plus,
+  Minus,
+  ArrowRight,
+  ShoppingBag,
   MapPin
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
@@ -24,23 +24,24 @@ import '../../../styles/landing.css';
 
 const LOGO_URL = manitoLogo;
 
-interface CartItem { 
-  id: number; 
-  nombre: string; 
-  precio: number; 
-  cantidad: number; 
-  tipo: 'producto' | 'servicio'; 
-  imagen?: string; 
+interface CartItem {
+  id: number;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  tipo: 'producto' | 'servicio';
+  imagen?: string;
 }
 
 const formatCurrency = (amount: number): string => amount.toLocaleString('es-CO');
 
-interface LandingPageProps { 
-  onRequestLogin?: () => void; 
-  onRequestRegister?: () => void; 
+interface LandingPageProps {
+  onRequestLogin?: () => void;
+  onRequestRegister?: () => void;
+  onRequestDashboard?: () => void;
 }
 
-export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPageProps) {
+export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashboard }: LandingPageProps) {
   const { isAuthenticated } = useAuth();
   const { info, success } = useCustomAlert();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -49,7 +50,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
   const [heroOpacity, setHeroOpacity] = useState(1);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
-  
+
   const [servicios, setServicios] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
           productoService.getProductos(),
           apiService.getPaquetes()
         ]);
-        
+
         // Combinar servicios y paquetes
         const todosLosServicios = [
           ...serviciosRes.filter(s => s.estado !== false).map(s => ({ ...s, tipoItem: 'servicio' })),
@@ -124,7 +125,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
     const id = item.id;
     const existingItem = cart.find(c => c.id === id && c.tipo === tipo);
     const imagen = tipo === 'producto' ? item.imagenProduc : item.imagen;
-    
+
     if (existingItem) {
       setCart(cart.map(c => c.id === id && c.tipo === tipo ? { ...c, cantidad: c.cantidad + 1 } : c));
     } else {
@@ -134,20 +135,20 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
   };
 
   const removeFromCart = (id: number, tipo: 'producto' | 'servicio') => setCart(cart.filter(c => !(c.id === id && c.tipo === tipo)));
-  
+
   const updateQuantity = (id: number, tipo: 'producto' | 'servicio', cantidad: number) => {
     if (cantidad <= 0) { removeFromCart(id, tipo); return; }
     setCart(cart.map(c => c.id === id && c.tipo === tipo ? { ...c, cantidad } : c));
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-  
+
   const handleCheckout = () => {
     if (!isAuthenticated) { onRequestLogin?.(); return; }
     info('Proceso de compra', 'Redirigiendo al proceso de compra...');
   };
-  
-  const scrollToSection = (id: string) => { 
+
+  const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -195,8 +196,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
           </div>
 
           <div className="flex items-center space-x-6">
-            <button 
-              onClick={() => setCartOpen(true)} 
+            <button
+              onClick={() => setCartOpen(true)}
               className="relative hover:text-[#d8b081] transition-all duration-300 p-3 hover:scale-110"
               title="Ver carrito de compras"
             >
@@ -207,13 +208,23 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                 </span>
               )}
             </button>
-            <button 
-              onClick={onRequestLogin} 
-              className="px-8 py-3 border-2 border-white/20 rounded-xl hover:border-[#d8b081] hover:bg-[#d8b081]/10 transition-all duration-300 text-base font-semibold hover:scale-105 shadow-lg"
-              title="Iniciar sesión en tu cuenta"
-            >
-              Ingresar
-            </button>
+            {isAuthenticated ? (
+              <button
+                onClick={onRequestDashboard}
+                className="px-8 py-3 bg-[#d8b081] text-black border-2 border-[#d8b081] rounded-xl hover:bg-[#e8c091] hover:border-[#e8c091] transition-all duration-300 text-base font-semibold hover:scale-105 shadow-lg"
+                title="Ir a mi panel de control"
+              >
+                Mi Dashboard
+              </button>
+            ) : (
+              <button
+                onClick={onRequestLogin}
+                className="px-8 py-3 border-2 border-white/20 rounded-xl hover:border-[#d8b081] hover:bg-[#d8b081]/10 transition-all duration-300 text-base font-semibold hover:scale-105 shadow-lg"
+                title="Iniciar sesión en tu cuenta"
+              >
+                Ingresar
+              </button>
+            )}
           </div>
         </div>
       </nav>
@@ -237,11 +248,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
           <p className="text-2xl sm:text-3xl mb-14 text-gray-300 max-w-2xl mx-auto leading-relaxed font-light">Estilo, Elegancia y Profesionalismo en Cada Corte</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
             <button
-              onClick={onRequestLogin}
+              onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
               title="Reserva tu cita ahora — rápido y fácil"
               className="inline-flex items-center gap-3 px-10 py-5 bg-[#d8b081] text-black font-bold text-lg rounded-xl shadow-2xl shadow-[#d8b081]/30 hover:bg-[#e8c091] hover:scale-105 transition-all duration-300"
             >
-              Reserva tu Cita
+              {isAuthenticated ? 'Gestionar Mis Citas' : 'Reserva tu Cita'}
               <ChevronRight className="w-6 h-6" />
             </button>
             <button
@@ -322,8 +333,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
         <div className="content-max-width relative z-10">
           <div className="text-center mb-20 reveal-item">
             <span className="text-xs font-black uppercase tracking-[0.6em] text-[#d8b081] mb-6 block">Lo que ofrecemos</span>
-            <h1 className="text-[9rem] md:text-[13rem] font-bold font-title tracking-tight text-white mb-8 block capitalize leading-none">
-              Servicios
+            <h1 className="text-[10rem] md:text-[16rem] lg:text-[20rem] xl:text-[24rem] font-bold font-title tracking-tighter text-white mb-8 block capitalize leading-[0.75]">
+              Nuestros Servicios
             </h1>
             <p className="text-gray-400 max-w-xl mx-auto text-lg font-medium leading-relaxed italic">"La calidad es el único estándar que no admite compromisos."</p>
           </div>
@@ -371,8 +382,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
         <div className="content-max-width">
           <div className="text-center mb-20 reveal-item">
             <span className="text-xs font-black uppercase tracking-[0.6em] text-[#d8b081] mb-6 block">Tienda</span>
-            <h1 className="text-[9rem] md:text-[13rem] font-bold font-title tracking-tight text-white mb-8 block capitalize leading-none">
-              Productos
+            <h1 className="text-[10rem] md:text-[16rem] lg:text-[20rem] xl:text-[24rem] font-bold font-title tracking-tighter text-white mb-8 block capitalize leading-[0.75]">
+              Nuestros Productos
             </h1>
             <p className="text-gray-400 max-w-xl mx-auto text-lg leading-relaxed">Los mejores productos para el cuidado de tu imagen, disponibles para llevar a casa.</p>
           </div>
@@ -458,11 +469,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister }: LandingPagePr
                 </div>
               </div>
               <button
-                onClick={onRequestLogin}
+                onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
                 title="Reserva tu cita ahora"
                 className="mt-4 w-full py-4 bg-[#d8b081] text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300"
               >
-                Reservar Cita
+                {isAuthenticated ? 'Mi Dashboard' : 'Reservar Cita'}
               </button>
             </div>
           </div>

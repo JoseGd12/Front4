@@ -1361,11 +1361,11 @@ export function ProductosPage() {
                               className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
                               title={producto.activo ? "Desactivar producto" : "Activar producto"}
                             >
-                              {producto.activo ? (
-                                <ToggleRight className="w-4 h-4 text-green-400" />
-                              ) : (
-                                <ToggleLeft className="w-4 h-4 text-red-400" />
-                              )}
+                            {producto.activo ? (
+                              <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400 transition-colors" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400 transition-colors" />
+                            )}
                             </button>
                             <button
                               onClick={() => {

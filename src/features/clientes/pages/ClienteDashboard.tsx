@@ -40,7 +40,7 @@ const navItems = [
   { icon: User, label: "Cuenta" },
 ];
 
-export function ClienteDashboard() {
+export function ClienteDashboard({ onBackToLanding }: { onBackToLanding?: () => void }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activePage, setActivePage] = useState("Mis Citas");
@@ -195,7 +195,17 @@ export function ClienteDashboard() {
                 </div>
                 <div className="min-w-0">
                   <h1 className="text-lg font-bold text-white-primary truncate">MANITO BARBERSHOP</h1>
-                  <p className="text-xs text-gray-lighter font-medium truncate">Panel de Clientes</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-gray-lighter font-medium truncate">Panel de Clientes</p>
+                    {onBackToLanding && (
+                      <button 
+                        onClick={onBackToLanding}
+                        className="text-[10px] text-orange-primary hover:underline font-bold uppercase tracking-tighter"
+                      >
+                        • Volver al Inicio
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 

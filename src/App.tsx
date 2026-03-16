@@ -12,7 +12,7 @@ import { EmailVerificationPage } from "./features/auth/pages/EmailVerificationPa
 
 function AppContent() {
   const { isAuthenticated, isAdmin, isCliente } = useAuth();
-  const [publicView, setPublicView] = useState<"landing" | "login" | "register" | "verify">("landing");
+  const [publicView, setPublicView] = useState<"landing" | "login" | "register" | "verify" | "dashboard">("landing");
 
   const [resetData, setResetData] = useState<{ email: string; token: string } | null>(null);
   const [verifyCode, setVerifyCode] = useState<string>('');
@@ -94,9 +94,18 @@ function AppContent() {
     return <Dashboard />;
   }
 
-  // Cliente dashboard with full navigation
+  // Cliente dashboard with toggle to landing
   if (isCliente()) {
-    return <ClienteDashboard />;
+    if (publicView === "landing") {
+      return (
+        <LandingPage
+          onRequestLogin={() => setPublicView("login")}
+          onRequestRegister={() => setPublicView("register")}
+          onRequestDashboard={() => setPublicView("dashboard")}
+        />
+      );
+    }
+    return <ClienteDashboard onBackToLanding={() => setPublicView("landing")} />;
   }
 
   return <LandingPage />;

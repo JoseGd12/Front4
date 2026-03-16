@@ -347,8 +347,8 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: Nu
 
             <div key={step} className="flex items-center">
               <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 text-sm lg:text-base ${currentStep >= step
-                  ? 'bg-orange-primary border-orange-primary text-black-primary'
-                  : 'border-gray-medium text-gray-light'
+                ? 'bg-orange-primary border-orange-primary text-black-primary'
+                : 'border-gray-medium text-gray-light'
                 }`}>
                 {currentStep > step ? <Check className="w-4 h-4 lg:w-5 lg:h-5" /> : step}
               </div>
@@ -382,8 +382,8 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: Nu
                         servicioId: servicio.id
                       }))}
                       className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${nuevaCita.servicioId === servicio.id
-                          ? 'border-orange-primary bg-gray-darker'
-                          : 'border-gray-medium bg-gray-darkest hover:border-gray-light'
+                        ? 'border-orange-primary bg-gray-darker'
+                        : 'border-gray-medium bg-gray-darkest hover:border-gray-light'
                         }`}
                     >
                       <div className="flex items-start space-x-4">
@@ -432,8 +432,8 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: Nu
                       key={barbero.id}
                       onClick={() => setNuevaCita(prev => ({ ...prev, barbero: barbero.nombre }))}
                       className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${nuevaCita.barbero === barbero.nombre
-                          ? 'border-orange-primary bg-gray-darker'
-                          : 'border-gray-medium bg-gray-darkest hover:border-gray-light'
+                        ? 'border-orange-primary bg-gray-darker'
+                        : 'border-gray-medium bg-gray-darkest hover:border-gray-light'
                         }`}
                     >
                       <div className="flex items-center space-x-4">
@@ -527,10 +527,10 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: Nu
                           }}
                           disabled={!isAvailable}
                           className={`p-2 text-sm rounded-lg transition-all duration-300 ${isSelected
-                              ? 'bg-orange-primary text-black-primary font-bold'
-                              : isAvailable
-                                ? 'text-white-primary hover:bg-gray-darker'
-                                : 'text-gray-medium cursor-not-allowed'
+                            ? 'bg-orange-primary text-black-primary font-bold'
+                            : isAvailable
+                              ? 'text-white-primary hover:bg-gray-darker'
+                              : 'text-gray-medium cursor-not-allowed'
                             }`}
                         >
                           {day}
@@ -559,8 +559,8 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: Nu
                       key={hora}
                       onClick={() => setNuevaCita(prev => ({ ...prev, hora }))}
                       className={`p-3 rounded-lg border-2 text-center transition-all duration-300 ${nuevaCita.hora === hora
-                          ? 'border-orange-primary bg-orange-primary text-black-primary font-bold'
-                          : 'border-gray-medium bg-gray-darkest text-white-primary hover:border-orange-primary'
+                        ? 'border-orange-primary bg-orange-primary text-black-primary font-bold'
+                        : 'border-gray-medium bg-gray-darkest text-white-primary hover:border-orange-primary'
                         }`}
                     >
                       <div className="font-semibold">{hora}</div>

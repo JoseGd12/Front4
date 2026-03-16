@@ -300,7 +300,7 @@ export function Dashboard() {
       items: section.items.filter(item => {
         // Filtro adicional: Solo el 'super_admin' y 'admin' pueden ver el módulo de Roles
         if (item.label === "Roles") {
-          return user?.role === 'super_admin' || user?.role === 'admin';
+          return user?.role === 'super_admin' || checkModuleAccess(item.label);
         }
         return checkModuleAccess(item.label);
       })
