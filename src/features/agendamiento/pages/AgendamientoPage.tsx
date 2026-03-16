@@ -784,7 +784,7 @@ export function AgendamientoPage() {
               <div className="relative">
                 {(() => {
                   const weekDays = getCurrentWeekDays();
-                  const todayStr = new Date().toISOString().split('T')[0];
+                  const todayStr = toLocalDateString(new Date());
                   return horasDelDia.map((hora) => (
                     <div key={hora} className="grid grid-cols-8 gap-1 h-14 border-b border-gray-dark">
                       <div className="flex items-center justify-center text-xs text-gray-light font-medium">
@@ -812,10 +812,10 @@ export function AgendamientoPage() {
                           <div
                             key={`${dia}-${hora}`}
                             className={`relative rounded border transition-all duration-200 ${isPastSlot && citasEnSlot.length === 0
-                                ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
+                                ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-40"
                                 : isPastSlot && citasEnSlot.length > 0
-                                  ? "bg-gray-darker border-gray-dark hover:bg-gray-dark opacity-80 cursor-pointer hover:border-orange-primary/50 group"
-                                  : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
+                                  ? "bg-gray-dark/40 border-gray-dark hover:bg-gray-dark opacity-80 cursor-pointer hover:border-orange-primary/50 group"
+                                  : "bg-gray-dark/40 border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
                               }`}
                             onClick={() => {
                               // Permitir clic si no es pasada o si es pasada pero tiene citas (para poder editarlas)

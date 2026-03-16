@@ -660,7 +660,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
                   {/* Grid de horarios */}
                   <div className="relative">
                     {(() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayStr = toLocalDateString(new Date());
                       const now = new Date();
                       const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -684,8 +684,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
                               <div
                                 key={`${day.dia}-${hora}`}
                                 className={`relative rounded border transition-all duration-200 p-1 flex flex-col gap-1 ${isPastSlot && citasEnSlot.length === 0
-                                    ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
-                                    : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
+                                    ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-40"
+                                    : "bg-gray-dark/40 border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
                                   }`}
                                 onClick={() => {
                                   if (!isPastSlot && citasEnSlot.length === 0) {
