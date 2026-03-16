@@ -35,7 +35,7 @@ import { TableHeaderSection } from "../../../shared/components/ui/table-header-s
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { devolucionService } from "../services/devolucionService";
 import { ventaService } from "../services/ventaService";
@@ -140,6 +140,7 @@ interface SaldoCliente {
 
 export function DevolucionesPage() {
   const { user } = useAuth();
+  const { created, success, error: showErrorAlert, info: showInfoAlert, warning: showWarningAlert, AlertContainer } = useCustomAlert();
   const { confirmCreateAction, confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [ventasDisponibles, setVentasDisponibles] = useState<any[]>([]);
@@ -396,7 +397,7 @@ export function DevolucionesPage() {
       });
       setVentasDisponibles(ventasParaDevolucion);
     } catch (error) {
-      toast.error("Error al cargar datos");
+      showErrorAlert("Error al cargar datos", "No se pudieron cargar los datos. Intenta nuevamente.");
       console.error(error);
     } finally {
       if (!silent) setIsLoading(false);
@@ -647,7 +648,7 @@ export function DevolucionesPage() {
         setProductosInsumosSeleccionados({});
       }
     } catch (e) {
-      toast.error("Error al cargar entregas del barbero");
+      showErrorAlert("Error al cargar entregas", "No se pudieron cargar las entregas del barbero.");
     }
   };
 
@@ -720,7 +721,7 @@ export function DevolucionesPage() {
       setCantidadesInsumos(initCant);
       setProductosInsumosSeleccionados({});
     } catch {
-      toast.error("Error al cargar resumen de la entrega");
+      showErrorAlert("Error al cargar resumen", "No se pudo cargar el resumen de la entrega.");
     }
   };
 
@@ -729,7 +730,7 @@ export function DevolucionesPage() {
     if (!pid) return;
     const maxDisp = Number(row.disponible ?? 0);
     if (checked && maxDisp <= 0) {
-      toast.error("Este producto no tiene unidades disponibles para devolución");
+      showErrorAlert("Sin unidades disponibles", "Este producto no tiene unidades disponibles para devolución.");
       return;
     }
     setProductosInsumosSeleccionados(prev => ({ ...prev, [pid]: checked }));
@@ -773,12 +774,12 @@ export function DevolucionesPage() {
   const handleCreateDevolucionInsumos = async () => {
     setShowDevolucionFormErrors(true);
     if (!selectedBarbero || !selectedBarbero.id) {
-      toast.error("Selecciona un barbero");
+      showErrorAlert("Barbero requerido", "Selecciona un barbero.");
       return;
     }
     const idsSel = Object.entries(productosInsumosSeleccionados).filter(([_, v]) => v).map(([k]) => Number(k));
     if (idsSel.length === 0) {
-      toast.error("Selecciona al menos un producto a devolver");
+      showErrorAlert("Productos requeridos", "Selecciona al menos un producto a devolver.");
       return;
     }
     const detalles = idsSel.map(pid => {
@@ -793,7 +794,7 @@ export function DevolucionesPage() {
     try {
       const currentUserId = Number(user?.id || 0);
       if (!currentUserId) {
-        toast.error("Sesión inválida");
+        showErrorAlert("Sesión inválida", "Inicia sesión nuevamente.");
         return;
       }
       await devolucionService.createDevolucionInsumosBarbero({
@@ -804,12 +805,12 @@ export function DevolucionesPage() {
         observaciones: nuevaDevolucion.observaciones || '',
         detalles
       });
-      toast.success("Devolución de insumos registrada");
+      created("Devolución de insumos registrada", "La devolución ha sido registrada correctamente.");
       setIsDialogOpen(false);
       loadData(true);
       resetFormularios();
     } catch (e: any) {
-      toast.error("Error al registrar devolución de insumos");
+      showErrorAlert("Error al registrar", "No se pudo registrar la devolución de insumos.");
     }
   };
 
@@ -833,7 +834,7 @@ export function DevolucionesPage() {
 
     const maxCantidad = Math.max(0, Number(producto?.cantidad || 0));
     if (maxCantidad <= 0) {
-      toast.info("No hay cantidad disponible para devolver de este producto en esta venta.");
+      showInfoAlert("Sin cantidad disponible", "No hay cantidad disponible para devolver de este producto en esta venta.");
       setProductosSeleccionados(prev => ({ ...prev, [productoId]: false }));
       setCantidadesDevolucion(prev => ({ ...prev, [productoId]: '0' }));
       return;
@@ -894,10 +895,7 @@ export function DevolucionesPage() {
       const hoy = new Date();
       if (hoy > fechaExpiracion) {
         const opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
-        toast.error("Garantía Expirada", {
-          description: `La garantía de esta venta expiró el ${fechaExpiracion.toLocaleDateString('es-CO', opciones)}. No es posible realizar devoluciones fuera de este periodo.`,
-          duration: 6000
-        });
+        showErrorAlert("Garantía expirada", `La garantía de esta venta expiró el ${fechaExpiracion.toLocaleDateString('es-CO', opciones)}. No es posible realizar devoluciones fuera de este periodo.`);
         return;
       }
     }
@@ -906,18 +904,18 @@ export function DevolucionesPage() {
     // VALIDACIÓN FUERTE (SOLUCIÓN PROFESIONAL)
     // ---------------------------------------------------------
     if (!nuevaDevolucion.ventaId || Number(nuevaDevolucion.ventaId) <= 0) {
-      toast.error("Venta inválida: El ID de la venta debe ser mayor a 0");
+      showErrorAlert("Venta inválida", "El ID de la venta debe ser mayor a 0.");
       return;
     }
 
     if (!nuevaDevolucion.clienteId || Number(nuevaDevolucion.clienteId) <= 0) {
-      toast.error("Cliente inválido: El ID del cliente debe ser mayor a 0");
+      showErrorAlert("Cliente inválido", "El ID del cliente debe ser mayor a 0.");
       return;
     }
 
     const idsSeleccionados = Object.entries(productosSeleccionados).filter(([_, v]) => v).map(([k]) => Number(k));
     if (idsSeleccionados.length === 0) {
-      toast.error("Selecciona al menos un producto para la devolución");
+      showErrorAlert("Productos requeridos", "Selecciona al menos un producto para la devolución.");
       return;
     }
 
@@ -928,13 +926,13 @@ export function DevolucionesPage() {
       const raw = (cantidadesDevolucion[pid] ?? '').trim();
       const cant = Number(raw);
       if (raw === '' || Number.isNaN(cant) || cant <= 0 || (maxCant > 0 && cant > maxCant)) {
-        toast.error("Cantidad inválida", { description: `Cantidad inválida para el producto seleccionado (ID ${pid}).` });
+        showErrorAlert("Cantidad inválida", `Cantidad inválida para el producto seleccionado (ID ${pid}).`);
         return;
       }
     }
 
     if (!nuevaDevolucion.motivoCategoria) {
-      toast.error("Por favor selecciona un motivo");
+      showErrorAlert("Motivo requerido", "Por favor selecciona un motivo.");
       return;
     }
     // ---------------------------------------------------------
@@ -947,7 +945,7 @@ export function DevolucionesPage() {
         const stringUserId = user?.id ? String(user.id) : null;
         const currentUserId = stringUserId ? parseInt(stringUserId) : 0;
         if (!currentUserId || isNaN(currentUserId) || currentUserId <= 0) {
-          toast.error("Error de sesión", { description: "No se ha identificado el usuario responsable. Por favor inicie sesión nuevamente." });
+          showErrorAlert("Error de sesión", "No se ha identificado el usuario responsable. Por favor inicie sesión nuevamente.");
           return;
         }
         const idsSel = Object.entries(productosSeleccionados).filter(([_, v]) => v).map(([k]) => Number(k));
@@ -972,16 +970,16 @@ export function DevolucionesPage() {
           batchPayload.usuarioId
         ].some(v => isNaN(Number(v)) || Number(v) <= 0);
         if (hasInvalid || items.length === 0) {
-          toast.error("Datos inválidos para registrar la devolución");
+          showErrorAlert("Datos inválidos", "No se pudo registrar la devolución. Revisa los datos.");
           return;
         }
         await devolucionService.createDevolucionBatch(batchPayload);
-        toast.success(`Devolución registrada exitosamente.`);
+        success("Devolución registrada", "La devolución se ha registrado exitosamente.");
         setIsDialogOpen(false);
         loadData(true);
         resetFormularios();
       } catch (error) {
-        toast.error("Error al registrar la devolución");
+        showErrorAlert("Error al registrar", "No se pudo registrar la devolución.");
         console.error(error);
       } finally {
         isSubmittingRef.current = false;
@@ -1014,7 +1012,7 @@ export function DevolucionesPage() {
 
   const handleToggleEstado = (devolucion: Devolucion) => {
     if (devolucion.estado !== 'Completada') {
-      toast.info("La devolución anulada no puede reactivarse");
+      showInfoAlert("No se puede reactivar", "La devolución anulada no puede reactivarse.");
       return;
     }
 
@@ -1022,7 +1020,7 @@ export function DevolucionesPage() {
     const idParaActualizar = devolucion.apiId || Number(devolucion.id);
 
     if (!idParaActualizar || isNaN(idParaActualizar)) {
-      toast.error("No se pudo identificar el ID de la devolución para actualizar");
+      showErrorAlert("ID inválido", "No se pudo identificar el ID de la devolución para actualizar.");
       console.error("❌ Error: ID de devolución inválido:", { apiId: devolucion.apiId, id: devolucion.id });
       return;
     }
@@ -1057,7 +1055,7 @@ export function DevolucionesPage() {
 
         } catch (error: any) {
           console.error(`❌ Error al ${accion} devolución:`, error);
-          toast.error(error.message || `Error al actualizar el estado`);
+          showErrorAlert("Error al actualizar", error.message || "No se pudo actualizar el estado.");
         }
       },
       {
@@ -1077,12 +1075,11 @@ export function DevolucionesPage() {
     try {
       // Validar que las fechas estén presentes
       if (!startDate || !endDate) {
-        toast.error('Por favor selecciona ambas fechas para generar el reporte');
+        showErrorAlert("Fechas requeridas", "Por favor selecciona ambas fechas para generar el reporte.");
         return;
       }
 
       setIsGeneratingReport(true);
-      toast.info('Generando reporte Excel...', { duration: 1000 });
 
       const XLSX = await import('xlsx');
       const start = new Date(startDate);
@@ -1090,7 +1087,7 @@ export function DevolucionesPage() {
 
       // Validar que la fecha de inicio sea anterior a la de fin
       if (start > end) {
-        toast.error('La fecha de inicio debe ser anterior a la fecha de fin');
+        showErrorAlert("Fechas inválidas", "La fecha de inicio debe ser anterior a la fecha de fin.");
         setIsGeneratingReport(false);
         return;
       }
@@ -1103,7 +1100,7 @@ export function DevolucionesPage() {
 
       // Si no hay datos en el rango, mostrar mensaje
       if (filteredData.length === 0) {
-        toast.warning('No se encontraron devoluciones en el rango de fechas seleccionado');
+        showWarningAlert("Sin resultados", "No se encontraron devoluciones en el rango de fechas seleccionado.");
         setIsGeneratingReport(false);
         return;
       }
@@ -1243,15 +1240,12 @@ export function DevolucionesPage() {
       const fileName = `Devoluciones_${periodoTexto}_${fechaActual}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
-      toast.success(`Reporte Excel generado exitosamente`, {
-        description: `Archivo: ${fileName} - ${totalRegistros} devoluciones exportadas`
-      });
+      created("Reporte Excel generado exitosamente", `El archivo se descargó correctamente (${totalRegistros} devoluciones exportadas).`);
 
       setIsPdfPopoverOpen(false);
       setIsGeneratingReport(false);
     } catch (error) {
-      // Error handling - could be replaced with proper logging service
-      toast.error('Error al generar el reporte Excel');
+      showErrorAlert("Error al generar el reporte Excel", "No se pudo generar el reporte. Intenta nuevamente.");
       setIsGeneratingReport(false);
     }
   };
@@ -1438,12 +1432,10 @@ export function DevolucionesPage() {
 
       const fileName = `Reporte_Devolucion_${devolucion.id}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
-      toast.success(`PDF generado exitosamente`, {
-        description: `Archivo: ${fileName}`
-      });
+      created("PDF generado exitosamente", "El reporte de devolución fue descargado correctamente.");
     } catch (error) {
       console.error("Error al generar PDF de devolución:", error);
-      toast.error('Error al generar el PDF de la devolución');
+      showErrorAlert("Error al generar PDF", "No se pudo generar el reporte de la devolución.");
     }
   };
 
@@ -1507,7 +1499,7 @@ export function DevolucionesPage() {
                         if (customStartDate && customEndDate) {
                           generateExcelReport('custom', customStartDate, customEndDate);
                         } else {
-                          toast.error('Por favor selecciona ambas fechas');
+                          showErrorAlert("Fechas requeridas", "Por favor selecciona ambas fechas.");
                         }
                       }}
                       disabled={isGeneratingReport}
@@ -2710,6 +2702,7 @@ export function DevolucionesPage() {
       </Dialog>
 
       <DoubleConfirmationContainer />
+      <AlertContainer />
     </>
   );
 }

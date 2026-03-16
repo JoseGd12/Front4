@@ -164,7 +164,7 @@ const CompraRow = React.memo(({
 export function ComprasPage() {
   const { user } = useAuth();
   const { confirmDeleteAction, DoubleConfirmationContainer } = useDoubleConfirmation();
-  const { created, error: showErrorAlert, AlertContainer } = useCustomAlert();
+  const { created, success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
   const [compras, setCompras] = useState<Compra[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
@@ -342,7 +342,7 @@ export function ComprasPage() {
       setCompras(comprasData);
       sessionStorage.setItem('compras_cache', JSON.stringify(comprasData));
     } catch (error) {
-      toast.error("Error al cargar compras", { description: "No se pudieron obtener las compras." });
+      showErrorAlert("Error al cargar compras", "No se pudieron obtener las compras.");
       console.error(error);
     }
   };
@@ -353,7 +353,7 @@ export function ComprasPage() {
       const filtrados = (proveedoresData || []).filter(p => p.nombre && (p.estado !== false && p.activo !== false));
       setProveedores(filtrados);
     } catch (error) {
-      toast.error("Error al cargar proveedores", { description: "No se pudieron obtener los proveedores." });
+      showErrorAlert("Error al cargar proveedores", "No se pudieron obtener los proveedores.");
       console.error("❌ Error en loadProveedores:", error);
     }
   };
@@ -379,7 +379,7 @@ export function ComprasPage() {
       });
       setProductos(enriquecidos);
     } catch (error) {
-      toast.error("Error al cargar productos", { description: "No se pudieron obtener los productos." });
+      showErrorAlert("Error al cargar productos", "No se pudieron obtener los productos.");
       console.error(error);
     }
   };
@@ -565,14 +565,14 @@ export function ComprasPage() {
         const description = partes.length > 0
           ? partes.join(' ')
           : `Ventas + Entregas (${sumaDistribucion}) no puede superar la Cantidad Total (${cantidadProducto}).`;
-        toast.error("Error en distribución", { description });
+        showErrorAlert("Error en distribución", description);
         return;
       }
 
       if (sumaDistribucion !== cantidadProducto) {
         setShowAddCompraProductoErrors(true);
         setCompraValidationAttempt((prev) => prev + 1);
-        toast.error("Distribución incompleta", { description: `Faltan ${cantidadProducto - sumaDistribucion} unidades por asignar.` });
+        showErrorAlert("Distribución incompleta", `Faltan ${cantidadProducto - sumaDistribucion} unidades por asignar.`);
         return;
       }
 
@@ -654,7 +654,7 @@ export function ComprasPage() {
       setShowCompraFormErrors(false);
     } catch (err) {
       console.error("❌ Error al agregar producto a la compra:", err);
-      toast.error("Error inesperado", { description: "No se pudo agregar el producto. Intenta nuevamente." });
+      showErrorAlert("Error inesperado", "No se pudo agregar el producto. Intenta nuevamente.");
     }
   };
 
@@ -1004,7 +1004,7 @@ export function ComprasPage() {
       setSelectedCompra({ ...compra, detalles: detalles, responsableDocumento } as any);
       setIsDetailDialogOpen(true);
     } catch (error) {
-      toast.error("Error al cargar detalles de la compra");
+      showErrorAlert("Error al cargar detalles", "No se pudieron cargar los detalles de la compra.");
     }
   };
 
@@ -1014,7 +1014,7 @@ export function ComprasPage() {
     setCompraValidationAttempt((prev) => prev + 1);
 
     if (!user || !user.email) {
-      toast.error("Error de sesión", { description: "No se ha identificado el usuario responsable. Por favor inicie sesión nuevamente." });
+      showErrorAlert("Error de sesión", "No se ha identificado el usuario responsable. Por favor inicie sesión nuevamente.");
       return;
     }
 
@@ -1034,12 +1034,7 @@ export function ComprasPage() {
 
     if (productosInvalidos.length > 0) {
       const nombresInvalidos = productosInvalidos.map(p => p.nombre).join(', ');
-      toast.error(
-        "Error en distribución de stock",
-        {
-          description: `Los siguientes productos tienen una distribución de stock incorrecta (la suma de ventas e insumos debe igualar la cantidad total): ${nombresInvalidos}`
-        }
-      );
+      showErrorAlert("Error en distribución de stock", `Los siguientes productos tienen una distribución de stock incorrecta (la suma de ventas e insumos debe igualar la cantidad total): ${nombresInvalidos}`);
       return;
     }
 
@@ -1061,7 +1056,7 @@ export function ComprasPage() {
 
     const usuarioIdNum = await resolveUsuarioId();
     if (!Number.isFinite(usuarioIdNum) || usuarioIdNum <= 0) {
-      toast.error("Usuario no registrado en la API", { description: "Tu sesión está activa pero no se pudo vincular tu cuenta con el sistema. Cierra sesión y vuelve a ingresar para sincronizar tu usuario." });
+      showErrorAlert("Usuario no registrado en la API", "Tu sesión está activa pero no se pudo vincular tu cuenta con el sistema. Cierra sesión y vuelve a ingresar para sincronizar tu usuario.");
       return;
     }
 
@@ -1134,7 +1129,7 @@ export function ComprasPage() {
       const description = msg.includes('El usuario no existe')
         ? 'No se reconoció tu usuario en el sistema. Cierra sesión y vuelve a ingresar para sincronizar tu cuenta.'
         : (msg || 'Hubo un problema al guardar la compra o actualizar el stock.');
-      toast.error("Error al crear compra", { description });
+      showErrorAlert("Error al crear compra", description);
       console.error(error);
     } finally {
       setCreatingPurchase(false);
@@ -1186,11 +1181,11 @@ export function ComprasPage() {
         } catch (error: any) {
           const errorMsg = error.message || "";
           if (errorMsg.includes("ya está anulada") || errorMsg.includes("ya esta anulada")) {
-            toast.info("Información", { description: "Esta compra ya figuraba como anulada en el sistema." });
+            showInfoAlert("Información", "Esta compra ya figuraba como anulada en el sistema.");
             await loadCompras().catch(() => { });
             return;
           }
-          toast.error("Error al anular", { description: "No se pudo anular la compra." });
+          showErrorAlert("Error al anular", "No se pudo anular la compra.");
           console.error("Error al anular compra:", error);
         }
       },
@@ -1429,7 +1424,7 @@ export function ComprasPage() {
         toast.dismiss(toastId);
       } catch (error) {
         console.error(error);
-        toast.error("No se pudieron cargar los productos para el reporte.");
+        showErrorAlert("Error al cargar reporte", "No se pudieron cargar los productos para el reporte.");
       }
     }
 
@@ -1572,7 +1567,7 @@ export function ComprasPage() {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
 
-    toast.success("Reporte HTML generado exitosamente");
+    success("Reporte HTML generado", "El reporte se ha generado y descargado correctamente.");
   };
 
   return (

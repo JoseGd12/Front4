@@ -15,7 +15,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 
 // Datos de servicios y paquetes
 const serviciosIndividuales = [
@@ -458,6 +458,7 @@ function PaquetesEspecialesGrid({
 }
 
 export function NuevaCitaComponent({ isOpen, onClose }: NuevaCitaComponentProps) {
+  const { success } = useCustomAlert();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -513,9 +514,7 @@ export function NuevaCitaComponent({ isOpen, onClose }: NuevaCitaComponentProps)
 
     // Submit logic here - data is ready in nuevaCita object
 
-    toast.success("¡Cita agendada exitosamente!", {
-      description: `Tu cita de ${servicio.nombre} con ${nuevaCita.barbero} ha sido confirmada para el ${nuevaCita.fecha} a las ${nuevaCita.hora}.`
-    });
+    success("Cita agendada", `Tu cita de ${servicio.nombre} con ${nuevaCita.barbero} ha sido confirmada para el ${nuevaCita.fecha} a las ${nuevaCita.hora}.`);
 
     resetForm();
     onClose();

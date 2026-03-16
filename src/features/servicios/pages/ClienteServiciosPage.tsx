@@ -3,7 +3,7 @@ import { Search, Star, Clock, DollarSign, Scissors, Check, Calendar, Sparkles, A
 import { Input } from "../../../shared/components/ui/input";
 import { Button } from "../../../shared/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { apiService, Servicio, Paquete } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Loader2, Package } from "lucide-react";
@@ -26,6 +26,7 @@ interface ClienteServiciosPageProps {
 }
 
 export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPageProps) {
+  const { success, error: showErrorAlert, AlertContainer } = useCustomAlert();
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [paquetes, setPaquetes] = useState<Paquete[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +64,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
         setPaquetes(detailedPaquetes);
       } catch (error) {
         console.error("Error cargando catálogo:", error);
-        toast.error("No se pudieron cargar los servicios y paquetes");
+        showErrorAlert("Error al cargar", "No se pudieron cargar los servicios y paquetes.");
       } finally {
         setLoading(false);
       }
@@ -119,10 +120,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
     if (onSelectReservation) {
       onSelectReservation(item);
     } else {
-      toast.success(`${item.type === 'paquete' ? 'Paquete' : 'Servicio'} "${item.nombre}" seleccionado`, {
-        description: `Puedes agendar este ${item.type === 'paquete' ? 'paquete' : 'servicio'} en la sección de "Mis Citas".`,
-        duration: 4000,
-      });
+      success(`${item.type === 'paquete' ? 'Paquete' : 'Servicio'} seleccionado`, `"${item.nombre}" — Puedes agendar en la sección "Mis Citas".`);
     }
   };
 
@@ -462,6 +460,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
           </Dialog>
         </div>
       </main>
+    <AlertContainer />
     </>
   );
 }

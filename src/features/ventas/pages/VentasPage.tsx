@@ -33,7 +33,6 @@ import { Label } from "../../../shared/components/ui/label";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
-import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { ventaService, Venta } from "../services/ventaService";
@@ -167,7 +166,7 @@ interface DevolucionAsociada {
 
 export function VentasPage() {
   const { user } = useAuth();
-  const { created, edited, deleted, AlertContainer } = useCustomAlert();
+  const { created, edited, deleted, error: showErrorAlert, AlertContainer } = useCustomAlert();
   const { confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [devoluciones, setDevoluciones] = useState<DevolucionAsociada[]>([]);
@@ -365,7 +364,7 @@ export function VentasPage() {
     } catch (err: any) {
       console.error('Error cargando datos:', err);
       setError(err.message || 'Error al cargar los datos');
-      toast.error('Error al cargar los datos. Por favor, intenta nuevamente.');
+      showErrorAlert("Error al cargar datos", "No se pudieron cargar los datos. Intenta nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -482,11 +481,11 @@ export function VentasPage() {
   const handleMetodoPagoChange = (value: string) => {
     if (value === 'Saldo') {
       if (!nuevaVenta.clienteId) {
-        toast.error("Selecciona un cliente para usar Saldo");
+        showErrorAlert("Cliente requerido", "Selecciona un cliente para usar Saldo.");
         return;
       }
       if (!canUseSaldoPago()) {
-        toast.error("Saldo insuficiente para cubrir el total");
+        showErrorAlert("Saldo insuficiente", "El saldo no cubre el total de la venta.");
         return;
       }
       setNuevaVenta({ ...nuevaVenta, metodoPago: 'Saldo', usarSaldoAFavor: true });
@@ -955,14 +954,7 @@ export function VentasPage() {
     // VALIDACIÓN DE STOCK
     const productoInfo = productosAPI.find(p => p.id.toString() === productId);
     if (productoInfo && nuevaCantidad > productoInfo.stockVentas) {
-      toast.error("No se puede añadir una cantidad superior a la que hay en el stock", {
-        description: `Stock disponible: ${productoInfo.stockVentas}`,
-        style: {
-          background: 'var(--color-gray-darkest)',
-          border: '1px solid #DC2626',
-          color: 'var(--color-white-primary)',
-        }
-      });
+      showErrorAlert("Stock insuficiente", `No se puede añadir una cantidad superior al stock disponible (${productoInfo.stockVentas}).`);
 
       // Si excedió el stock, revertimos el input visual a la cantidad anterior
       const cantAnterior = nuevaVenta.productos?.find(p => p.id === productId)?.cantidad || 1;
@@ -1209,11 +1201,11 @@ export function VentasPage() {
             : (venta.serviciosDetalle || [])
         });
       } else {
-        toast.error('No se pudieron cargar los detalles de la venta');
+        showErrorAlert("Error al cargar detalles", "No se pudieron cargar los detalles de la venta.");
       }
     } catch (error: any) {
       console.error('Error cargando detalles de venta:', error);
-      toast.error('Error al cargar los detalles de la venta');
+      showErrorAlert("Error al cargar detalles", "Error al cargar los detalles de la venta.");
       // Si falla, mantener los datos básicos que tenemos
     } finally {
       setLoadingDetails(false);
@@ -1225,7 +1217,7 @@ export function VentasPage() {
     setVentaValidationAttempt((prev) => prev + 1);
 
     if (!user || !user.id) {
-      toast.error("Error de sesión", { description: "No se ha identificado el usuario responsable. Por favor inicie sesión nuevamente." });
+      showErrorAlert("Error de sesión", "No se ha identificado el usuario responsable. Por favor inicie sesión nuevamente.");
       return;
     }
 
@@ -1233,21 +1225,19 @@ export function VentasPage() {
     const tieneServicios = serviciosAgregados.length > 0;
 
     if (nuevaVenta.clienteId === null || !nuevaVenta.metodoPago) {
-      toast.error("Por favor completa el cliente y el método de pago");
+      showErrorAlert("Datos incompletos", "Por favor completa el cliente y el método de pago.");
       return;
     }
 
     if (productosActuales.length === 0 && !tieneServicios) {
-      toast.error("Debes agregar al menos un producto o un servicio a la venta");
+      showErrorAlert("Venta vacía", "Debes agregar al menos un producto o un servicio a la venta.");
       return;
     }
 
     // Validar Barbero estrictamente si hay servicios
     if (tieneServicios) {
       if (!nuevaVenta.barberoId || Number(nuevaVenta.barberoId) <= 0) {
-        toast.error("El barbero es obligatorio cuando se agregan servicios", {
-          description: "Por favor selecciona un barbero válido para continuar."
-        });
+        showErrorAlert("Barbero requerido", "El barbero es obligatorio cuando se agregan servicios. Por favor selecciona un barbero válido.");
         return;
       }
     }
@@ -1256,7 +1246,7 @@ export function VentasPage() {
     const productosInvalidos = productosActuales.filter(p => !p.id || isNaN(parseInt(p.id)));
     if (productosInvalidos.length > 0) {
       console.error('❌ Productos con IDs inválidos:', productosInvalidos);
-      toast.error(`Error: ${productosInvalidos.length} producto(s) tienen IDs inválidos`);
+      showErrorAlert("Productos inválidos", `${productosInvalidos.length} producto(s) tienen IDs inválidos.`);
       return;
     }
 
@@ -1271,7 +1261,7 @@ export function VentasPage() {
       : [];
 
     if (productosActuales.length === 0 && serviciosValidos.length === 0) {
-      toast.error("Debes agregar al menos un producto o servicio válido a la venta");
+      showErrorAlert("Venta inválida", "Debes agregar al menos un producto o servicio válido a la venta.");
       return;
     }
 
@@ -1449,7 +1439,7 @@ export function VentasPage() {
     } catch (error: any) {
       console.error('Error creando venta:', error);
       const errorMessage = error?.message || 'Error desconocido al crear la venta';
-      toast.error(`Error al crear la venta: ${errorMessage}`);
+      showErrorAlert("Error al crear la venta", errorMessage);
     }
   };
 
@@ -1466,20 +1456,7 @@ export function VentasPage() {
     // Solo permitir cambios entre "Completada" y "Anulada"
     // Si la venta está anulada, no se puede cambiar a completada
     if (venta.estado === 'Anulada') {
-      toast.error("No es posible activar una venta anulada", {
-        style: {
-          background: 'var(--color-gray-darkest)',
-          border: '1px solid #DC2626',
-          color: 'var(--color-white-primary)',
-          borderRadius: '12px',
-          fontSize: '14px',
-          fontWeight: '500',
-          boxShadow: 'rgba(0, 0, 0, 0.5) 0px 4px 12px'
-        },
-        icon: '🚫',
-        duration: 4000,
-        description: 'Una vez anulada, una venta no puede ser reactivada por políticas de seguridad.'
-      });
+      showErrorAlert("No se puede reactivar", "No es posible activar una venta anulada. Una vez anulada, una venta no puede ser reactivada por políticas de seguridad.");
       return;
     }
 
@@ -1542,7 +1519,7 @@ export function VentasPage() {
           edited("Venta anulada ✔️", `La venta ${venta.numeroVenta} ha sido anulada exitosamente.`);
         } catch (error: any) {
           console.error('Error anulando venta:', error);
-          toast.error('Error al anular la venta. Por favor, intenta nuevamente.');
+          showErrorAlert("Error al anular", "No se pudo anular la venta. Intenta nuevamente.");
         }
       },
       {
@@ -1832,7 +1809,7 @@ export function VentasPage() {
       created("PDF generado ✔️", `La factura de la venta ${ventaData.id} fue descargada correctamente.`);
     } catch (error) {
       console.error("Error generando PDF de venta:", error);
-      toast.error("No se pudo generar el PDF de la venta.");
+      showErrorAlert("Error al generar PDF", "No se pudo generar el PDF de la venta.");
     }
   };
 

@@ -32,7 +32,6 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "../../../shared/components/ui/notify";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { entregaInsumosService, EntregaInsumo, InsumoEntrega, CreateEntregaData, UpdateEntregaData } from "../services/entregaInsumosService";
 import { apiService, ApiUser } from "../../../shared/services/api";
@@ -339,7 +338,7 @@ export function EntregaInsumosPage() {
         setUsers(usersData);
       } catch (error) {
         console.error('Error cargando datos:', error);
-        toast.error('Error al cargar los datos desde el servidor');
+        error('Error al cargar datos', 'No se pudieron cargar los datos desde el servidor.');
       } finally {
         setLoading(false);
       }
@@ -688,7 +687,7 @@ export function EntregaInsumosPage() {
   const handleCreateEntrega = async () => {
     // Validate session
     if (!user || !user.id) {
-      toast.error("Error de sesión", { description: "No se ha identificado el usuario responsable." });
+      error("Error de sesión", "No se ha identificado el usuario responsable.");
       return;
     }
 
@@ -719,7 +718,7 @@ export function EntregaInsumosPage() {
 
       const barbero = barberos.find(b => b.id === nuevaEntrega.barberoSeleccionado);
       if (!barbero) {
-        toast.error('Barbero no encontrado');
+        error('Barbero no encontrado', 'No se encontró el barbero seleccionado.');
         console.error('❌ Barbero no encontrado', { barberoSeleccionado: nuevaEntrega.barberoSeleccionado, barberos });
         return;
       }
@@ -787,7 +786,7 @@ export function EntregaInsumosPage() {
       );
     } catch (error: any) {
       console.error('Error creando entrega:', error);
-      toast.error(error?.message || 'Error al registrar la entrega');
+      error('Error al registrar', error?.message || 'No se pudo registrar la entrega.');
     } finally {
       setCreatingDelivery(false);
     }
@@ -892,7 +891,7 @@ export function EntregaInsumosPage() {
           // However, double confirmation shows a success dialog, so let's keep it clean.
         } catch (error) {
           console.error('❌ Error anulando entrega:', error);
-          toast.error('Error al anular la entrega');
+          error('Error al anular', 'No se pudo anular la entrega.');
           throw error; // Propagate error so dialog knows it failed
         }
       },

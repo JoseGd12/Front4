@@ -4,7 +4,7 @@ import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 
 const barberos = [
   { id: "1", nombre: "Miguel Rodriguez", especialidad: "Corte Clásico y Barba" },
@@ -27,6 +27,7 @@ const horariosDisponibles = [
 ];
 
 export function ClienteAgendarCitaPage() {
+  const { success, error: showErrorAlert, AlertContainer } = useCustomAlert();
   const [formData, setFormData] = useState({
     barbero: "",
     servicio: "",
@@ -39,13 +40,11 @@ export function ClienteAgendarCitaPage() {
     e.preventDefault();
     
     if (!formData.barbero || !formData.servicio || !formData.fecha || !formData.hora) {
-      toast.error("Por favor completa todos los campos obligatorios");
+      showErrorAlert("Campos requeridos", "Por favor completa todos los campos obligatorios.");
       return;
     }
 
-    toast.success("¡Cita agendada exitosamente!", {
-      description: `Tu cita ha sido programada para el ${formData.fecha} a las ${formData.hora}`
-    });
+    success("Cita agendada", `Tu cita ha sido programada para el ${formData.fecha} a las ${formData.hora}.`);
 
     // Reset form
     setFormData({
@@ -283,6 +282,7 @@ export function ClienteAgendarCitaPage() {
           </div>
         </div>
       </main>
+    <AlertContainer />
     </>
   );
 }

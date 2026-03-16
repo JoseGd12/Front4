@@ -4,7 +4,7 @@ import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 
 const barberos = [
@@ -111,6 +111,7 @@ const horasDelDia = Array.from({ length: 25 }, (_, i) => 8 + i * 0.5); // 8:00 A
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export function ClienteAgendarCitaPageGoogleStyle() {
+  const { error: showErrorAlert, AlertContainer } = useCustomAlert();
   const [citasExistentes, setCitasExistentes] = useState(citasExistentesBase);
   const [formData, setFormData] = useState({
     barbero: "",
@@ -200,7 +201,7 @@ export function ClienteAgendarCitaPageGoogleStyle() {
   // Función para manejar clic en celda de hora
   const handleCeldaClick = (fecha: string, hora: number) => {
     if (!formData.barbero) {
-      toast.error("Por favor selecciona un barbero primero");
+      showErrorAlert("Barbero requerido", "Por favor selecciona un barbero primero.");
       return;
     }
 
@@ -230,7 +231,7 @@ export function ClienteAgendarCitaPageGoogleStyle() {
     e.preventDefault();
     
     if (!formData.barbero || !formData.servicio || !formData.fecha || !formData.hora) {
-      toast.error("Por favor completa todos los campos obligatorios");
+      showErrorAlert("Campos requeridos", "Por favor completa todos los campos obligatorios.");
       return;
     }
 
@@ -241,7 +242,7 @@ export function ClienteAgendarCitaPageGoogleStyle() {
     const hora = parseInt(hSplit[0]) + (parseInt(hSplit[1]) / 60);
     
     if (isHoraOcupada(formData.fecha, hora, formData.barbero, selectedService?.duracion || 0)) {
-      toast.error("La hora seleccionada ya no está disponible");
+      showErrorAlert("Hora no disponible", "La hora seleccionada ya no está disponible.");
       return;
     }
 
@@ -770,6 +771,7 @@ export function ClienteAgendarCitaPageGoogleStyle() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    <AlertContainer />
     </>
   );
 }

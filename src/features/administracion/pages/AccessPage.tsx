@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../shared/components/ui/tabs";
 import { Label } from "../../../shared/components/ui/label";
 import { Eye, EyeOff, Lock, Mail, User, Key, Shield, ArrowLeft, CheckCircle, RefreshCw } from "lucide-react";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 
 export function AccessPage() {
+  const { success, error: showErrorAlert, AlertContainer } = useCustomAlert();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [currentView, setCurrentView] = useState<'login' | 'register' | 'forgot' | 'reset' | 'success'>('login');
@@ -37,7 +38,7 @@ export function AccessPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginForm.email || !loginForm.password) {
-      toast.error("Por favor completa todos los campos");
+      showErrorAlert("Campos requeridos", "Por favor completa todos los campos.");
       return;
     }
     
@@ -45,18 +46,18 @@ export function AccessPage() {
     // Simulación de login
     setTimeout(() => {
       setIsLoading(false);
-      toast.success("Inicio de sesión exitoso");
+      success("Inicio de sesión exitoso", "Has iniciado sesión correctamente.");
     }, 2000);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (registerForm.password !== registerForm.confirmPassword) {
-      toast.error("Las contraseñas no coinciden");
+      showErrorAlert("Contraseñas no coinciden", "Las contraseñas no coinciden.");
       return;
     }
     if (registerForm.password.length < 8) {
-      toast.error("La contraseña debe tener al menos 8 caracteres");
+      showErrorAlert("Contraseña débil", "La contraseña debe tener al menos 8 caracteres.");
       return;
     }
     
@@ -64,7 +65,7 @@ export function AccessPage() {
     // Simulación de registro
     setTimeout(() => {
       setIsLoading(false);
-      toast.success("Cuenta creada exitosamente");
+      success("Cuenta creada", "Tu cuenta ha sido creada exitosamente.");
       setCurrentView('login');
     }, 2000);
   };
@@ -72,7 +73,7 @@ export function AccessPage() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotForm.email) {
-      toast.error("Por favor ingresa tu email");
+      showErrorAlert("Email requerido", "Por favor ingresa tu email.");
       return;
     }
     
@@ -80,7 +81,7 @@ export function AccessPage() {
     // Simulación de envío de código
     setTimeout(() => {
       setIsLoading(false);
-      toast.success("Código de verificación enviado a tu email");
+      success("Código enviado", "El código de verificación ha sido enviado a tu email.");
       setCurrentView('reset');
     }, 2000);
   };
@@ -89,15 +90,15 @@ export function AccessPage() {
     e.preventDefault();
     const code = resetCode.join('');
     if (code.length !== 6) {
-      toast.error("Por favor ingresa el código de 6 dígitos");
+      showErrorAlert("Código requerido", "Por favor ingresa el código de 6 dígitos.");
       return;
     }
     if (resetForm.newPassword !== resetForm.confirmPassword) {
-      toast.error("Las contraseñas no coinciden");
+      showErrorAlert("Contraseñas no coinciden", "Las contraseñas no coinciden.");
       return;
     }
     if (resetForm.newPassword.length < 8) {
-      toast.error("La contraseña debe tener al menos 8 caracteres");
+      showErrorAlert("Contraseña débil", "La contraseña debe tener al menos 8 caracteres.");
       return;
     }
     
@@ -134,7 +135,7 @@ export function AccessPage() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      toast.success("Nuevo código enviado");
+      success("Nuevo código enviado", "Se ha enviado un nuevo código a tu email.");
     }, 1000);
   };
 
@@ -647,7 +648,7 @@ export function AccessPage() {
                   setResetCode(['', '', '', '', '', '']);
                   setResetForm({ newPassword: '', confirmPassword: '' });
                   setForgotForm({ email: '' });
-                  toast.success("Ahora puedes iniciar sesión con tu nueva contraseña");
+                  success("Contraseña actualizada", "Ahora puedes iniciar sesión con tu nueva contraseña.");
                 }}
                 className="elegante-button-primary w-full flex items-center justify-center"
               >
@@ -657,6 +658,7 @@ export function AccessPage() {
             </div>
           </div>
         </main>
+      <AlertContainer />
       </>
     );
   }

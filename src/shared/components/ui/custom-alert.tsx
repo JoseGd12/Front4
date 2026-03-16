@@ -137,7 +137,7 @@ export function CustomAlert({
       className={`relative elegante-card ${styles.bgColor} border-2 ${styles.borderColor} w-80 max-w-[92vw] shadow-lg transition-all duration-700 ease-out will-change-transform will-change-opacity transform ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
       }`}
-      style={{ pointerEvents: 'all' }}
+      style={{ pointerEvents: 'all', backgroundColor: '#1a1919' }}
       onPointerDownCapture={(e) => { e.stopPropagation(); }}
       onMouseDownCapture={(e) => { e.stopPropagation(); }}
       onClick={(e) => { e.stopPropagation(); }}

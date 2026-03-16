@@ -228,7 +228,7 @@ export function UsersPage() {
       setBarberosCatalogo((barberosList || []).map((b: any) => barberosService.mapApiToComponent(b)));
     } catch (error: any) {
       console.error('Error loading initial data:', error);
-      toast.error('Error al cargar datos del sistema');
+      showError('Error al cargar datos', 'No se pudieron cargar los datos del sistema.');
     } finally {
       setLoading(false);
     }
@@ -320,13 +320,7 @@ export function UsersPage() {
       const imageUrl = await apiService.uploadImage(file);
       setNewUser((prev) => ({ ...prev, imagenUrl: imageUrl }));
 
-      toast.success('Imagen subida exitosamente', {
-        style: {
-          background: 'var(--color-gray-darkest)',
-          border: '1px solid var(--color-orange-primary)',
-          color: 'var(--color-white-primary)',
-        },
-      });
+      showSuccess('Imagen subida', 'La imagen se ha subido correctamente.');
     } catch (error: any) {
       console.error('Error uploading image:', error);
       showError('Error al subir imagen', 'No se pudo subir la imagen al servidor. Intenta nuevamente.');
@@ -497,22 +491,7 @@ export function UsersPage() {
       }
     } catch (error: any) {
       console.error('Error creating user:', error);
-      if (typeof error === 'function') {
-        showError('Error al crear usuario', 'No se pudo crear el usuario. Por favor, verifica los datos e intenta nuevamente.');
-      } else {
-        // Mostrar error con toast si no es función
-        toast.error('Error al crear usuario', {
-          style: {
-            background: 'var(--color-gray-darkest)',
-            border: '1px solid #DC2626',
-            color: 'var(--color-white-primary)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '500',
-          },
-          description: 'No se pudo crear el usuario. Por favor, verifica los datos e intenta nuevamente.'
-        });
-      }
+      showError('Error al crear usuario', 'No se pudo crear el usuario. Por favor, verifica los datos e intenta nuevamente.');
     }
   };
 

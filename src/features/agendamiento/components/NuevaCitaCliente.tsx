@@ -16,7 +16,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { EmailSimulatorCita } from "./EmailSimulatorCita";
 
 // Datos de servicios simplificados para clientes
@@ -149,6 +149,7 @@ interface NuevaCita {
 }
 
 export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: NuevaCitaClienteProps) {
+  const { success } = useCustomAlert();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -218,13 +219,7 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: Nu
     // Guardar los datos de la cita para el simulador de email
     setCitaCompletada(citaData);
 
-    toast.success("¡Cita agendada exitosamente!", {
-      description: `Tu cita de ${servicio.nombre} con ${nuevaCita.barbero} ha sido confirmada para el ${nuevaCita.fecha} a las ${nuevaCita.hora}.`,
-      action: {
-        label: "Ver confirmación",
-        onClick: () => setShowEmailSimulator(true),
-      },
-    });
+    success("Cita agendada", `Tu cita de ${servicio.nombre} con ${nuevaCita.barbero} ha sido confirmada para el ${nuevaCita.fecha} a las ${nuevaCita.hora}.`);
 
     if (onSuccess) {
       onSuccess(citaData);

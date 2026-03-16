@@ -4,7 +4,7 @@ import { User, Mail, Shield, UserCircle, Briefcase, Phone, MapPin, Calendar, Edi
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { firebaseAuthService } from "../../../shared/services/firebase";
 import { apiService } from "../../../shared/services/api";
@@ -46,9 +46,7 @@ export function ClientePerfilPage() {
     // Validar tipo de archivo
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      toast.error("Formato no válido", {
-        description: "Solo se permiten imágenes (JPG, PNG, GIF, WebP)"
-      });
+      showErrorAlert("Formato no válido", "Solo se permiten imágenes (JPG, PNG, GIF, WebP).");
       return;
     }
 
@@ -56,10 +54,10 @@ export function ClientePerfilPage() {
       setIsUploadingImage(true);
       const imageUrl = await apiService.uploadImage(file);
       setFormData(prev => ({ ...prev, fotoPerfil: imageUrl }));
-      toast.success("Imagen subida correctamente");
+      success("Imagen subida", "La imagen se ha subido correctamente.");
     } catch (err: any) {
       console.error("Error uploading image:", err);
-      toast.error("Error al subir imagen");
+      showErrorAlert("Error al subir", "No se pudo subir la imagen.");
     } finally {
       setIsUploadingImage(false);
     }
@@ -80,9 +78,7 @@ export function ClientePerfilPage() {
           try {
             const { verifyBeforeUpdateEmail } = await import("firebase/auth");
             await verifyBeforeUpdateEmail(currentUser, formData.email);
-            toast.info("Cambio de correo iniciado", {
-              description: "Revisa tu bandeja de entrada para verificar el nuevo correo. La sesión se cerrará en segundos por seguridad."
-            });
+            showInfoAlert("Cambio de correo iniciado", "Revisa tu bandeja de entrada para verificar el nuevo correo. La sesión se cerrará en segundos por seguridad.");
             
             // Cerrar sesión después de un breve retraso para que vean el mensaje
             setTimeout(() => {
@@ -91,9 +87,7 @@ export function ClientePerfilPage() {
             return; // Detenemos la ejecución del resto de la función
           } catch (firebaseErr: any) {
              if (firebaseErr.code === 'auth/requires-recent-login') {
-               toast.error("Sesión expirada", {
-                 description: "Por seguridad, debes cerrar sesión y volver a entrar para cambiar tu correo."
-               });
+               showErrorAlert("Sesión expirada", "Por seguridad, debes cerrar sesión y volver a entrar para cambiar tu correo.");
                setIsSubmitting(false);
                return;
              }
@@ -111,26 +105,21 @@ export function ClientePerfilPage() {
       });
 
       if (result.success) {
-        toast.success("Perfil actualizado", {
-          description: "Tus cambios se han guardado correctamente."
-        });
+        success("Perfil actualizado", "Tus cambios se han guardado correctamente.");
         setIsEditDialogOpen(false);
       } else {
-        toast.error("Error al actualizar", {
-          description: result.error || "No se pudo actualizar el perfil."
-        });
+        showErrorAlert("Error al actualizar", result.error || "No se pudo actualizar el perfil.");
       }
     } catch (err: any) {
       console.error("Error en handleUpdateProfile:", err);
-      toast.error("Error crítico", {
-        description: err.message || "Ocurrió un error inesperado al guardar."
-      });
+      showErrorAlert("Error crítico", err.message || "Ocurrió un error inesperado al guardar.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
+    <>
     <div className="flex-1 p-8 overflow-y-auto bg-black-primary">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header de Perfil */}
@@ -384,5 +373,7 @@ export function ClientePerfilPage() {
         </DialogContent>
       </Dialog>
     </div>
+    <AlertContainer />
+    </>
   );
 }

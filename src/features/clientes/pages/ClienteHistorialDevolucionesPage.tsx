@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, Eye, Calendar, DollarSign, RotateCcw, Package, Loader2 } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { devolucionService, type Devolucion } from "../../ventas/services/devolucionService";
 import { clientesService } from "../services/clientesService";
@@ -14,6 +14,7 @@ const formatCurrency = (amount: number): string => {
 
 export function ClienteHistorialDevolucionesPage() {
   const { user } = useAuth();
+  const { error: showErrorAlert, AlertContainer } = useCustomAlert();
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,7 +38,7 @@ export function ClienteHistorialDevolucionesPage() {
       }
     } catch (err) {
       console.error("Error fetching client devolutions:", err);
-      toast.error("Error al cargar tu historial de devoluciones");
+      showErrorAlert("Error al cargar", "No se pudo cargar tu historial de devoluciones.");
     } finally {
       setIsLoading(false);
     }
@@ -243,6 +244,7 @@ export function ClienteHistorialDevolucionesPage() {
           </DialogContent>
         </Dialog>
       </main>
+    <AlertContainer />
     </>
   );
 }

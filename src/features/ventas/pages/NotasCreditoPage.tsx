@@ -29,7 +29,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../../shared/compone
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 
-import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { 
   downloadCSV, 
@@ -302,7 +301,7 @@ export function NotasCreditoPage() {
           }
         : n
     ));
-    toast.success(`Nota de crédito ${notaId} marcada como utilizada`);
+    success("Nota de crédito utilizada", `La nota de crédito ${notaId} ha sido marcada como utilizada.`);
   };
 
   // Generar reporte Excel
@@ -337,15 +336,13 @@ export function NotasCreditoPage() {
     const totalRegistros = filteredData.length;
     const totalMonto = filteredData.reduce((sum, n) => sum + n.monto, 0);
     
-    toast.success(`Reporte Excel generado`, {
-      description: `${totalRegistros} notas de crédito exportadas. Total: ${formatCurrency(totalMonto)}`
-    });
+    success("Reporte Excel generado", `${totalRegistros} notas de crédito exportadas. Total: ${formatCurrency(totalMonto)}`);
   };
 
   // Manejar cambio de rango de fechas personalizado
   const handleCustomDateRange = () => {
     if (!customDateRange.startDate || !customDateRange.endDate) {
-      toast.error("Por favor selecciona ambas fechas");
+      error("Fechas requeridas", "Por favor selecciona ambas fechas.");
       return;
     }
     

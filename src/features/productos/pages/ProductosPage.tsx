@@ -1305,7 +1305,7 @@ export function ProductosPage() {
                           <ImageRenderer
                             url={producto.imagenProduc}
                             alt={producto.nombre}
-                            className="w-12 h-12 object-cover rounded-lg"
+                            className="w-10 h-10 object-cover rounded-lg"
                             fallbackVariant="product"
                             showLabel={false}
                           />
