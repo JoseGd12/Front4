@@ -114,7 +114,6 @@ export function UsersPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userToDelete, setUserToDelete] = useState<any>(null);
@@ -1297,29 +1296,6 @@ export function UsersPage() {
             </div>
           </div>
         </div>
-
-        {/* Dialog de confirmación para actualizar usuario */}
-        <AlertDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <AlertDialogContent className="bg-gray-darkest border-gray-dark">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-white-primary">Confirmar Actualización</AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-lightest">
-                ¿Estás seguro de que deseas actualizar la información de este usuario? Los cambios se aplicarán inmediatamente.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="bg-gray-darker border-gray-dark text-white-primary hover:bg-gray-dark">
-                Cancelar
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleUpdateUser}
-                className="elegante-button-primary"
-              >
-                Actualizar Usuario
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         {/* Dialog de confirmación para eliminar usuario */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

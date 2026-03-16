@@ -96,7 +96,6 @@ export function ClientesPage() {
   const [loading, setLoading] = useState(true);
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isCreateConfirmOpen, setIsCreateConfirmOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -387,12 +386,14 @@ export function ClientesPage() {
     return true;
   };
 
-  const handleCreateCliente = () => {
+  const handleCreateCliente = async () => {
     setShowCreateValidation(true);
     if (!validateForm(createForm)) {
       return;
     }
-    setIsCreateConfirmOpen(true);
+    
+    // Ejecutar creación directamente
+    await confirmCreateCliente();
   };
 
   const confirmCreateCliente = async () => {
@@ -433,7 +434,6 @@ export function ClientesPage() {
       });
       setClientes([mappedCliente, ...clientes]);
       setIsCreateDialogOpen(false);
-      setIsCreateConfirmOpen(false);
       setCreateForm({
         tipoDocumento: 'CC',
         numeroDocumento: '',
@@ -1777,32 +1777,6 @@ export function ClientesPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Diálogo de confirmación crear */}
-      <AlertDialog open={isCreateConfirmOpen} onOpenChange={setIsCreateConfirmOpen}>
-        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary">Confirmar Creación</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest">
-              ¿Estás seguro de que deseas crear este nuevo cliente? La información será guardada en el sistema.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setIsCreateConfirmOpen(false)}
-              className="elegante-button-secondary"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmCreateCliente}
-              className="elegante-button-primary"
-            >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Diálogo de confirmación editar */}
       <AlertDialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>

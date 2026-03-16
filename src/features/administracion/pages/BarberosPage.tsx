@@ -75,7 +75,6 @@ export function BarberosPage() {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [showBarberoFormErrors, setShowBarberoFormErrors] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState('');
-  const [isCreateConfirmOpen, setIsCreateConfirmOpen] = useState(false);
   const formatDateLocal = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -264,10 +263,12 @@ export function BarberosPage() {
     return true;
   };
 
-  const handleCreateClick = () => {
+  const handleCreateClick = async () => {
     setShowBarberoFormErrors(true);
     if (!validateBarberoForm()) return;
-    setIsCreateConfirmOpen(true);
+    
+    // Ejecutar creación directamente
+    await handleCreateBarbero();
   };
 
   const handleCreateBarbero = async () => {
@@ -286,7 +287,6 @@ export function BarberosPage() {
       setBarberos([mappedBarbero, ...barberos]);
       resetForm();
       setIsDialogOpen(false);
-      setIsCreateConfirmOpen(false);
       successAlert("¡Barbero creado exitosamente!", `El barbero "${mappedBarbero.nombre} ${mappedBarbero.apellido}" ha sido registrado en el sistema.`);
 
     } catch (err: unknown) {
@@ -961,31 +961,6 @@ export function BarberosPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={isCreateConfirmOpen} onOpenChange={setIsCreateConfirmOpen}>
-        <AlertDialogContent className="bg-gray-darkest border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary">Confirmar Creación</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest">
-              ¿Deseas crear este barbero con la información ingresada?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setIsCreateConfirmOpen(false)}
-              className="bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCreateBarbero}
-              className="elegante-button-primary"
-            >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Dialogo de Detalles */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>

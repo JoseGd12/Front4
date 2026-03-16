@@ -421,47 +421,35 @@ export function PaquetesPage() {
     const nombrePaquete = nombreTrim;
     const tempPaqueteData = { ...nuevoPaquete, nombre: nombreTrim };
 
-    // Cerrar el modal temporalmente para evitar conflictos de z-index
-    // setIsDialogOpen(false); // No necesario en vista completa
+    // Ejecutar actualización directamente
+    try {
+      const updatedPaquete = await apiService.updatePaquete(editingPaquete.id, {
+        ...tempPaqueteData,
+        precio: parseFloat(tempPaqueteData.precio.toString()),
+        precioOriginal: parseFloat(tempPaqueteData.precio.toString()) * (1 + tempPaqueteData.descuento / 100)
+      });
 
-    confirmCreateAction(
-      `${nombrePaquete}`,
-      async () => {
-        try {
-          const updatedPaquete = await apiService.updatePaquete(editingPaquete.id, {
-            ...tempPaqueteData,
-            precio: parseFloat(tempPaqueteData.precio.toString()),
-            precioOriginal: parseFloat(tempPaqueteData.precio.toString()) * (1 + tempPaqueteData.descuento / 100)
-          });
+      // Actualizar detalles del paquete en una sola operación (IDs de servicios)
+      console.log(`🔄 Actualizando detalles para el paquete ${editingPaquete.id}`);
+      await apiService.updatePaqueteDetalles(
+        editingPaquete.id,
+        serviciosAgregados.map((s: any) => ({
+          servicioId: Number(s.id || 0),
+          cantidad: 1
+        }))
+      );
 
-          // Actualizar detalles del paquete en una sola operación (IDs de servicios)
-          console.log(`🔄 Actualizando detalles para el paquete ${editingPaquete.id}`);
-          await apiService.updatePaqueteDetalles(
-            editingPaquete.id,
-            serviciosAgregados.map((s: any) => ({
-              servicioId: Number(s.id || 0),
-              cantidad: 1
-            }))
-          );
+      await loadPaquetes(true);
+      setEditingPaquete(null);
+      setNuevoPaquete({ ...estadoInicialPaquete });
+      setServiciosAgregados([]);
+      setViewMode('list');
 
-          await loadPaquetes(true);
-          setEditingPaquete(null);
-          setNuevoPaquete({ ...estadoInicialPaquete });
-          setServiciosAgregados([]);
-          setViewMode('list');
-
-        } catch (error) {
-          console.error('Error updating paquete:', error);
-        }
-      },
-      {
-        confirmTitle: 'Actualizar Paquete',
-        confirmMessage: `¿Estás seguro de que deseas actualizar el paquete "${nombrePaquete}"? Se aplicarán todos los cambios realizados en el formulario.`,
-        successTitle: 'Paquete actualizado exitosamente ✔️',
-        successMessage: `El paquete "${nombrePaquete}" ha sido actualizado correctamente con la nueva información.`,
-        requireInput: false
-      }
-    );
+      showSuccessAlert('Paquete actualizado exitosamente ✔️', `El paquete "${nombrePaquete}" ha sido actualizado correctamente con la nueva información.`);
+    } catch (error) {
+      console.error('Error updating paquete:', error);
+      showErrorAlert('Error al actualizar', 'No se pudo actualizar el paquete. Inténtalo nuevamente.');
+    }
   };
 
   const handleToggleEstadoPaquete = (paquete: Paquete) => {

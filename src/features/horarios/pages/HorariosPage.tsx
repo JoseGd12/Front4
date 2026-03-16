@@ -86,7 +86,6 @@ export function HorariosPage() {
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
@@ -275,7 +274,7 @@ export function HorariosPage() {
     setShowBarberoResults(false);
   };
 
-  const handleCreateHorario = () => {
+  const handleCreateHorario = async () => {
     if (!nuevoHorario.barberoId) {
       error("Barbero requerido", "Por favor selecciona un barbero.");
       return;
@@ -290,7 +289,8 @@ export function HorariosPage() {
       return;
     }
 
-    setIsCreateDialogOpen(true);
+    // Ejecutar creación directamente
+    await confirmCreateHorario();
   };
 
   const confirmCreateHorario = async () => {
@@ -311,7 +311,6 @@ export function HorariosPage() {
 
       resetFormulario();
       setIsDialogOpen(false);
-      setIsCreateDialogOpen(false);
       await loadData(true);
       success("¡Horario creado!", "Se han registrado los horarios correctamente.");
     } catch (err) {
@@ -1013,39 +1012,6 @@ export function HorariosPage() {
       </Dialog>
 
       {/* Alert Dialogs */}
-      <AlertDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <AlertDialogContent className="bg-gray-darkest border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-              ¿Crear horario?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest">
-              Se creará <span className="font-semibold text-orange-primary">1 registro</span> de
-              horario para{" "}
-              <span className="font-semibold text-white-primary">
-                {barberos.find(b => b.id.toString() === nuevoHorario.barberoId)?.nombre || 'Barbero'}
-              </span> con{" "}
-              <span className="font-semibold text-orange-primary">
-                {nuevoHorario.bloques.length} bloque{nuevoHorario.bloques.length !== 1 ? "s" : ""}
-              </span>{" "}
-              de horario.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setIsCreateDialogOpen(false)}
-              className="elegante-button-secondary"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCreateHorario} className="elegante-button-primary">
-              Crear Horario
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <AlertDialogContent className="bg-gray-darkest border-gray-dark">
           <AlertDialogHeader>

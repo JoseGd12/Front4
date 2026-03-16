@@ -50,8 +50,6 @@ export function ProductosPage() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState<any>(null);
   const [editingStockTotal, setEditingStockTotal] = useState<number | null>(null);
@@ -305,7 +303,7 @@ export function ProductosPage() {
     setIsCreateDialogOpen(true);
   };
 
-  const handleCreateProductoSubmit = () => {
+  const handleCreateProductoSubmit = async () => {
     const isNombreValid = nuevoProducto.nombre.trim() !== '';
     const isCategoriaValid = nuevoProducto.categoria !== '';
     if (!isNombreValid || !isCategoriaValid) {
@@ -322,7 +320,9 @@ export function ProductosPage() {
       error("Nombre duplicado", `El nombre "${nuevoProducto.nombre.trim()}" ya existe. Por favor elige otro nombre.`);
       return;
     }
-    setIsCreateDialogOpen(true);
+    
+    // Ejecutar creación directamente
+    await confirmCreateProducto();
   };
 
   const confirmCreateProducto = async () => {
@@ -405,7 +405,6 @@ export function ProductosPage() {
       setCategorySearchTerm('');
       setImagenPreview(null);
       setIsDialogOpen(false);
-      setIsCreateDialogOpen(false);
 
       created("Producto creado ✔️", `El producto "${productoCreado.nombre}" ha sido agregado exitosamente al inventario.`);
     } catch (err: any) {
@@ -442,7 +441,7 @@ export function ProductosPage() {
     setIsDialogOpen(true);
   };
 
-  const handleUpdateProducto = () => {
+  const handleUpdateProducto = async () => {
     const isNombreValid = nuevoProducto.nombre.trim() !== '';
     const isCategoriaValid = nuevoProducto.categoria !== '';
     const ventaOk = String((nuevoProducto as any).precioVenta) !== '' && Number((nuevoProducto as any).precioVenta) >= 0;
@@ -462,7 +461,9 @@ export function ProductosPage() {
       error("Nombre duplicado", `El nombre "${nuevoProducto.nombre.trim()}" ya existe. Por favor elige otro nombre.`);
       return;
     }
-    setIsEditDialogOpen(true);
+    
+    // Ejecutar actualización directamente
+    await confirmUpdateProducto();
   };
 
   const confirmUpdateProducto = async () => {
@@ -537,9 +538,8 @@ export function ProductosPage() {
       setCategorySearchTerm('');
       setImagenPreview(null);
       setIsDialogOpen(false);
-      setIsEditDialogOpen(false);
 
-      edited("Producto editado ✔️", `El producto "${productoActualizado.nombre}" ha sido actualizado. Venta: ${formatCurrency(precioVentaFinal)} · Compra: ${formatCurrency(precioCompraFinal)}.`);
+      edited("Producto editado ✔️", `El producto "${productoActualizado.nombre}" ha sido actualizado correctamente.`);
     } catch (err: any) {
       console.error('Error updating product:', err);
       error('Error al actualizar producto', err.message || 'No se pudo actualizar el producto. Inténtalo nuevamente.');
@@ -742,7 +742,7 @@ export function ProductosPage() {
       }
     };
     try {
-      if (isEditDialogOpen && editingProducto?.id) {
+      if (editingProducto?.id) {
         apiService.deleteProductoImagen(editingProducto.id).catch(() => {});
       }
     } finally {
@@ -1472,52 +1472,6 @@ export function ProductosPage() {
               </div>
             </div>
           </div>
-
-          {/* Dialog de confirmación para crear */}
-          <AlertDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <AlertDialogContent className="bg-gray-darkest border-gray-dark">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-white-primary">Confirmar Creación</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-lightest">
-                  ¿Estás seguro de que deseas agregar este producto al inventario?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-gray-darker border-gray-dark text-white-primary hover:bg-gray-dark">
-                  Cancelar
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={confirmCreateProducto}
-                  className="elegante-button-primary"
-                >
-                  Agregar Producto
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          {/* Dialog de confirmación para editar */}
-          <AlertDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <AlertDialogContent className="bg-gray-darkest border-gray-dark">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-white-primary">Confirmar Actualización</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-lightest">
-                  ¿Estás seguro de que deseas actualizar este producto?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-gray-darker border-gray-dark text-white-primary hover:bg-gray-dark">
-                  Cancelar
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={confirmUpdateProducto}
-                  className="elegante-button-primary"
-                >
-                  Actualizar Producto
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
 
           {/* Dialog de confirmación para eliminar */}
           <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
