@@ -891,7 +891,7 @@ export function RolesPage() {
                       <button
                         key={p}
                         onClick={() => setCurrentPage(p as number)}
-                        className={`w-8 h-8 rounded-lg border text-sm transition-colors ${currentPage === p ? 'bg-orange-primary border-orange-primary text-black font-bold' : 'border-gray-dark hover:bg-gray-darker text-white-primary'}`}
+                        className={`w-8 h-8 rounded-lg border text-sm transition-colors ${currentPage === p ? 'bg-orange-primary border-orange-primary !text-black font-bold' : 'border-gray-dark hover:bg-gray-darker text-white-primary'}`}
                       >
                         {p}
                       </button>
