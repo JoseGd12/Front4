@@ -600,7 +600,7 @@ export function PaquetesPage() {
                 <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Paquete</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
                     <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
@@ -620,22 +620,14 @@ export function PaquetesPage() {
                             <span className="text-gray-lighter">{paquete.nombre}</span>
                           </td>
                           <td className="py-4 px-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-orange-primary rounded-lg flex items-center justify-center shrink-0">
-                                <Package className="w-5 h-5 text-black-primary" />
-                              </div>
-                              <span className="text-gray-lighter text-sm" title={(() => {
-                                const nombres = serviciosPorPaqueteId.get(paquete.id) ?? paquete.servicios ?? [];
-                                return Array.isArray(nombres) ? nombres.join(', ') : String(nombres);
-                              })()}>
-                                {(() => {
-                                  const nombres = serviciosPorPaqueteId.get(paquete.id) ?? paquete.servicios ?? [];
-                                  const list = Array.isArray(nombres) ? nombres : [];
-                                  const text = list.length > 0 ? list.join(', ') : paquete.nombre;
-                                  return text || paquete.nombre;
-                                })()}
-                              </span>
-                            </div>
+                            <span className="text-gray-lighter text-sm">
+                              {(() => {
+                                const nombres = serviciosPorPaqueteId.get(paquete.id) ?? [];
+                                return nombres.length > 0
+                                  ? nombres.join(', ')
+                                  : <span className="text-gray-dark italic">Sin servicios</span>;
+                              })()}
+                            </span>
                           </td>
                           <td className="py-4 px-4 text-center">
                             <span className="text-gray-lighter">{paquete.servicios.length} servicios</span>
@@ -647,7 +639,7 @@ export function PaquetesPage() {
                             <span className="text-gray-lighter">${(paquete.precio ?? 0).toLocaleString('es-CO')}</span>
                           </td>
                           <td className="py-4 px-4 text-center">
-                            <span className="px-3 py-1 rounded-full text-xs bg-gray-medium text-gray-lighter">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${paquete.activo ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-medium/20 text-gray-lighter border-gray-dark'}`}>
                               {paquete.activo ? 'Activo' : 'Inactivo'}
                             </span>
                           </td>

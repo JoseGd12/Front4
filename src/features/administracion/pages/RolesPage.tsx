@@ -14,7 +14,8 @@ import {
   Check,
   Loader2,
   ToggleRight,
-  ToggleLeft
+  ToggleLeft,
+  Filter
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
@@ -68,8 +69,9 @@ export function RolesPage() {
   const [editingRole, setEditingRole] = useState<RoleWithModules | null>(null);
   const [roleToDelete, setRoleToDelete] = useState<RoleWithModules | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterEstado, setFilterEstado] = useState<'todos' | 'activo' | 'inactivo'>('todos');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [nuevoRol, setNuevoRol] = useState<CreateRoleData>({
     nombre: '',
     descripcion: '',
@@ -117,11 +119,13 @@ export function RolesPage() {
 
   // Filtrar roles según el término de búsqueda
   const filteredRoles = useMemo(() => {
-    return roles.filter((rol) =>
-      rol.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rol.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [roles, searchTerm]);
+    return roles.filter((rol) => {
+      const matchSearch = rol.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rol.descripcion?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchEstado = filterEstado === 'todos' ? true : filterEstado === 'activo' ? rol.estado === true : rol.estado === false;
+      return matchSearch && matchEstado;
+    });
+  }, [roles, searchTerm, filterEstado]);
 
   // Calcular paginación
   const totalPages = Math.ceil(filteredRoles.length / itemsPerPage);
@@ -612,7 +616,7 @@ export function RolesPage() {
     <div className="w-full bg-black-primary text-white-primary h-full overflow-y-auto">
       <AlertContainer />
 
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6">
         <div className="elegante-card">
 
           {/* Barra de Controles */}
@@ -709,6 +713,19 @@ export function RolesPage() {
                   className="elegante-input pl-10 w-80"
                 />
               </div>
+
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-lighter" />
+                <select
+                  value={filterEstado}
+                  onChange={(e) => { setFilterEstado(e.target.value as 'todos' | 'activo' | 'inactivo'); setCurrentPage(1); }}
+                  className="elegante-input px-3 py-2 text-sm"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                </select>
+              </div>
             </div>
 
             <div className="text-sm text-gray-lightest">
@@ -721,11 +738,12 @@ export function RolesPage() {
             <table className="w-full">
                 <thead className={loading && roles.length === 0 ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">ID</th>
                     <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuarios</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Módulos</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -737,6 +755,9 @@ export function RolesPage() {
                   ) : displayedRoles.map((rol) => (
                     <tr key={rol.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                       <td className="py-4 px-4">
+                        <span className="text-gray-lighter text-sm">{rol.id}</span>
+                      </td>
+                      <td className="py-4 px-4">
                         <span className="text-gray-lighter">{rol.nombre}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -746,12 +767,12 @@ export function RolesPage() {
                         <span className="text-gray-lighter">{rol.modulos.length}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className="px-3 py-1 rounded-full text-xs bg-gray-medium text-gray-lighter">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${rol.estado === true ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-medium/20 text-gray-lighter border-gray-dark'}`}>
                           {rol.estado === true ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => toggleRoleStatus(rol.id)}
                             className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -833,12 +854,22 @@ export function RolesPage() {
           </div>
 
           {/* Paginación */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-6 border-t border-gray-dark">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
+          {totalPages >= 1 && (
+            <div className="flex items-center justify-between pt-4 border-t border-gray-dark mt-2">
+              <div className="flex items-center gap-3 text-sm text-gray-lightest">
+                <span>Página {currentPage} de {totalPages}</span>
+                <span className="flex items-center gap-2">
+                  Filas por página:
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                    className="bg-gray-darker border border-gray-dark rounded px-2 py-1 text-white-primary text-sm focus:outline-none focus:border-orange-primary"
+                  >
+                    {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
@@ -846,6 +877,26 @@ export function RolesPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-gray-lightest">...</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p as number)}
+                        className={`w-8 h-8 rounded-lg border text-sm transition-colors ${currentPage === p ? 'bg-orange-primary border-orange-primary text-black font-bold' : 'border-gray-dark hover:bg-gray-darker text-white-primary'}`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
@@ -884,7 +935,7 @@ export function RolesPage() {
                   </div>
                   <div>
                     <Label className="text-gray-lightest">Estado</Label>
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-medium text-gray-lighter">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${selectedRole.estado === true ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-medium/20 text-gray-lighter border-gray-dark'}`}>
                       {selectedRole.estado === true ? 'Activo' : 'Inactivo'}
                     </span>
                   </div>
@@ -1038,3 +1089,4 @@ export function RolesPage() {
     </div>
   );
 }
+

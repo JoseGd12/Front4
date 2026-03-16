@@ -141,21 +141,9 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
 
   return (
     <>
-      {/* Header */}
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Servicios Disponibles</h1>
-            <p className="text-sm text-gray-lightest mt-1">Descubre todos nuestros servicios profesionales de barbería</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-auto p-4 md:p-8 bg-black-primary">
-        <div className="max-w-7xl mx-auto">
-          {/* Filtros */}
-          <div className="elegante-card mb-8">
-            <div className="space-y-4">
+      {/* Filtros */}
+      <div className="elegante-card mb-6">
+        <div className="space-y-4">
               {/* Búsqueda */}
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-lightest w-4 h-4" />
@@ -191,11 +179,12 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
               <p className="text-gray-lightest animate-pulse">Cargando catálogo de servicios...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
+          <div className="elegante-card">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-2">
               {filteredItems.map((item) => (
-                <div key={`${item.type}-${item.id}`} className="elegante-card relative flex flex-col h-full overflow-hidden group max-w-[380px] mx-auto w-full">
+                <div key={`${item.type}-${item.id}`} className="elegante-card relative flex flex-col h-full overflow-hidden group max-w-[380px] mx-auto w-full transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)]">
                   {/* Imagen del item */}
-                  <div className="h-52 overflow-hidden bg-gray-darkest border-b border-gray-dark relative">
+                  <div className="h-28 overflow-hidden bg-gray-darkest border-b border-gray-dark relative">
                     <ImageRenderer
                       url={(item as any).imagen}
                       alt={item.nombre}
@@ -298,6 +287,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                   </div>
                 </div>
               ))}
+            </div>
             </div>
           )}
 
@@ -458,8 +448,6 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
               )}
             </DialogContent>
           </Dialog>
-        </div>
-      </main>
     <AlertContainer />
     </>
   );

@@ -3,7 +3,7 @@ import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
 import { Label } from '../../../shared/components/ui/label';
-import { Eye, EyeOff, Lock, AlertCircle, Mail, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, AlertCircle, Mail, ArrowLeft } from 'lucide-react';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 import { PasswordResetPage } from './PasswordResetPage';
 import { SimpleCaptcha } from '../components/captcha/index';
@@ -32,6 +32,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const [resetToken, setResetToken] = useState<string>('');
   const [resetEmail, setResetEmail] = useState<string>('');
   const [captchaValidated, setCaptchaValidated] = useState<boolean>(false);
+  const [captchaKey, setCaptchaKey] = useState<number>(0);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
 
@@ -63,11 +64,15 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
       const result = await login(formData.email, formData.password);
       if (!result.success) {
         setError(result.error || 'Credenciales inválidas');
-        setCaptchaValidated(false); // Resetear captcha en login fallido
+        setCaptchaValidated(false);
+        setCaptchaKey(k => k + 1);
+        setFormData({ email: '', password: '' });
       }
     } catch (err) {
       setError('Error al iniciar sesión');
-      setCaptchaValidated(false); // Resetear captcha en error
+      setCaptchaValidated(false);
+      setCaptchaKey(k => k + 1);
+      setFormData({ email: '', password: '' });
     } finally {
       setIsLoading(false);
     }
@@ -228,6 +233,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             {/* Captcha de seguridad - Siempre visible */}
             <div className="mt-6">
               <SimpleCaptcha
+                key={captchaKey}
                 onValidate={handleCaptchaValidation}
               />
             </div>
@@ -254,10 +260,10 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             {onBackToLanding && (
               <button
                 onClick={onBackToLanding}
-                className=" top-6 left-6 text-sm text-gray-lightest hover:text-white-primary flex items-center gap-2"
+                className="text-sm text-gray-lightest hover:text-white-primary flex items-center gap-2 justify-start"
                 style={{ marginBottom: '4px' }}
               >
-                <ArrowRight className="w-4 h-4 rotate-180" />
+                <ArrowLeft className="w-4 h-4" />
                 Volver al inicio
               </button>
             )}
