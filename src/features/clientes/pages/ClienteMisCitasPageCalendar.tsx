@@ -206,7 +206,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
 
   const handleSelectInitialItem = (item: any, currentServicios: any[], currentPaquetes: any[]) => {
     setIsEditMode(false);
-    const isPaquete = item.type === 'paquete';
+    const isPaquete = item.type === 'paquete' || item.tipoItem === 'paquete';
     const itemId = item.id;
 
     let price = 0;

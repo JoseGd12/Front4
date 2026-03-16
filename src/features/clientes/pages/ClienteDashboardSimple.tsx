@@ -5,7 +5,6 @@ import {
   Calendar,
   User,
   Package,
-  ShoppingCart,
   History,
   LogOut,
   Scissors,
@@ -163,13 +162,6 @@ export function ClienteDashboard() {
               <p className="text-sm text-gray-lightest">Portal del Cliente - EDWINS BARBER</p>
             </div>
 
-            <button
-              className="relative px-3 py-2 rounded-lg border bg-gray-darker hover:bg-gray-medium text-white-primary border-gray-dark hover:border-orange-primary transition-all duration-200 flex items-center space-x-2"
-              title="Mi Carrito"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              <span className="text-sm font-semibold">Carrito</span>
-            </button>
           </div>
 
           {renderContent()}

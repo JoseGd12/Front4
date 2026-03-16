@@ -16,6 +16,7 @@ function AppContent() {
 
   const [resetData, setResetData] = useState<{ email: string; token: string } | null>(null);
   const [verifyCode, setVerifyCode] = useState<string>('');
+  const [initialReservation, setInitialReservation] = useState<any>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -85,6 +86,10 @@ function AppContent() {
       <LandingPage
         onRequestLogin={() => setPublicView("login")}
         onRequestRegister={() => setPublicView("register")}
+        onSelectReservation={(item) => {
+          setInitialReservation(item);
+          setPublicView("dashboard");
+        }}
       />
     );
   }
@@ -102,10 +107,22 @@ function AppContent() {
           onRequestLogin={() => setPublicView("login")}
           onRequestRegister={() => setPublicView("register")}
           onRequestDashboard={() => setPublicView("dashboard")}
+          onSelectReservation={(item) => {
+            setInitialReservation(item);
+            setPublicView("dashboard");
+          }}
         />
       );
     }
-    return <ClienteDashboard onBackToLanding={() => setPublicView("landing")} />;
+    return (
+      <ClienteDashboard 
+        onBackToLanding={() => {
+          setInitialReservation(null);
+          setPublicView("landing");
+        }} 
+        initialItem={initialReservation}
+      />
+    );
   }
 
   return <LandingPage />;

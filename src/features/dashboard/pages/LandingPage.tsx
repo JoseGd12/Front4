@@ -7,10 +7,6 @@ import {
   Phone,
   Mail,
   ChevronRight,
-  ShoppingCart,
-  X,
-  Plus,
-  Minus,
   ArrowRight,
   ShoppingBag,
   MapPin
@@ -24,14 +20,6 @@ import '../../../styles/landing.css';
 
 const LOGO_URL = manitoLogo;
 
-interface CartItem {
-  id: number;
-  nombre: string;
-  precio: number;
-  cantidad: number;
-  tipo: 'producto' | 'servicio';
-  imagen?: string;
-}
 
 const formatCurrency = (amount: number): string => amount.toLocaleString('es-CO');
 
@@ -39,13 +27,12 @@ interface LandingPageProps {
   onRequestLogin?: () => void;
   onRequestRegister?: () => void;
   onRequestDashboard?: () => void;
+  onSelectReservation?: (item: any) => void;
 }
 
-export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashboard }: LandingPageProps) {
+export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashboard, onSelectReservation }: LandingPageProps) {
   const { isAuthenticated } = useAuth();
   const { info, success } = useCustomAlert();
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [cartOpen, setCartOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
@@ -68,8 +55,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
         // Combinar servicios y paquetes
         const todosLosServicios = [
-          ...serviciosRes.filter(s => s.estado !== false).map(s => ({ ...s, tipoItem: 'servicio' })),
-          ...paquetesRes.filter(p => p.activo !== false).map(p => ({ ...p, tipoItem: 'paquete' }))
+          ...serviciosRes.filter(s => s.estado !== false).map(s => ({ ...s, type: 'servicio' })),
+          ...paquetesRes.filter(p => p.activo !== false).map(p => ({ ...p, type: 'paquete' }))
         ];
 
         setServicios(todosLosServicios.slice(0, 6));
@@ -120,33 +107,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     };
   }, [loading]); // Re-run when products/services are loaded to observe them
 
-  const addToCart = (item: any, tipo: 'producto' | 'servicio') => {
-    if (!isAuthenticated) { onRequestLogin?.(); return; }
-    const id = item.id;
-    const existingItem = cart.find(c => c.id === id && c.tipo === tipo);
-    const imagen = tipo === 'producto' ? item.imagenProduc : item.imagen;
-
-    if (existingItem) {
-      setCart(cart.map(c => c.id === id && c.tipo === tipo ? { ...c, cantidad: c.cantidad + 1 } : c));
-    } else {
-      setCart([...cart, { id, nombre: item.nombre, precio: item.precio, cantidad: 1, tipo, imagen }]);
-    }
-    setCartOpen(true);
-  };
-
-  const removeFromCart = (id: number, tipo: 'producto' | 'servicio') => setCart(cart.filter(c => !(c.id === id && c.tipo === tipo)));
-
-  const updateQuantity = (id: number, tipo: 'producto' | 'servicio', cantidad: number) => {
-    if (cantidad <= 0) { removeFromCart(id, tipo); return; }
-    setCart(cart.map(c => c.id === id && c.tipo === tipo ? { ...c, cantidad } : c));
-  };
-
-  const cartTotal = cart.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-
-  const handleCheckout = () => {
-    if (!isAuthenticated) { onRequestLogin?.(); return; }
-    info('Proceso de compra', 'Redirigiendo al proceso de compra...');
-  };
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -196,25 +156,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           </div>
 
           <div className="flex items-center space-x-6">
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative hover:text-[#d8b081] transition-all duration-300 p-3 hover:scale-110"
-              title="Ver carrito de compras"
-            >
-              <ShoppingCart className="w-6 h-6" />
-              {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#d8b081] text-black text-xs w-6 h-6 rounded-full flex items-center justify-center font-bold shadow-lg">
-                  {cart.length}
-                </span>
-              )}
-            </button>
             {isAuthenticated ? (
               <button
                 onClick={onRequestDashboard}
                 className="px-8 py-3 bg-[#d8b081] text-black border-2 border-[#d8b081] rounded-xl hover:bg-[#e8c091] hover:border-[#e8c091] transition-all duration-300 text-base font-semibold hover:scale-105 shadow-lg"
                 title="Ir a mi panel de control"
               >
-                Mi Dashboard
+                Inicio
               </button>
             ) : (
               <button
@@ -353,23 +301,29 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       <span className="text-xs font-black uppercase tracking-widest">{servicio.duracion} min</span>
                     </div>
                   </div>
-                  <div className="px-6 pt-6 pb-6">
-                    <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">
-                      {servicio.tipoItem === 'paquete' ? 'Paquete' : 'Servicio'}
-                    </span>
-                    <div className="flex items-baseline justify-between mb-3">
-                      <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{servicio.nombre}</h3>
-                      <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(servicio.precio)}</span>
+                    <div className="px-6 pt-6 pb-6">
+                      <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">
+                        {servicio.type === 'paquete' ? 'Paquete' : 'Servicio'}
+                      </span>
+                      <div className="flex items-baseline justify-between mb-3">
+                        <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{servicio.nombre}</h3>
+                        <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(servicio.precio)}</span>
+                      </div>
+                      <p className="text-gray-400 text-sm leading-relaxed mb-6">{servicio.descripcion}</p>
+                      <button
+                        onClick={() => {
+                          if (isAuthenticated) {
+                            onSelectReservation?.(servicio);
+                          } else {
+                            onRequestLogin?.();
+                          }
+                        }}
+                        title={`Reservar ${servicio.nombre} ahora`}
+                        className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:bg-[#d8b081] hover:text-black hover:scale-105 transition-all duration-300 shadow-lg"
+                      >
+                        Reservar Ahora
+                      </button>
                     </div>
-                    <p className="text-gray-400 text-sm leading-relaxed mb-6">{servicio.descripcion}</p>
-                    <button
-                      onClick={() => addToCart(servicio, 'servicio')}
-                      title={`Agregar ${servicio.nombre} al carrito`}
-                      className="w-full py-3 border border-[#d8b081]/30 text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl hover:bg-[#d8b081] hover:text-black transition-all duration-300"
-                    >
-                      Agregar al carrito
-                    </button>
-                  </div>
                 </div>
               </div>
             ))}
@@ -405,13 +359,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(producto.precio)}</span>
                     </div>
                     <p className="text-gray-400 text-sm leading-relaxed mb-6">{producto.descripcion}</p>
-                    <button
-                      onClick={() => addToCart(producto, 'producto')}
-                      title={`Agregar ${producto.nombre} al carrito`}
-                      className="w-full py-3 border border-[#d8b081]/30 text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl hover:bg-[#d8b081] hover:text-black transition-all duration-300"
-                    >
-                      Agregar al carrito
-                    </button>
                   </div>
                 </div>
               </div>
@@ -487,84 +434,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </footer>
 
-      {/* Cart Dialog */}
-      <Dialog open={cartOpen} onOpenChange={setCartOpen}>
-        <DialogContent className="bg-[#111] border border-white/10 text-white max-w-lg">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between pb-5 border-b border-white/10">
-              <div>
-                <h2 className="text-3xl font-bold font-title uppercase">Carrito</h2>
-                {cart.length > 0 && <p className="text-gray-400 text-sm mt-1">{cart.length} {cart.length === 1 ? 'artículo' : 'artículos'}</p>}
-              </div>
-              <button
-                onClick={() => setCartOpen(false)}
-                title="Cerrar carrito"
-                className="hover:text-[#d8b081] transition-colors p-2 hover:bg-white/5 rounded-lg"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            {cart.length === 0 ? (
-              <div className="text-center py-20">
-                <ShoppingCart className="w-20 h-20 text-zinc-800 mx-auto mb-6" />
-                <p className="text-gray-400 text-lg font-medium">Tu carrito está vacío</p>
-                <p className="text-gray-600 text-sm mt-2">Agrega servicios o productos para comenzar</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
-                  {cart.map((item) => (
-                    <div key={`${item.tipo}-${item.id}`} className="flex gap-4 p-5 bg-white/5 rounded-xl border border-white/5">
-                      <img src={item.imagen || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200'} alt={item.nombre} className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-base truncate">{item.nombre}</h3>
-                        <p className="text-[#d8b081] font-bold text-lg mt-1">${formatCurrency(item.precio * item.cantidad)}</p>
-                        <div className="flex items-center gap-3 mt-3">
-                          <button
-                            onClick={() => updateQuantity(item.id, item.tipo, item.cantidad - 1)}
-                            title="Reducir cantidad"
-                            className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="font-bold text-base w-6 text-center">{item.cantidad}</span>
-                          <button
-                            onClick={() => updateQuantity(item.id, item.tipo, item.cantidad + 1)}
-                            title="Aumentar cantidad"
-                            className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-white/15 transition-colors"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.id, item.tipo)}
-                        title="Eliminar del carrito"
-                        className="text-gray-500 hover:text-red-400 transition-colors p-1 self-start"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="pt-5 border-t border-white/10 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl font-semibold text-gray-300">Total</span>
-                    <span className="text-4xl font-bold text-[#d8b081]">${formatCurrency(cartTotal)}</span>
-                  </div>
-                  <button
-                    onClick={handleCheckout}
-                    title="Proceder al pago seguro"
-                    className="w-full py-5 bg-[#d8b081] text-black font-bold text-lg rounded-xl hover:bg-[#e8c091] hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-3 shadow-lg shadow-[#d8b081]/20"
-                  >
-                    Proceder al Pago <ArrowRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }

@@ -40,30 +40,13 @@ const navItems = [
   { icon: User, label: "Cuenta" },
 ];
 
-export function ClienteDashboard({ onBackToLanding }: { onBackToLanding?: () => void }) {
+export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLanding?: () => void; initialItem?: any }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activePage, setActivePage] = useState("Mis Citas");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
-  const [preSelectedReservation, setPreSelectedReservation] = useState<any>(null);
-  const [sidebarSearch, setSidebarSearch] = useState("");
-
-  const normalizedSidebarSearch = sidebarSearch
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
-
-  const filteredNavItems = normalizedSidebarSearch
-    ? navItems.filter((item) =>
-        item.label
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .includes(normalizedSidebarSearch)
-      )
-    : navItems;
+  const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
 
   const handleReservationRedirect = (item: any) => {
     setPreSelectedReservation(item);
@@ -167,25 +150,6 @@ export function ClienteDashboard({ onBackToLanding }: { onBackToLanding?: () => 
                 </TooltipContent>
               </Tooltip>
 
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter" />
-                <Input
-                  value={sidebarSearch}
-                  onChange={(e) => setSidebarSearch(e.target.value)}
-                  placeholder="Buscar módulo..."
-                  className="elegante-input pl-10 w-full"
-                />
-                {sidebarSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setSidebarSearch("")}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
             </div>
 
             <div className="flex-1 px-6 lg:px-8 flex items-center justify-between gap-6">
@@ -269,7 +233,7 @@ export function ClienteDashboard({ onBackToLanding }: { onBackToLanding?: () => 
           >
             {/* Navigation */}
             <nav className="flex-1 px-3 py-6 overflow-y-auto space-y-1">
-              {filteredNavItems.map((item) => renderNavItem(item, activePage === item.label))}
+              {navItems.map((item) => renderNavItem(item, activePage === item.label))}
             </nav>
           </aside>
 
