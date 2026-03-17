@@ -113,10 +113,21 @@ class ClientesService {
     const response = await fetch(API_BASE_URL, { headers });
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     const text = await response.text();
-    const data = text ? JSON.parse(text) : [];
+    const raw = text ? JSON.parse(text) : [];
+    let items: any[] = [];
+    if (Array.isArray(raw)) {
+      items = raw;
+    } else if (raw && typeof raw === 'object') {
+      if (Array.isArray(raw.items)) items = raw.items;
+      else if (Array.isArray(raw.data)) items = raw.data;
+      else if (Array.isArray(raw.$values)) items = raw.$values;
+      else {
+        const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
+        items = firstArray || [];
+      }
+    }
 
-    // Normalize keys
-    return Array.isArray(data) ? data.map((item: any) => ({
+    return items.map((item: any) => ({
       id: item.id || item.Id,
       nombre: item.nombre || item.Nombre,
       apellido: item.apellido || item.Apellido,
@@ -129,7 +140,63 @@ class ClientesService {
       fotoPerfil: item.fotoPerfil || item.FotoPerfil,
       estado: (item.estado === true || item.Estado === true) && (item.usuario || item.Usuario ? ((item.usuario || item.Usuario).estado === true || (item.usuario || item.Usuario).Estado === true) : true),
       usuario: item.usuario || item.Usuario
-    })) : [];
+    }));
+  }
+
+  async getClientesPaged(args: { page?: number; pageSize?: number; q?: string } & Record<string, any> = {}): Promise<{ items: Cliente[]; totalCount: number; page: number; pageSize: number; totalPages: number; }> {
+    const page = Math.max(1, Number(args.page ?? 1));
+    const pageSize = Math.max(1, Number(args.pageSize ?? 5));
+    const q = args.q ?? '';
+    const extra = { ...args };
+    delete extra.page;
+    delete extra.pageSize;
+    delete extra.q;
+
+    const headers = await this.getAuthHeaders();
+    const qs = new URLSearchParams();
+    qs.append('page', String(page));
+    qs.append('pageSize', String(pageSize));
+    if (q) qs.append('q', q);
+    Object.entries(extra).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return;
+      qs.append(k, String(v));
+    });
+    const url = `${API_BASE_URL}?${qs.toString()}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    const text = await response.text();
+    if (!text || !text.trim()) {
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
+    }
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = [];
+    }
+    if (data && typeof data === 'object' && 'items' in data) {
+      const itemsRaw = Array.isArray(data.items) ? data.items : [];
+      const items = itemsRaw.map((item: any) => this.mapApiToComponent({
+        ...item,
+        usuario: item.usuario || item.Usuario
+      }));
+      const totalCount = Number(data.totalCount ?? items.length);
+      const totalPages = Number(data.totalPages ?? Math.max(1, Math.ceil(totalCount / (Number(data.pageSize) || pageSize))));
+      return {
+        items,
+        totalCount,
+        page: Number(data.page ?? page),
+        pageSize: Number(data.pageSize ?? pageSize),
+        totalPages
+      };
+    }
+    const arr: any[] = Array.isArray(data) ? data : [];
+    const mapped = arr.map((item: any) => this.mapApiToComponent(item));
+    const totalCount = mapped.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const start = (page - 1) * pageSize;
+    const items = mapped.slice(start, start + pageSize);
+    return { items, totalCount, page, pageSize, totalPages };
   }
 
   async getClienteById(id: number): Promise<ClienteAPI> {

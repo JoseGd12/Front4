@@ -445,7 +445,7 @@ export function PaquetesPage() {
       setServiciosAgregados([]);
       setViewMode('list');
 
-      showSuccessAlert('Paquete actualizado exitosamente ✔️', `El paquete "${nombrePaquete}" ha sido actualizado correctamente con la nueva información.`);
+      edited('Paquete actualizado exitosamente ✔️', `El paquete "${nombrePaquete}" ha sido actualizado correctamente con la nueva información.`);
     } catch (error) {
       console.error('Error updating paquete:', error);
       showErrorAlert('Error al actualizar', 'No se pudo actualizar el paquete. Inténtalo nuevamente.');

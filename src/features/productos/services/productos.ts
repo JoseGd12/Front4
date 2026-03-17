@@ -81,6 +81,56 @@ class ProductoService {
     }
   }
 
+  async getProductosPaged(args: { page?: number; pageSize?: number; q?: string } & Record<string, any> = {}): Promise<{ items: ApiProducto[]; totalCount: number; page: number; pageSize: number; totalPages: number; }> {
+    const page = Math.max(1, Number(args.page ?? 1));
+    const pageSize = Math.max(1, Number(args.pageSize ?? 5));
+    const q = args.q ?? '';
+    const extra = { ...args };
+    delete extra.page;
+    delete extra.pageSize;
+    delete extra.q;
+    const qs = new URLSearchParams();
+    qs.append('page', String(page));
+    qs.append('pageSize', String(pageSize));
+    if (q) qs.append('q', q);
+    Object.entries(extra).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return;
+      qs.append(k, String(v));
+    });
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    const response = await this.request(`/Productos${query}`);
+    const text = await response.text();
+    if (!text || !text.trim()) {
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
+    }
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = [];
+    }
+    if (data && typeof data === 'object' && 'items' in data) {
+      const arr = Array.isArray(data.items) ? data.items : [];
+      const items = arr.map((item: any) => this.mapFromApiFormat(item));
+      const totalCount = Number(data.totalCount ?? items.length);
+      const totalPages = Number(data.totalPages ?? Math.max(1, Math.ceil(totalCount / (Number(data.pageSize) || pageSize))));
+      return {
+        items,
+        totalCount,
+        page: Number(data.page ?? page),
+        pageSize: Number(data.pageSize ?? pageSize),
+        totalPages
+      };
+    }
+    const arr: any[] = Array.isArray(data) ? data : [];
+    const normalized = arr.map(item => this.mapFromApiFormat(item));
+    const totalCount = normalized.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const start = (page - 1) * pageSize;
+    const items = normalized.slice(start, start + pageSize);
+    return { items, totalCount, page, pageSize, totalPages };
+  }
+
   private mapFromApiFormat(data: any): ApiProducto {
     if (!data) return data as any;
 
@@ -170,6 +220,13 @@ class ProductoService {
       }
 
       // Manejar envoltorio $values común en .NET
+      if (data && typeof data === 'object' && !Array.isArray(data) && (data.$values || data.items)) {
+        if (Array.isArray(data.$values)) {
+          data = data.$values;
+        } else if (Array.isArray(data.items)) {
+          data = data.items;
+        }
+      }
       if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) {
         data = data.$values;
       }

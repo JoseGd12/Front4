@@ -97,38 +97,41 @@ class RolesApiService {
     let permisosPorModulo: Record<string, PermisoModulo> = {};
 
     // Si viene del array rolesModulos, extraer los IDs y permisos
-    if (apiRole.rolesModulos && Array.isArray(apiRole.rolesModulos)) {
-      moduloIds = apiRole.rolesModulos.map((rm: RolesModulos) => String(rm.moduloId));
+    const rolesModulosRaw = apiRole.rolesModulos || apiRole.RolesModulos || apiRole.roles_modulos;
+    if (rolesModulosRaw && Array.isArray(rolesModulosRaw)) {
+      moduloIds = rolesModulosRaw.map((rm: RolesModulos) => String((rm as any).moduloId ?? (rm as any).ModuloId));
 
       // Mapear permisos por módulo
-      apiRole.rolesModulos.forEach((rm: RolesModulos) => {
-        permisosPorModulo[String(rm.moduloId)] = {
-          puedeVer: rm.puedeVer,
-          puedeCrear: rm.puedeCrear,
-          puedeEditar: rm.puedeEditar,
-          puedeEliminar: rm.puedeEliminar
+      rolesModulosRaw.forEach((rm: RolesModulos | any) => {
+        const key = String((rm.moduloId ?? rm.ModuloId));
+        permisosPorModulo[key] = {
+          puedeVer: !!(rm.puedeVer ?? rm.PuedeVer),
+          puedeCrear: !!(rm.puedeCrear ?? rm.PuedeCrear),
+          puedeEditar: !!(rm.puedeEditar ?? rm.PuedeEditar),
+          puedeEliminar: !!(rm.puedeEliminar ?? rm.PuedeEliminar)
         };
       });
     }
     // Si ya viene como array de números (desde el nuevo RoleDto), convertir a strings
-    else if (Array.isArray(apiRole.modulos)) {
-      moduloIds = apiRole.modulos.map((id: any) => String(id));
+    else if (Array.isArray(apiRole.modulos || apiRole.Modulos)) {
+      const arr = apiRole.modulos || apiRole.Modulos;
+      moduloIds = arr.map((id: any) => String(id));
       
       // Si no hay rolesModulos detallados, al menos inicializamos el objeto de permisos si existen en el objeto
-      if (apiRole.permisosPorModulo) {
-        permisosPorModulo = apiRole.permisosPorModulo;
+      if (apiRole.permisosPorModulo || apiRole.PermisosPorModulo) {
+        permisosPorModulo = apiRole.permisosPorModulo || apiRole.PermisosPorModulo;
       }
     }
 
     return {
-      id: String(apiRole.id),
-      nombre: apiRole.nombre || '',
-      descripcion: apiRole.descripcion?.trim() || '',
-      estado: apiRole.estado === true, 
+      id: String(apiRole.id ?? apiRole.Id ?? ''),
+      nombre: (apiRole.nombre ?? apiRole.Nombre ?? '').toString(),
+      descripcion: (apiRole.descripcion ?? apiRole.Descripcion ?? '').toString().trim(),
+      estado: !!(apiRole.estado === true || apiRole.Estado === true || apiRole.activo === true || apiRole.Activo === true),
       modulos: moduloIds,
-      usuariosAsignados: apiRole.usuariosAsignados || 0,
-      fechaCreacion: apiRole.fechaCreacion || new Date().toISOString(),
-      rolesModulos: apiRole.rolesModulos,
+      usuariosAsignados: apiRole.usuariosAsignados ?? apiRole.UsuariosAsignados ?? 0,
+      fechaCreacion: apiRole.fechaCreacion ?? apiRole.FechaCreacion ?? new Date().toISOString(),
+      rolesModulos: rolesModulosRaw,
       permisosPorModulo
     };
   }
@@ -144,8 +147,23 @@ class RolesApiService {
       
       if (!response.ok) throw new Error(`Error roles: ${response.status}`);
 
-      const rolesRaw = await response.json();
-      const roles = Array.isArray(rolesRaw) ? rolesRaw : rolesRaw.data || [];
+      const rolesRaw = await response.json() as any;
+      let roles: any[] = [];
+      if (Array.isArray(rolesRaw)) {
+        roles = rolesRaw;
+      } else if (rolesRaw && typeof rolesRaw === 'object') {
+        if (Array.isArray(rolesRaw.items)) roles = rolesRaw.items;
+        else if (Array.isArray(rolesRaw.data)) roles = rolesRaw.data;
+        else if (Array.isArray(rolesRaw.$values)) roles = rolesRaw.$values;
+        else if (Array.isArray(rolesRaw.Items)) roles = rolesRaw.Items;
+        else if (Array.isArray(rolesRaw.Data)) roles = rolesRaw.Data;
+        else if (Array.isArray((rolesRaw.result))) roles = rolesRaw.result;
+        else if (Array.isArray((rolesRaw.results))) roles = rolesRaw.results;
+        else {
+          const firstArray = Object.values(rolesRaw).find(v => Array.isArray(v)) as any[] | undefined;
+          roles = firstArray || [];
+        }
+      }
 
       // Normalizar cada rol (ahora mucho más rápido ya que el backend trae los conteos y IDs)
       const normalizedRoles = roles.map((role: any) => this.normalizeRole(role));

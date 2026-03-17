@@ -60,6 +60,10 @@ export function ProductosPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [pagedProductos, setPagedProductos] = useState<ApiProducto[]>([]);
+  const [totalPagesApi, setTotalPagesApi] = useState(1);
+  const [totalCountApi, setTotalCountApi] = useState(0);
+  const [loadingPage, setLoadingPage] = useState(false);
   const [nuevoProducto, setNuevoProducto] = useState({
     nombre: '',
     descripcion: '',
@@ -205,37 +209,67 @@ export function ProductosPage() {
     loadData();
   }, []);
 
-  const filteredProductos = productos.filter(producto => {
-    const term = searchTerm.trim().toLowerCase();
-    const categoriaNombre = typeof producto.categoria === 'string'
-      ? producto.categoria
-      : producto.categoria?.nombre ?? '';
-    const stockVentas = Number(producto.stockVentas ?? 0);
-    const stockInsumos = Number(producto.stockInsumos ?? 0);
-    const stockTotal = stockVentas + stockInsumos;
-    const precioVenta = Number((producto as any).precioVenta ?? producto.precioBase ?? 0);
-    const precioCompra = Number((producto as any).precioCompra ?? 0);
-    const usoLabel = esProductoSoloVenta(producto as any) ? 'solo venta' : 'venta e insumo';
-    const estadoLabel = producto.activo ? 'activo' : 'inactivo';
-    const searchableFields = [
-      String(producto.nombre ?? ''),
-      String(precioVenta),
-      String(precioCompra),
-      String(stockTotal),
-      String(stockInsumos),
-      String(stockVentas),
-      usoLabel,
-      estadoLabel,
-      String(categoriaNombre)
-    ].map(v => v.toLowerCase());
-    const matchesSearch = term === '' || searchableFields.some(value => value.includes(term));
-    const matchesCategoria = filterCategoria === "all" || producto.categoria?.nombre === filterCategoria;
-    return matchesSearch && matchesCategoria;
-  });
+  useEffect(() => {
+    const run = async () => {
+      try {
+        setLoadingPage(true);
+        const extra: Record<string, any> = {};
+        if (filterCategoria !== 'all' && filterCategoria) {
+          extra.categoria = filterCategoria;
+        }
+        const categoriaInQ = filterCategoria !== 'all' && filterCategoria ? ` ${filterCategoria}` : '';
+        const res = await productoService.getProductosPaged({
+          page: currentPage,
+          pageSize: itemsPerPage,
+          q: `${searchTerm}${categoriaInQ}`.trim(),
+          ...extra
+        });
+        setPagedProductos(res.items);
+        setTotalPagesApi(res.totalPages);
+        setTotalCountApi(res.totalCount);
+        if (res.page !== currentPage) setCurrentPage(res.page);
+      } catch (e) {
+        const term = searchTerm.trim().toLowerCase();
+        const filtered = productos.filter(producto => {
+          const categoriaNombre = typeof producto.categoria === 'string'
+            ? producto.categoria
+            : producto.categoria?.nombre ?? '';
+          const stockVentas = Number(producto.stockVentas ?? 0);
+          const stockInsumos = Number(producto.stockInsumos ?? 0);
+          const stockTotal = stockVentas + stockInsumos;
+          const precioVenta = Number((producto as any).precioVenta ?? producto.precioBase ?? 0);
+          const precioCompra = Number((producto as any).precioCompra ?? 0);
+          const usoLabel = esProductoSoloVenta(producto as any) ? 'solo venta' : 'venta e insumo';
+          const estadoLabel = producto.activo ? 'activo' : 'inactivo';
+          const searchableFields = [
+            String(producto.nombre ?? ''),
+            String(precioVenta),
+            String(precioCompra),
+            String(stockTotal),
+            String(stockInsumos),
+            String(stockVentas),
+            usoLabel,
+            estadoLabel,
+            String(categoriaNombre)
+          ].map(v => v.toLowerCase());
+          const matchesSearch = term === '' || searchableFields.some(value => value.includes(term));
+          const matchesCategoria = filterCategoria === "all" || producto.categoria?.nombre === filterCategoria;
+          return matchesSearch && matchesCategoria;
+        });
+        const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        setPagedProductos(filtered.slice(startIndex, startIndex + itemsPerPage));
+        setTotalPagesApi(totalPages);
+        setTotalCountApi(filtered.length);
+      } finally {
+        setLoadingPage(false);
+      }
+    };
+    run();
+  }, [searchTerm, filterCategoria, currentPage, itemsPerPage, productos]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredProductos.length / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedProductos = filteredProductos.slice(startIndex, startIndex + itemsPerPage);
+  const displayedProductos = pagedProductos;
+  const totalPages = totalPagesApi;
 
 
 
@@ -300,7 +334,7 @@ export function ProductosPage() {
       stockInsumos: nuevoProducto.stockInsumos || 0
     };
     setNuevoProducto(productoConDefaults);
-    setIsCreateDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
   const handleCreateProductoSubmit = async () => {
@@ -331,7 +365,7 @@ export function ProductosPage() {
       const existeNombre = productos.some(p => String(p.nombre || '').trim().toLowerCase() === nombreLower);
       if (existeNombre) {
         error("Nombre duplicado", `El nombre "${nuevoProducto.nombre.trim()}" ya existe. Por favor elige otro nombre.`);
-        setIsCreateDialogOpen(false);
+        setIsDialogOpen(false);
         return;
       }
       const precioFinal = nuevoProducto.precioBase || 0;
@@ -474,7 +508,7 @@ export function ProductosPage() {
       const existeNombre = productos.some(p => p.id !== (editingProducto?.id) && String(p.nombre || '').trim().toLowerCase() === nombreLower);
       if (existeNombre) {
         error("Nombre duplicado", `El nombre "${nuevoProducto.nombre.trim()}" ya existe. Por favor elige otro nombre.`);
-        setIsEditDialogOpen(false);
+        setIsDialogOpen(false);
         return;
       }
       const precioVentaFinal = Number((nuevoProducto as any).precioVenta) || 0;
@@ -1257,7 +1291,7 @@ export function ProductosPage() {
                   </Select>
                 </div>
               )}
-              recordsText={`Mostrando ${displayedProductos.length} de ${filteredProductos.length} productos`}
+              recordsText={`Mostrando ${displayedProductos.length} de ${totalCountApi} productos`}
               recordsPlacement="left"
             />
 

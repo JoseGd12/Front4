@@ -48,10 +48,14 @@ class ServicioService {
       console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/servicios`);
       const response = await this.request('/servicios');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
-      console.log('✅ Servicios obtenidos:', data);
+      const parsed = text ? JSON.parse(text) : [];
+      console.log('✅ Servicios obtenidos:', parsed);
 
-      const normalizedData = Array.isArray(data) ? data.map((item: any) => ({
+      const arr: any[] = Array.isArray(parsed)
+        ? parsed
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items : [];
+
+      const normalizedData = arr.map((item: any) => ({
         id: item.id || item.Id,
         nombre: item.nombre || item.Nombre,
         precio: item.precio || item.Precio,
@@ -59,7 +63,7 @@ class ServicioService {
         duracion: item.duracion || item.Duracion || item.duracionMinutes || item.DuracionMinutes || item.duracionMinutos || item.DuracionMinutos,
         estado: item.estado === true || item.Estado === true || item.estado === 1 || item.Estado === 1,
         imagen: item.imagen || item.Imagen
-      })) : [];
+      }));
 
       return normalizedData;
     } catch (error: any) {

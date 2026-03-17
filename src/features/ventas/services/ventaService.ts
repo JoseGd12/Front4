@@ -376,8 +376,11 @@ class VentaService {
     try {
       const response = await this.request(`/Ventas/cliente/${clienteId}`);
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
-      return Array.isArray(data) ? await Promise.all(data.map(item => this.normalizeVentaData(item))) : [];
+      const parsed = text ? JSON.parse(text) : [];
+      const arr: any[] = Array.isArray(parsed)
+        ? parsed
+        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items : [];
+      return await Promise.all(arr.map(item => this.normalizeVentaData(item)));
     } catch (error) {
        console.warn('Error fetching ventas by clienteId, filtering local:', error);
        const all = await this.getVentas();
@@ -390,9 +393,12 @@ class VentaService {
       console.log('📥 Obteniendo ventas desde:', `${API_BASE_URL}/ventas`);
       const response = await this.request('/Ventas');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
-      console.log('✅ Ventas obtenidas:', data);
-      const normalizedData = Array.isArray(data) ? await Promise.all(data.map(item => this.normalizeVentaData(item))) : [];
+      const parsed = text ? JSON.parse(text) : [];
+      const arr: any[] = Array.isArray(parsed)
+        ? parsed
+        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items : [];
+      console.log('✅ Ventas obtenidas:', parsed);
+      const normalizedData = await Promise.all(arr.map(item => this.normalizeVentaData(item)));
       console.log('✅ Ventas normalizadas:', normalizedData);
       return normalizedData;
     } catch (error: any) {

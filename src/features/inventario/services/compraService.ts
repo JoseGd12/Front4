@@ -224,11 +224,15 @@ class CompraService {
             if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) {
                 data = data.$values;
             }
-            if (!Array.isArray(data)) {
-                console.warn('⚠️ Respuesta de /Compras no es un array, retornando lista vacía');
+            // Nuevo backend: envelope { items, totalCount, page, pageSize, totalPages }
+            const arr: any[] = Array.isArray(data)
+                ? data
+                : (data && typeof data === 'object' && Array.isArray(data.items)) ? data.items : [];
+            if (!Array.isArray(arr)) {
+                console.warn('⚠️ Respuesta de /Compras no es un array ni envelope válido, retornando lista vacía');
                 return [];
             }
-            return (data || []).map((item: any) => this.normalizeCompraData(item));
+            return arr.map((item: any) => this.normalizeCompraData(item));
         } catch (error) {
             console.error('Error fetching compras:', error);
             throw error;

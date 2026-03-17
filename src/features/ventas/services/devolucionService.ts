@@ -163,8 +163,12 @@ class DevolucionService {
   async getDevolucionesByClienteId(clienteId: number): Promise<Devolucion[]> {
     try {
         const response = await this.request(`/Devoluciones/cliente/${clienteId}`);
-        const data = await response.json();
-        return await Promise.all(data.map((item: any) => this.normalizeDevolucionData(item)));
+        const text = await response.text();
+        const parsed = text ? JSON.parse(text) : [];
+        const arr: any[] = Array.isArray(parsed)
+          ? parsed
+          : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items : [];
+        return await Promise.all(arr.map((item: any) => this.normalizeDevolucionData(item)));
     } catch (error) {
         console.warn('Error fetching devoluciones by clienteId, filtering local:', error);
         const all = await this.getDevoluciones();
@@ -175,8 +179,12 @@ class DevolucionService {
     async getDevoluciones(): Promise<Devolucion[]> {
         try {
             const response = await this.request('/Devoluciones');
-            const data = await response.json();
-            return await Promise.all(data.map((item: any) => this.normalizeDevolucionData(item)));
+            const text = await response.text();
+            const parsed = text ? JSON.parse(text) : [];
+            const arr: any[] = Array.isArray(parsed)
+              ? parsed
+              : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items : [];
+            return await Promise.all(arr.map((item: any) => this.normalizeDevolucionData(item)));
         } catch (error) {
             console.error('Error fetching devoluciones:', error);
             throw error;

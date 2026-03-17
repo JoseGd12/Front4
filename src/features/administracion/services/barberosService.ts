@@ -111,8 +111,20 @@ class BarberosService {
   async getBarberos(): Promise<Barbero[]> {
     try {
       const response = await this.request(BARBEROS_URL);
-      const data = await response.json();
-      return Array.isArray(data) ? data.map(item => this.mapApiToComponent(item)) : [];
+      const raw = await response.json();
+      let items: any[] = [];
+      if (Array.isArray(raw)) {
+        items = raw;
+      } else if (raw && typeof raw === 'object') {
+        if (Array.isArray(raw.items)) items = raw.items;
+        else if (Array.isArray(raw.data)) items = raw.data;
+        else if (Array.isArray(raw.$values)) items = raw.$values;
+        else {
+          const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
+          items = firstArray || [];
+        }
+      }
+      return items.map(item => this.mapApiToComponent(item));
     } catch (e: any) {
       const msg = String(e?.message || '').toLowerCase();
       const is404 = msg.includes('404') || msg.includes('not found');

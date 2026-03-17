@@ -62,7 +62,21 @@ class ModulosService {
   ======================= */
 
   async getModulos(): Promise<Modulo[]> {
-    return this.request<Modulo[]>('/Modulos');
+    const raw = await this.request<any>('/Modulos');
+    let items: any[] = [];
+    if (Array.isArray(raw)) {
+      items = raw;
+    } else if (raw && typeof raw === 'object') {
+      if (Array.isArray(raw.items)) items = raw.items;
+      else if (Array.isArray(raw.data)) items = raw.data;
+      else if (Array.isArray(raw.$values)) items = raw.$values;
+    }
+    return items.map((m: any) => ({
+      id: Number(m.id ?? m.Id ?? m.moduloId ?? m.ModuloId ?? 0),
+      nombre: String(m.nombre ?? m.Nombre ?? ''),
+      estado: Boolean(m.estado === true || m.Estado === true || m.activo === true || m.Activo === true),
+      rolesModulos: m.rolesModulos ?? m.RolesModulos
+    }));
   }
 
   /* =======================
@@ -70,7 +84,13 @@ class ModulosService {
   ======================= */
 
   async getModuloById(id: number): Promise<Modulo> {
-    return this.request<Modulo>(`/Modulos/${id}`);
+    const raw = await this.request<any>(`/Modulos/${id}`);
+    return {
+      id: Number(raw.id ?? raw.Id ?? id),
+      nombre: String(raw.nombre ?? raw.Nombre ?? ''),
+      estado: Boolean(raw.estado === true || raw.Estado === true || raw.activo === true || raw.Activo === true),
+      rolesModulos: raw.rolesModulos ?? raw.RolesModulos
+    };
   }
 
   /* =======================

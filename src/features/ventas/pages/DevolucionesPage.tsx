@@ -2122,13 +2122,10 @@ export function DevolucionesPage() {
                     onClick={() => {
                       setVentaSearchTerm('');
                       setShowVentaResults(false);
-                      setSelectedVentaId(null);
                       setSelectedBarbero(null);
                       setSelectedEntrega(null);
                       setEntregasBarbero([]);
                       setResumenEntregas([]);
-                      setVentaDetalles([]);
-                      setProductosDeVenta([]);
                       setProductosInsumosSeleccionados({});
                       setTipoDevolucion('venta');
                     }}

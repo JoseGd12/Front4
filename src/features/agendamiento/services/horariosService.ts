@@ -51,29 +51,27 @@ class HorariosService {
         }
     }
 
-    private mapApiToLocal(apiData: HorarioBarberoApi): HorarioBarbero {
-        // En .NET DayOfWeek: 0 = Domingo, 1 = Lunes...
-        // Pero el controller dice: 1=Lunes, 7=Domingo (ajuste manual en controller)
-        // DIA Array: ["Domingo", "Lunes", "Martes"...] (indices 0-6)
-
+    private mapApiToLocal(apiData: any): HorarioBarbero {
+        const diaNum = apiData.diaSemana ?? apiData.DiaSemana;
+        const diaNombre = apiData.dia ?? apiData.Dia;
         let diaStr = "Desconocido";
-        if (apiData.diaSemana === 7) {
-            diaStr = "Domingo";
-        } else if (apiData.diaSemana >= 1 && apiData.diaSemana <= 6) {
-            diaStr = DIAS[apiData.diaSemana];
+        if (typeof diaNombre === 'string' && diaNombre.trim()) {
+            diaStr = String(diaNombre);
+        } else if (typeof diaNum === 'number') {
+            if (diaNum === 7) diaStr = "Domingo";
+            else if (diaNum >= 1 && diaNum <= 6) diaStr = DIAS[diaNum];
         }
-
-        // Extraer HH:mm de "HH:mm:ss"
-        const hInicio = apiData.horaInicio ? apiData.horaInicio.toString().substring(0, 5) : "00:00";
-        const hFin = apiData.horaFin ? apiData.horaFin.toString().substring(0, 5) : "00:00";
-
+        const hIniRaw = apiData.horaInicio ?? apiData.HoraInicio ?? "00:00";
+        const hFinRaw = apiData.horaFin ?? apiData.HoraFin ?? "00:00";
+        const hInicio = String(hIniRaw).substring(0, 5);
+        const hFin = String(hFinRaw).substring(0, 5);
         return {
-            id: apiData.id,
-            barberoId: apiData.barberoId,
+            id: apiData.id ?? apiData.Id,
+            barberoId: apiData.barberoId ?? apiData.BarberoId,
             dia: diaStr,
             horaInicio: hInicio,
             horaFin: hFin,
-            estado: apiData.estado
+            estado: (apiData.estado ?? apiData.Estado ?? true)
         };
     }
 
@@ -105,14 +103,29 @@ class HorariosService {
     async getHorarios(): Promise<HorarioBarbero[]> {
         const response = await this.request('/HorariosBarberos');
         const text = await response.text();
-        const data: HorarioBarberoApi[] = text ? JSON.parse(text) : [];
-        return data.map(d => this.mapApiToLocal(d));
+        const raw = text ? JSON.parse(text) : [];
+        let items: any[] = [];
+        if (Array.isArray(raw)) {
+            items = raw;
+        } else if (raw && typeof raw === 'object') {
+            if (Array.isArray(raw.items)) items = raw.items;
+            else if (Array.isArray(raw.data)) items = raw.data;
+            else if (Array.isArray(raw.$values)) items = raw.$values;
+            else {
+                const firstArray = Object.values(raw).find((v: any) => Array.isArray(v));
+                items = firstArray || [];
+            }
+        }
+        return items.map(d => this.mapApiToLocal(d));
     }
 
     async getHorariosByBarberoId(barberoId: number): Promise<HorarioBarbero[]> {
         const response = await this.request(`/HorariosBarberos/barbero/${barberoId}`);
         const text = await response.text();
-        const data: HorarioBarberoApi[] = text ? JSON.parse(text) : [];
+        const raw = text ? JSON.parse(text) : [];
+        const data = Array.isArray(raw)
+            ? raw
+            : (raw && typeof raw === 'object' && Array.isArray((raw.items ?? raw.data ?? raw.$values))) ? (raw.items ?? raw.data ?? raw.$values) : [];
         return data.map(d => this.mapApiToLocal(d));
     }
 

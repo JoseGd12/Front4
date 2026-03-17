@@ -80,7 +80,12 @@ class EntregaInsumosService {
       const data = text ? JSON.parse(text) : [];
 
       console.log('✅ Entregas obtenidas:', data);
-      return data;
+      const arr: any[] = Array.isArray(data)
+        ? data
+        : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items
+        : (data && typeof data === 'object' && Array.isArray((data as any).$values)) ? (data as any).$values
+        : [];
+      return arr as EntregaInsumo[];
     } catch (error) {
       console.error('❌ Error obteniendo entregas:', error);
       throw error;

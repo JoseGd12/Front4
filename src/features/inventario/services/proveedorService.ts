@@ -230,13 +230,16 @@ class ProveedorService {
 
       console.log('✅ Proveedores raw desde API:', data);
 
-      if (!Array.isArray(data)) {
-        console.warn('⚠️ La API no devolvió un array:', data);
+      const arr: any[] = Array.isArray(data)
+        ? data
+        : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items : [];
+      if (!Array.isArray(arr)) {
+        console.warn('⚠️ La API no devolvió un array ni envelope válido:', data);
         return [];
       }
 
       // Mapear los datos de la API al formato del frontend usando el mapeador genérico
-      const mapped = data.map(item => this.mapFromApi(item));
+      const mapped = arr.map(item => this.mapFromApi(item));
       
       // LOG DE DIAGNÓSTICO PARA CAMPOS DE CONTACTO
       if (mapped.length > 0) {
@@ -246,7 +249,7 @@ class ProveedorService {
           nombre: sample.nombre,
           telefonoContactoAdicional: sample.telefonoContactoAdicional,
           correoContactoAdicional: sample.correoContactoAdicional,
-          raw: data[0]
+          raw: arr[0]
         });
       }
       

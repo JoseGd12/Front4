@@ -28,6 +28,10 @@ export function ServiciosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [pagedServicios, setPagedServicios] = useState<Servicio[]>([]);
+  const [totalPagesApi, setTotalPagesApi] = useState(1);
+  const [totalCountApi, setTotalCountApi] = useState(0);
+  const [loadingPage, setLoadingPage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [precioServicioInput, setPrecioServicioInput] = useState<string>('');
   const [nombreServicioDuplicado, setNombreServicioDuplicado] = useState(false);
@@ -60,6 +64,48 @@ export function ServiciosPage() {
   useEffect(() => {
     loadServicios();
   }, []);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        setLoadingPage(true);
+        const extra: Record<string, any> = {};
+        if (statusFilter !== 'all') {
+          extra.estado = statusFilter === 'active';
+        }
+        const res = await apiService.getServiciosPaged({
+          page: currentPage,
+          pageSize: itemsPerPage,
+          q: searchTerm,
+          ...extra
+        });
+        setPagedServicios(res.items);
+        setTotalPagesApi(res.totalPages);
+        setTotalCountApi(res.totalCount);
+        if (res.page !== currentPage) {
+          setCurrentPage(res.page);
+        }
+      } catch (e) {
+        // Fallback: si falla, mostrar por cliente
+        const filtered = servicios.filter(servicio => {
+          const matchesSearch = servicio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            servicio.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesStatus =
+            statusFilter === "all" ||
+            (statusFilter === "active" ? servicio.estado === true : servicio.estado === false);
+          return matchesSearch && matchesStatus;
+        });
+        const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        setPagedServicios(filtered.slice(startIndex, startIndex + itemsPerPage));
+        setTotalPagesApi(totalPages);
+        setTotalCountApi(filtered.length);
+      } finally {
+        setLoadingPage(false);
+      }
+    };
+    run();
+  }, [searchTerm, statusFilter, currentPage, itemsPerPage, servicios]);
 
   const [nuevoServicio, setNuevoServicio] = useState({
     nombre: '',
@@ -124,18 +170,10 @@ export function ServiciosPage() {
     }
   };
 
-  const filteredServicios = servicios.filter(servicio => {
-    const matchesSearch = servicio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      servicio.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" ? servicio.estado === true : servicio.estado === false);
-    return matchesSearch && matchesStatus;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredServicios.length / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedServicios = filteredServicios.slice(startIndex, startIndex + itemsPerPage);
+  const displayedServicios = (statusFilter === "all")
+    ? pagedServicios
+    : pagedServicios.filter(s => statusFilter === "active" ? s.estado === true : s.estado === false);
+  const totalPages = totalPagesApi;
 
 
   const handleCreateServicio = async () => {
@@ -410,7 +448,7 @@ export function ServiciosPage() {
                 { value: "inactive", label: "Inactivos" },
               ],
             }}
-            recordsText={`Mostrando ${displayedServicios.length} de ${filteredServicios.length} servicios`}
+            recordsText={`Mostrando ${displayedServicios.length} de ${totalCountApi} servicios`}
             recordsPlacement="left"
           />
 
@@ -421,7 +459,7 @@ export function ServiciosPage() {
                   <h3 className="text-lg font-semibold text-red-400 mb-2">Error al cargar los servicios</h3>
                   <p className="text-red-300 mb-4">{error}</p>
                   <button
-                    onClick={loadServicios}
+                    onClick={() => loadServicios()}
                     className="px-4 py-2 bg-orange-primary text-white rounded-lg hover:bg-orange-primary/80 transition-colors"
                   >
                     Reintentar

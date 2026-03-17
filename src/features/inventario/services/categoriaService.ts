@@ -65,7 +65,11 @@ class CategoriaService {
       const text = await response.text();
       const data = text ? JSON.parse(text) : [];
       console.log('✅ Categorías obtenidas:', data);
-      return Array.isArray(data) ? data : [];
+      if (Array.isArray(data)) return data;
+      if (data && typeof data === 'object' && Array.isArray((data as any).items)) {
+        return (data as any).items as Categoria[];
+      }
+      return [];
     } catch (error: any) {
       console.error('❌ Error obteniendo categorías:', error);
       throw error;

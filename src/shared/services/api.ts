@@ -2,6 +2,14 @@ import { auth } from './firebase';
 
 const API_BASE_URL = '/api';
 
+export interface PagedResponse<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface ApiUser {
   id: number;
   nombre: string;
@@ -232,6 +240,16 @@ class ApiService {
     throw lastError instanceof Error ? lastError : new Error('Error inesperado de red/API');
   }
 
+  private buildQuery(params: Record<string, any>): string {
+    const qs = new URLSearchParams();
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return;
+      qs.append(k, String(v));
+    });
+    const s = qs.toString();
+    return s ? `?${s}` : '';
+  }
+
   // ==================== MÉTODOS PARA AUTENTICACIÓN ====================
   async confirmPasswordChange(): Promise<void> {
     try {
@@ -403,9 +421,21 @@ class ApiService {
     try {
       const response = await this.request('/Usuarios');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
+      const raw = text ? JSON.parse(text) : [];
+      let items: any[] = [];
+      if (Array.isArray(raw)) {
+        items = raw;
+      } else if (raw && typeof raw === 'object') {
+        if (Array.isArray(raw.items)) items = raw.items;
+        else if (Array.isArray(raw.data)) items = raw.data;
+        else if (Array.isArray(raw.$values)) items = raw.$values;
+        else {
+          const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
+          items = firstArray || [];
+        }
+      }
 
-      const normalizedData = Array.isArray(data) ? data.map((item: any) => ({
+      const normalizedData = items.map((item: any) => ({
         id: item.id || item.Id,
         nombre: item.nombre || item.Nombre,
         apellido: item.apellido || item.Apellido,
@@ -426,7 +456,7 @@ class ApiService {
           descripcion: item.rol?.descripcion || item.Rol?.Descripcion,
           estado: item.rol?.estado === true || item.Rol?.Estado === true
         } : undefined
-      })) : [];
+      }));
 
       return normalizedData;
     } catch (error) {
@@ -791,15 +821,61 @@ class ApiService {
       console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/Servicios`);
       const response = await this.request('/Servicios');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
-      console.log('✅ Servicios obtenidos:', data);
-      const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeServicioData(item)) : [];
+      const parsed = text ? JSON.parse(text) : [];
+      console.log('✅ Servicios obtenidos:', parsed);
+      const arr: any[] = Array.isArray(parsed)
+        ? parsed
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items : [];
+      const normalizedData = arr.map(item => this.normalizeServicioData(item));
       console.log('✅ Servicios normalizados:', normalizedData);
       return normalizedData;
     } catch (error: any) {
       console.error('❌ Error obteniendo servicios:', error);
       throw error;
     }
+  }
+
+  async getServiciosPaged(args: { page?: number; pageSize?: number; q?: string } & Record<string, any> = {}): Promise<PagedResponse<Servicio>> {
+    const page = Math.max(1, Number(args.page ?? 1));
+    const pageSize = Math.max(1, Number(args.pageSize ?? 5));
+    const q = args.q ?? '';
+    const extra = { ...args };
+    delete extra.page;
+    delete extra.pageSize;
+    delete extra.q;
+
+    const query = this.buildQuery({ page, pageSize, q, ...extra });
+    console.log('📥 Listando servicios paginados:', `${API_BASE_URL}/Servicios${query}`);
+    const resp = await this.request(`/Servicios${query}`);
+    const text = await resp.text();
+    if (!text || !text.trim()) {
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
+    }
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = [];
+    }
+    if (data && typeof data === 'object' && 'items' in data) {
+      const normalizedItems = Array.isArray(data.items) ? data.items.map((i: any) => this.normalizeServicioData(i)) : [];
+      const totalCount = Number(data.totalCount ?? normalizedItems.length);
+      const totalPages = Number(data.totalPages ?? Math.max(1, Math.ceil(totalCount / (Number(data.pageSize) || pageSize))));
+      return {
+        items: normalizedItems,
+        totalCount,
+        page: Number(data.page ?? page),
+        pageSize: Number(data.pageSize ?? pageSize),
+        totalPages
+      };
+    }
+    const arr: any[] = Array.isArray(data) ? data : [];
+    const normalized = arr.map(item => this.normalizeServicioData(item));
+    const totalCount = normalized.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const start = (page - 1) * pageSize;
+    const items = normalized.slice(start, start + pageSize);
+    return { items, totalCount, page, pageSize, totalPages };
   }
 
   async getServicioById(id: number): Promise<Servicio | null> {
@@ -938,15 +1014,61 @@ class ApiService {
       console.log('📥 Obteniendo paquetes desde:', `${API_BASE_URL}/Paquetes`);
       const response = await this.request('/Paquetes');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
-      console.log('✅ Paquetes obtenidos:', data);
-      const normalizedData = Array.isArray(data) ? data.map(item => this.normalizePaqueteData(item)) : [];
+      const parsed = text ? JSON.parse(text) : [];
+      console.log('✅ Paquetes obtenidos:', parsed);
+      const arr: any[] = Array.isArray(parsed)
+        ? parsed
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items : [];
+      const normalizedData = arr.map(item => this.normalizePaqueteData(item));
       console.log('✅ Paquetes normalizados:', normalizedData);
       return normalizedData;
     } catch (error: any) {
       console.error('❌ Error obteniendo paquetes:', error);
       throw error;
     }
+  }
+
+  async getPaquetesPaged(args: { page?: number; pageSize?: number; q?: string } & Record<string, any> = {}): Promise<PagedResponse<Paquete>> {
+    const page = Math.max(1, Number(args.page ?? 1));
+    const pageSize = Math.max(1, Number(args.pageSize ?? 5));
+    const q = args.q ?? '';
+    const extra = { ...args };
+    delete extra.page;
+    delete extra.pageSize;
+    delete extra.q;
+
+    const query = this.buildQuery({ page, pageSize, q, ...extra });
+    console.log('📥 Listando paquetes paginados:', `${API_BASE_URL}/Paquetes${query}`);
+    const resp = await this.request(`/Paquetes${query}`);
+    const text = await resp.text();
+    if (!text || !text.trim()) {
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
+    }
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = [];
+    }
+    if (data && typeof data === 'object' && 'items' in data) {
+      const normalizedItems = Array.isArray(data.items) ? data.items.map((i: any) => this.normalizePaqueteData(i)) : [];
+      const totalCount = Number(data.totalCount ?? normalizedItems.length);
+      const totalPages = Number(data.totalPages ?? Math.max(1, Math.ceil(totalCount / (Number(data.pageSize) || pageSize))));
+      return {
+        items: normalizedItems,
+        totalCount,
+        page: Number(data.page ?? page),
+        pageSize: Number(data.pageSize ?? pageSize),
+        totalPages
+      };
+    }
+    const arr: any[] = Array.isArray(data) ? data : [];
+    const normalized = arr.map(item => this.normalizePaqueteData(item));
+    const totalCount = normalized.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const start = (page - 1) * pageSize;
+    const items = normalized.slice(start, start + pageSize);
+    return { items, totalCount, page, pageSize, totalPages };
   }
 
   async getPaqueteById(id: number): Promise<Paquete | null> {

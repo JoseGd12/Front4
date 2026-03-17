@@ -1621,11 +1621,11 @@ export function VentasPage() {
         const idMatch = !Number.isNaN(clienteIdVenta) && clienteIdVenta > 0 && Number(c?.id) === clienteIdVenta;
         if (idMatch) return true;
         if (!clienteDocumentoVenta) return false;
-        const docCatalogo = String(c?.documento || c?.numeroDocumento || "").trim();
+        const docCatalogo = String(c?.documento || "").trim();
         return docCatalogo !== "" && (docCatalogo === clienteDocumentoVenta || docCatalogo.endsWith(clienteDocumentoVenta) || clienteDocumentoVenta.endsWith(docCatalogo));
       });
       const clienteNombreCatalogo = `${String(clienteMatch?.nombre || "").trim()} ${String(clienteMatch?.apellido || "").trim()}`.trim();
-      const clienteDocumentoCatalogo = String(clienteMatch?.documento || clienteMatch?.numeroDocumento || "").trim();
+      const clienteDocumentoCatalogo = String(clienteMatch?.documento || "").trim();
       const clienteTipoDocumentoCatalogo = String((clienteMatch as any)?.tipoDocumento || "").trim();
       const clienteNombreEsGenerico =
         !clienteNombreVenta ||
@@ -1984,7 +1984,7 @@ export function VentasPage() {
                                       setShowClientResults(false);
                                       setNuevaVenta(prev => ({
                                         ...prev,
-                                        clienteId: '',
+                                        clienteId: 0,
                                         clienteDocumento: ''
                                       }));
                                     }}
