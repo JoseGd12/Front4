@@ -7,6 +7,21 @@ import { Eye, EyeOff, User, Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lu
 import { SimpleCaptcha } from '../components/captcha/index';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
+const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
+
+function AuthBackground({ children }: { children: any }) {
+  return (
+    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4 relative overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url('${LANDING_BG_URL}')` }}
+      />
+      <div className="absolute inset-0 bg-black/65" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/75" />
+      <div className="relative z-10 w-full flex justify-center">{children}</div>
+    </div>
+  );
+}
 
 interface RegisterPageProps {
   onBack: () => void;
@@ -111,7 +126,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+      <AuthBackground>
         <div className="w-full max-w-md">
           <div className="elegante-card text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-green-600" />
@@ -135,12 +150,12 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             </Button>
           </div>
         </div>
-      </div>
+      </AuthBackground>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+    <AuthBackground>
       <div className="w-full max-w-md">
         {/* Logo y título */}
         <div className="text-center mb-8">
@@ -345,6 +360,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
           </div>
         </div>
       </div>
-    </div>
+    </AuthBackground>
   );
 }

@@ -10,6 +10,7 @@ const API_BASE_URL = NORMALIZED_BASE
 export interface Venta {
   id: number;
   numeroVenta: number;
+  tipoVenta?: string;
   cliente: string;
   clienteId: number | null;
   clienteDocumento: string;
@@ -47,6 +48,7 @@ export interface ServicioDetalle {
 
 export interface CreateVentaRequest {
   numeroVenta: number;
+  tipoVenta?: string;
   clienteId: number | null;
   usuarioId?: number | null;
   clienteDocumento: string;
@@ -164,6 +166,7 @@ class VentaService {
     }
 
     if (data.metodoPago !== undefined) mapped.MetodoPago = data.metodoPago;
+    if (data.tipoVenta !== undefined) mapped.TipoVenta = data.tipoVenta;
     if (data.numeroVenta !== undefined) mapped.NumeroVenta = Number(data.numeroVenta);
     if (data.fecha !== undefined) mapped.Fecha = data.fecha;
     if (data.estado !== undefined) mapped.Estado = data.estado;
@@ -387,6 +390,7 @@ class VentaService {
     return {
       id: Number(data.id || data.Id) || 0,
       numeroVenta: Number(data.numeroVenta || data.NumeroVenta || data.id || data.Id || 0),
+      tipoVenta: String(data.tipoVenta || data.TipoVenta || 'Venta directa'),
       cliente: clienteNombre,
       clienteId: finalClienteId,
       clienteDocumento: String(cliente.documento || cliente.Documento || data.clienteDocumento || data.ClienteDocumento || ''),

@@ -190,6 +190,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
     barberoId: 0,
     barbero: '', // Almacenar nombre para el autocomplete
     servicioId: null as number | null,
+    servicioIds: [] as number[],
     paqueteId: null as number | null,
     servicio: '',
     fecha: '',
@@ -258,6 +259,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       barberoId: 0,
       barbero: '',
       servicioId: isPaquete ? null : itemId,
+      servicioIds: isPaquete ? [] : [itemId],
       paqueteId: isPaquete ? itemId : null,
       servicio: item.nombre,
       fecha: fechaAuto,
@@ -432,6 +434,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       barberoId: 0,
       barbero: '',
       servicioId: null,
+      servicioIds: [],
       paqueteId: null,
       servicio: '',
       fecha: '',
@@ -458,6 +461,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       barberoId: 0,
       barbero: '',
       servicioId: null,
+      servicioIds: [],
       paqueteId: null,
       servicio: '',
       fecha: fechaCompleta,
@@ -478,6 +482,9 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       barberoId: cita.barberoId,
       barbero: cita.barberoNombre || '',
       servicioId: cita.servicioId,
+      servicioIds: (cita.servicioIds && cita.servicioIds.length > 0)
+        ? cita.servicioIds
+        : (cita.servicioId ? [cita.servicioId] : []),
       paqueteId: cita.paqueteId,
       servicio: cita.servicioNombre || cita.paqueteNombre || '',
       fecha: cita.fecha,
@@ -492,7 +499,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
   };
 
   const handleSaveCita = async () => {
-    if (!nuevaCita.barberoId || (!nuevaCita.servicioId && !nuevaCita.paqueteId) || !nuevaCita.fecha || !nuevaCita.hora) {
+    if (!nuevaCita.barberoId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
       return;
     }
@@ -509,6 +516,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
           clienteId: Number(currentCliente.id),
           barberoId: nuevaCita.barberoId,
           servicioId: nuevaCita.servicioId,
+          servicioIds: nuevaCita.servicioIds,
           paqueteId: nuevaCita.paqueteId,
           fecha: nuevaCita.fecha,
           hora: nuevaCita.hora,
@@ -523,6 +531,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
           clienteId: Number(currentCliente.id),
           barberoId: nuevaCita.barberoId,
           servicioId: nuevaCita.servicioId,
+          servicioIds: nuevaCita.servicioIds,
           paqueteId: nuevaCita.paqueteId,
           fecha: nuevaCita.fecha,
           hora: nuevaCita.hora,
@@ -553,28 +562,53 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
     }
   };
 
-  const handleItemChange = (value: string) => {
-    if (value.startsWith('p-')) {
-      const id = parseInt(value.replace('p-', ''));
-      const paquete = paquetesList.find(p => p.id === id);
-      setNuevaCita({
-        ...nuevaCita,
-        paqueteId: id,
-        servicioId: null,
-        precio: paquete?.precio || 0,
-        duracion: paquete?.duracion || 60
-      });
-    } else {
-      const id = parseInt(value);
-      const servicio = serviciosList.find(s => s.id === id);
-      setNuevaCita({
-        ...nuevaCita,
-        servicioId: id,
+  const applyServiciosSelection = (servicioIds: number[]) => {
+    const selectedServicios = serviciosList.filter(s => servicioIds.includes(s.id));
+    const servicioNombres = selectedServicios.map(s => s.nombre).filter(Boolean);
+    const precioTotal = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    const duracionTotal = selectedServicios.reduce((acc, s) => acc + Number(s.duracion || 60), 0);
+    setNuevaCita(prev => ({
+      ...prev,
+      paqueteId: null,
+      servicioId: servicioIds.length > 0 ? servicioIds[0] : null,
+      servicioIds,
+      servicio: servicioNombres.join(", "),
+      precio: precioTotal,
+      duracion: servicioIds.length > 0 ? duracionTotal : 60
+    }));
+  };
+
+  const toggleServicio = (servicioId: number) => {
+    const nextServicioIds = nuevaCita.servicioIds.includes(servicioId)
+      ? nuevaCita.servicioIds.filter(id => id !== servicioId)
+      : [...nuevaCita.servicioIds, servicioId];
+    applyServiciosSelection(nextServicioIds);
+  };
+
+  const handlePaqueteChange = (value: string) => {
+    if (value === "none") {
+      setNuevaCita(prev => ({
+        ...prev,
         paqueteId: null,
-        precio: servicio?.precio || 0,
-        duracion: servicio?.duracion || 60
-      });
+        servicioId: null,
+        servicioIds: [],
+        servicio: "",
+        precio: 0,
+        duracion: 60
+      }));
+      return;
     }
+    const id = parseInt(value.replace("p-", ""));
+    const paquete = paquetesList.find(p => p.id === id);
+    setNuevaCita(prev => ({
+      ...prev,
+      paqueteId: id,
+      servicioId: null,
+      servicioIds: [],
+      servicio: paquete?.nombre || "",
+      precio: paquete?.precio || 0,
+      duracion: paquete?.duracion || 60
+    }));
   };
 
   return (
@@ -760,35 +794,45 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
                 <div className="space-y-3">
                   <Label className="text-sm font-bold text-gray-lightest flex items-center gap-2">
                     <Scissors className="w-4 h-4 text-orange-primary" />
-                    Servicio o Paquete *
+                    Servicios (puedes elegir varios)
                   </Label>
-                  <Select
-                    value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : (nuevaCita.servicioId ? nuevaCita.servicioId.toString() : undefined)}
-                    onValueChange={handleItemChange}
-                  >
-                    <SelectTrigger className="elegante-input h-11">
-                      <SelectValue placeholder="Busca un servicio o paquete..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-darkest border-gray-dark max-h-72">
-                      <div className="px-3 py-2 text-[10px] font-black text-orange-primary/60 uppercase tracking-widest border-b border-gray-dark/40 mb-1">Servicios Estándar</div>
-                      {serviciosList.map(s => (
-                        <SelectItem key={s.id} value={s.id.toString()} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
-                          {s.nombre} &bull; <span className="text-orange-primary font-bold">{formatearPrecio(s.precio)}</span>
-                        </SelectItem>
-                      ))}
-                      {paquetesList.length > 0 && (
-                        <>
-                          <div className="px-3 py-2 mt-2 text-[10px] font-black text-orange-primary/60 uppercase tracking-widest border-b border-gray-dark/40 mb-1">Paquetes Especiales</div>
-                          {paquetesList.map(p => (
-                            <SelectItem key={`p-${p.id}`} value={`p-${p.id}`} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
-                              {p.nombre} &bull; <span className="text-orange-primary font-bold">{formatearPrecio(p.precio)}</span>
-                            </SelectItem>
-                          ))}
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {showFormErrors && !nuevaCita.servicioId && !nuevaCita.paqueteId && (
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
+                    {serviciosList.map((servicio) => {
+                      const isSelected = nuevaCita.servicioIds.includes(servicio.id) && !nuevaCita.paqueteId;
+                      return (
+                        <button
+                          key={servicio.id}
+                          type="button"
+                          onClick={() => toggleServicio(servicio.id)}
+                          className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
+                            ? "border-orange-primary bg-orange-primary/20 text-white-primary"
+                            : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
+                        >
+                          <div className="text-sm font-medium">{servicio.nombre}</div>
+                          <div className="text-xs text-orange-primary">{formatearPrecio(servicio.precio)}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {paquetesList.length > 0 && (
+                    <Select
+                      value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : "none"}
+                      onValueChange={handlePaqueteChange}
+                    >
+                      <SelectTrigger className="elegante-input h-11">
+                        <SelectValue placeholder="O selecciona un paquete..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-darkest border-gray-dark max-h-72">
+                        <SelectItem value="none">Sin paquete</SelectItem>
+                        {paquetesList.map(p => (
+                          <SelectItem key={`p-${p.id}`} value={`p-${p.id}`} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
+                            {p.nombre} &bull; <span className="text-orange-primary font-bold">{formatearPrecio(p.precio)}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {showFormErrors && !(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId && (
                     <p className="text-[10px] text-red-400 italic font-medium">Por favor selecciona lo que deseas hacerte.</p>
                   )}
                 </div>

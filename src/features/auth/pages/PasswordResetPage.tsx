@@ -6,6 +6,21 @@ import { Label } from '../../../shared/components/ui/label';
 import { Shield, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft, Clock } from 'lucide-react';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
+const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
+
+function AuthBackground({ children }: { children: any }) {
+  return (
+    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4 relative overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url('${LANDING_BG_URL}')` }}
+      />
+      <div className="absolute inset-0 bg-black/65" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/75" />
+      <div className="relative z-10 w-full flex justify-center">{children}</div>
+    </div>
+  );
+}
 
 interface PasswordResetPageProps {
   token?: string;
@@ -138,7 +153,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
   // Paso 1: Verificación inicial del token
   if (step === 'verify') {
     return (
-      <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+      <AuthBackground>
         <div className="w-full max-w-md">
           <div className="elegante-card text-center">
             <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 elegante-shadow-lg relative overflow-hidden">
@@ -153,14 +168,14 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
             <div className="w-8 h-8 border-2 border-orange-primary border-t-transparent rounded-full animate-spin mx-auto" />
           </div>
         </div>
-      </div>
+      </AuthBackground>
     );
   }
 
   // Token inválido o expirado
   if (!tokenValid) {
     return (
-      <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+      <AuthBackground>
         <div className="w-full max-w-md">
           <div className="elegante-card text-center">
             <div className="w-20 h-20 bg-red-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -182,14 +197,14 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
             </div>
           </div>
         </div>
-      </div>
+      </AuthBackground>
     );
   }
 
   // Paso 2: Éxito
   if (step === 'success') {
     return (
-      <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+      <AuthBackground>
         <div className="w-full max-w-md">
           <div className="elegante-card text-center">
             <div className="w-20 h-20 bg-green-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -211,13 +226,13 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
             </div>
           </div>
         </div>
-      </div>
+      </AuthBackground>
     );
   }
 
   // Paso principal: Formulario de restablecimiento
   return (
-    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+    <AuthBackground>
       <div className="w-full max-w-lg">
         {/* Header con información de la solicitud */}
         <div className="text-center mb-8">
@@ -368,6 +383,6 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
           </div>
         </div>
       </div>
-    </div>
+    </AuthBackground>
   );
 }

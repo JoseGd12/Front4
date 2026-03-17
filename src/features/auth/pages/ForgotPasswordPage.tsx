@@ -6,6 +6,21 @@ import { Label } from '../../../shared/components/ui/label';
 import { Mail, ArrowLeft, CheckCircle, AlertCircle, Shield, Clock } from 'lucide-react';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
+const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
+
+function AuthBackground({ children }: { children: any }) {
+  return (
+    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4 relative overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url('${LANDING_BG_URL}')` }}
+      />
+      <div className="absolute inset-0 bg-black/65" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/75" />
+      <div className="relative z-10 w-full flex justify-center">{children}</div>
+    </div>
+  );
+}
 
 interface ForgotPasswordPageProps {
   onBack: () => void;
@@ -62,7 +77,7 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+      <AuthBackground>
         <div className="w-full max-w-md mx-auto">
           <div className="elegante-card text-center flex flex-col justify-center">
             <div className="w-20 h-20 bg-green-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -114,12 +129,12 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
             </div>
           </div>
         </div>
-      </div>
+      </AuthBackground>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4">
+    <AuthBackground>
       <div className="w-full max-w-md">
         {/* Logo y título */}
         <div className="text-center mb-8">
@@ -199,7 +214,10 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
         </div>
 
         {/* Información de seguridad */}
-        <div className="mt-6 p-4 bg-orange-primary/5 border border-orange-primary/20 rounded-lg">
+        <div
+          className="mt-6 p-5 rounded-xl shadow-lg border border-orange-primary/30"
+          style={{ backgroundColor: "#0d0d0d" }}
+        >
           <div className="flex items-start gap-3">
             <Shield className="w-5 h-5 text-orange-primary flex-shrink-0 mt-0.5" />
             <div>
@@ -215,6 +233,6 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
         </div>
 
       </div>
-    </div>
+    </AuthBackground>
   );
 }

@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "../../../shared/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../shared/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
@@ -689,25 +690,12 @@ export function NotasCreditoPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-6 border-t border-gray-dark">
               <div />
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4 text-orange-primary" />
-                </button>
-                <span className="text-sm text-gray-lightest">
-                  Página {currentPage} de {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4 text-orange-primary" />
-                </button>
-              </div>
+              <EllipsisPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+                className="mx-0 w-auto justify-end"
+              />
             </div>
           )}
         </div>

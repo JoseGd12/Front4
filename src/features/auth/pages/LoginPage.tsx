@@ -10,6 +10,21 @@ import { SimpleCaptcha } from '../components/captcha/index';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
+const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
+
+function AuthBackground({ children }: { children: any }) {
+  return (
+    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4 relative overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url('${LANDING_BG_URL}')` }}
+      />
+      <div className="absolute inset-0 bg-black/65" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/75" />
+      <div className="relative z-10 w-full flex justify-center">{children}</div>
+    </div>
+  );
+}
 
 interface LoginPageProps {
   onRequestRegister?: () => void;
@@ -152,8 +167,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
   // Vista principal de login
   return (
-    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4 relative">
-
+    <AuthBackground>
       <div className="w-full max-w-sm">
         {/* Logo y título */}
         <div className="text-center mb-8">
@@ -320,6 +334,6 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
           </form>
         </div>
       </div>
-    </div>
+    </AuthBackground>
   );
 }

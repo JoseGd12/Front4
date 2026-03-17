@@ -111,6 +111,7 @@ export function AgendamientoPage() {
     cliente: '',
     telefono: '',
     servicioId: null as number | null,
+    servicioIds: [] as number[],
     paqueteId: null as number | null,
     servicio: '',
     barberoId: 0,
@@ -373,6 +374,7 @@ export function AgendamientoPage() {
       cliente: '',
       telefono: '',
       servicioId: null,
+      servicioIds: [],
       paqueteId: null,
       servicio: '',
       barberoId: 0,
@@ -391,38 +393,58 @@ export function AgendamientoPage() {
     setIsSlotModalOpen(true);
   };
 
-  // Manejar selección de servicio o paquete
-  const handleItemChange = (value: string) => {
-    if (value.startsWith('p-')) {
-      // Es un paquete
-      const id = parseInt(value.replace('p-', ''));
-      const paquete = paquetesList.find(p => p.id === id);
-      setNuevaCita({
-        ...nuevaCita,
-        paqueteId: id,
-        servicioId: null,
-        servicio: paquete ? paquete.nombre : '',
-        precio: paquete ? paquete.precio : 0,
-        duracion: paquete ? paquete.duracion : 60
-      });
-    } else {
-      // Es un servicio
-      const id = parseInt(value);
-      const servicio = serviciosList.find(s => s.id === id);
-      setNuevaCita({
-        ...nuevaCita,
-        servicioId: id,
+  const applyServiciosSelection = (servicioIds: number[]) => {
+    const selectedServicios = serviciosList.filter(s => servicioIds.includes(s.id));
+    const servicioNombres = selectedServicios.map(s => s.nombre).filter(Boolean);
+    const precioTotal = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    const duracionTotal = selectedServicios.reduce((acc, s) => acc + Number(s.duracion || 60), 0);
+    setNuevaCita(prev => ({
+      ...prev,
+      paqueteId: null,
+      servicioId: servicioIds.length > 0 ? servicioIds[0] : null,
+      servicioIds,
+      servicio: servicioNombres.join(", "),
+      precio: precioTotal,
+      duracion: servicioIds.length > 0 ? duracionTotal : 60
+    }));
+  };
+
+  const toggleServicio = (servicioId: number) => {
+    const nextServicioIds = nuevaCita.servicioIds.includes(servicioId)
+      ? nuevaCita.servicioIds.filter(id => id !== servicioId)
+      : [...nuevaCita.servicioIds, servicioId];
+    applyServiciosSelection(nextServicioIds);
+  };
+
+  const handlePaqueteChange = (value: string) => {
+    if (value === "none") {
+      setNuevaCita(prev => ({
+        ...prev,
         paqueteId: null,
-        servicio: servicio ? servicio.nombre : '',
-        precio: servicio ? servicio.precio : 0,
-        duracion: servicio ? (servicio.duracion || 60) : 60
-      });
+        servicioId: null,
+        servicioIds: [],
+        servicio: "",
+        precio: 0,
+        duracion: 60
+      }));
+      return;
     }
+    const id = parseInt(value.replace("p-", ""));
+    const paquete = paquetesList.find(p => p.id === id);
+    setNuevaCita(prev => ({
+      ...prev,
+      paqueteId: id,
+      servicioId: null,
+      servicioIds: [],
+      servicio: paquete ? paquete.nombre : "",
+      precio: paquete ? paquete.precio : 0,
+      duracion: paquete ? paquete.duracion : 60
+    }));
   };
 
   // Crear nueva cita
   const handleCreateCita = async () => {
-    if (!nuevaCita.clienteId || (!nuevaCita.servicioId && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
+    if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
       return;
     }
@@ -439,6 +461,7 @@ export function AgendamientoPage() {
         clienteId: nuevaCita.clienteId,
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
+        servicioIds: nuevaCita.servicioIds,
         paqueteId: nuevaCita.paqueteId,
         fecha: nuevaCita.fecha,
         hora: nuevaCita.hora,
@@ -478,6 +501,9 @@ export function AgendamientoPage() {
         cliente: citaCompleta.clienteNombre,
         telefono: citaCompleta.clienteTelefono || '',
         servicioId: citaCompleta.servicioId,
+        servicioIds: (citaCompleta.servicioIds && citaCompleta.servicioIds.length > 0)
+          ? citaCompleta.servicioIds
+          : (citaCompleta.servicioId ? [citaCompleta.servicioId] : []),
         paqueteId: citaCompleta.paqueteId,
         servicio: citaCompleta.servicioNombre || citaCompleta.paqueteNombre || '',
         barberoId: citaCompleta.barberoId,
@@ -501,7 +527,7 @@ export function AgendamientoPage() {
 
   // Actualizar cita
   const handleUpdateCita = async () => {
-    if (!nuevaCita.clienteId || (!nuevaCita.servicioId && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
+    if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
       return;
     }
@@ -531,6 +557,7 @@ export function AgendamientoPage() {
         clienteId: nuevaCita.clienteId,
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
+        servicioIds: nuevaCita.servicioIds,
         paqueteId: nuevaCita.paqueteId,
         fecha: nuevaCita.fecha,
         hora: nuevaCita.hora,
@@ -916,6 +943,7 @@ export function AgendamientoPage() {
                         cliente: '',
                         telefono: '',
                         servicioId: null,
+                        servicioIds: [],
                         paqueteId: null,
                         servicio: '',
                         barberoId: 0,
@@ -1174,36 +1202,48 @@ export function AgendamientoPage() {
                   <h3 className="text-lg font-semibold text-white-primary">Detalles del Servicio</h3>
                   <div className="space-y-3">
                     <div>
-                      <Label className="text-white-primary mb-2">Servicio*</Label>
-                      <Select
-                        value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : (nuevaCita.servicioId?.toString() || "")}
-                        onValueChange={handleItemChange}
-                      >
-                        <SelectTrigger className="elegante-input">
-                          <SelectValue placeholder="Seleccionar servicio o paquete" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-darkest border-gray-dark max-h-80 overflow-y-auto">
-                          <div className="px-2 py-1.5 text-xs font-semibold text-orange-primary/70 uppercase tracking-wider">Servicios</div>
-                          {serviciosList.map((servicio) => (
-                            <SelectItem key={servicio.id} value={servicio.id.toString()} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
-                              {servicio.nombre} - {formatearPrecio(servicio.precio)}
-                            </SelectItem>
-                          ))}
-
-                          {paquetesList.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 mt-2 text-xs font-semibold text-orange-primary/70 uppercase tracking-wider">Paquetes Especiales</div>
-                              {paquetesList.map((paquete) => (
-                                <SelectItem key={`p-${paquete.id}`} value={`p-${paquete.id}`} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
-                                  {paquete.nombre} - {formatearPrecio(paquete.precio)}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-white-primary mb-2">Servicios (puedes elegir varios)</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
+                        {serviciosList.map((servicio) => {
+                          const isSelected = nuevaCita.servicioIds.includes(servicio.id) && !nuevaCita.paqueteId;
+                          return (
+                            <button
+                              key={servicio.id}
+                              type="button"
+                              onClick={() => toggleServicio(servicio.id)}
+                              className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
+                                ? "border-orange-primary bg-orange-primary/20 text-white-primary"
+                                : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
+                            >
+                              <div className="text-sm font-medium">{servicio.nombre}</div>
+                              <div className="text-xs text-orange-primary">{formatearPrecio(servicio.precio)}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    {showFormErrors && !nuevaCita.servicioId && !nuevaCita.paqueteId && (
+                    {paquetesList.length > 0 && (
+                      <div>
+                        <Label className="text-white-primary mb-2">O selecciona un paquete</Label>
+                        <Select
+                          value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : "none"}
+                          onValueChange={handlePaqueteChange}
+                        >
+                          <SelectTrigger className="elegante-input">
+                            <SelectValue placeholder="Seleccionar paquete" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-darkest border-gray-dark max-h-72 overflow-y-auto">
+                            <SelectItem value="none">Sin paquete</SelectItem>
+                            {paquetesList.map((paquete) => (
+                              <SelectItem key={`p-${paquete.id}`} value={`p-${paquete.id}`} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
+                                {paquete.nombre} - {formatearPrecio(paquete.precio)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {showFormErrors && !(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId && (
                       <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
                     )}
                     <div>

@@ -10,7 +10,9 @@ export interface Agendamiento {
     barberoId: number;
     barberoNombre: string;
     servicioId: number | null;
+    servicioIds: number[];
     servicioNombre: string;
+    serviciosNombres: string[];
     paqueteId: number | null;
     paqueteNombre: string | null;
     fecha: string;
@@ -25,6 +27,7 @@ export interface CreateAgendamientoData {
     clienteId: number;
     barberoId: number;
     servicioId: number | null;
+    servicioIds?: number[];
     paqueteId: number | null;
     fecha: string;
     hora: string;
@@ -117,6 +120,20 @@ class AgendamientoService {
         const servicioNom = api.servicioNombre || api.ServicioNombre ||
             api.servicio?.nombre || api.Servicio?.Nombre ||
             (api.paqueteNombre || api.PaqueteNombre) || 'Servicio';
+        const rawServicioIds = api.servicioIds || api.ServicioIds || [];
+        const servicioIds = Array.isArray(rawServicioIds)
+            ? rawServicioIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
+            : [];
+        const serviciosNombresRaw = api.serviciosNombres || api.ServiciosNombres || [];
+        const serviciosNombres = Array.isArray(serviciosNombresRaw)
+            ? serviciosNombresRaw.map((nombre: any) => String(nombre)).filter((nombre: string) => nombre.trim().length > 0)
+            : [];
+        if (servicioIds.length === 0 && (api.servicioId || api.ServicioId)) {
+            servicioIds.push(Number(api.servicioId || api.ServicioId));
+        }
+        if (serviciosNombres.length === 0 && servicioNom) {
+            serviciosNombres.push(String(servicioNom));
+        }
 
         return {
             id: Number(api.id || api.Id || 0),
@@ -126,7 +143,9 @@ class AgendamientoService {
             barberoId: Number(api.barberoId || api.BarberoId || 0),
             barberoNombre: barberoNom,
             servicioId: api.servicioId || api.ServicioId ? Number(api.servicioId || api.ServicioId) : null,
+            servicioIds,
             servicioNombre: servicioNom,
+            serviciosNombres,
             paqueteId: api.paqueteId || api.PaqueteId ? Number(api.paqueteId || api.PaqueteId) : null,
             paqueteNombre: api.paqueteNombre || api.PaqueteNombre || null,
             fecha: fecha,
@@ -141,7 +160,7 @@ class AgendamientoService {
     private getDefaultAgendamiento(): Agendamiento {
         return {
             id: 0, clienteId: 0, clienteNombre: 'Desconocido', clienteTelefono: '',
-            barberoId: 0, barberoNombre: 'Desconocido', servicioId: 0, servicioNombre: 'Servicio',
+            barberoId: 0, barberoNombre: 'Desconocido', servicioId: 0, servicioIds: [], servicioNombre: 'Servicio', serviciosNombres: [],
             paqueteId: null, paqueteNombre: null,
             fecha: '', hora: '', duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
         };
@@ -221,6 +240,7 @@ class AgendamientoService {
             ClienteId: data.clienteId,
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
+            ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,
             PaqueteId: data.paqueteId,
             FechaHora: localIsoStr,
             Duracion: `${data.duracion} minutos`,
@@ -265,6 +285,7 @@ class AgendamientoService {
             ClienteId: data.clienteId,
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
+            ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,
             PaqueteId: data.paqueteId,
             FechaHora: localIsoStr,
             Duracion: `${data.duracion} minutos`,

@@ -116,6 +116,91 @@ function PaginationEllipsis({
   );
 }
 
+function getPaginationItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 0) return [];
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter((page) => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1);
+  return pages.reduce<(number | "ellipsis")[]>((acc, page, index, arr) => {
+    if (index > 0 && page - arr[index - 1] > 1) acc.push("ellipsis");
+    acc.push(page);
+    return acc;
+  }, []);
+}
+
+type EllipsisPaginationProps = {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  className?: string;
+};
+
+function EllipsisPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+  className,
+}: EllipsisPaginationProps) {
+  if (totalPages < 1) return null;
+
+  const items = getPaginationItems(currentPage, totalPages);
+  const handlePrevious = () => onPageChange(Math.max(1, currentPage - 1));
+  const handleNext = () => onPageChange(Math.min(totalPages, currentPage + 1));
+
+  return (
+    <Pagination className={className}>
+      <PaginationContent>
+        <PaginationItem>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handlePrevious}
+            disabled={currentPage === 1}
+            className="border-gray-dark bg-gray-darker text-gray-lightest hover:bg-gray-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+        </PaginationItem>
+        {items.map((item, index) =>
+          item === "ellipsis" ? (
+            <PaginationItem key={`ellipsis-${index}`}>
+              <PaginationEllipsis className="text-gray-lightest" />
+            </PaginationItem>
+          ) : (
+            <PaginationItem key={item}>
+              <Button
+                type="button"
+                variant={item === currentPage ? "default" : "outline"}
+                size="icon"
+                onClick={() => onPageChange(item)}
+                className={
+                  item === currentPage
+                    ? "bg-orange-primary text-black-primary hover:bg-orange-primary/90"
+                    : "border-gray-dark bg-transparent text-gray-lightest hover:bg-gray-darker"
+                }
+              >
+                {item}
+              </Button>
+            </PaginationItem>
+          ),
+        )}
+        <PaginationItem>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handleNext}
+            disabled={currentPage === totalPages}
+            className="border-gray-dark bg-gray-darker text-gray-lightest hover:bg-gray-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  );
+}
+
 export {
   Pagination,
   PaginationContent,
@@ -124,4 +209,5 @@ export {
   PaginationPrevious,
   PaginationNext,
   PaginationEllipsis,
+  EllipsisPagination,
 };

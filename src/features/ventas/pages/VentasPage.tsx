@@ -29,6 +29,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Checkbox } from "../../../shared/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { Label } from "../../../shared/components/ui/label";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
@@ -378,6 +379,7 @@ export function VentasPage() {
     clienteId: null as number | null,
     clienteDocumento: "",
     fechaCreacion: "",
+    tipoVenta: "Venta directa",
     metodoPago: "",
     barberoId: null as number | null,
     barberoNombre: "",
@@ -1304,6 +1306,7 @@ export function VentasPage() {
 
       const ventaData = {
         numeroVenta,
+        tipoVenta: nuevaVenta.tipoVenta,
         clienteId: nuevaVenta.clienteId,
         usuarioId: Number(user.id),
         clienteDocumento: nuevaVenta.clienteDocumento || '',
@@ -1928,7 +1931,7 @@ export function VentasPage() {
                       </DialogHeader>
                       <div className="space-y-6 pt-4">
                         {/* Información Principal */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-2">
                             <Label className="text-white-primary flex items-center gap-2">
                               <Hash className="w-4 h-4 text-orange-primary" />
@@ -2072,6 +2075,17 @@ export function VentasPage() {
                             {showVentaFormErrors && !nuevaVenta.metodoPago && (
                               <p className="text-xs text-red-400">Este campo es obligatorio.</p>
                             )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-white-primary flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-orange-primary" />
+                              Tipo de Venta
+                            </Label>
+                            <Input
+                              value={nuevaVenta.tipoVenta}
+                              disabled
+                              className="elegante-input bg-gray-medium"
+                            />
                           </div>
                         </div>
 
@@ -2899,48 +2913,12 @@ export function VentasPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-gray-lightest" />
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`w-8 h-8 rounded text-sm transition-colors ${currentPage === pageNum
-                            ? 'bg-orange-primary text-black-primary font-medium'
-                            : 'border border-gray-dark hover:bg-gray-darker text-gray-lightest'
-                            }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border border-gray-dark hover:bg-gray-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronRight className="w-4 h-4 text-gray-lightest" />
-                  </button>
-                </div>
+                <EllipsisPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => setCurrentPage(page)}
+                  className="mx-0 w-auto justify-end"
+                />
               </div>
 
             </div>
@@ -3006,7 +2984,7 @@ export function VentasPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-white-primary flex items-center gap-2">
                         <User className="w-4 h-4 text-orange-primary" />
@@ -3025,6 +3003,17 @@ export function VentasPage() {
                       </Label>
                       <Input
                         value={selectedVenta.metodoPago || 'N/A'}
+                        disabled
+                        className="elegante-input bg-gray-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white-primary flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-orange-primary" />
+                        Tipo de Venta
+                      </Label>
+                      <Input
+                        value={(selectedVenta as any).tipoVenta || (selectedVenta as any).TipoVenta || 'Venta directa'}
                         disabled
                         className="elegante-input bg-gray-medium"
                       />
