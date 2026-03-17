@@ -1826,18 +1826,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
   return (
     <>
-      {/* Header */}
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Gestión de Ventas</h1>
-            <p className="text-sm text-gray-lightest mt-1">Control y seguimiento de transacciones</p>
-          </div>
-
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         {/* Estado de error */}
         {error && !loading && (
           <div className="flex items-center justify-center py-12">

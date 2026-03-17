@@ -281,17 +281,21 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       .map((p) => `[PAQUETE] ${p.nombre}`)
       .filter(Boolean);
     const combinado = [...serviciosNombres, ...paquetesNombres].sort();
-    if (combinado.length === 0) {
+    const nombresAgregados = new Set(
+      serviciosAgregados.map((s) => s.nombre)
+    );
+    const filtrado = combinado.filter((n) => !nombresAgregados.has(n));
+    if (filtrado.length === 0 && combinado.length === 0) {
       return [
         "Corte Clásico",
         "Barba Completa",
         "Corte + Barba",
         "Tinte Cabello",
         "Tratamiento Capilar",
-      ];
+      ].filter((n) => !nombresAgregados.has(n));
     }
-    return combinado;
-  }, [servicios, paquetes]);
+    return filtrado;
+  }, [servicios, paquetes, serviciosAgregados]);
 
   const clientesDisponibles = useMemo(() => {
     return clientesAPI
@@ -1101,30 +1105,36 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
       >
         {/* LEFT: Form */}
-        <aside className="lg:min-h-0 lg:overflow-y-auto custom-scrollbar">
-          <div className="elegante-card p-5 space-y-5">
+        <aside className="lg:min-h-0 lg:min-w-0">
+          <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-5">
             {/* Section 1: Basic Info */}
-            <FormSection title="Información Básica" icon={Receipt}>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Nº Venta</Label>
-                  <Input
-                    value={numeroVenta.toString().padStart(3, "0")}
-                    disabled
-                    className="elegante-input bg-gray-medium"
-                  />
+            <FormSection
+              title="Información Básica"
+              icon={Receipt}
+              headerRight={
+                <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
+                  <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
+                    <span className="text-white-primary font-bold">
+                      Nº Venta:
+                    </span>
+                    <span className="text-gray-lightest font-medium tabular-nums">
+                      {numeroVenta.toString().padStart(3, "0")}
+                    </span>
+                  </div>
+                  
+                  <div className="hidden sm:block w-px h-4 bg-gray-dark" />
+                  <div className="flex items-right gap-2">
+                    <span className="text-white-primary font-bold">
+                      Fecha:
+                    </span>
+                    <span className="text-gray-lightest font-medium">
+                      {formatDate(nuevaVenta.fechaCreacion)}
+                    </span>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Fecha</Label>
-                  <Input
-                    value={formatDate(nuevaVenta.fechaCreacion)}
-                    disabled
-                    readOnly
-                    className="elegante-input bg-gray-medium"
-                  />
-                </div>
-              </div>
-            </FormSection>
+              }
+            />
 
             {/* Section 2: Client */}
             <FormSection title="Cliente" icon={User}>
@@ -1457,7 +1467,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                   <Label className="text-gray-lightest text-xs">ㅤ</Label>
                   <button
                     onClick={agregarProducto}
-                    className="elegante-button-primary w-full flex items-center justify-center gap-2"
+                    className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Agregar
@@ -1607,7 +1617,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                   <Label className="text-gray-lightest text-xs">ㅤ</Label>
                   <button
                     onClick={agregarServicio}
-                    className="elegante-button-primary w-full flex items-center justify-center gap-2"
+                    className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Agregar
@@ -1616,8 +1626,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               </div>
 
             </FormSection>
+            </div>
             {/* Action Buttons */}
-            <div className="pt-3 border-t border-gray-dark flex justify-end space-x-3">
+            <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
               <button onClick={onBack} className="elegante-button-secondary">
                 Cancelar
               </button>
@@ -1643,7 +1654,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         </aside>
 
         {/* RIGHT: Detail Panel */}
-        <section className="lg:min-h-0 lg:overflow-y-auto custom-scrollbar lg:pr-2">
+        <section className="lg:min-h-0 lg:min-w-0 lg:pr-2">
           <DetailPanel
             productos={nuevaVenta.productos || []}
             servicios={serviciosAgregados}

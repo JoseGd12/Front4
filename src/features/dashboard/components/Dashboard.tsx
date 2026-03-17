@@ -45,6 +45,7 @@ import { ClientesPage } from "../../clientes/pages/ClientesPage";
 import { HorariosPage } from "../../horarios/pages/HorariosPage";
 import { PaquetesPage } from "../../paquetes/pages/PaquetesPage";
 import { ComprasPage } from "../../inventario/pages/ComprasPage";
+import { RegistrarCompraPage } from "../../inventario/pages/RegistrarCompraPage";
 import { ProveedoresPage } from "../../inventario/pages/ProveedoresPage";
 import { CategoriasPage } from "../../inventario/pages/CategoriasPage";
 import { EntregaInsumosPage } from "../../inventario/pages/EntregaInsumosPage";
@@ -73,7 +74,19 @@ const moduleInfo: Record<string, {
     icon: DollarSign,
     color: "text-green-400"
   },
+  "RegistrarVenta": {
+    title: "Gestión de Ventas",
+    description: "Procesamiento y seguimiento de ventas",
+    icon: DollarSign,
+    color: "text-green-400"
+  },
   "Compras": {
+    title: "Gestión de Compras",
+    description: "Administración de compras y proveedores",
+    icon: ShoppingCart,
+    color: "text-blue-400"
+  },
+  "RegistrarCompra": {
     title: "Gestión de Compras",
     description: "Administración de compras y proveedores",
     icon: ShoppingCart,
@@ -386,7 +399,9 @@ export function Dashboard() {
       case "RegistrarVenta":
         return <RegistrarVentaPage onBack={() => setActivePage("Ventas")} />;
       case "Compras":
-        return <ComprasPage />;
+        return <ComprasPage onNavigate={(page: string) => setActivePage(page)} />;
+      case "RegistrarCompra":
+        return <RegistrarCompraPage onBack={() => setActivePage("Compras")} />;
       case "Devoluciones":
         return <DevolucionesPage />;
       case "Proveedores":
@@ -612,7 +627,7 @@ export function Dashboard() {
             />
             <div
               className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${
-                activePage === "RegistrarVenta"
+                activePage === "RegistrarVenta" || activePage === "RegistrarCompra"
                   ? "overflow-hidden flex flex-col"
                   : "overflow-y-auto"
               }`}

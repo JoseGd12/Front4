@@ -136,10 +136,28 @@ class CompraService {
             .trim();
     }
 
+    private extractArray(data: any): any[] {
+        if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray(data.$values)) {
+            return data.$values;
+        }
+        if (Array.isArray(data)) return data;
+        if (data && typeof data === 'object' && Array.isArray(data.items)) return data.items;
+        if (data && typeof data === 'object' && Array.isArray(data.data)) return data.data;
+        if (data && typeof data === 'object' && data.data && Array.isArray(data.data.$values)) {
+            return data.data.$values;
+        }
+        if (data && typeof data === 'object' && data.items && Array.isArray(data.items.$values)) {
+            return data.items.$values;
+        }
+        return [];
+    }
+
     private normalizeCompraData(data: any): Compra & { searchString: string } {
         if (!data) return {} as any;
 
-        const detallesApi = data.detalleCompras || data.DetalleCompras || [];
+        const detallesApi = this.extractArray(
+            data.detalleCompras || data.DetalleCompras || data.detalles || data.Detalles || []
+        );
 
         // Attempt to get names for consistency in UI
         let proveedorNombre = 'Proveedor desconocido';
@@ -218,18 +236,10 @@ class CompraService {
     async getCompras(): Promise<Array<Compra & { searchString: string }>> {
         try {
             const arr: any[] = [];
-            const extract = (data: any): any[] => {
-                if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) data = data.$values;
-                return Array.isArray(data)
-                    ? data
-                    : (data && typeof data === 'object' && Array.isArray(data.items)) ? data.items
-                    : (data && typeof data === 'object' && Array.isArray(data.data)) ? data.data
-                    : [];
-            };
             const firstResponse = await this.request('/Compras?page=1&pageSize=5');
             const firstText = await firstResponse.text();
             const firstData: any = firstText ? JSON.parse(firstText) : [];
-            arr.push(...extract(firstData));
+            arr.push(...this.extractArray(firstData));
             let totalPages = firstData && typeof firstData === 'object' && !Array.isArray(firstData)
                 ? Number((firstData as any).totalPages ?? 1)
                 : 1;
@@ -241,7 +251,7 @@ class CompraService {
                         const response = await this.request(`/Compras?page=${page}&pageSize=5`);
                         const text = await response.text();
                         const data: any = text ? JSON.parse(text) : [];
-                        return extract(data);
+                        return this.extractArray(data);
                     })());
                 }
                 const rest = await Promise.all(promises);
@@ -309,6 +319,7 @@ class CompraService {
             const response = await this.request(`/DetallesCompra/compra/${compraId}`);
             const text = await response.text();
             const data = text ? JSON.parse(text) : [];
+            const detalles = this.extractArray(data);
 
             const catFromDetalle = (d: any): string => {
                 const prod = d.producto || d.Producto;
@@ -317,7 +328,7 @@ class CompraService {
                 if (cat && typeof cat === 'object') return String(cat.nombre ?? cat.Nombre ?? '').trim();
                 return '';
             };
-            return (data || []).map((d: any) => ({
+            return detalles.map((d: any) => ({
                 id: d.id || d.Id,
                 productoId: d.productoId || d.ProductoId,
                 productoNombre: d.producto?.nombre || d.producto?.Nombre || d.Producto?.Nombre || d.Producto?.nombre || 'Producto',

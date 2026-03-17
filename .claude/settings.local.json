@@ -6,7 +6,8 @@
       "Bash(npx vite:*)",
       "mcp__Claude_Preview__preview_start",
       "Bash(node -e \"console.log\\(process.execPath\\)\")",
-      "Bash(find C:UsersJoseDesktopFront3-samuel -name vite.js -path */bin/*)"
+      "Bash(find C:UsersJoseDesktopFront3-samuel -name vite.js -path */bin/*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ]
   }
 }

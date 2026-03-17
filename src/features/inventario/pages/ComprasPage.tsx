@@ -162,7 +162,11 @@ const CompraRow = React.memo(({
   </tr>
 ));
 
-export function ComprasPage() {
+interface ComprasPageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function ComprasPage({ onNavigate }: ComprasPageProps) {
   const { user } = useAuth();
   const { confirmDeleteAction, DoubleConfirmationContainer } = useDoubleConfirmation();
   const { created, success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
@@ -1590,33 +1594,16 @@ export function ComprasPage() {
         <div className="elegante-card">
           <TableHeaderSection
             leftContent={(
+              <>
+              <button
+                className="elegante-button-primary gap-2 flex items-center"
+                onClick={() => onNavigate?.("RegistrarCompra")}
+              >
+                <Plus className="w-4 h-4" />
+                Nueva Compra
+              </button>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <button
-                    className="elegante-button-primary gap-2 flex items-center"
-                    onClick={() => {
-                      setShowCompraFormErrors(false);
-                      setShowAddCompraProductoErrors(false);
-                      setNuevaCompra({
-                        ...inicialNuevaCompra,
-                        fechaRegistro: generateCurrentDate()
-                      });
-                      setTarjetaInputs({});
-                      setCantidadProducto(0);
-                      setCantidadProductoInput('');
-                      setPrecioUnitario(0);
-                      setPrecioUnitarioInput('');
-                      setStockVentas(0);
-                      setStockInsumos(0);
-                      setStockVentasInput('');
-                      setStockInsumosInput('');
-                      setPorcentajeDescuentoInput('');
-                    }}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nueva Compra
-                  </button>
-                </DialogTrigger>
+                <span style={{ display: 'none' }}></span>
                 <DialogContent
                   className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto"
                   onInteractOutside={(e: any) => {
@@ -2413,6 +2400,7 @@ export function ComprasPage() {
                   </div>
                 </DialogContent>
               </Dialog>
+              </>
             )}
             searchValue={searchTerm}
             onSearchChange={(value) => {

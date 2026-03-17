@@ -71,15 +71,15 @@ export function DetailPanel({
   const tieneItems = productos.length > 0 || servicios.length > 0;
 
   return (
-    <div className="elegante-card overflow-hidden">
-      <div className="sticky top-0 z-10 px-5 py-4 border-b border-gray-dark bg-gradient-to-r from-orange-primary/10 to-gray-darkest">
+    <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col">
+      <div className="sticky top-0 z-10 px-5 py-3 border-b border-gray-dark bg-gradient-to-r from-orange-primary/10 to-gray-darkest">
         <h3 className="text-lg font-bold text-white-primary flex items-center gap-2">
           <Receipt className="w-5 h-5 text-orange-primary" />
           Resumen de Venta
         </h3>
       </div>
 
-      <div>
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         {productos.length > 0 && (
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
@@ -248,12 +248,9 @@ export function DetailPanel({
             </p>
           </div>
         )}
-      </div>
 
-      {/* Resumen financiero */}
-      <div className="px-5 py-5 space-y-3">
         <div
-          className="flex justify-between items-center rounded-lg px-4 py-2.5"
+          className="mx-5 mb-3 flex justify-between items-center rounded-lg px-4 py-2.5"
           style={{
             border: '1px solid rgba(255,255,255,0.08)',
             background: 'rgba(255,255,255,0.03)',
@@ -266,7 +263,7 @@ export function DetailPanel({
         </div>
 
         <div
-          className="flex justify-between items-center rounded-lg px-4 py-2.5"
+          className="mx-5 mb-3 flex justify-between items-center rounded-lg px-4 py-2.5"
           style={{
             border: '1px solid rgba(255,255,255,0.08)',
             background: 'rgba(255,255,255,0.03)',
@@ -282,7 +279,7 @@ export function DetailPanel({
 
         {saldoUsado > 0 && (
           <div
-            className="flex justify-between items-center rounded-lg px-4 py-2.5"
+            className="mx-5 mb-4 flex justify-between items-center rounded-lg px-4 py-2.5"
             style={{
               border: '1px solid rgba(74,222,128,0.15)',
               background: 'rgba(74,222,128,0.04)',
@@ -294,7 +291,9 @@ export function DetailPanel({
             </span>
           </div>
         )}
+      </div>
 
+      <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90">
         <div
           className="flex justify-between items-center rounded-lg px-4 py-3"
           style={{

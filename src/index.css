@@ -3216,7 +3216,7 @@
 
   @media (width >=64rem) {
     .lg\:grid-cols-master-detail {
-      grid-template-columns: 11fr 9fr;
+      grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
     }
   }
 
