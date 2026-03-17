@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Jose/Desktop/Front3-samuel/Front4/src/features -name *.ts -path *types* -o -name *.ts -path *interfaces*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node -e \"console.log\\(process.execPath\\)\")",
+      "Bash(find C:UsersJoseDesktopFront3-samuel -name vite.js -path */bin/*)"
+    ]
+  }
+}

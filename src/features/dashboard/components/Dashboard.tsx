@@ -49,6 +49,7 @@ import { ProveedoresPage } from "../../inventario/pages/ProveedoresPage";
 import { CategoriasPage } from "../../inventario/pages/CategoriasPage";
 import { EntregaInsumosPage } from "../../inventario/pages/EntregaInsumosPage";
 import { DevolucionesPage } from "../../ventas/pages/DevolucionesPage";
+import { RegistrarVentaPage } from "../../ventas/pages/RegistrarVentaPage";
 import { RolesPage } from "../../administracion/pages/RolesPage";
 import { UsersPage } from "../../administracion/pages/UsersPage";
 import manitoLogo from "../../../assets/Manito.jpeg";
@@ -381,7 +382,9 @@ export function Dashboard() {
       case "Paquetes":
         return <PaquetesPage />;
       case "Ventas":
-        return <VentasPage />;
+        return <VentasPage onNavigate={(page: string) => setActivePage(page)} />;
+      case "RegistrarVenta":
+        return <RegistrarVentaPage onBack={() => setActivePage("Ventas")} />;
       case "Compras":
         return <ComprasPage />;
       case "Devoluciones":
@@ -607,7 +610,13 @@ export function Dashboard() {
               icon={moduleInfo[activePage] && moduleInfo[activePage].icon ? React.createElement(moduleInfo[activePage].icon, { className: "w-5 h-5" }) : undefined}
               iconContainerClassName={moduleInfo[activePage] ? moduleInfo[activePage].color : undefined}
             />
-            <div className="module-content flex-1 overflow-y-auto px-6 lg:px-8 pt-4 pb-6">
+            <div
+              className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${
+                activePage === "RegistrarVenta"
+                  ? "overflow-hidden flex flex-col"
+                  : "overflow-y-auto"
+              }`}
+            >
               {renderContent()}
             </div>
           </div>

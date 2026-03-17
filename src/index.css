@@ -3208,6 +3208,99 @@
     }
   }
 
+  @media (width >=64rem) {
+    .lg\:grid-cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (width >=64rem) {
+    .lg\:grid-cols-master-detail {
+      grid-template-columns: 11fr 9fr;
+    }
+  }
+
+  @media (width >=64rem) {
+    .lg\:order-last {
+      order: 9999;
+    }
+  }
+
+  .self-start {
+    align-self: start;
+  }
+
+  .min-h-0 {
+    min-height: 0px;
+  }
+
+  .flex-nowrap {
+    flex-wrap: nowrap;
+  }
+
+  .gap-0\.5 {
+    gap: calc(var(--spacing) * .5);
+  }
+
+  .border-l-2 {
+    border-left-width: 2px;
+  }
+
+  .leading-7 {
+    line-height: calc(var(--spacing) * 7);
+  }
+
+  .text-\[11px\] {
+    font-size: 11px;
+  }
+
+  .py-0 {
+    padding-top: 0px;
+    padding-bottom: 0px;
+  }
+
+  .px-1\.5 {
+    padding-inline: calc(var(--spacing) * 1.5);
+  }
+
+  @media (width >=64rem) {
+    .lg\:flex-1 {
+      flex: 1 1 0%;
+    }
+
+    .lg\:min-h-0 {
+      min-height: 0px;
+    }
+
+    .lg\:overflow-hidden {
+      overflow: hidden;
+    }
+
+    .lg\:overflow-y-auto {
+      overflow-y: auto;
+    }
+
+    .lg\:sticky {
+      position: sticky;
+    }
+
+    .lg\:top-0 {
+      top: 0px;
+    }
+
+    .lg\:pr-2 {
+      padding-right: calc(var(--spacing) * 2);
+    }
+
+    .lg\:px-8 {
+      padding-inline: calc(var(--spacing) * 8);
+    }
+  }
+
+  .order-first {
+    order: -9999;
+  }
+
   @media (width >=80rem) {
     .xl\:col-span-1 {
       grid-column: span 1 / span 1;
@@ -4167,4 +4260,20 @@ html {
 
 .no-spin {
   -moz-appearance: textfield !important;
+}
+
+/* Animaciones para items de venta (master-detail) */
+@keyframes ventaItemEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.venta-item-enter {
+  animation: ventaItemEnter 0.3s ease-out forwards;
 }
