@@ -419,7 +419,7 @@ class ApiService {
 
   async getUsuarios(): Promise<ApiUser[]> {
     try {
-      const response = await this.request('/Usuarios');
+      const response = await this.request('/Usuarios?page=1&pageSize=100');
       const text = await response.text();
       const raw = text ? JSON.parse(text) : [];
       let items: any[] = [];
@@ -584,9 +584,15 @@ class ApiService {
   async getRoles(): Promise<any[]> {
     try {
       console.log('📥 Obteniendo roles desde:', `${API_BASE_URL}/Roles`);
-      const response = await this.request('/Roles');
+      const response = await this.request('/Roles?page=1&pageSize=100');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
+      const raw = text ? JSON.parse(text) : [];
+      const data = Array.isArray(raw)
+        ? raw
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+        : [];
       console.log('✅ Roles obtenidos:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
@@ -662,9 +668,15 @@ class ApiService {
   async getModulos(): Promise<any[]> {
     try {
       console.log('📥 Obteniendo módulos desde:', `${API_BASE_URL}/Modulos`);
-      const response = await this.request('/Modulos');
+      const response = await this.request('/Modulos?page=1&pageSize=100');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
+      const raw = text ? JSON.parse(text) : [];
+      const data = Array.isArray(raw)
+        ? raw
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+        : [];
       console.log('✅ Módulos obtenidos:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
@@ -709,9 +721,15 @@ class ApiService {
   async getRolesModulos(): Promise<any[]> {
     try {
       console.log('📥 Obteniendo asignaciones rol-módulo desde:', `${API_BASE_URL}/RolesModulos`);
-      const response = await this.request('/RolesModulos');
+      const response = await this.request('/RolesModulos?page=1&pageSize=100');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
+      const raw = text ? JSON.parse(text) : [];
+      const data = Array.isArray(raw)
+        ? raw
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+        : [];
       console.log('✅ Asignaciones rol-módulo obtenidas:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
@@ -819,13 +837,16 @@ class ApiService {
   async getServicios(): Promise<Servicio[]> {
     try {
       console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/Servicios`);
-      const response = await this.request('/Servicios');
+      const response = await this.request('/Servicios?page=1&pageSize=100');
       const text = await response.text();
       const parsed = text ? JSON.parse(text) : [];
       console.log('✅ Servicios obtenidos:', parsed);
       const arr: any[] = Array.isArray(parsed)
         ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items : [];
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
+        : [];
       const normalizedData = arr.map(item => this.normalizeServicioData(item));
       console.log('✅ Servicios normalizados:', normalizedData);
       return normalizedData;
@@ -1012,13 +1033,16 @@ class ApiService {
   async getPaquetes(): Promise<Paquete[]> {
     try {
       console.log('📥 Obteniendo paquetes desde:', `${API_BASE_URL}/Paquetes`);
-      const response = await this.request('/Paquetes');
+      const response = await this.request('/Paquetes?page=1&pageSize=100');
       const text = await response.text();
       const parsed = text ? JSON.parse(text) : [];
       console.log('✅ Paquetes obtenidos:', parsed);
       const arr: any[] = Array.isArray(parsed)
         ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items : [];
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
+        : [];
       const normalizedData = arr.map(item => this.normalizePaqueteData(item));
       console.log('✅ Paquetes normalizados:', normalizedData);
       return normalizedData;
@@ -1188,9 +1212,15 @@ class ApiService {
   async getDetallePaquetes(): Promise<DetallePaquete[]> {
     try {
       console.log('📥 Obteniendo detalles de paquetes desde:', `${API_BASE_URL}/DetallePaquetes`);
-      const response = await this.request('/DetallePaquetes');
+      const response = await this.request('/DetallePaquetes?page=1&pageSize=100');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
+      const raw = text ? JSON.parse(text) : [];
+      const data = Array.isArray(raw)
+        ? raw
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+        : [];
       console.log('✅ Detalles de paquetes obtenidos:', data);
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
       console.log('✅ Detalles de paquetes normalizados:', normalizedData);
@@ -1204,9 +1234,15 @@ class ApiService {
   async getDetallePaquetesByPaqueteId(paqueteId: number): Promise<DetallePaquete[]> {
     try {
       console.log(`📥 Obteniendo detalles del paquete ${paqueteId}...`);
-      const response = await this.request(`/DetallePaquetes/paquete/${paqueteId}`);
+      const response = await this.request(`/DetallePaquetes/paquete/${paqueteId}?page=1&pageSize=100`);
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
+      const raw = text ? JSON.parse(text) : [];
+      const data = Array.isArray(raw)
+        ? raw
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+        : [];
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
       console.log(`✅ Detalles del paquete ${paqueteId}:`, normalizedData);
       return normalizedData;

@@ -110,7 +110,7 @@ class ClientesService {
 
   async getClientes(): Promise<ClienteAPI[]> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(API_BASE_URL, { headers });
+    const response = await fetch(`${API_BASE_URL}?page=1&pageSize=100`, { headers });
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     const text = await response.text();
     const raw = text ? JSON.parse(text) : [];

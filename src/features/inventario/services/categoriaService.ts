@@ -61,14 +61,17 @@ class CategoriaService {
   async getCategorias(): Promise<Categoria[]> {
     try {
       console.log('📥 Obteniendo categorías desde:', `${this.API_BASE_URL}/categorias`);
-      const response = await this.request('/Categorias');
+      const response = await this.request('/Categorias?page=1&pageSize=100');
       const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
+      const raw = text ? JSON.parse(text) : [];
+      const data = Array.isArray(raw)
+        ? raw
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+        : [];
       console.log('✅ Categorías obtenidas:', data);
       if (Array.isArray(data)) return data;
-      if (data && typeof data === 'object' && Array.isArray((data as any).items)) {
-        return (data as any).items as Categoria[];
-      }
       return [];
     } catch (error: any) {
       console.error('❌ Error obteniendo categorías:', error);

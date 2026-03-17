@@ -75,7 +75,7 @@ class EntregaInsumosService {
   async getEntregas(): Promise<EntregaInsumo[]> {
     try {
       console.log('📋 Obteniendo entregas de insumos...');
-      const response = await this.request('/EntregasInsumos');
+      const response = await this.request('/EntregasInsumos?page=1&pageSize=100');
       const text = await response.text();
       const data = text ? JSON.parse(text) : [];
 
@@ -83,6 +83,7 @@ class EntregaInsumosService {
       const arr: any[] = Array.isArray(data)
         ? data
         : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items
+        : (data && typeof data === 'object' && Array.isArray((data as any).data)) ? (data as any).data
         : (data && typeof data === 'object' && Array.isArray((data as any).$values)) ? (data as any).$values
         : [];
       return arr as EntregaInsumo[];

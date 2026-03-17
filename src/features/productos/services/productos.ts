@@ -205,7 +205,7 @@ class ProductoService {
 
   async getProductos(): Promise<ApiProducto[]> {
     try {
-      const response = await this.request('/Productos');
+      const response = await this.request('/Productos?page=1&pageSize=100');
       const text = await response.text();
 
       // A veces el backend devuelve 200 con body vacío / no JSON.
@@ -220,11 +220,13 @@ class ProductoService {
       }
 
       // Manejar envoltorio $values común en .NET
-      if (data && typeof data === 'object' && !Array.isArray(data) && (data.$values || data.items)) {
+      if (data && typeof data === 'object' && !Array.isArray(data) && (data.$values || data.items || data.data)) {
         if (Array.isArray(data.$values)) {
           data = data.$values;
         } else if (Array.isArray(data.items)) {
           data = data.items;
+        } else if (Array.isArray(data.data)) {
+          data = data.data;
         }
       }
       if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) {
@@ -550,7 +552,7 @@ class ProductoService {
 
   async getCategorias(): Promise<ApiCategoria[]> {
     try {
-      const response = await this.request('/Categorias');
+      const response = await this.request('/Categorias?page=1&pageSize=100');
       const text = await response.text();
       if (!text || !text.trim()) return [];
       let data: any;
@@ -561,9 +563,9 @@ class ProductoService {
       }
 
       // Manejar envoltorio $values
-      if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) {
-        data = data.$values;
-      }
+      if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) data = data.$values;
+      if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray((data as any).items)) data = (data as any).items;
+      if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray((data as any).data)) data = (data as any).data;
 
       const normalized = Array.isArray(data) ? data.map((cat: any) => ({
         id: cat.Id || cat.id,

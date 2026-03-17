@@ -217,7 +217,7 @@ class CompraService {
 
     async getCompras(): Promise<Array<Compra & { searchString: string }>> {
         try {
-            const response = await this.request('/Compras');
+            const response = await this.request('/Compras?page=1&pageSize=100');
             const text = await response.text();
             let data: any = text ? JSON.parse(text) : [];
             // Desenrollar formato EF Core { $values: [...] }
@@ -227,7 +227,9 @@ class CompraService {
             // Nuevo backend: envelope { items, totalCount, page, pageSize, totalPages }
             const arr: any[] = Array.isArray(data)
                 ? data
-                : (data && typeof data === 'object' && Array.isArray(data.items)) ? data.items : [];
+                : (data && typeof data === 'object' && Array.isArray(data.items)) ? data.items
+                : (data && typeof data === 'object' && Array.isArray(data.data)) ? data.data
+                : [];
             if (!Array.isArray(arr)) {
                 console.warn('⚠️ Respuesta de /Compras no es un array ni envelope válido, retornando lista vacía');
                 return [];

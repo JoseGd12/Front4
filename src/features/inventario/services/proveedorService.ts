@@ -219,7 +219,7 @@ class ProveedorService {
   async obtenerProveedores(): Promise<Proveedor[]> {
     try {
       console.log('📥 Obteniendo todos los proveedores desde:', `${API_BASE_URL}/Proveedores`);
-      const response = await this.request('/Proveedores');
+      const response = await this.request('/Proveedores?page=1&pageSize=100');
       const text = await response.text();
       let data = text ? JSON.parse(text) : [];
 
@@ -232,7 +232,9 @@ class ProveedorService {
 
       const arr: any[] = Array.isArray(data)
         ? data
-        : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items : [];
+        : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items
+        : (data && typeof data === 'object' && Array.isArray((data as any).data)) ? (data as any).data
+        : [];
       if (!Array.isArray(arr)) {
         console.warn('⚠️ La API no devolvió un array ni envelope válido:', data);
         return [];

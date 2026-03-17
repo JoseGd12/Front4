@@ -391,12 +391,15 @@ class VentaService {
   async getVentas(): Promise<Venta[]> {
     try {
       console.log('📥 Obteniendo ventas desde:', `${API_BASE_URL}/ventas`);
-      const response = await this.request('/Ventas');
+      const response = await this.request('/Ventas?page=1&pageSize=100');
       const text = await response.text();
       const parsed = text ? JSON.parse(text) : [];
       const arr: any[] = Array.isArray(parsed)
         ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items : [];
+        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items
+        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.data)) ? parsed.data
+        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.$values)) ? parsed.$values
+        : [];
       console.log('✅ Ventas obtenidas:', parsed);
       const normalizedData = await Promise.all(arr.map(item => this.normalizeVentaData(item)));
       console.log('✅ Ventas normalizadas:', normalizedData);

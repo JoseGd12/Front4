@@ -110,7 +110,7 @@ class BarberosService {
 
   async getBarberos(): Promise<Barbero[]> {
     try {
-      const response = await this.request(BARBEROS_URL);
+      const response = await this.request(`${BARBEROS_URL}?page=1&pageSize=100`);
       const raw = await response.json();
       let items: any[] = [];
       if (Array.isArray(raw)) {

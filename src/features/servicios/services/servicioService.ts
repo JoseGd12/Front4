@@ -46,14 +46,17 @@ class ServicioService {
   async getServicios(): Promise<Servicio[]> {
     try {
       console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/servicios`);
-      const response = await this.request('/servicios');
+      const response = await this.request('/servicios?page=1&pageSize=100');
       const text = await response.text();
       const parsed = text ? JSON.parse(text) : [];
       console.log('✅ Servicios obtenidos:', parsed);
 
       const arr: any[] = Array.isArray(parsed)
         ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items : [];
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
+        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
+        : [];
 
       const normalizedData = arr.map((item: any) => ({
         id: item.id || item.Id,

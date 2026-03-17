@@ -101,7 +101,7 @@ class HorariosService {
     }
 
     async getHorarios(): Promise<HorarioBarbero[]> {
-        const response = await this.request('/HorariosBarberos');
+        const response = await this.request('/HorariosBarberos?page=1&pageSize=100');
         const text = await response.text();
         const raw = text ? JSON.parse(text) : [];
         let items: any[] = [];
@@ -120,7 +120,7 @@ class HorariosService {
     }
 
     async getHorariosByBarberoId(barberoId: number): Promise<HorarioBarbero[]> {
-        const response = await this.request(`/HorariosBarberos/barbero/${barberoId}`);
+        const response = await this.request(`/HorariosBarberos/barbero/${barberoId}?page=1&pageSize=100`);
         const text = await response.text();
         const raw = text ? JSON.parse(text) : [];
         const data = Array.isArray(raw)

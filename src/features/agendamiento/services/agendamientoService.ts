@@ -148,14 +148,20 @@ class AgendamientoService {
     }
 
     async getAgendamientosByClienteId(clienteId: number): Promise<Agendamiento[]> {
-        const response = await this.request(`/Agendamientos/cliente/${clienteId}`);
+        const response = await this.request(`/Agendamientos/cliente/${clienteId}?page=1&pageSize=100`);
         const text = await response.text();
 
         if (!text || !text.trim()) return [];
 
         try {
-            const data = JSON.parse(text);
-            return Array.isArray(data) ? data.map(item => this.mapApiToComponent(item)) : [];
+            const raw = JSON.parse(text);
+            const data = Array.isArray(raw)
+                ? raw
+                : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+                : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+                : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+                : [];
+            return data.map(item => this.mapApiToComponent(item));
         } catch (e) {
             console.warn('Error parsing agendamientos by cliente ID:', e);
             return [];
@@ -163,14 +169,20 @@ class AgendamientoService {
     }
 
     async getAgendamientos(): Promise<Agendamiento[]> {
-        const response = await this.request('/Agendamientos');
+        const response = await this.request('/Agendamientos?page=1&pageSize=100');
         let text = await response.text();
 
         if (!text || !text.trim()) return [];
 
         try {
-            const data = JSON.parse(text);
-            return Array.isArray(data) ? data.map(item => this.mapApiToComponent(item)) : [];
+            const raw = JSON.parse(text);
+            const data = Array.isArray(raw)
+                ? raw
+                : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+                : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+                : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+                : [];
+            return data.map(item => this.mapApiToComponent(item));
         } catch (e) {
             console.warn('Reparando JSON truncado...');
             const lastBrace = text.lastIndexOf('}');
