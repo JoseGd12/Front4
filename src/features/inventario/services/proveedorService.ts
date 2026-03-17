@@ -219,24 +219,39 @@ class ProveedorService {
   async obtenerProveedores(): Promise<Proveedor[]> {
     try {
       console.log('📥 Obteniendo todos los proveedores desde:', `${API_BASE_URL}/Proveedores`);
-      const response = await this.request('/Proveedores?page=1&pageSize=100');
-      const text = await response.text();
-      let data = text ? JSON.parse(text) : [];
-
-      // Manejar envoltorio $values común en .NET (Entity Framework)
-      if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) {
-        data = data.$values;
+      const arr: any[] = [];
+      const extract = (data: any): any[] => {
+        if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) data = data.$values;
+        return Array.isArray(data)
+          ? data
+          : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items
+          : (data && typeof data === 'object' && Array.isArray((data as any).data)) ? (data as any).data
+          : [];
+      };
+      const firstResponse = await this.request('/Proveedores?page=1&pageSize=5');
+      const firstText = await firstResponse.text();
+      const firstData = firstText ? JSON.parse(firstText) : [];
+      arr.push(...extract(firstData));
+      let totalPages = firstData && typeof firstData === 'object' && !Array.isArray(firstData)
+        ? Number((firstData as any).totalPages ?? 1)
+        : 1;
+      totalPages = Math.min(Math.max(1, totalPages), 200);
+      if (totalPages > 1) {
+        const promises: Promise<any[]>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push((async () => {
+            const response = await this.request(`/Proveedores?page=${page}&pageSize=5`);
+            const text = await response.text();
+            const data = text ? JSON.parse(text) : [];
+            return extract(data);
+          })());
+        }
+        const rest = await Promise.all(promises);
+        rest.forEach(items => arr.push(...items));
       }
-
-      console.log('✅ Proveedores raw desde API:', data);
-
-      const arr: any[] = Array.isArray(data)
-        ? data
-        : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items
-        : (data && typeof data === 'object' && Array.isArray((data as any).data)) ? (data as any).data
-        : [];
+      console.log('✅ Proveedores raw desde API:', arr);
       if (!Array.isArray(arr)) {
-        console.warn('⚠️ La API no devolvió un array ni envelope válido:', data);
+        console.warn('⚠️ La API no devolvió un array ni envelope válido:', arr);
         return [];
       }
 

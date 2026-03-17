@@ -530,7 +530,7 @@ export function ClientesPage() {
   };
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
+    setItemsPerPage(5);
     setCurrentPage(1); // Reset to first page when changing items per page
   };
 
@@ -1118,8 +1118,8 @@ export function ClientesPage() {
                 <span className="text-xs text-gray-lightest">Filas por página:</span>
                 <Select
                   value={itemsPerPage.toString()}
-                  onValueChange={(value) => {
-                    setItemsPerPage(Number(value));
+                  onValueChange={() => {
+                    setItemsPerPage(5);
                     setCurrentPage(1);
                   }}
                 >
@@ -1128,9 +1128,6 @@ export function ClientesPage() {
                   </SelectTrigger>
                   <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
                     <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

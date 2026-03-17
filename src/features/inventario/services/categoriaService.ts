@@ -61,15 +61,34 @@ class CategoriaService {
   async getCategorias(): Promise<Categoria[]> {
     try {
       console.log('📥 Obteniendo categorías desde:', `${this.API_BASE_URL}/categorias`);
-      const response = await this.request('/Categorias?page=1&pageSize=100');
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-      const data = Array.isArray(raw)
+      const data: any[] = [];
+      const extract = (raw: any): any[] => Array.isArray(raw)
         ? raw
         : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
         : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
         : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
         : [];
+      const firstResponse = await this.request('/Categorias?page=1&pageSize=5');
+      const firstText = await firstResponse.text();
+      const firstRaw = firstText ? JSON.parse(firstText) : [];
+      data.push(...extract(firstRaw));
+      let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
+        ? Number((firstRaw as any).totalPages ?? 1)
+        : 1;
+      totalPages = Math.min(Math.max(1, totalPages), 200);
+      if (totalPages > 1) {
+        const promises: Promise<any[]>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push((async () => {
+            const response = await this.request(`/Categorias?page=${page}&pageSize=5`);
+            const text = await response.text();
+            const raw = text ? JSON.parse(text) : [];
+            return extract(raw);
+          })());
+        }
+        const rest = await Promise.all(promises);
+        rest.forEach(items => data.push(...items));
+      }
       console.log('✅ Categorías obtenidas:', data);
       if (Array.isArray(data)) return data;
       return [];

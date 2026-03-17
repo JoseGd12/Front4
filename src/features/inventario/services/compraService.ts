@@ -217,19 +217,36 @@ class CompraService {
 
     async getCompras(): Promise<Array<Compra & { searchString: string }>> {
         try {
-            const response = await this.request('/Compras?page=1&pageSize=100');
-            const text = await response.text();
-            let data: any = text ? JSON.parse(text) : [];
-            // Desenrollar formato EF Core { $values: [...] }
-            if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) {
-                data = data.$values;
+            const arr: any[] = [];
+            const extract = (data: any): any[] => {
+                if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) data = data.$values;
+                return Array.isArray(data)
+                    ? data
+                    : (data && typeof data === 'object' && Array.isArray(data.items)) ? data.items
+                    : (data && typeof data === 'object' && Array.isArray(data.data)) ? data.data
+                    : [];
+            };
+            const firstResponse = await this.request('/Compras?page=1&pageSize=5');
+            const firstText = await firstResponse.text();
+            const firstData: any = firstText ? JSON.parse(firstText) : [];
+            arr.push(...extract(firstData));
+            let totalPages = firstData && typeof firstData === 'object' && !Array.isArray(firstData)
+                ? Number((firstData as any).totalPages ?? 1)
+                : 1;
+            totalPages = Math.min(Math.max(1, totalPages), 200);
+            if (totalPages > 1) {
+                const promises: Promise<any[]>[] = [];
+                for (let page = 2; page <= totalPages; page++) {
+                    promises.push((async () => {
+                        const response = await this.request(`/Compras?page=${page}&pageSize=5`);
+                        const text = await response.text();
+                        const data: any = text ? JSON.parse(text) : [];
+                        return extract(data);
+                    })());
+                }
+                const rest = await Promise.all(promises);
+                rest.forEach(items => arr.push(...items));
             }
-            // Nuevo backend: envelope { items, totalCount, page, pageSize, totalPages }
-            const arr: any[] = Array.isArray(data)
-                ? data
-                : (data && typeof data === 'object' && Array.isArray(data.items)) ? data.items
-                : (data && typeof data === 'object' && Array.isArray(data.data)) ? data.data
-                : [];
             if (!Array.isArray(arr)) {
                 console.warn('⚠️ Respuesta de /Compras no es un array ni envelope válido, retornando lista vacía');
                 return [];

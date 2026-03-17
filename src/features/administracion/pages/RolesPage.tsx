@@ -862,10 +862,10 @@ export function RolesPage() {
                   Filas por página:
                   <select
                     value={itemsPerPage}
-                    onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                    onChange={() => { setItemsPerPage(5); setCurrentPage(1); }}
                     className="bg-gray-darker border border-gray-dark rounded px-2 py-1 text-white-primary text-sm focus:outline-none focus:border-orange-primary"
                   >
-                    {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
+                    {[5].map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </span>
               </div>

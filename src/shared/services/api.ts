@@ -250,6 +250,48 @@ class ApiService {
     return s ? `?${s}` : '';
   }
 
+  private extractArrayFromRaw(raw: any): any[] {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') {
+      if (Array.isArray(raw.items)) return raw.items;
+      if (Array.isArray(raw.data)) return raw.data;
+      if (Array.isArray(raw.$values)) return raw.$values;
+      const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
+      return firstArray || [];
+    }
+    return [];
+  }
+
+  private async fetchAllPages(endpoint: string, pageSize = 5): Promise<any[]> {
+    const query = endpoint.includes('?') ? '&' : '?';
+    const firstResponse = await this.request(`${endpoint}${query}page=1&pageSize=${pageSize}`);
+    const firstText = await firstResponse.text();
+    const firstRaw = firstText ? JSON.parse(firstText) : [];
+    const firstItems = this.extractArrayFromRaw(firstRaw);
+    const allItems: any[] = [...firstItems];
+    let totalPages = 1;
+    if (firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)) {
+      const tp = Number((firstRaw as any).totalPages ?? 0);
+      const tc = Number((firstRaw as any).totalCount ?? 0);
+      if (tp > 0) totalPages = tp;
+      else if (tc > 0) totalPages = Math.max(1, Math.ceil(tc / pageSize));
+    }
+    totalPages = Math.min(Math.max(1, totalPages), 200);
+    if (totalPages <= 1) return allItems;
+    const promises: Promise<any[]>[] = [];
+    for (let page = 2; page <= totalPages; page++) {
+      promises.push((async () => {
+        const response = await this.request(`${endpoint}${query}page=${page}&pageSize=${pageSize}`);
+        const text = await response.text();
+        const raw = text ? JSON.parse(text) : [];
+        return this.extractArrayFromRaw(raw);
+      })());
+    }
+    const rest = await Promise.all(promises);
+    rest.forEach(items => allItems.push(...items));
+    return allItems;
+  }
+
   // ==================== MÉTODOS PARA AUTENTICACIÓN ====================
   async confirmPasswordChange(): Promise<void> {
     try {
@@ -419,21 +461,7 @@ class ApiService {
 
   async getUsuarios(): Promise<ApiUser[]> {
     try {
-      const response = await this.request('/Usuarios?page=1&pageSize=100');
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-      let items: any[] = [];
-      if (Array.isArray(raw)) {
-        items = raw;
-      } else if (raw && typeof raw === 'object') {
-        if (Array.isArray(raw.items)) items = raw.items;
-        else if (Array.isArray(raw.data)) items = raw.data;
-        else if (Array.isArray(raw.$values)) items = raw.$values;
-        else {
-          const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
-          items = firstArray || [];
-        }
-      }
+      const items = await this.fetchAllPages('/Usuarios', 5);
 
       const normalizedData = items.map((item: any) => ({
         id: item.id || item.Id,
@@ -584,15 +612,7 @@ class ApiService {
   async getRoles(): Promise<any[]> {
     try {
       console.log('📥 Obteniendo roles desde:', `${API_BASE_URL}/Roles`);
-      const response = await this.request('/Roles?page=1&pageSize=100');
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-      const data = Array.isArray(raw)
-        ? raw
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
-        : [];
+      const data = await this.fetchAllPages('/Roles', 5);
       console.log('✅ Roles obtenidos:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
@@ -668,15 +688,7 @@ class ApiService {
   async getModulos(): Promise<any[]> {
     try {
       console.log('📥 Obteniendo módulos desde:', `${API_BASE_URL}/Modulos`);
-      const response = await this.request('/Modulos?page=1&pageSize=100');
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-      const data = Array.isArray(raw)
-        ? raw
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
-        : [];
+      const data = await this.fetchAllPages('/Modulos', 5);
       console.log('✅ Módulos obtenidos:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
@@ -721,15 +733,7 @@ class ApiService {
   async getRolesModulos(): Promise<any[]> {
     try {
       console.log('📥 Obteniendo asignaciones rol-módulo desde:', `${API_BASE_URL}/RolesModulos`);
-      const response = await this.request('/RolesModulos?page=1&pageSize=100');
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-      const data = Array.isArray(raw)
-        ? raw
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
-        : [];
+      const data = await this.fetchAllPages('/RolesModulos', 5);
       console.log('✅ Asignaciones rol-módulo obtenidas:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
@@ -837,16 +841,7 @@ class ApiService {
   async getServicios(): Promise<Servicio[]> {
     try {
       console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/Servicios`);
-      const response = await this.request('/Servicios?page=1&pageSize=100');
-      const text = await response.text();
-      const parsed = text ? JSON.parse(text) : [];
-      console.log('✅ Servicios obtenidos:', parsed);
-      const arr: any[] = Array.isArray(parsed)
-        ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
-        : [];
+      const arr = await this.fetchAllPages('/Servicios', 5);
       const normalizedData = arr.map(item => this.normalizeServicioData(item));
       console.log('✅ Servicios normalizados:', normalizedData);
       return normalizedData;
@@ -1033,18 +1028,11 @@ class ApiService {
   async getPaquetes(): Promise<Paquete[]> {
     try {
       console.log('📥 Obteniendo paquetes desde:', `${API_BASE_URL}/Paquetes`);
-      const response = await this.request('/Paquetes?page=1&pageSize=100');
-      const text = await response.text();
-      const parsed = text ? JSON.parse(text) : [];
-      console.log('✅ Paquetes obtenidos:', parsed);
-      const arr: any[] = Array.isArray(parsed)
-        ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
-        : [];
+      const parsed = await this.fetchAllPages('/Paquetes', 5);
+      console.log('✅ Paquetes obtenidos');
+      const arr: any[] = Array.isArray(parsed) ? parsed : [];
       const normalizedData = arr.map(item => this.normalizePaqueteData(item));
-      console.log('✅ Paquetes normalizados:', normalizedData);
+      console.log('✅ Paquetes normalizados:', normalizedData.length);
       return normalizedData;
     } catch (error: any) {
       console.error('❌ Error obteniendo paquetes:', error);
@@ -1212,18 +1200,10 @@ class ApiService {
   async getDetallePaquetes(): Promise<DetallePaquete[]> {
     try {
       console.log('📥 Obteniendo detalles de paquetes desde:', `${API_BASE_URL}/DetallePaquetes`);
-      const response = await this.request('/DetallePaquetes?page=1&pageSize=100');
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-      const data = Array.isArray(raw)
-        ? raw
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
-        : [];
-      console.log('✅ Detalles de paquetes obtenidos:', data);
+      const data = await this.fetchAllPages('/DetallePaquetes', 5);
+      console.log('✅ Detalles de paquetes obtenidos');
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
-      console.log('✅ Detalles de paquetes normalizados:', normalizedData);
+      console.log('✅ Detalles de paquetes normalizados:', normalizedData.length);
       return normalizedData;
     } catch (error: any) {
       console.error('❌ Error obteniendo detalles de paquetes:', error);
@@ -1234,17 +1214,9 @@ class ApiService {
   async getDetallePaquetesByPaqueteId(paqueteId: number): Promise<DetallePaquete[]> {
     try {
       console.log(`📥 Obteniendo detalles del paquete ${paqueteId}...`);
-      const response = await this.request(`/DetallePaquetes/paquete/${paqueteId}?page=1&pageSize=100`);
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-      const data = Array.isArray(raw)
-        ? raw
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
-        : [];
+      const data = await this.fetchAllPages(`/DetallePaquetes/paquete/${paqueteId}`, 5);
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
-      console.log(`✅ Detalles del paquete ${paqueteId}:`, normalizedData);
+      console.log(`✅ Detalles del paquete ${paqueteId}:`, normalizedData.length);
       return normalizedData;
     } catch (error: any) {
       console.error(`❌ Error obteniendo detalles del paquete ${paqueteId}:`, error);

@@ -68,6 +68,47 @@ export interface CreateVentaRequest {
 }
 
 class VentaService {
+  private safeParseJson(text: string): any {
+    if (!text || !text.trim()) return [];
+    try {
+      return JSON.parse(text);
+    } catch {
+      const cleaned = text
+        .replace(/:\s*NaN/g, ':null')
+        .replace(/:\s*Infinity/g, ':null')
+        .replace(/:\s*-Infinity/g, ':null')
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/[\u0000-\u001F]+/g, ' ');
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        const firstBracket = cleaned.indexOf('[');
+        const lastBracket = cleaned.lastIndexOf(']');
+        if (firstBracket >= 0 && lastBracket > firstBracket) {
+          const arraySlice = cleaned.slice(firstBracket, lastBracket + 1);
+          try {
+            return JSON.parse(arraySlice);
+          } catch {
+            return [];
+          }
+        }
+        return [];
+      }
+    }
+  }
+
+  private extractArrayPayload(payload: any): any[] {
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === 'object') {
+      if (Array.isArray(payload.items)) return payload.items;
+      if (Array.isArray(payload.data)) return payload.data;
+      if (Array.isArray(payload.$values)) return payload.$values;
+      const firstArray = Object.values(payload).find((v: any) => Array.isArray(v)) as any[] | undefined;
+      if (firstArray) return firstArray;
+    }
+    return [];
+  }
+
   private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const url = `${API_BASE_URL}${endpoint}`;
 
@@ -376,10 +417,8 @@ class VentaService {
     try {
       const response = await this.request(`/Ventas/cliente/${clienteId}`);
       const text = await response.text();
-      const parsed = text ? JSON.parse(text) : [];
-      const arr: any[] = Array.isArray(parsed)
-        ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items : [];
+      const parsed = this.safeParseJson(text);
+      const arr = this.extractArrayPayload(parsed);
       return await Promise.all(arr.map(item => this.normalizeVentaData(item)));
     } catch (error) {
        console.warn('Error fetching ventas by clienteId, filtering local:', error);
@@ -391,16 +430,28 @@ class VentaService {
   async getVentas(): Promise<Venta[]> {
     try {
       console.log('📥 Obteniendo ventas desde:', `${API_BASE_URL}/ventas`);
-      const response = await this.request('/Ventas?page=1&pageSize=100');
-      const text = await response.text();
-      const parsed = text ? JSON.parse(text) : [];
-      const arr: any[] = Array.isArray(parsed)
-        ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items
-        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.data)) ? parsed.data
-        : (parsed && typeof parsed === 'object' && Array.isArray(parsed.$values)) ? parsed.$values
-        : [];
-      console.log('✅ Ventas obtenidas:', parsed);
+      const arr: any[] = [];
+      const firstResponse = await this.request('/Ventas?page=1&pageSize=5');
+      const firstText = await firstResponse.text();
+      const firstParsed = this.safeParseJson(firstText);
+      arr.push(...this.extractArrayPayload(firstParsed));
+      let totalPages = firstParsed && typeof firstParsed === 'object' && !Array.isArray(firstParsed)
+        ? Number((firstParsed as any).totalPages ?? 1)
+        : 1;
+      totalPages = Math.min(Math.max(1, totalPages), 200);
+      if (totalPages > 1) {
+        const promises: Promise<any[]>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push((async () => {
+            const response = await this.request(`/Ventas?page=${page}&pageSize=5`);
+            const text = await response.text();
+            const parsed = this.safeParseJson(text);
+            return this.extractArrayPayload(parsed);
+          })());
+        }
+        const rest = await Promise.all(promises);
+        rest.forEach(items => arr.push(...items));
+      }
       const normalizedData = await Promise.all(arr.map(item => this.normalizeVentaData(item)));
       console.log('✅ Ventas normalizadas:', normalizedData);
       return normalizedData;

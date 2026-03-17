@@ -49,28 +49,25 @@ export function PaquetesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(8);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Servicios disponibles cargados desde la API
   const [serviciosDisponibles, setServiciosDisponibles] = useState<Servicio[]>([]);
   // Mapa paqueteId -> nombres de servicios (para mostrar en columna Paquete)
   const [serviciosPorPaqueteId, setServiciosPorPaqueteId] = useState<Map<number, string[]>>(new Map());
 
-  // Construir nombres de servicios por paquete desde DetallePaquetes
-  const enrichPaquetesWithServicios = async () => {
-    try {
-      const detalles = await apiService.getDetallePaquetes();
-      const map = new Map<number, string[]>();
-      for (const d of detalles) {
-        const list = map.get(d.paqueteId) || [];
-        if (d.nombreServicio && d.nombreServicio.trim()) list.push(d.nombreServicio.trim());
-        map.set(d.paqueteId, list);
-      }
-      setServiciosPorPaqueteId(map);
-    } catch (e) {
-      console.error('Error cargando detalles para lista de paquetes:', e);
-      setServiciosPorPaqueteId(new Map());
+  const mapServiciosPorPaquete = (detalles: any[]) => {
+    const map = new Map<number, string[]>();
+    for (const d of detalles || []) {
+      const paqueteId = Number(d?.paqueteId || 0);
+      if (!paqueteId) continue;
+      const nombre = String(d?.nombreServicio || '').trim();
+      if (!nombre) continue;
+      const list = map.get(paqueteId) || [];
+      list.push(nombre);
+      map.set(paqueteId, list);
     }
+    setServiciosPorPaqueteId(map);
   };
 
   // Load initial data
@@ -78,13 +75,14 @@ export function PaquetesPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [paquetesData, serviciosData] = await Promise.all([
+        const [paquetesData, serviciosData, detallesData] = await Promise.all([
           apiService.getPaquetes(),
-          servicioService.getServicios()
+          servicioService.getServicios(),
+          apiService.getDetallePaquetes().catch(() => [])
         ]);
         setPaquetes(paquetesData);
         setServiciosDisponibles(serviciosData.filter(s => s.estado === true));
-        await enrichPaquetesWithServicios();
+        mapServiciosPorPaquete(detallesData);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -99,9 +97,12 @@ export function PaquetesPage() {
   const loadPaquetes = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const data = await apiService.getPaquetes();
+      const [data, detallesData] = await Promise.all([
+        apiService.getPaquetes(),
+        apiService.getDetallePaquetes().catch(() => [])
+      ]);
       setPaquetes(data);
-      await enrichPaquetesWithServicios();
+      mapServiciosPorPaquete(detallesData);
     } catch (error) {
       console.error('Error loading paquetes:', error);
     } finally {
@@ -694,8 +695,8 @@ export function PaquetesPage() {
                   <span className="text-xs text-gray-lightest">Filas por página:</span>
                   <Select
                     value={itemsPerPage.toString()}
-                    onValueChange={(value) => {
-                      setItemsPerPage(Number(value));
+                    onValueChange={() => {
+                      setItemsPerPage(5);
                       setCurrentPage(1);
                     }}
                   >
@@ -704,9 +705,6 @@ export function PaquetesPage() {
                     </SelectTrigger>
                     <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
                       <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

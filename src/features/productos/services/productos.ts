@@ -205,35 +205,45 @@ class ProductoService {
 
   async getProductos(): Promise<ApiProducto[]> {
     try {
-      const response = await this.request('/Productos?page=1&pageSize=100');
-      const text = await response.text();
-
-      // A veces el backend devuelve 200 con body vacío / no JSON.
-      // Evitamos romper la app y simplemente retornamos lista vacía.
-      if (!text || !text.trim()) return [];
-
-      let data: any;
+      const merged: any[] = [];
+      const extract = (data: any): any[] => Array.isArray(data)
+        ? data
+        : (data && typeof data === 'object' && Array.isArray(data.items)) ? data.items
+        : (data && typeof data === 'object' && Array.isArray(data.data)) ? data.data
+        : (data && typeof data === 'object' && Array.isArray(data.$values)) ? data.$values
+        : [];
+      const firstResponse = await this.request('/Productos?page=1&pageSize=5');
+      const firstText = await firstResponse.text();
+      if (!firstText || !firstText.trim()) return [];
+      let firstData: any;
       try {
-        data = JSON.parse(text);
+        firstData = JSON.parse(firstText);
       } catch {
         return [];
       }
-
-      // Manejar envoltorio $values común en .NET
-      if (data && typeof data === 'object' && !Array.isArray(data) && (data.$values || data.items || data.data)) {
-        if (Array.isArray(data.$values)) {
-          data = data.$values;
-        } else if (Array.isArray(data.items)) {
-          data = data.items;
-        } else if (Array.isArray(data.data)) {
-          data = data.data;
+      merged.push(...extract(firstData));
+      let totalPages = firstData && typeof firstData === 'object' && !Array.isArray(firstData)
+        ? Number((firstData as any).totalPages ?? 1)
+        : 1;
+      totalPages = Math.min(Math.max(1, totalPages), 200);
+      if (totalPages > 1) {
+        const promises: Promise<any[]>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push((async () => {
+            const response = await this.request(`/Productos?page=${page}&pageSize=5`);
+            const text = await response.text();
+            if (!text || !text.trim()) return [];
+            try {
+              return extract(JSON.parse(text));
+            } catch {
+              return [];
+            }
+          })());
         }
+        const rest = await Promise.all(promises);
+        rest.forEach(items => merged.push(...items));
       }
-      if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) {
-        data = data.$values;
-      }
-
-      return Array.isArray(data) ? data.map(item => this.mapFromApiFormat(item)) : [];
+      return merged.map(item => this.mapFromApiFormat(item));
     } catch (error) {
       console.error('Error fetching productos:', error);
       throw error;
@@ -552,22 +562,46 @@ class ProductoService {
 
   async getCategorias(): Promise<ApiCategoria[]> {
     try {
-      const response = await this.request('/Categorias?page=1&pageSize=100');
-      const text = await response.text();
-      if (!text || !text.trim()) return [];
-      let data: any;
+      const merged: any[] = [];
+      const extract = (data: any): any[] => Array.isArray(data)
+        ? data
+        : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items
+        : (data && typeof data === 'object' && Array.isArray((data as any).data)) ? (data as any).data
+        : (data && typeof data === 'object' && Array.isArray((data as any).$values)) ? (data as any).$values
+        : [];
+      const firstResponse = await this.request('/Categorias?page=1&pageSize=5');
+      const firstText = await firstResponse.text();
+      if (!firstText || !firstText.trim()) return [];
+      let firstData: any;
       try {
-        data = JSON.parse(text);
+        firstData = JSON.parse(firstText);
       } catch {
         return [];
       }
+      merged.push(...extract(firstData));
+      let totalPages = firstData && typeof firstData === 'object' && !Array.isArray(firstData)
+        ? Number((firstData as any).totalPages ?? 1)
+        : 1;
+      totalPages = Math.min(Math.max(1, totalPages), 200);
+      if (totalPages > 1) {
+        const promises: Promise<any[]>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push((async () => {
+            const response = await this.request(`/Categorias?page=${page}&pageSize=5`);
+            const text = await response.text();
+            if (!text || !text.trim()) return [];
+            try {
+              return extract(JSON.parse(text));
+            } catch {
+              return [];
+            }
+          })());
+        }
+        const rest = await Promise.all(promises);
+        rest.forEach(items => merged.push(...items));
+      }
 
-      // Manejar envoltorio $values
-      if (data && typeof data === 'object' && !Array.isArray(data) && data.$values) data = data.$values;
-      if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray((data as any).items)) data = (data as any).items;
-      if (data && typeof data === 'object' && !Array.isArray(data) && Array.isArray((data as any).data)) data = (data as any).data;
-
-      const normalized = Array.isArray(data) ? data.map((cat: any) => ({
+      const normalized = Array.isArray(merged) ? merged.map((cat: any) => ({
         id: cat.Id || cat.id,
         nombre: cat.Nombre || cat.nombre,
         descripcion: cat.Descripcion || cat.descripcion || null,

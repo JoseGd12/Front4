@@ -110,21 +110,38 @@ class BarberosService {
 
   async getBarberos(): Promise<Barbero[]> {
     try {
-      const response = await this.request(`${BARBEROS_URL}?page=1&pageSize=100`);
-      const raw = await response.json();
-      let items: any[] = [];
-      if (Array.isArray(raw)) {
-        items = raw;
-      } else if (raw && typeof raw === 'object') {
-        if (Array.isArray(raw.items)) items = raw.items;
-        else if (Array.isArray(raw.data)) items = raw.data;
-        else if (Array.isArray(raw.$values)) items = raw.$values;
-        else {
+      const merged: any[] = [];
+      const extract = (raw: any): any[] => {
+        if (Array.isArray(raw)) return raw;
+        if (raw && typeof raw === 'object') {
+          if (Array.isArray(raw.items)) return raw.items;
+          if (Array.isArray(raw.data)) return raw.data;
+          if (Array.isArray(raw.$values)) return raw.$values;
           const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
-          items = firstArray || [];
+          return firstArray || [];
         }
+        return [];
+      };
+      const firstResponse = await this.request(`${BARBEROS_URL}?page=1&pageSize=5`);
+      const firstRaw = await firstResponse.json();
+      merged.push(...extract(firstRaw));
+      let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
+        ? Number((firstRaw as any).totalPages ?? 1)
+        : 1;
+      totalPages = Math.min(Math.max(1, totalPages), 200);
+      if (totalPages > 1) {
+        const promises: Promise<any[]>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push((async () => {
+            const response = await this.request(`${BARBEROS_URL}?page=${page}&pageSize=5`);
+            const raw = await response.json();
+            return extract(raw);
+          })());
+        }
+        const rest = await Promise.all(promises);
+        rest.forEach(items => merged.push(...items));
       }
-      return items.map(item => this.mapApiToComponent(item));
+      return merged.map(item => this.mapApiToComponent(item));
     } catch (e: any) {
       const msg = String(e?.message || '').toLowerCase();
       const is404 = msg.includes('404') || msg.includes('not found');

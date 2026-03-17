@@ -178,15 +178,34 @@ class DevolucionService {
 
     async getDevoluciones(): Promise<Devolucion[]> {
         try {
-            const response = await this.request('/Devoluciones?page=1&pageSize=100');
-            const text = await response.text();
-            const parsed = text ? JSON.parse(text) : [];
-            const arr: any[] = Array.isArray(parsed)
+            const arr: any[] = [];
+            const extract = (parsed: any): any[] => Array.isArray(parsed)
               ? parsed
               : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items
               : (parsed && typeof parsed === 'object' && Array.isArray(parsed.data)) ? parsed.data
               : (parsed && typeof parsed === 'object' && Array.isArray(parsed.$values)) ? parsed.$values
               : [];
+            const firstResponse = await this.request('/Devoluciones?page=1&pageSize=5');
+            const firstText = await firstResponse.text();
+            const firstParsed = firstText ? JSON.parse(firstText) : [];
+            arr.push(...extract(firstParsed));
+            let totalPages = firstParsed && typeof firstParsed === 'object' && !Array.isArray(firstParsed)
+                ? Number((firstParsed as any).totalPages ?? 1)
+                : 1;
+            totalPages = Math.min(Math.max(1, totalPages), 200);
+            if (totalPages > 1) {
+                const promises: Promise<any[]>[] = [];
+                for (let page = 2; page <= totalPages; page++) {
+                    promises.push((async () => {
+                        const response = await this.request(`/Devoluciones?page=${page}&pageSize=5`);
+                        const text = await response.text();
+                        const parsed = text ? JSON.parse(text) : [];
+                        return extract(parsed);
+                    })());
+                }
+                const rest = await Promise.all(promises);
+                rest.forEach(items => arr.push(...items));
+            }
             return await Promise.all(arr.map((item: any) => this.normalizeDevolucionData(item)));
         } catch (error) {
             console.error('Error fetching devoluciones:', error);

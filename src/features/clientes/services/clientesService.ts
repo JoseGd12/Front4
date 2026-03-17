@@ -110,37 +110,55 @@ class ClientesService {
 
   async getClientes(): Promise<ClienteAPI[]> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}?page=1&pageSize=100`, { headers });
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    const text = await response.text();
-    const raw = text ? JSON.parse(text) : [];
-    let items: any[] = [];
-    if (Array.isArray(raw)) {
-      items = raw;
-    } else if (raw && typeof raw === 'object') {
-      if (Array.isArray(raw.items)) items = raw.items;
-      else if (Array.isArray(raw.data)) items = raw.data;
-      else if (Array.isArray(raw.$values)) items = raw.$values;
-      else {
+    const merged: any[] = [];
+    const first = await fetch(`${API_BASE_URL}?page=1&pageSize=5`, { headers });
+    if (!first.ok) throw new Error(`Error: ${first.status}`);
+    const firstText = await first.text();
+    const firstRaw = firstText ? JSON.parse(firstText) : [];
+    const extract = (raw: any): any[] => {
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === 'object') {
+        if (Array.isArray(raw.items)) return raw.items;
+        if (Array.isArray(raw.data)) return raw.data;
+        if (Array.isArray(raw.$values)) return raw.$values;
         const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
-        items = firstArray || [];
+        return firstArray || [];
       }
+      return [];
+    };
+    merged.push(...extract(firstRaw));
+    let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
+      ? Number((firstRaw as any).totalPages ?? 1)
+      : 1;
+    totalPages = Math.min(Math.max(1, totalPages), 200);
+    if (totalPages > 1) {
+      const promises: Promise<any[]>[] = [];
+      for (let page = 2; page <= totalPages; page++) {
+        promises.push((async () => {
+          const response = await fetch(`${API_BASE_URL}?page=${page}&pageSize=5`, { headers });
+          if (!response.ok) return [];
+          const text = await response.text();
+          const raw = text ? JSON.parse(text) : [];
+          return extract(raw);
+        })());
+      }
+      const rest = await Promise.all(promises);
+      rest.forEach(items => merged.push(...items));
     }
-
-    return items.map((item: any) => ({
-      id: item.id || item.Id,
-      nombre: item.nombre || item.Nombre,
-      apellido: item.apellido || item.Apellido,
-      documento: item.documento || item.Documento,
-      correo: item.correo || item.Correo || item.email || item.Email,
-      telefono: item.telefono || item.Telefono,
-      direccion: item.direccion || item.Direccion,
-      barrio: item.barrio || item.Barrio,
-      fechaNacimiento: item.fechaNacimiento || item.FechaNacimiento,
-      fotoPerfil: item.fotoPerfil || item.FotoPerfil,
-      estado: (item.estado === true || item.Estado === true) && (item.usuario || item.Usuario ? ((item.usuario || item.Usuario).estado === true || (item.usuario || item.Usuario).Estado === true) : true),
-      usuario: item.usuario || item.Usuario
-    }));
+    return merged.map((item: any) => ({
+        id: item.id || item.Id,
+        nombre: item.nombre || item.Nombre,
+        apellido: item.apellido || item.Apellido,
+        documento: item.documento || item.Documento,
+        correo: item.correo || item.Correo || item.email || item.Email,
+        telefono: item.telefono || item.Telefono,
+        direccion: item.direccion || item.Direccion,
+        barrio: item.barrio || item.Barrio,
+        fechaNacimiento: item.fechaNacimiento || item.FechaNacimiento,
+        fotoPerfil: item.fotoPerfil || item.FotoPerfil,
+        estado: (item.estado === true || item.Estado === true) && (item.usuario || item.Usuario ? ((item.usuario || item.Usuario).estado === true || (item.usuario || item.Usuario).Estado === true) : true),
+        usuario: item.usuario || item.Usuario
+      }));
   }
 
   async getClientesPaged(args: { page?: number; pageSize?: number; q?: string } & Record<string, any> = {}): Promise<{ items: Cliente[]; totalCount: number; page: number; pageSize: number; totalPages: number; }> {

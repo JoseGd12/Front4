@@ -75,17 +75,35 @@ class EntregaInsumosService {
   async getEntregas(): Promise<EntregaInsumo[]> {
     try {
       console.log('📋 Obteniendo entregas de insumos...');
-      const response = await this.request('/EntregasInsumos?page=1&pageSize=100');
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : [];
-
-      console.log('✅ Entregas obtenidas:', data);
-      const arr: any[] = Array.isArray(data)
+      const arr: any[] = [];
+      const extract = (data: any): any[] => Array.isArray(data)
         ? data
         : (data && typeof data === 'object' && Array.isArray((data as any).items)) ? (data as any).items
         : (data && typeof data === 'object' && Array.isArray((data as any).data)) ? (data as any).data
         : (data && typeof data === 'object' && Array.isArray((data as any).$values)) ? (data as any).$values
         : [];
+      const firstResponse = await this.request('/EntregasInsumos?page=1&pageSize=5');
+      const firstText = await firstResponse.text();
+      const firstData = firstText ? JSON.parse(firstText) : [];
+      arr.push(...extract(firstData));
+      let totalPages = firstData && typeof firstData === 'object' && !Array.isArray(firstData)
+        ? Number((firstData as any).totalPages ?? 1)
+        : 1;
+      totalPages = Math.min(Math.max(1, totalPages), 200);
+      if (totalPages > 1) {
+        const promises: Promise<any[]>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          promises.push((async () => {
+            const response = await this.request(`/EntregasInsumos?page=${page}&pageSize=5`);
+            const text = await response.text();
+            const data = text ? JSON.parse(text) : [];
+            return extract(data);
+          })());
+        }
+        const rest = await Promise.all(promises);
+        rest.forEach(items => arr.push(...items));
+      }
+      console.log('✅ Entregas obtenidas:', arr);
       return arr as EntregaInsumo[];
     } catch (error) {
       console.error('❌ Error obteniendo entregas:', error);
