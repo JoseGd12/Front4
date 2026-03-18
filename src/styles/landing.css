@@ -33,6 +33,20 @@
   -webkit-text-fill-color: transparent;
 }
 
+/* Nav link hover: gold → white gradient transition */
+.nav-link-hover {
+  background: linear-gradient(90deg, #d8b081 0%, #f5e6d0 50%, #ffffff 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: background-position 0.4s ease;
+}
+
+.nav-link-hover:hover {
+  background-position: 100% 50%;
+}
+
 .button-expert {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -60,8 +74,13 @@
 }
 
 @keyframes slow-zoom {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.1); }
+  0% {
+    transform: scale(1);
+  }
+
+  100% {
+    transform: scale(1.1);
+  }
 }
 
 .animate-slow-zoom {
@@ -90,14 +109,128 @@
 .glass-premium {
   background: rgba(26, 26, 26, 0.6);
   backdrop-filter: blur(12px);
-  border: 1px border white/5;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Base styles for the new design */
+/* ── Nosotros Section Premium ── */
+.nosotros-section {
+  background: linear-gradient(180deg, #0a0a0a 0%, #111113 30%, #15130f 60%, #0e0d0b 100%);
+  position: relative;
+}
+
+.nosotros-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(216, 176, 129, 0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 80% 60%, rgba(216, 176, 129, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(30, 28, 25, 0.85) 0%, rgba(20, 18, 15, 0.9) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(216, 176, 129, 0.12);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(216, 176, 129, 0.25);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(216, 176, 129, 0.06);
+  transform: translateY(-2px);
+}
+
+.glass-card-dark {
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.06) 0%, rgba(216, 176, 129, 0.02) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(216, 176, 129, 0.1);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-dark:hover {
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.12) 0%, rgba(216, 176, 129, 0.04) 100%);
+  border-color: rgba(216, 176, 129, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.icon-float {
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.15) 0%, rgba(216, 176, 129, 0.05) 100%);
+  border: 1px solid rgba(216, 176, 129, 0.2);
+  box-shadow: 0 4px 20px rgba(216, 176, 129, 0.08);
+  transition: all 0.4s ease;
+}
+
+.glass-card:hover .icon-float,
+.glass-card-dark:hover .icon-float {
+  box-shadow: 0 4px 24px rgba(216, 176, 129, 0.15);
+  border-color: rgba(216, 176, 129, 0.35);
+}
+
+.stat-card {
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.06) 0%, rgba(216, 176, 129, 0.02) 100%);
+  border: 1px solid rgba(216, 176, 129, 0.1);
+  transition: all 0.4s ease;
+}
+
+.stat-card:hover {
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.12) 0%, rgba(216, 176, 129, 0.04) 100%);
+  border-color: rgba(216, 176, 129, 0.2);
+  transform: translateY(-2px);
+}
+
+@keyframes float-slow {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.nosotros-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(216, 176, 129, 0.3), transparent);
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Global design reset */
 body {
-  background-color: var(--bg-black);
+  background-color: #000;
   color: white;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Selection styles */
@@ -133,31 +266,81 @@ body {
 
 /* ── Section Titles ── */
 .section-title-fill {
-  font-size: clamp(3rem, 10vw, 10rem);
+  font-size: clamp(1.8rem, 5vw, 4rem);
   width: 100%;
   display: block;
+
+  padding-top: 4rem;
+  margin-bottom: 2rem;
 }
 
 .section-supertitle {
-  font-size: clamp(3.5rem, 12vw, 13rem);
+  font-size: clamp(2.2rem, 6vw, 5.5rem);
   width: 100%;
-  display: block;
+  display: inline-block;
+  white-space: nowrap;
+  position: relative;
+  padding-top: 3rem;
+  padding-bottom: 1rem;
 }
 
-/* ── Infinite Carousel ── */
+/* Decorative bottom accent bar */
+.section-supertitle::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #d8b081, transparent);
+  border-radius: 2px;
+}
+
+/* Side decorative lines wrapper */
+.supertitle-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.supertitle-line {
+  flex: 1;
+  max-width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d8b081);
+}
+
+.supertitle-line:last-child {
+  background: linear-gradient(90deg, #d8b081, transparent);
+}
+
+/* ── Infinite Carousel (JS-driven) ── */
 .carousel-track {
   display: flex;
   width: max-content;
-  animation: carousel-scroll var(--carousel-duration, 40s) linear infinite;
+  will-change: transform;
+  margin-bottom: 2rem;
 }
 
-.carousel-track:hover {
-  animation-play-state: paused;
+.carousel-container {
+  cursor: grab;
 }
 
-@keyframes carousel-scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+.carousel-container:active {
+  cursor: grabbing;
+}
+
+.carousel-container.is-dragging {
+  cursor: grabbing;
+}
+
+/* Prevent text/image selection while dragging */
+.carousel-container.is-dragging * {
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
 }
 
 .carousel-mask {

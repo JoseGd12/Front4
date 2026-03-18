@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import {
   Scissors,
@@ -9,16 +9,146 @@ import {
   ChevronRight,
   ArrowRight,
   ShoppingBag,
-  MapPin
+  MapPin,
+  Award,
+  Users,
+  Calendar,
+  Heart,
+  Sparkles,
+  Trophy
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 import '../../../styles/landing.css';
 
 const LOGO_URL = manitoLogo;
+
+// ── Carousel hook: auto-scroll + drag-to-explore ──
+function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const hasMovedRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartOffsetRef = useRef(0);
+  const animFrameRef = useRef<number>(0);
+  const lastTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const track = trackRef.current;
+    const container = containerRef.current;
+    if (!track || !container) return;
+
+    lastTimeRef.current = 0;
+
+    const animate = (time: number) => {
+      if (lastTimeRef.current === 0) lastTimeRef.current = time;
+      const delta = time - lastTimeRef.current;
+      lastTimeRef.current = time;
+
+      if (!isDraggingRef.current) {
+        offsetRef.current -= speed * (delta / 16);
+      }
+
+      const hw = track.scrollWidth / 2;
+      if (hw > 0) {
+        while (offsetRef.current <= -hw) offsetRef.current += hw;
+        while (offsetRef.current > 0) offsetRef.current -= hw;
+      }
+
+      track.style.transform = `translateX(${offsetRef.current}px)`;
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animFrameRef.current = requestAnimationFrame(animate);
+
+    // ── Mouse drag ──
+    const onMouseDown = (e: MouseEvent) => {
+      isDraggingRef.current = true;
+      hasMovedRef.current = false;
+      dragStartXRef.current = e.clientX;
+      dragStartOffsetRef.current = offsetRef.current;
+      container.classList.add('is-dragging');
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      e.preventDefault();
+      const dx = e.clientX - dragStartXRef.current;
+      if (Math.abs(dx) > 3) hasMovedRef.current = true;
+      offsetRef.current = dragStartOffsetRef.current + dx;
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      container.classList.remove('is-dragging');
+    };
+
+    const onMouseLeave = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        container.classList.remove('is-dragging');
+      }
+    };
+
+    // Prevent accidental clicks after dragging
+    const onClick = (e: MouseEvent) => {
+      if (hasMovedRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    // ── Touch drag ──
+    const onTouchStart = (e: TouchEvent) => {
+      isDraggingRef.current = true;
+      hasMovedRef.current = false;
+      dragStartXRef.current = e.touches[0].clientX;
+      dragStartOffsetRef.current = offsetRef.current;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isDraggingRef.current) return;
+      const dx = e.touches[0].clientX - dragStartXRef.current;
+      if (Math.abs(dx) > 3) hasMovedRef.current = true;
+      offsetRef.current = dragStartOffsetRef.current + dx;
+    };
+
+    const onTouchEnd = () => {
+      isDraggingRef.current = false;
+    };
+
+    container.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    container.addEventListener('mouseleave', onMouseLeave);
+    container.addEventListener('click', onClick, true);
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: true });
+    container.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      container.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      container.removeEventListener('mouseleave', onMouseLeave);
+      container.removeEventListener('click', onClick, true);
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [speed, enabled]);
+
+  return { trackRef, containerRef };
+}
 
 
 const formatCurrency = (amount: number): string => amount.toLocaleString('es-CO');
@@ -41,6 +171,31 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [servicios, setServicios] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Carousel hooks — services scroll left, products scroll right
+  const servCarousel = useCarouselDrag(1, !loading);
+  const prodCarousel = useCarouselDrag(-1, !loading);
+
+  const lenisRef = useRef<Lenis | null>(null);
+
+  // Smooth scroll with Lenis
+  useEffect(() => {
+    const lenis = new Lenis({
+      autoRaf: true,
+      duration: 0.8,
+      lerp: 0.25,
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 2,
+    });
+
+    lenisRef.current = lenis;
+
+    return () => {
+      lenis.destroy();
+      lenisRef.current = null;
+    };
+  }, []);
 
   // Fetch data from API (Backend)
   useEffect(() => {
@@ -109,7 +264,15 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
 
   const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (lenisRef.current) {
+      lenisRef.current.scrollTo(`#${id}`, {
+        offset: 0,
+        immediate: false,
+        duration: 1.5,
+      });
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -133,10 +296,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             <button
               onClick={() => scrollToSection('inicio')}
               title="Ir al inicio"
-              className="flex items-center gap-4 hover:opacity-80 transition-opacity duration-300"
+              className="flex items-center gap-4 transition-all duration-300 group"
             >
               <img src={LOGO_URL} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-lg" />
-              <div className="text-3xl font-bold tracking-tight">Manito<span className="text-gradient">Barbershop</span></div>
+              <div className="text-3xl font-bold tracking-tight nav-link-hover">Manito<span>Barbershop</span></div>
             </button>
             {[
               { id: 'nosotros', label: 'Nosotros' },
@@ -146,7 +309,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className="text-base font-semibold text-gray-300 hover:text-[#d8b081] transition-all duration-300 uppercase tracking-wide relative group py-1"
+                className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
                 title={`Ir a ${item.label}`}
               >
                 {item.label}
@@ -159,18 +322,20 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             {isAuthenticated ? (
               <button
                 onClick={onRequestDashboard}
-                className="px-8 py-3 bg-[#d8b081] text-black border-2 border-[#d8b081] rounded-xl hover:bg-[#e8c091] hover:border-[#e8c091] transition-all duration-300 text-base font-semibold hover:scale-105 shadow-lg"
+                className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
                 title="Ir a mi panel de control"
               >
-                Inicio
+                Dashboard
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
               </button>
             ) : (
               <button
                 onClick={onRequestLogin}
-                className="px-8 py-3 border-2 border-white/20 rounded-xl hover:border-[#d8b081] hover:bg-[#d8b081]/10 transition-all duration-300 text-base font-semibold hover:scale-105 shadow-lg"
+                className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
                 title="Iniciar sesión en tu cuenta"
               >
                 Ingresar
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
               </button>
             )}
           </div>
@@ -215,111 +380,160 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       </header>
 
       {/* Nosotros Section */}
-      <section id="nosotros" className="section-padding relative overflow-hidden bg-[#090909] border-y border-white/5">
+      <section id="nosotros" className="nosotros-section relative overflow-hidden border-y border-white/5" style={{ padding: '5rem 0' }}>
+        {/* Decorative background elements */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[46rem] h-[46rem] rounded-full bg-[#d8b081]/8 blur-3xl" />
-          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
+          <div className="absolute bottom-20 left-[5%] w-96 h-96 rounded-full bg-[#d8b081]/3 blur-[120px]" style={{ animationDelay: '3s' }} />
         </div>
 
-        <div className="content-max-width relative z-10 space-y-14">
-          <div className="reveal-item text-center space-y-6">
-            <span className="text-xs font-black uppercase tracking-[0.7em] text-[#d8b081] block">Nosotros</span>
-            <h2 className="font-title font-bold uppercase tracking-tight text-6xl md:text-8xl lg:text-9xl leading-none">
-              <span className="text-gradient">Donde el estilo</span>
-              <span className="block text-gradient">se vuelve identidad</span>
+        <div className="content-max-width relative z-10">
+          {/* Título de sección */}
+          <div className="text-center mb-12 reveal-item">
+            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
+              Nosotros
             </h2>
-            <p className="max-w-3xl mx-auto text-base md:text-lg text-gray-300 leading-relaxed">
-              Somos una barberia ubicada en Bogota, dedicada al cuidado de la apariencia masculina desde el 1 de abril de 2023.
-              Con mas de 2 anos de trayectoria, nos hemos consolidado como un punto de referencia para quienes valoran precision, detalle y personalidad.
+            <p className="text-gray-400 max-w-2xl mx-auto text-base leading-relaxed mt-4">
+              Más de 2 años transformando estilos en el corazón de Bogotá
             </p>
+            <div className="nosotros-divider max-w-xs mx-auto mt-6" />
           </div>
 
-          <div className="grid lg:grid-cols-12 gap-8 items-stretch">
-            <div className="reveal-item lg:col-span-7 space-y-6">
-              <div className="rounded-3xl border border-[#d8b081]/25 bg-gradient-to-br from-[#171717] via-[#111] to-[#0b0b0b] p-8 md:p-10 shadow-[0_28px_80px_rgba(0,0,0,0.45)]">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-11 h-11 rounded-2xl bg-[#d8b081]/15 border border-[#d8b081]/30 flex items-center justify-center">
-                    <Star className="w-5 h-5 text-[#d8b081]" />
+          {/* Contenido en dos columnas */}
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+
+            {/* Columna izquierda: esencia + stats + CTA */}
+            <div className="reveal-item space-y-6 rounded-3xl">
+              {/* Card principal - Nuestra esencia */}
+              <div className="glass-card rounded-2xl p-8 md:p-10">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl icon-float flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 text-[#d8b081]" />
                   </div>
-                  <span className="text-[11px] uppercase tracking-[0.45em] text-gray-300 font-black">Nuestra esencia</span>
+                  <div>
+                    <span className="text-[21px] uppercase tracking-[0.5em] text-[#d8b081] font-black block">Nuestra esencia</span>
+                    <span className="text-xs text-gray-500">Desde abril 2023</span>
+                  </div>
                 </div>
 
-                <p className="text-gray-200 text-lg leading-relaxed mb-8">
+                <p className="text-gray-200 text-base leading-relaxed mb-8">
+                  Somos una barbería ubicada en Bogotá, dedicada al cuidado de la apariencia masculina.
                   Contamos con un equipo de
                   <span className="text-[#d8b081] font-black"> 6 colaboradores</span>,
                   entre ellos
                   <span className="text-[#d8b081] font-black"> 5 barberos especializados</span>.
-                  Cada servicio combina tecnica, criterio estilistico y atencion personalizada.
+                  Cada servicio combina técnica, criterio estilístico y atención 100% personalizada.
                 </p>
 
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-2xl bg-black/50 border border-white/10 p-5">
-                    <div className="text-[11px] uppercase tracking-[0.3em] text-gray-400 mb-2">Equipo</div>
-                    <div className="text-4xl font-black font-title text-white leading-none">5</div>
-                    <div className="text-sm text-gray-300 mt-2">Barberos profesionales</div>
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="stat-card rounded-2xl p-5 text-center">
+                    <div className="w-10 h-10 rounded-xl icon-float flex items-center justify-center mx-auto mb-3">
+                      <Users className="w-5 h-5 text-[#d8b081]" />
+                    </div>
+                    <div className="text-3xl font-black font-title text-white leading-none">5</div>
+                    <div className="text-xs text-gray-400 mt-2 uppercase tracking-wider font-semibold">Barberos profesionales</div>
                   </div>
-                  <div className="rounded-2xl bg-black/50 border border-white/10 p-5">
-                    <div className="text-[11px] uppercase tracking-[0.3em] text-gray-400 mb-2">Estructura</div>
-                    <div className="text-4xl font-black font-title text-white leading-none">6</div>
-                    <div className="text-sm text-gray-300 mt-2">Colaboradores en total</div>
+                  <div className="stat-card rounded-2xl p-5 text-center">
+                    <div className="w-10 h-10 rounded-xl icon-float flex items-center justify-center mx-auto mb-3">
+                      <Trophy className="w-5 h-5 text-[#d8b081]" />
+                    </div>
+                    <div className="text-3xl font-black font-title text-white leading-none">6</div>
+                    <div className="text-xs text-gray-400 mt-2 uppercase tracking-wider font-semibold">Colaboradores en total</div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-[#111]/80 p-6 md:p-7 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-                <p className="text-gray-300 text-sm md:text-base leading-relaxed">
-                  Tambien ofrecemos una linea completa de productos para el cuidado facial y capilar, junto con accesorios exclusivos.
-                </p>
+              {/* CTA Card */}
+              <div className="glass-card rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl icon-float flex items-center justify-center shrink-0">
+                    <Heart className="w-5 h-5 text-[#d8b081]" />
+                  </div>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    También ofrecemos productos para el cuidado facial, capilar y accesorios exclusivos.
+                  </p>
+                </div>
                 <button
                   onClick={() => scrollToSection('servicios')}
                   title="Conoce todos nuestros servicios disponibles"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#d8b081] text-black font-black text-sm uppercase tracking-wider rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 shrink-0"
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#d8b081] text-black font-black text-sm uppercase tracking-wider rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 shrink-0 shadow-[0_4px_20px_rgba(216,176,129,0.25)]"
                 >
-                  Conoce nuestros servicios <ArrowRight className="w-4 h-4" />
+                  Ver servicios <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="reveal-item lg:col-span-5" style={{ transitionDelay: '0.2s' }}>
-              <div className="h-full rounded-3xl border border-white/10 bg-[#121212]/90 p-7 md:p-8 backdrop-blur-sm shadow-[0_24px_64px_rgba(0,0,0,0.45)]">
-                <div className="mb-8">
-                  <span className="text-[11px] font-black uppercase tracking-[0.45em] text-[#d8b081] block mb-3">Datos clave</span>
-                  <h3 className="text-3xl font-title font-black uppercase tracking-tight text-white">Manito Barber</h3>
+            {/* Columna derecha: datos clave */}
+            <div className="reveal-item rounded-3xl" style={{ transitionDelay: '0.15s' }}>
+              <div className="glass-card rounded-2xl p-8 md:p-10 h-full">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-2xl icon-float flex items-center justify-center">
+                    <Award className="w-6 h-6 text-[#d8b081]" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-black uppercase tracking-[0.5em] text-[#d8b081] block">Datos clave</span>
+                    <h3 className="text-2xl font-title font-black uppercase tracking-tight text-white">Manito Barber</h3>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                  {/* Ubicación */}
+                  <div className="glass-card-dark rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-[#d8b081]/15 border border-[#d8b081]/25 flex items-center justify-center shrink-0">
+                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
                         <MapPin className="w-5 h-5 text-[#d8b081]" />
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-gray-400 mb-1">Ubicacion</p>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">📍 Ubicación</p>
                         <p className="text-lg font-bold text-white">Calle 79 #52-12</p>
-                        <p className="text-sm text-gray-300">Barrio El Bosque</p>
+                        <p className="text-sm text-gray-400 mt-0.5">Barrio El Bosque, Bogotá</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                  {/* Contacto */}
+                  <div className="glass-card-dark rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-[#d8b081]/15 border border-[#d8b081]/25 flex items-center justify-center shrink-0">
+                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
                         <Phone className="w-5 h-5 text-[#d8b081]" />
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-gray-400 mb-1">Contacto</p>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">📞 Contacto</p>
                         <p className="text-lg font-bold text-white">301 483 6189</p>
+                        <p className="text-sm text-gray-400 mt-0.5">Llámanos o escríbenos</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                  {/* Horario */}
+                  <div className="glass-card-dark rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-[#d8b081]/15 border border-[#d8b081]/25 flex items-center justify-center shrink-0">
+                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
+                        <Calendar className="w-5 h-5 text-[#d8b081]" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">🕐 Horario</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-sm font-semibold text-gray-300">Lun — Sáb</span>
+                          <span className="text-sm font-bold text-white">9:00 — 20:00</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-sm font-semibold text-gray-500">Domingo</span>
+                          <span className="text-sm font-semibold text-gray-500">Cerrado</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Equipo */}
+                  <div className="glass-card-dark rounded-2xl p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
                         <Scissors className="w-5 h-5 text-[#d8b081]" />
                       </div>
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-gray-400 mb-1">Equipo</p>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">✂️ Equipo</p>
                         <p className="text-sm text-gray-200 leading-relaxed">
                           5 barberos profesionales y personal administrativo a tu servicio.
                         </p>
@@ -329,6 +543,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -336,9 +551,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       {/* Supertítulo que abarca servicios y productos */}
       <div className="bg-[#0a0a0a] border-t border-white/5 pt-32 pb-8">
         <div className="content-max-width text-center reveal-item">
-          <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-gradient uppercase">
-            Lo que ofrecemos
-          </h2>
+          <div className="supertitle-wrapper">
+            <span className="supertitle-line" />
+            <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-gradient uppercase">
+              Lo que ofrecemos
+            </h2>
+            <span className="supertitle-line" />
+          </div>
           <p className="text-gray-400 max-w-xl mx-auto text-lg font-medium leading-relaxed italic mt-6">"La calidad es el único estándar que no admite compromisos."</p>
         </div>
       </div>
@@ -347,21 +566,21 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       <section id="servicios" className="pb-24 pt-16 border-white/5" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="content-max-width relative z-10">
           <div className="text-center mb-14 reveal-item">
-            <span className="text-xs font-black uppercase tracking-[0.6em] text-[#d8b081] mb-4 block">Servicios</span>
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
-              Nuestros Servicios
+
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase " style={{ marginTop: '4rem' }}>
+              Servicios
             </h3>
           </div>
         </div>
 
         {/* Carousel de Servicios */}
-        <div className="overflow-hidden carousel-mask">
+        <div ref={servCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
           {loading ? (
-            <div className="flex gap-6 px-8 justify-center">
+            <div className="flex gap-6 px-8 mb-12 justify-center">
               {[1, 2, 3].map(i => <div key={i} className="w-[380px] h-[420px] bg-zinc-900 animate-pulse rounded-2xl shrink-0"></div>)}
             </div>
           ) : (
-            <div className="carousel-track" style={{ '--carousel-duration': `${Math.max(30, servicios.length * 6)}s` } as React.CSSProperties}>
+            <div ref={servCarousel.trackRef} className="carousel-track">
               {[...servicios, ...servicios].map((servicio, idx) => (
                 <div key={`srv-${idx}`} className="w-[380px] shrink-0 px-3 group">
                   <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
@@ -393,7 +612,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                         title={`Reservar ${servicio.nombre} ahora`}
                         className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:bg-[#d8b081] hover:text-black hover:scale-105 transition-all duration-300 shadow-lg"
                       >
-                        Reservar Ahora
+                        Agendar Ahora
                       </button>
                     </div>
                   </div>
@@ -408,22 +627,22 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       <section id="productos" className="pb-24 pt-16 bg-[#0d0d0d]">
         <div className="content-max-width relative z-10">
           <div className="text-center mb-14 reveal-item">
-            <span className="text-xs font-black uppercase tracking-[0.6em] text-[#d8b081] mb-4 block">Tienda</span>
+
             <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
-              Nuestros Productos
+              Productos
             </h3>
-            <p className="text-gray-400 max-w-xl mx-auto text-lg leading-relaxed mt-4">Los mejores productos para el cuidado de tu imagen, disponibles para llevar a casa.</p>
+            <p className="text-gray-400 max-w-xl mx-auto text-lg leading-relaxed  mb-2">Reserva el producto que deseas y nosotros lo tendremos listo para ti en tu próxima visita.</p>
           </div>
         </div>
 
         {/* Carousel de Productos — dirección inversa */}
-        <div className="overflow-hidden carousel-mask">
+        <div ref={prodCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
           {loading ? (
             <div className="flex gap-6 px-8 justify-center">
               {[1, 2, 3].map(i => <div key={i} className="w-[380px] h-[380px] bg-zinc-900 animate-pulse rounded-2xl shrink-0"></div>)}
             </div>
           ) : (
-            <div className="carousel-track" style={{ '--carousel-duration': `${Math.max(30, productos.length * 6)}s`, animationDirection: 'reverse' } as React.CSSProperties}>
+            <div ref={prodCarousel.trackRef} className="carousel-track">
               {[...productos, ...productos].map((producto, idx) => (
                 <div key={`prod-${idx}`} className="w-[380px] shrink-0 px-3 group">
                   <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
