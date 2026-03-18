@@ -51,6 +51,8 @@ import { CategoriasPage } from "../../inventario/pages/CategoriasPage";
 import { EntregaInsumosPage } from "../../inventario/pages/EntregaInsumosPage";
 import { DevolucionesPage } from "../../ventas/pages/DevolucionesPage";
 import { RegistrarVentaPage } from "../../ventas/pages/RegistrarVentaPage";
+import { RegistrarDevolucionPage } from "../../ventas/pages/RegistrarDevolucionPage";
+import { RegistrarEntregaPage } from "../../inventario/pages/RegistrarEntregaPage";
 import { RolesPage } from "../../administracion/pages/RolesPage";
 import { UsersPage } from "../../administracion/pages/UsersPage";
 import manitoLogo from "../../../assets/Manito.jpeg";
@@ -97,6 +99,18 @@ const moduleInfo: Record<string, {
     description: "Gestión de devoluciones y reembolsos",
     icon: RotateCcw,
     color: "text-yellow-400"
+  },
+  "RegistrarDevolucion": {
+    title: "Devoluciones",
+    description: "Gestión de devoluciones y reembolsos",
+    icon: RotateCcw,
+    color: "text-yellow-400"
+  },
+  "RegistrarEntrega": {
+    title: "Entregas de Insumos",
+    description: "Gestión de entregas de insumos",
+    icon: Truck,
+    color: "text-green-400"
   },
   "Proveedores": {
     title: "Proveedores",
@@ -389,7 +403,9 @@ export function Dashboard() {
       case "Barberos":
         return <BarberosPage />;
       case "Entregas de Insumos":
-        return <EntregaInsumosPage />;
+        return <EntregaInsumosPage onNavigate={(page: string) => setActivePage(page)} />;
+      case "RegistrarEntrega":
+        return <RegistrarEntregaPage onBack={() => setActivePage("Entregas de Insumos")} />;
       case "Servicios":
         return <ServiciosPage />;
       case "Paquetes":
@@ -403,7 +419,9 @@ export function Dashboard() {
       case "RegistrarCompra":
         return <RegistrarCompraPage onBack={() => setActivePage("Compras")} />;
       case "Devoluciones":
-        return <DevolucionesPage />;
+        return <DevolucionesPage onNavigate={(page: string) => setActivePage(page)} />;
+      case "RegistrarDevolucion":
+        return <RegistrarDevolucionPage onBack={() => setActivePage("Devoluciones")} />;
       case "Proveedores":
         return <ProveedoresPage />;
       case "Productos":
@@ -627,7 +645,7 @@ export function Dashboard() {
             />
             <div
               className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${
-                activePage === "RegistrarVenta" || activePage === "RegistrarCompra"
+                activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion" || activePage === "RegistrarEntrega"
                   ? "overflow-hidden flex flex-col"
                   : "overflow-y-auto"
               }`}

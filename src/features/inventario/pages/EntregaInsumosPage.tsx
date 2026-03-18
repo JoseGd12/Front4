@@ -60,7 +60,11 @@ const getFullName = (nombre?: string, apellido?: string) => {
 import { useAuth } from "../../../shared/contexts/AuthContext"; // Import newly added
 import manitoLogo from "../../../assets/Manito.jpeg";
 
-export function EntregaInsumosPage() {
+interface EntregaInsumosPageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {}) {
   const { user } = useAuth(); // Get user from context
   const { confirmDeleteAction, confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
 
@@ -1126,22 +1130,21 @@ export function EntregaInsumosPage() {
 
   return (
     <>
-      {/* Header */}
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Entrega de Insumos a Barberos</h1>
-            <p className="text-sm text-gray-lightest mt-1">Gestión y control de entregas de insumos al personal</p>
-          </div>
-
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         {/* Sección Principal */}
         <div className="elegante-card">
           <TableHeaderSection
             leftContent={(
+              <>
+              {onNavigate ? (
+                <button
+                  onClick={() => onNavigate("RegistrarEntrega")}
+                  className="elegante-button-primary gap-2 flex items-center"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nueva Entrega
+                </button>
+              ) : (
               <Dialog
                 open={isDialogOpen}
                 onOpenChange={(open) => {
@@ -1669,6 +1672,8 @@ export function EntregaInsumosPage() {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
+              </>
             )}
             searchValue={searchTerm}
             onSearchChange={(value) => {
@@ -1697,11 +1702,11 @@ export function EntregaInsumosPage() {
             <table className="w-full">
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Número</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Total Insumos</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total Insumos</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
@@ -1721,35 +1726,28 @@ export function EntregaInsumosPage() {
                   />
                 ) : displayedEntregas.map((entrega) => (
                   <tr key={entrega.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
                         <Hash className="w-4 h-4 text-orange-primary" />
                         <span className="text-gray-lighter">
                           {String(entrega.id)}
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-lighter">
-                          {`CC ${String((entrega as any).barberoDocumento || getBarberoDocumentoById((entrega as any).barberoId) || '')}`}
-                        </span>
-                      </div>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter">
+                        {`CC ${String((entrega as any).barberoDocumento || getBarberoDocumentoById((entrega as any).barberoId) || '')}`}
+                      </span>
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
-                          <UserIcon className="w-5 h-5 text-gray-lightest" />
-                        </div>
-                        <span className="text-gray-lighter">
-                          {getBarberoNombreById((entrega as any).barberoId)}
-                        </span>
-                      </div>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter">
+                        {getBarberoNombreById((entrega as any).barberoId)}
+                      </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 text-center">
                       <span className="text-gray-lighter">{entrega.cantidadTotal} unidades</span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 text-center">
                       <span className="text-sm text-gray-lighter">{formatDate(entrega.fecha || generateCurrentDate())}</span>
                     </td>
                     <td className="py-4 px-4 text-center">
@@ -1757,7 +1755,7 @@ export function EntregaInsumosPage() {
                         {getEstadoDisplay(entrega.estado || '')}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button
                             onClick={() => !isAnuladaEstado(entrega.estado || '') && handleAnularClick(entrega)}

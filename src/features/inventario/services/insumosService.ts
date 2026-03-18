@@ -43,6 +43,18 @@ const inferNumberByKeyMatch = (
 };
 
 class InsumosService {
+  private extractArray(data: any): any[] {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') {
+      if (Array.isArray(data.$values)) return data.$values;
+      if (Array.isArray(data.items)) return data.items;
+      if (Array.isArray(data.data)) return data.data;
+      if (data.data && Array.isArray(data.data.$values)) return data.data.$values;
+      if (data.items && Array.isArray(data.items.$values)) return data.items.$values;
+    }
+    return [];
+  }
+
   private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const url = `${API_BASE_URL}${endpoint}`;
 
@@ -76,11 +88,13 @@ class InsumosService {
       const text = await response.text();
       const raw = text ? JSON.parse(text) : [];
 
-      if (Array.isArray(raw) && raw.length > 0) {
-        console.log('🧪 Producto raw[0] desde API:', raw[0]);
+      const rawArray = this.extractArray(raw);
+
+      if (rawArray.length > 0) {
+        console.log('🧪 Producto raw[0] desde API:', rawArray[0]);
       }
 
-      const data: Insumo[] = (Array.isArray(raw) ? raw : []).map((p: any) => {
+      const data: Insumo[] = rawArray.map((p: any) => {
         const categoria = (() => {
           if (typeof p?.categoria === 'string') return p.categoria;
           const candidates = [

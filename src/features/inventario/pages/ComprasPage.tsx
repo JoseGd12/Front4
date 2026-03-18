@@ -1577,16 +1577,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
 
   return (
     <>
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Gestión de Compras</h1>
-            <p className="text-sm text-gray-lightest mt-1">Control y seguimiento de compras a proveedores</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {/* Stats removed/hidden */}
         </div>

@@ -139,7 +139,11 @@ interface SaldoCliente {
 // DevolucionesPage component
 
 
-export function DevolucionesPage() {
+interface DevolucionesPageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const { user } = useAuth();
   const { created, success, error: showErrorAlert, info: showInfoAlert, warning: showWarningAlert, AlertContainer } = useCustomAlert();
   const { confirmCreateAction, confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
@@ -1450,74 +1454,7 @@ export function DevolucionesPage() {
 
   return (
     <>
-      {/* Header */}
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Gestión de Devoluciones</h1>
-            <p className="text-sm text-gray-lightest mt-1">Control y seguimiento de devoluciones de productos con saldo a favor acumulativo</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Popover open={isPdfPopoverOpen} onOpenChange={setIsPdfPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  className="elegante-button-primary gap-2 flex items-center hover:scale-105 transition-transform"
-                  title="Generar reporte de devoluciones en Excel por rango de fechas"
-                >
-                  <Download className="w-4 h-4" />
-                  Reporte Excel
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 bg-gray-darkest border-gray-dark">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-white-primary mb-2">Generar Reporte de Devoluciones</h4>
-                    <p className="text-sm text-gray-lightest">Selecciona el rango de fechas para el reporte en Excel</p>
-                    <p className="text-xs text-orange-primary mt-1">✓ Sin límite de rango de fechas</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-white-primary text-sm mb-2 block">Fecha Inicio</Label>
-                      <Input
-                        type="date"
-                        value={customStartDate}
-                        onChange={(e) => setCustomStartDate(e.target.value)}
-                        className="elegante-input"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-white-primary text-sm mb-2 block">Fecha Fin</Label>
-                      <Input
-                        type="date"
-                        value={customEndDate}
-                        onChange={(e) => setCustomEndDate(e.target.value)}
-                        className="elegante-input"
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (customStartDate && customEndDate) {
-                          generateExcelReport('custom', customStartDate, customEndDate);
-                        } else {
-                          showErrorAlert("Fechas requeridas", "Por favor selecciona ambas fechas.");
-                        }
-                      }}
-                      disabled={isGeneratingReport}
-                      className="elegante-button-primary w-full p-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Download className={`w-4 h-4 ${isGeneratingReport ? 'animate-bounce' : ''}`} />
-                      {isGeneratingReport ? 'Generando...' : 'Generar Reporte'}
-                    </button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         {/* Stats Cards */}
         <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="elegante-card text-center">
@@ -1551,16 +1488,76 @@ export function DevolucionesPage() {
         <div className="elegante-card">
           <TableHeaderSection
             leftContent={(
+              <div className="flex items-center gap-3">
               <button
                 onClick={() => {
-                  setShowDevolucionFormErrors(false);
-                  setIsDialogOpen(true);
+                  if (onNavigate) {
+                    onNavigate("RegistrarDevolucion");
+                  } else {
+                    setShowDevolucionFormErrors(false);
+                    setIsDialogOpen(true);
+                  }
                 }}
                 className="elegante-button-primary gap-2 flex items-center"
               >
                 <Plus className="w-4 h-4" />
                 Nueva Devolución
               </button>
+              <Popover open={isPdfPopoverOpen} onOpenChange={setIsPdfPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="elegante-button-secondary gap-2 flex items-center"
+                    title="Generar reporte de devoluciones en Excel"
+                  >
+                    <Download className="w-4 h-4" />
+                    Reporte Excel
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 bg-gray-darkest border-gray-dark">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold text-white-primary mb-2">Generar Reporte de Devoluciones</h4>
+                      <p className="text-sm text-gray-lightest">Selecciona el rango de fechas para el reporte en Excel</p>
+                      <p className="text-xs text-orange-primary mt-1">Sin límite de rango de fechas</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-white-primary text-sm mb-2 block">Fecha Inicio</Label>
+                        <Input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="elegante-input"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-white-primary text-sm mb-2 block">Fecha Fin</Label>
+                        <Input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          className="elegante-input"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (customStartDate && customEndDate) {
+                            generateExcelReport('custom', customStartDate, customEndDate);
+                          } else {
+                            showErrorAlert("Fechas requeridas", "Por favor selecciona ambas fechas.");
+                          }
+                        }}
+                        disabled={isGeneratingReport}
+                        className="elegante-button-primary w-full p-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Download className={`w-4 h-4 ${isGeneratingReport ? 'animate-bounce' : ''}`} />
+                        {isGeneratingReport ? 'Generando...' : 'Generar Reporte'}
+                      </button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              </div>
             )}
             searchValue={searchTerm}
             onSearchChange={(value) => {
@@ -1690,8 +1687,12 @@ export function DevolucionesPage() {
                     extraAction={(
                       <button
                         onClick={() => {
-                          setShowDevolucionFormErrors(false);
-                          setIsDialogOpen(true);
+                          if (onNavigate) {
+                            onNavigate("RegistrarDevolucion");
+                          } else {
+                            setShowDevolucionFormErrors(false);
+                            setIsDialogOpen(true);
+                          }
                         }}
                         className="elegante-button-primary gap-2 flex items-center"
                       >
