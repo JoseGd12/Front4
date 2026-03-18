@@ -27,6 +27,7 @@ import {
   LayoutGrid,
   Eye,
   AtSign,
+  Home,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
@@ -232,7 +233,11 @@ const menuSections = [
 // Lista de todos los labels del menú para fallback cuando la API de módulos falla
 const ALL_MENU_LABELS = menuSections.flatMap((s) => s.items.map((i) => i.label));
 
-export function Dashboard() {
+interface DashboardProps {
+  onBackToLanding?: () => void;
+}
+
+export function Dashboard({ onBackToLanding }: DashboardProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -582,6 +587,23 @@ export function Dashboard() {
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                {onBackToLanding && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onBackToLanding}
+                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
+                        title="Volver a la landing"
+                      >
+                        <Home className="w-5 h-5 text-orange-primary" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>Volver al inicio</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             </div>
           </div>

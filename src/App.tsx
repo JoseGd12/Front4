@@ -25,7 +25,11 @@ function AppContent() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      setPublicView("landing");
+      if (isAdmin()) {
+        setPublicView("dashboard");
+      } else {
+        setPublicView("landing");
+      }
     }
 
     // Solución REAL: Detectar parámetros y ruta de recuperación/verificación
@@ -158,7 +162,24 @@ function AppContent() {
   }
 
   if (isAdmin()) {
-    return <Dashboard />;
+    if (publicView === "landing") {
+      return (
+        <LandingPage
+          onRequestLogin={() => setPublicView("login")}
+          onRequestRegister={() => setPublicView("register")}
+          onRequestDashboard={() => setPublicView("dashboard")}
+          onSelectReservation={(item) => {
+            setInitialReservation(item);
+            setPublicView("dashboard");
+          }}
+        />
+      );
+    }
+    return (
+      <Dashboard
+        onBackToLanding={() => setPublicView("landing")}
+      />
+    );
   }
 
   if (isCliente()) {

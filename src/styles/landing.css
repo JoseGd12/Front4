@@ -123,3 +123,44 @@ body {
 .landing-page-container::-webkit-scrollbar-thumb:hover {
   background: var(--primary-gold);
 }
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Section Titles ── */
+.section-title-fill {
+  font-size: clamp(3rem, 10vw, 10rem);
+  width: 100%;
+  display: block;
+}
+
+.section-supertitle {
+  font-size: clamp(3.5rem, 12vw, 13rem);
+  width: 100%;
+  display: block;
+}
+
+/* ── Infinite Carousel ── */
+.carousel-track {
+  display: flex;
+  width: max-content;
+  animation: carousel-scroll var(--carousel-duration, 40s) linear infinite;
+}
+
+.carousel-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes carousel-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.carousel-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+}
