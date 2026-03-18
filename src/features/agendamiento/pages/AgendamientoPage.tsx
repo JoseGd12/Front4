@@ -45,7 +45,12 @@ const formatearPrecio = (precio: number): string => {
   return `$ ${precioEntero.toLocaleString('es-CO')}`;
 };
 
-export function AgendamientoPage() {
+interface AgendamientoPageProps {
+  initialItem?: any;
+  onClearInitialItem?: () => void;
+}
+
+export function AgendamientoPage({ initialItem, onClearInitialItem }: AgendamientoPageProps) {
   const { user } = useAuth();
   const { success, error, AlertContainer } = useCustomAlert();
   const [citas, setCitas] = useState<any[]>([]);
@@ -59,11 +64,23 @@ export function AgendamientoPage() {
   const [horariosList, setHorariosList] = useState<any[]>([]);
 
   const [currentWeek, setCurrentWeek] = useState(0);
+  const [lastInitialItemKey, setLastInitialItemKey] = useState("");
 
   // Cargar datos al montar el componente
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!initialItem || isLoading) return;
+    if (serviciosList.length === 0 && paquetesList.length === 0) return;
+
+    const key = `${initialItem.type || initialItem.tipoItem || "servicio"}-${initialItem.id || "0"}`;
+    if (key === lastInitialItemKey) return;
+
+    applyInitialReservationItem(initialItem);
+    setLastInitialItemKey(key);
+  }, [initialItem, isLoading, serviciosList, paquetesList, lastInitialItemKey]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -134,6 +151,98 @@ export function AgendamientoPage() {
   const [barberoFormSearchTerm, setBarberoFormSearchTerm] = useState('');
   const [showBarberoFormResults, setShowBarberoFormResults] = useState(false);
   const [showFormErrors, setShowFormErrors] = useState(false);
+
+  const getAutoDateTime = () => {
+    const now = new Date();
+    const future = new Date(now.getTime() + (60 * 60 * 1000));
+    let hours = future.getHours();
+    let minutes = future.getMinutes();
+    let targetDate = now;
+
+    if (minutes < 15) {
+      minutes = 0;
+    } else if (minutes < 45) {
+      minutes = 30;
+    } else {
+      minutes = 0;
+      hours += 1;
+    }
+
+    if (hours >= 22 || (hours === 21 && minutes > 30)) {
+      targetDate = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+      hours = 11;
+      minutes = 0;
+    } else if (hours < 9) {
+      hours = 11;
+      minutes = 0;
+    }
+
+    const fecha = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}-${String(targetDate.getDate()).padStart(2, "0")}`;
+    const hora = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    return { fecha, hora, hours };
+  };
+
+  const applyInitialReservationItem = (item: any) => {
+    if (!item) return;
+
+    const isPaquete = item.type === "paquete" || item.tipoItem === "paquete";
+    const itemId = Number(item.id || 0);
+    if (!itemId) return;
+
+    let precio = Number(item.precio || 0);
+    let duracion = Number(item.duracion || 60);
+
+    if (isPaquete) {
+      const paquete = paquetesList.find((p) => Number(p.id) === itemId);
+      if (paquete) {
+        precio = Number(paquete.precio || precio || 0);
+        duracion = Number(paquete.duracion || duracion || 60);
+      }
+    } else {
+      const servicio = serviciosList.find((s) => Number(s.id) === itemId);
+      if (servicio) {
+        precio = Number(servicio.precio || precio || 0);
+        duracion = Number(servicio.duracion || duracion || 60);
+      }
+    }
+
+    const { fecha, hora, hours } = getAutoDateTime();
+    const dayLabels = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const dayName = dayLabels[new Date(`${fecha}T12:00:00`).getDay()] || "Reserva";
+
+    setSelectedSlot({
+      dia: dayName,
+      hora: hours,
+      fecha
+    });
+
+    setSelectedCita(null);
+    setShowFormErrors(false);
+    setClienteSearchTerm("");
+    setBarberoFormSearchTerm("");
+
+    setNuevaCita({
+      clienteId: 0,
+      cliente: '',
+      telefono: '',
+      servicioId: isPaquete ? null : itemId,
+      servicioIds: isPaquete ? [] : [itemId],
+      paqueteId: isPaquete ? itemId : null,
+      servicio: String(item.nombre || ''),
+      barberoId: 0,
+      barbero: '',
+      fecha,
+      hora,
+      duracion,
+      precio,
+      estado: 'Pendiente',
+      notas: ''
+    });
+
+    setActiveTab("crear");
+    setIsSlotModalOpen(true);
+    onClearInitialItem?.();
+  };
 
   // Helper: obtener el lunes de una semana dada
   const getMondayOfWeek = (weekOffset: number) => {

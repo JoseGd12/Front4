@@ -177,6 +177,8 @@ function AppContent() {
     }
     return (
       <Dashboard
+        initialItem={initialReservation}
+        onClearInitialItem={() => setInitialReservation(null)}
         onBackToLanding={() => setPublicView("landing")}
       />
     );

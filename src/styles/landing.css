@@ -73,6 +73,46 @@
   left: 100%;
 }
 
+/* CTA hover dorado para acciones principales */
+.gold-hover-transition {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    color 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.35s ease,
+    background-color 0.35s ease;
+}
+
+.gold-hover-transition::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    115deg,
+    rgba(216, 176, 129, 0.18) 0%,
+    rgba(216, 176, 129, 0.78) 45%,
+    rgba(232, 192, 145, 1) 100%
+  );
+  transform: translateX(-110%) skewX(-12deg);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gold-hover-transition:hover {
+  color: #050505;
+  border-color: #d8b081;
+  box-shadow:
+    0 0 0 1px rgba(216, 176, 129, 0.55),
+    0 12px 34px rgba(216, 176, 129, 0.28);
+}
+
+.gold-hover-transition:hover::before {
+  transform: translateX(0) skewX(-12deg);
+}
+
 @keyframes slow-zoom {
   0% {
     transform: scale(1);

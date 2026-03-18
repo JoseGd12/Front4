@@ -48,6 +48,9 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
 
     lastTimeRef.current = 0;
 
+    const isNoDragTarget = (target: EventTarget | null) =>
+      target instanceof Element && Boolean(target.closest('[data-carousel-no-drag="true"]'));
+
     const animate = (time: number) => {
       if (lastTimeRef.current === 0) lastTimeRef.current = time;
       const delta = time - lastTimeRef.current;
@@ -71,6 +74,7 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
 
     // ── Mouse drag ──
     const onMouseDown = (e: MouseEvent) => {
+      if (isNoDragTarget(e.target)) return;
       isDraggingRef.current = true;
       hasMovedRef.current = false;
       dragStartXRef.current = e.clientX;
@@ -80,6 +84,12 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
 
     const onMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return;
+      if (isNoDragTarget(e.target)) {
+        isDraggingRef.current = false;
+        hasMovedRef.current = false;
+        container.classList.remove('is-dragging');
+        return;
+      }
       e.preventDefault();
       const dx = e.clientX - dragStartXRef.current;
       if (Math.abs(dx) > 3) hasMovedRef.current = true;
@@ -108,6 +118,7 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
 
     // ── Touch drag ──
     const onTouchStart = (e: TouchEvent) => {
+      if (isNoDragTarget(e.target)) return;
       isDraggingRef.current = true;
       hasMovedRef.current = false;
       dragStartXRef.current = e.touches[0].clientX;
@@ -116,6 +127,12 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
 
     const onTouchMove = (e: TouchEvent) => {
       if (!isDraggingRef.current) return;
+      if (isNoDragTarget(e.target)) {
+        isDraggingRef.current = false;
+        hasMovedRef.current = false;
+        container.classList.remove('is-dragging');
+        return;
+      }
       const dx = e.touches[0].clientX - dragStartXRef.current;
       if (Math.abs(dx) > 3) hasMovedRef.current = true;
       offsetRef.current = dragStartOffsetRef.current + dx;
@@ -602,7 +619,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       </div>
                       <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
                       <button
-                        onClick={() => {
+                        data-carousel-no-drag="true"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (isAuthenticated) {
                             onSelectReservation?.(servicio);
                           } else {
@@ -610,7 +631,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                           }
                         }}
                         title={`Reservar ${servicio.nombre} ahora`}
-                        className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:bg-[#d8b081] hover:text-black hover:scale-105 transition-all duration-300 shadow-lg"
+                        className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
                       >
                         Agendar Ahora
                       </button>

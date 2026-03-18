@@ -235,15 +235,18 @@ const ALL_MENU_LABELS = menuSections.flatMap((s) => s.items.map((i) => i.label))
 
 interface DashboardProps {
   onBackToLanding?: () => void;
+  initialItem?: any;
+  onClearInitialItem?: () => void;
 }
 
-export function Dashboard({ onBackToLanding }: DashboardProps) {
+export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: DashboardProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const [activePage, setActivePage] = useState("Dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
+  const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
 
   const roleLabel =
     user?.role === "super_admin"
@@ -307,6 +310,12 @@ export function Dashboard({ onBackToLanding }: DashboardProps) {
 
     fetchModules();
   }, [user]);
+
+  useEffect(() => {
+    if (!initialItem) return;
+    setPreSelectedReservation(initialItem);
+    setActivePage("Agendamientos");
+  }, [initialItem]);
 
   function getFallbackModulesForRole(role: string | undefined): string[] {
     const r = (role || "").toLowerCase();
@@ -403,7 +412,15 @@ export function Dashboard({ onBackToLanding }: DashboardProps) {
       case "Dashboard":
         return <DashboardPage />;
       case "Agendamientos":
-        return <AgendamientoPage />;
+        return (
+          <AgendamientoPage
+            initialItem={preSelectedReservation}
+            onClearInitialItem={() => {
+              setPreSelectedReservation(null);
+              onClearInitialItem?.();
+            }}
+          />
+        );
       case "Horarios":
         return <HorariosPage />;
       case "Barberos":

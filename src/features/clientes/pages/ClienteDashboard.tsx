@@ -14,7 +14,8 @@ import {
   Package,
   AtSign,
   Search,
-  X
+  X,
+  Home
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
@@ -180,17 +181,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 </div>
                 <div className="min-w-0">
                   <h1 className="text-lg font-bold text-white-primary truncate">MANITO BARBERSHOP</h1>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-gray-lighter font-medium truncate">Panel de Clientes</p>
-                    {onBackToLanding && (
-                      <button 
-                        onClick={onBackToLanding}
-                        className="text-[10px] text-orange-primary hover:underline font-bold uppercase tracking-tighter"
-                      >
-                        • Volver al Inicio
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-xs text-gray-lighter font-medium truncate">Panel de Clientes</p>
                 </div>
               </div>
 
@@ -270,6 +261,23 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
+
+                {onBackToLanding && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onBackToLanding}
+                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
+                        title="Volver a la landing"
+                      >
+                        <Home className="w-5 h-5 text-orange-primary" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>Volver al inicio</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             </div>
           </div>
