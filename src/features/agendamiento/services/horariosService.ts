@@ -157,11 +157,59 @@ class HorariosService {
         });
     }
 
-    async toggleEstado(id: number, estado: boolean): Promise<void> {
-        await this.request(`/HorariosBarberos/${id}/estado`, {
+    async toggleEstado(id: number, estado: boolean, options?: {
+        usuarioSolicitanteId?: number;
+        fechaReferencia?: string;
+        motivo?: string;
+        cantidadSugerencias?: number;
+    }): Promise<any> {
+        const payload: any = {
+            estado
+        };
+
+        if (!estado) {
+            if (options?.usuarioSolicitanteId) {
+                payload.UsuarioSolicitanteId = Number(options.usuarioSolicitanteId);
+            }
+            if (options?.fechaReferencia) {
+                payload.FechaReferencia = options.fechaReferencia;
+            }
+            if (options?.motivo) {
+                payload.Motivo = options.motivo;
+            }
+            payload.CantidadSugerencias = options?.cantidadSugerencias && options.cantidadSugerencias > 0
+                ? Number(options.cantidadSugerencias)
+                : 3;
+        }
+
+        const response = await this.request(`/HorariosBarberos/${id}/estado`, {
             method: 'POST',
-            body: JSON.stringify({ estado }),
+            body: JSON.stringify(payload),
         });
+        const text = await response.text();
+        return text ? JSON.parse(text) : {};
+    }
+
+    async cancelarDiaPorBarbero(barberoId: number, options: {
+        usuarioSolicitanteId: number;
+        fechaReferencia: string;
+        motivo?: string;
+        cantidadSugerencias?: number;
+    }): Promise<any> {
+        const payload: any = {
+            UsuarioSolicitanteId: Number(options.usuarioSolicitanteId),
+            FechaReferencia: options.fechaReferencia,
+            Motivo: options.motivo,
+            CantidadSugerencias: options.cantidadSugerencias && options.cantidadSugerencias > 0
+                ? Number(options.cantidadSugerencias)
+                : 3
+        };
+        const response = await this.request(`/HorariosBarberos/barbero/${barberoId}/cancelar-dia`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        const text = await response.text();
+        return text ? JSON.parse(text) : {};
     }
 }
 

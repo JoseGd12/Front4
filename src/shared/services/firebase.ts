@@ -16,15 +16,22 @@ import {
   ActionCodeSettings
 } from "firebase/auth";
 
-// Configuración de Firebase - Proyecto: appbarber-845d7
+const requiredFirebaseEnv = (key: string): string => {
+  const envValue = (import.meta.env as unknown as Record<string, string | undefined>)[key];
+  if (!envValue || !String(envValue).trim()) {
+    throw new Error(`Falta la variable de entorno ${key} para inicializar Firebase.`);
+  }
+  return envValue;
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCa6o15lvjvVMMY82cBd1kTV-AOQLh1qWU",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "appbarber-845d7.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "appbarber-845d7",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "appbarber-845d7.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "309607252500",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:309607252500:web:e78174aaa828a28c3fdd01",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-6RC0F5GYGC"
+  apiKey: requiredFirebaseEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: requiredFirebaseEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: requiredFirebaseEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: requiredFirebaseEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: requiredFirebaseEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: requiredFirebaseEnv("VITE_FIREBASE_APP_ID"),
+  measurementId: requiredFirebaseEnv("VITE_FIREBASE_MEASUREMENT_ID")
 };
 
 // Inicializar Firebase

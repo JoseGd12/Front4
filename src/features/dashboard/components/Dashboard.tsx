@@ -26,14 +26,19 @@ import {
   Moon,
   LayoutGrid,
   Eye,
-  Search,
-  X
+  AtSign,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "../../../shared/components/ui/dropdown-menu";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
-import { Input } from "../../../shared/components/ui/input";
 import logo from "../assets/a51cd14e3664f3752eaa436dadb14492d91e40aa.png";
 import { DashboardPage } from "../pages/DashboardPage";
 import { AgendamientoPage } from "../../agendamiento/pages/AgendamientoPage";
@@ -234,7 +239,27 @@ export function Dashboard() {
   const [activePage, setActivePage] = useState("Dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
-  const [sidebarSearch, setSidebarSearch] = useState("");
+
+  const roleLabel =
+    user?.role === "super_admin"
+      ? "Super Administrador"
+      : user?.role === "admin"
+        ? "Administrador"
+        : user?.role
+          ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+          : "Usuario";
+
+  const displayGreetingName = String(user?.name || "Usuario").trim().split(" ")[0] || "Usuario";
+
+  const handleSwitchAccount = async () => {
+    sessionStorage.setItem("barbershop_post_logout_view", "login");
+    await logout();
+  };
+
+  const handleLogout = async () => {
+    sessionStorage.setItem("barbershop_post_logout_view", "landing");
+    await logout();
+  };
 
   const [allowedModules, setAllowedModules] = useState<string[]>([]);
   const [loadingModules, setLoadingModules] = useState(true);
@@ -334,30 +359,6 @@ export function Dashboard() {
       })
     };
   }).filter(section => section.items.length > 0);
-
-  const normalizedSidebarSearch = sidebarSearch
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
-
-  const searchMatchesLabel = (label: string) => {
-    if (!normalizedSidebarSearch) return true;
-    const normalizedLabel = label
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-    return normalizedLabel.includes(normalizedSidebarSearch);
-  };
-
-  const searchedMenuSections = normalizedSidebarSearch
-    ? filteredMenuSections
-        .map((section) => ({
-          ...section,
-          items: section.items.filter((item) => searchMatchesLabel(item.label)),
-        }))
-        .filter((section) => section.items.length > 0)
-    : filteredMenuSections;
 
   const renderNavItem = (item: any) => {
     const Icon = item.icon;
@@ -493,26 +494,6 @@ export function Dashboard() {
                   <p>{sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}</p>
                 </TooltipContent>
               </Tooltip>
-
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter" />
-                <Input
-                  value={sidebarSearch}
-                  onChange={(e) => setSidebarSearch(e.target.value)}
-                  placeholder="Buscar módulo..."
-                  className="elegante-input pl-10 w-full"
-                />
-                {sidebarSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setSidebarSearch("")}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
             </div>
 
             <div className="flex-1 px-6 lg:px-8 flex items-center justify-between gap-6">
@@ -539,37 +520,68 @@ export function Dashboard() {
                   )}
                 </button>
 
-                <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark">
-                  <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark">
-                    <ImageRenderer
-                      url={user?.fotoPerfil}
-                      className="w-full h-full object-cover"
-                      alt={user?.name}
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <p className="text-sm font-semibold text-white-primary">{user?.name || "Usuario"}</p>
-                    <p className="text-xs text-gray-lighter">
-                      {user?.role === 'super_admin' ? 'Super Administrador' : user?.role === 'admin' ? 'Administrador' : user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Usuario'}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setIsUserDetailOpen(true)}
-                  className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-                  title="Ver detalles del usuario"
-                >
-                  <Eye className="w-5 h-5 text-orange-primary" />
-                </button>
-
-                <button
-                  onClick={logout}
-                  className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-                  title="Cerrar Sesión"
-                >
-                  <LogOut className="w-5 h-5 text-orange-primary" />
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark hover:bg-gray-darker transition-colors"
+                      title="Cuenta"
+                      type="button"
+                    >
+                      <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark shrink-0">
+                        <ImageRenderer
+                          url={user?.fotoPerfil}
+                          className="w-full h-full object-cover"
+                          alt={user?.name}
+                        />
+                      </div>
+                      <div className="hidden md:flex flex-col text-left min-w-0">
+                        <p className="text-sm font-semibold text-white-primary truncate">{user?.name || "Usuario"}</p>
+                        <p className="text-xs text-gray-lighter truncate">{roleLabel}</p>
+                      </div>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-80 bg-gray-darkest border-gray-dark text-white-primary p-0 rounded-xl shadow-2xl"
+                  >
+                    <div className="px-4 pt-4 pb-3 text-center">
+                      <p className="text-lg font-semibold text-white-primary">¡Hola, {displayGreetingName}!</p>
+                      <span className="inline-flex mt-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-primary text-black-primary">
+                        {roleLabel}
+                      </span>
+                      {user?.email ? (
+                        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-lighter">
+                          <AtSign className="w-4 h-4 text-gray-lighter shrink-0" />
+                          <p className="truncate">{user.email}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                    <DropdownMenuSeparator className="bg-gray-dark -mx-0 my-0" />
+                    <div className="p-2">
+                      <DropdownMenuItem
+                        onSelect={() => setIsUserDetailOpen(true)}
+                        className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
+                      >
+                        <Eye className="w-4 h-4 text-orange-primary" />
+                        Detalles de usuario
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => void handleSwitchAccount()}
+                        className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
+                      >
+                        <User className="w-4 h-4 text-orange-primary" />
+                        Cambiar de cuenta
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => void handleLogout()}
+                        className="cursor-pointer text-red-400 focus:bg-red-500/10 focus:text-red-300 rounded-lg"
+                      >
+                        <LogOut className="w-4 h-4 text-red-400" />
+                        Cerrar sesión
+                      </DropdownMenuItem>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
@@ -595,21 +607,19 @@ export function Dashboard() {
               {sidebarCollapsed ? (
                 <div className="space-y-1">
                   {/* Dashboard independiente */}
-                  {(!normalizedSidebarSearch || searchMatchesLabel("Dashboard")) &&
-                    renderNavItem({ icon: LayoutGrid, label: "Dashboard", page: "Dashboard" })}
+                  {renderNavItem({ icon: LayoutGrid, label: "Dashboard", page: "Dashboard" })}
                   {/* Otros módulos filtrados */}
-                  {searchedMenuSections.flatMap(section => section.items).map(renderNavItem)}
+                  {filteredMenuSections.flatMap(section => section.items).map(renderNavItem)}
                 </div>
               ) : (
                 <>
                   {/* Dashboard como elemento independiente */}
                   <div className="space-y-1">
-                    {(!normalizedSidebarSearch || searchMatchesLabel("Dashboard")) &&
-                      renderNavItem({ icon: LayoutGrid, label: "Dashboard", page: "Dashboard" })}
+                    {renderNavItem({ icon: LayoutGrid, label: "Dashboard", page: "Dashboard" })}
                   </div>
                   {/* Secciones desplegables filtradas */}
-                  {searchedMenuSections.map(section => {
-                    const isCollapsed = normalizedSidebarSearch ? false : collapsedSections[section.title];
+                  {filteredMenuSections.map(section => {
+                    const isCollapsed = collapsedSections[section.title];
                     return (
                       <div key={section.title} className="space-y-2">
                         <button

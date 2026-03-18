@@ -9,10 +9,15 @@ import { LandingPage } from "./features/dashboard/pages/LandingPage";
 import { LoginPage } from "./features/auth/pages/LoginPage";
 import { RegisterPage } from "./features/auth/pages/RegisterPage";
 import { EmailVerificationPage } from "./features/auth/pages/EmailVerificationPage";
+import { ForzarCambioPassword } from "./features/auth/components/ForzarCambioPassword";
+import { checkPasswordPolicy } from "./features/auth/services/authUtils";
+import { firebaseAuthService } from "./shared/services/firebase";
 
 function AppContent() {
-  const { isAuthenticated, isAdmin, isCliente } = useAuth();
+  const { isAuthenticated, isAdmin, isCliente, logout } = useAuth();
   const [publicView, setPublicView] = useState<"landing" | "login" | "register" | "verify" | "dashboard">("landing");
+  const [passwordPolicyReason, setPasswordPolicyReason] = useState<'first_login' | 'expired' | null>(null);
+  const [passwordPolicyChecked, setPasswordPolicyChecked] = useState(false);
 
   const [resetData, setResetData] = useState<{ email: string; token: string } | null>(null);
   const [verifyCode, setVerifyCode] = useState<string>('');
@@ -29,11 +34,13 @@ function AppContent() {
     const oobCode = urlParams.get('oobCode');
     const isResetPage = window.location.pathname.includes('reset-password');
     const isVerifyPage = window.location.pathname.includes('verify-email');
+    let handledSpecialLink = false;
 
     // Priorizar siempre el mode proporcionado por Firebase por encima de la ruta, 
     // en caso de que la URL de redirección en Firebase Console esté mal configurada.
     if ((mode === 'resetPassword' || (isResetPage && mode !== 'verifyEmail')) && oobCode) {
       console.log('🎯 Solución REAL: Detectado oobCode para reseteo, abriendo formulario personalizado');
+      handledSpecialLink = true;
       setPublicView("login");
       setResetData({ email: '', token: oobCode });
 
@@ -42,15 +49,71 @@ function AppContent() {
     } 
     else if ((mode === 'verifyEmail' || (isVerifyPage && mode !== 'resetPassword')) && oobCode) {
       console.log('📧 Detectado oobCode para verificación de email');
+      handledSpecialLink = true;
       setVerifyCode(oobCode);
       setPublicView("verify");
 
       const newUrl = window.location.origin + '/'; // O la ruta base
       window.history.replaceState({}, document.title, newUrl);
     }
+
+    if (!isAuthenticated && !handledSpecialLink) {
+      const postLogoutView = sessionStorage.getItem("barbershop_post_logout_view");
+      if (postLogoutView === "login") setPublicView("login");
+      if (postLogoutView === "landing") setPublicView("landing");
+      if (postLogoutView === "login" || postLogoutView === "landing") {
+        sessionStorage.removeItem("barbershop_post_logout_view");
+      }
+    }
   }, [isAuthenticated]);
 
-  // Render landing page if not authenticated
+  useEffect(() => {
+    let isMounted = true;
+    const validatePasswordPolicy = async () => {
+      if (!isAuthenticated) {
+        if (isMounted) {
+          setPasswordPolicyReason(null);
+          setPasswordPolicyChecked(true);
+        }
+        return;
+      }
+
+      setPasswordPolicyChecked(false);
+      const firebaseUser = firebaseAuthService.getCurrentUser();
+      const state = await checkPasswordPolicy(firebaseUser);
+      if (!isMounted) return;
+
+      if (state === 'FIRST_LOGIN') setPasswordPolicyReason('first_login');
+      else if (state === 'EXPIRED') setPasswordPolicyReason('expired');
+      else setPasswordPolicyReason(null);
+      setPasswordPolicyChecked(true);
+    };
+
+    validatePasswordPolicy();
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
+
+  if (isAuthenticated && !passwordPolicyChecked) {
+    return null;
+  }
+
+  if (isAuthenticated && passwordPolicyReason) {
+    return (
+      <ForzarCambioPassword
+        reason={passwordPolicyReason}
+        onComplete={() => {
+          setPasswordPolicyReason(null);
+          setPasswordPolicyChecked(true);
+        }}
+        onCancelLogout={() => {
+          logout();
+        }}
+      />
+    );
+  }
+
   if (!isAuthenticated) {
     if (publicView === "verify") {
       return (
@@ -94,12 +157,10 @@ function AppContent() {
     );
   }
 
-  // Full dashboard for admin users
   if (isAdmin()) {
     return <Dashboard />;
   }
 
-  // Cliente dashboard with toggle to landing
   if (isCliente()) {
     if (publicView === "landing") {
       return (

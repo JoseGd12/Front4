@@ -17,17 +17,20 @@ import {
   ToggleLeft,
   Loader2,
   Filter,
+  CalendarX,
 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
+import { Textarea } from "../../../shared/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import {
@@ -45,6 +48,7 @@ import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-st
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
 import { horariosService, HorarioBarbero } from "../../agendamiento/services/horariosService";
+import { agendamientoService } from "../../agendamiento/services/agendamientoService";
 
 const diasSemana = [
   "Lunes",
@@ -89,11 +93,18 @@ export function HorariosPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isSpecialCancelDialogOpen, setIsSpecialCancelDialogOpen] = useState(false);
+  const [isReprogramDialogOpen, setIsReprogramDialogOpen] = useState(false);
 
   // Selection states
   const [editingHorario, setEditingHorario] = useState<HorarioSemanal | null>(null);
   const [horarioToDelete, setHorarioToDelete] = useState<HorarioSemanal | null>(null);
   const [selectedHorario, setSelectedHorario] = useState<HorarioSemanal | null>(null);
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [cancelMotive, setCancelMotive] = useState("Día desactivado por administración.");
+  const [isProcessingSpecialCancel, setIsProcessingSpecialCancel] = useState(false);
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [reprogramItems, setReprogramItems] = useState<Array<{ citaId: number; clienteId: number; barberoId: number; sugerencias: string[] }>>([]);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -424,24 +435,128 @@ export function HorariosPage() {
     }
   };
 
+  const obtenerUsuarioSolicitanteId = (): number | null => {
+    try {
+      const raw = localStorage.getItem('barbershop_user');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const id = Number(parsed?.id);
+      return Number.isFinite(id) && id > 0 ? id : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formatDateLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const ordenDias: { [key: string]: number } = {
+    Lunes: 1,
+    Martes: 2,
+    Miércoles: 3,
+    Jueves: 4,
+    Viernes: 5,
+    Sábado: 6,
+    Domingo: 7,
+  };
+  const getTodayNumeric = (): number => {
+    const d = new Date();
+    const js = d.getDay(); // 0=Domingo ... 6=Sábado
+    return js === 0 ? 7 : js;
+  };
+  const getDateForThisWeek = (diaNombre: string): Date => {
+    const today = new Date();
+    const todayNum = getTodayNumeric();
+    const targetNum = ordenDias[diaNombre] ?? 0;
+    const diff = targetNum - todayNum;
+    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return new Date(base.getFullYear(), base.getMonth(), base.getDate() + diff);
+  };
+  const getDateForWeek = (diaNombre: string, weekOffset: number): Date => {
+    const base = getDateForThisWeek(diaNombre);
+    const target = new Date(base.getFullYear(), base.getMonth(), base.getDate() + (7 * weekOffset));
+    return target;
+  };
+
   const toggleEstadoHorario = async (horario: HorarioSemanal) => {
     try {
       setTogglingId(horario.id);
       const nuevoEstado = !horario.activo;
-      const promises = horario.bloques.map(b => {
-        if (!b.id) return Promise.resolve();
-        return horariosService.updateHorario(b.id, {
-          id: b.id,
-          barberoId: horario.barberoId,
-          dia: b.dia,
-          horaInicio: b.horaInicio,
-          horaFin: b.horaFin,
-          estado: nuevoEstado
-        });
-      });
+
+      if (!nuevoEstado) {
+        const fechaDefault = new Date().toISOString().slice(0, 10);
+        const fechaInput = window.prompt(
+          "Ingresa la fecha a desactivar (YYYY-MM-DD):",
+          fechaDefault
+        );
+        if (!fechaInput) return;
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaInput)) {
+          error("Fecha inválida", "Debes usar el formato YYYY-MM-DD.");
+          return;
+        }
+
+        const fechaReferencia = new Date(`${fechaInput}T00:00:00`);
+        if (Number.isNaN(fechaReferencia.getTime())) {
+          error("Fecha inválida", "La fecha ingresada no es válida.");
+          return;
+        }
+
+        const diasJs = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+        const diaSeleccionado = diasJs[fechaReferencia.getDay()];
+        const bloquesDelDia = horario.bloques.filter(
+          b => !!b.id && b.dia === diaSeleccionado && b.estado !== false
+        );
+
+        if (bloquesDelDia.length === 0) {
+          error("Sin horario activo", `No hay bloques activos para ${diaSeleccionado} en este barbero.`);
+          return;
+        }
+
+        const usuarioSolicitanteId = obtenerUsuarioSolicitanteId();
+        if (!usuarioSolicitanteId) {
+          error("Sesión inválida", "No se pudo identificar el usuario solicitante.");
+          return;
+        }
+
+        const motivoInput = window.prompt(
+          "Motivo de la desactivación (opcional):",
+          "Día desactivado por administración."
+        );
+        const motivo = (motivoInput || "").trim() || "Día desactivado por administración.";
+
+        const resultados = await Promise.all(
+          bloquesDelDia.map(b =>
+            horariosService.toggleEstado(b.id!, false, {
+              usuarioSolicitanteId,
+              fechaReferencia: fechaInput,
+              motivo,
+              cantidadSugerencias: 3
+            })
+          )
+        );
+
+        const totalCanceladas = resultados.reduce((acumulado, item) => {
+          const valor = Number(item?.citasCanceladas ?? 0);
+          return acumulado + (Number.isFinite(valor) ? valor : 0);
+        }, 0);
+
+        await loadData(true);
+        success(
+          "Día desactivado",
+          `Se desactivó ${diaSeleccionado} para ${horario.barbero}. Citas canceladas: ${totalCanceladas}.`
+        );
+        return;
+      }
+
+      const bloquesInactivos = horario.bloques.filter(b => !!b.id && b.estado === false);
+      const promises = bloquesInactivos.map(b => horariosService.toggleEstado(b.id!, true));
       await Promise.all(promises);
       await loadData(true);
-      success("Estado actualizado", `El horario de ${horario.barbero} ahora está ${nuevoEstado ? 'activo' : 'inactivo'}`);
+      success("Estado actualizado", `El horario de ${horario.barbero} ahora está activo`);
     } catch (err) {
       console.error(err);
       error("Error", "No se pudo cambiar el estado.");
@@ -450,9 +565,156 @@ export function HorariosPage() {
     }
   };
 
+  const handleOpenSpecialCancel = (horario: HorarioSemanal) => {
+    setSelectedHorario(horario);
+    setSelectedDates([]);
+    setCancelMotive("Día desactivado por administración.");
+    setIsSpecialCancelDialogOpen(true);
+  };
+
+  const handleConfirmSpecialCancel = async () => {
+    if (!selectedHorario || selectedDates.length === 0) {
+      error("Datos incompletos", "Por favor selecciona al menos una fecha.");
+      return;
+    }
+
+    const usuarioSolicitanteId = obtenerUsuarioSolicitanteId();
+    if (!usuarioSolicitanteId) {
+      error("Sesión inválida", "No se pudo identificar el usuario solicitante.");
+      return;
+    }
+
+    try {
+      setIsProcessingSpecialCancel(true);
+      const diasJs = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+      let totalCanceladas = 0;
+      const fechasFallidas: string[] = [];
+      const erroresApi: string[] = [];
+      const fechasUnicas = Array.from(new Set(selectedDates.map((d) => formatDateLocal(d))))
+        .map((value) => new Date(`${value}T00:00:00`));
+      const collectedReprogram: Array<{ citaId: number; clienteId: number; barberoId: number; sugerencias: string[] }> = [];
+
+      for (const fecha of fechasUnicas) {
+        const diaSemanaNombre = diasJs[fecha.getDay()];
+        const bloquesDelDia = selectedHorario.bloques.filter(
+          b => !!b.id && b.dia === diaSemanaNombre && b.estado !== false
+        );
+        const fechaStr = formatDateLocal(fecha);
+
+        if (bloquesDelDia.length === 0) {
+          try {
+            const resultadoDirecto = await horariosService.cancelarDiaPorBarbero(selectedHorario.barberoId, {
+              usuarioSolicitanteId,
+              fechaReferencia: fechaStr,
+              motivo: (cancelMotive || "").trim() || "Día desactivado por administración.",
+              cantidadSugerencias: 3
+            });
+            totalCanceladas += Number(resultadoDirecto?.citasCanceladas) || 0;
+            const detalle = Array.isArray(resultadoDirecto?.detalle) ? resultadoDirecto.detalle : [];
+            detalle.forEach((item: any) => {
+              const sug = Array.isArray(item?.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : [];
+              collectedReprogram.push({
+                citaId: Number(item?.citaId || 0),
+                clienteId: Number(item?.clienteId || 0),
+                barberoId: Number(item?.barberoId || 0),
+                sugerencias: sug.map((s: any) => String(s))
+              });
+            });
+            continue;
+          } catch (apiError: any) {
+            const detalle = apiError?.message ? String(apiError.message) : "Error desconocido";
+            erroresApi.push(`${fechaStr} (${diaSemanaNombre}): ${detalle}`);
+            continue;
+          }
+        }
+
+        for (const bloque of bloquesDelDia) {
+          try {
+            const resultado = await horariosService.toggleEstado(bloque.id!, false, {
+              usuarioSolicitanteId,
+              fechaReferencia: fechaStr,
+              motivo: (cancelMotive || "").trim() || "Día desactivado por administración.",
+              cantidadSugerencias: 3
+            });
+            totalCanceladas += Number(resultado?.citasCanceladas) || 0;
+            const detalle = Array.isArray(resultado?.detalle) ? resultado.detalle : [];
+            detalle.forEach((item: any) => {
+              const sug = Array.isArray(item?.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : [];
+              collectedReprogram.push({
+                citaId: Number(item?.citaId || 0),
+                clienteId: Number(item?.clienteId || 0),
+                barberoId: Number(item?.barberoId || 0),
+                sugerencias: sug.map((s: any) => String(s))
+              });
+            });
+          } catch (apiError: any) {
+            const detalle = apiError?.message ? String(apiError.message) : "Error desconocido";
+            erroresApi.push(`${fechaStr} (${diaSemanaNombre}): ${detalle}`);
+          }
+        }
+      }
+
+      await loadData(true);
+      setIsSpecialCancelDialogOpen(false);
+      setReprogramItems(collectedReprogram);
+      if (collectedReprogram.length > 0) {
+        setIsReprogramDialogOpen(true);
+      }
+      
+      if (fechasFallidas.length > 0 && fechasFallidas.length === fechasUnicas.length && erroresApi.length === 0) {
+        error("Error en todas las fechas", "No se encontró horario activo para ninguna de las fechas seleccionadas.");
+      } else {
+        if (erroresApi.length > 0) {
+          const resumenErrores = erroresApi.slice(0, 3).join(" | ");
+          error(
+            "Cancelación parcial con errores",
+            `Citas canceladas: ${totalCanceladas}. Errores: ${resumenErrores}${erroresApi.length > 3 ? " ..." : ""}`
+          );
+        } else {
+          const msg = fechasFallidas.length > 0 
+            ? `Se procesaron las fechas. Citas canceladas: ${totalCanceladas}. Omitidas: ${fechasFallidas.join(", ")}`
+            : `Se cancelaron los horarios para ${fechasUnicas.length} días. Citas canceladas: ${totalCanceladas}.`;
+          success("Cancelación completada", msg);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      error("Error", "Ocurrió un error al procesar las cancelaciones.");
+    } finally {
+      setIsProcessingSpecialCancel(false);
+    }
+  };
+
   const handleViewDetail = (horario: HorarioSemanal) => {
     setSelectedHorario(horario);
     setIsDetailDialogOpen(true);
+  };
+
+  const reprogramAgendamiento = async (citaId: number, sugerenciaIso: string) => {
+    try {
+      const original = await agendamientoService.getAgendamientoById(citaId);
+      const dt = new Date(sugerenciaIso);
+      const fecha = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      const hora = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+
+      const created = await agendamientoService.createAgendamiento({
+        clienteId: original.clienteId,
+        barberoId: original.barberoId,
+        servicioId: original.servicioId,
+        servicioIds: original.servicioIds,
+        paqueteId: original.paqueteId,
+        fecha,
+        hora,
+        duracion: original.duracion,
+        precio: original.precio,
+        estado: 'Pendiente',
+        notas: `Reprogramación de cita cancelada #${citaId}`
+      });
+      success("Cita reprogramada", `Nueva fecha: ${created.fecha} ${created.hora} para ${created.clienteNombre}`);
+    } catch (e: any) {
+      const msg = e?.message ? String(e.message) : "Error desconocido";
+      error("No se pudo reprogramar", msg);
+    }
   };
 
 
@@ -659,6 +921,13 @@ export function HorariosPage() {
                             ) : (
                               <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                             )}
+                          </button>
+                          <button
+                            onClick={() => handleOpenSpecialCancel(horario)}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            title="Cancelación Especial (Días/Citas)"
+                          >
+                            <CalendarX className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
                           </button>
                           <button
                             onClick={() => handleViewDetail(horario)}
@@ -970,6 +1239,203 @@ export function HorariosPage() {
               {editingHorario ? "Actualizar" : "Crear"} Horario
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Cancelación Especial (Múltiples Días) */}
+      <Dialog open={isSpecialCancelDialogOpen} onOpenChange={setIsSpecialCancelDialogOpen}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-dark">
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <CalendarX className="w-5 h-5 text-red-500" />
+              Cancelación Especial de Días
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest mt-1.5">
+              Selecciona una o varias fechas para desactivar el horario de{" "}
+              <span className="text-white-primary font-semibold">
+                {selectedHorario?.barbero}
+              </span>. 
+              Esto cancelará automáticamente todas las citas de esos días y enviará notificaciones a los clientes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+              {/* Selección por días de la semana */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <Label className="text-gray-lightest text-sm block">Selecciona los días:</Label>
+                  <Select
+                    value={String(weekOffset)}
+                    onValueChange={(val) => setWeekOffset(Number(val))}
+                  >
+                    <SelectTrigger className="w-56 elegante-input">
+                      <SelectValue placeholder="Semana" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark">
+                      <SelectItem value="0" className="text-white-primary">Semana actual</SelectItem>
+                      <SelectItem value="1" className="text-white-primary">Próxima semana</SelectItem>
+                      <SelectItem value="2" className="text-white-primary">En 2 semanas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {diasSemana.map((dia) => {
+                    const targetNum = ordenDias[dia] ?? 0;
+                    const todayNum = getTodayNumeric();
+                    const isDisabled = weekOffset === 0 && targetNum < todayNum;
+                    const targetDate = getDateForWeek(dia, weekOffset);
+                    const key = formatDateLocal(targetDate);
+                    const isSelected = selectedDates.some(d => formatDateLocal(d) === key);
+                    return (
+                      <button
+                        key={dia}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => {
+                          if (isDisabled) return;
+                          if (isSelected) {
+                            setSelectedDates(selectedDates.filter(d => formatDateLocal(d) !== key));
+                          } else {
+                            setSelectedDates([...selectedDates, targetDate]);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border flex items-center gap-1 ${
+                          isDisabled
+                            ? "bg-gray-dark text-gray-medium border-gray-medium cursor-not-allowed opacity-60"
+                            : isSelected
+                              ? "bg-orange-primary text-black-primary border-orange-primary shadow-[0_0_10px_rgba(216,176,129,0.3)]"
+                              : "bg-gray-dark hover:bg-gray-medium text-gray-lightest border-gray-medium"
+                        }`}
+                        title={isDisabled ? "Este día ya pasó en esta semana" : ""}
+                      >
+                        {dia}
+                        {isSelected && <CheckCircle className="w-3 h-3" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 text-xs text-gray-lightest italic">
+                  * Semana: {weekOffset === 0 ? "actual" : weekOffset === 1 ? "próxima" : `en ${weekOffset} semanas`}. 
+                  {weekOffset === 0 ? " Solo se pueden seleccionar el día de hoy y días futuros." : " Puedes seleccionar cualquier día."}
+                </div>
+              </div>
+
+              {/* Formulario de Motivo */}
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest text-sm">Motivo de la cancelación *</Label>
+                  <Textarea
+                    placeholder="Escribe el motivo aquí... (Este se enviará a los clientes)"
+                    value={cancelMotive}
+                    onChange={(e) => setCancelMotive(e.target.value)}
+                    className="elegante-input min-h-[120px] text-sm"
+                  />
+                </div>
+
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="w-5 h-5 text-orange-primary shrink-0" />
+                    <div className="text-xs text-orange-200/80 leading-relaxed">
+                      <p className="font-semibold text-orange-primary mb-1">Nota importante:</p>
+                      Al confirmar, el sistema buscará los bloques de horario para los días de semana correspondientes a las fechas seleccionadas. 
+                      Si no hay horario activo para un día específico, esa fecha será omitida.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-lightest">
+                  Fechas seleccionadas: <span className="text-white-primary font-medium">{selectedDates.length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-gray-dark gap-3">
+            <button
+              onClick={() => setIsSpecialCancelDialogOpen(false)}
+              className="px-6 py-2 rounded-xl text-gray-lightest hover:bg-gray-dark transition-colors text-sm font-medium"
+              disabled={isProcessingSpecialCancel}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmSpecialCancel}
+              disabled={isProcessingSpecialCancel || selectedDates.length === 0}
+              className="elegante-button-primary bg-red-600 hover:bg-red-700 border-red-800 text-white-primary px-8 py-2 flex items-center gap-2"
+            >
+              {isProcessingSpecialCancel ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  Confirmar Cancelación
+                </>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Reprogramación tras cancelación */}
+      <Dialog open={isReprogramDialogOpen} onOpenChange={setIsReprogramDialogOpen}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-dark">
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <CalendarX className="w-5 h-5 text-orange-primary" />
+              Reprogramar citas canceladas
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest mt-1.5">
+              Selecciona una de las sugerencias disponibles para reprogramar cada cita cancelada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar space-y-4">
+            {reprogramItems.length === 0 ? (
+              <div className="text-center text-gray-lightest">No hay sugerencias disponibles.</div>
+            ) : (
+              reprogramItems.map(item => (
+                <div key={item.citaId} className="bg-gray-darker rounded-lg p-4 border border-gray-dark">
+                  <div className="flex items-center justify-between">
+                    <div className="text-white-primary font-semibold text-sm">
+                      Cita #{item.citaId}
+                    </div>
+                    <div className="text-xs text-gray-lightest">
+                      Cliente ID: {item.clienteId} | Barbero ID: {item.barberoId}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {item.sugerencias.length === 0 ? (
+                      <div className="text-xs text-gray-lightest italic">Sin sugerencias.</div>
+                    ) : (
+                      item.sugerencias.map(sug => (
+                        <button
+                          key={`${item.citaId}-${sug}`}
+                          onClick={() => reprogramAgendamiento(item.citaId, sug)}
+                          className="px-3 py-1.5 rounded-lg bg-gray-dark hover:bg-gray-medium text-gray-lightest border border-gray-medium text-xs transition-colors"
+                          title="Reprogramar a esta fecha"
+                        >
+                          {new Date(sug).toLocaleString()}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-gray-dark gap-3">
+            <button
+              onClick={() => setIsReprogramDialogOpen(false)}
+              className="px-6 py-2 rounded-xl text-gray-lightest hover:bg-gray-dark transition-colors text-sm font-medium"
+            >
+              Cerrar
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

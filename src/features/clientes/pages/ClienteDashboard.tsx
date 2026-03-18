@@ -12,11 +12,19 @@ import {
   Eye,
   Scissors,
   Package,
+  AtSign,
   Search,
   X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "../../../shared/components/ui/dropdown-menu";
 import { BarberPole } from "../../../shared/components/ui/BarberPole";
 import manitoLogo from "../../../assets/Manito.jpeg";
 const LOGO_URL = manitoLogo;
@@ -47,6 +55,19 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
+
+  const roleLabel = "Cliente";
+  const displayGreetingName = String(user?.name || "Usuario").trim().split(" ")[0] || "Usuario";
+
+  const handleSwitchAccount = async () => {
+    sessionStorage.setItem("barbershop_post_logout_view", "login");
+    await logout();
+  };
+
+  const handleLogout = async () => {
+    sessionStorage.setItem("barbershop_post_logout_view", "landing");
+    await logout();
+  };
 
   const handleReservationRedirect = (item: any) => {
     setPreSelectedReservation(item);
@@ -186,37 +207,69 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
               )}
             </button>
 
-            {/* Información del Usuario */}
-            <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark">
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-orange-primary/30 flex items-center justify-center bg-orange-primary/10">
-                <ImageRenderer 
-                  url={user?.fotoPerfil} 
-                  className="w-full h-full object-cover"
-                  showLabel={false}
-                  fallbackVariant="person"
-                />
-              </div>
-              <div className="flex flex-col">
-                <p className="text-sm font-semibold text-white-primary">{user?.name || "Usuario"}</p>
-                <p className="text-xs text-gray-lighter">Cliente</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setIsUserDetailOpen(true)}
-              className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-              title="Ver detalles del usuario"
-            >
-              <Eye className="w-5 h-5 text-orange-primary" />
-            </button>
-
-            <button
-              onClick={logout}
-              className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-              title="Cerrar Sesión"
-            >
-              <LogOut className="w-5 h-5 text-orange-primary" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark hover:bg-gray-darker transition-colors"
+                  title="Cuenta"
+                  type="button"
+                >
+                  <div className="w-8 h-8 rounded-full overflow-hidden border border-orange-primary/30 flex items-center justify-center bg-orange-primary/10 shrink-0">
+                    <ImageRenderer
+                      url={user?.fotoPerfil}
+                      className="w-full h-full object-cover"
+                      showLabel={false}
+                      fallbackVariant="person"
+                    />
+                  </div>
+                  <div className="hidden md:flex flex-col text-left min-w-0">
+                    <p className="text-sm font-semibold text-white-primary truncate">{user?.name || "Usuario"}</p>
+                    <p className="text-xs text-gray-lighter truncate">{roleLabel}</p>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-80 bg-gray-darkest border-gray-dark text-white-primary p-0 rounded-xl shadow-2xl"
+              >
+                <div className="px-4 pt-4 pb-3 text-center">
+                  <p className="text-lg font-semibold text-white-primary">¡Hola, {displayGreetingName}!</p>
+                  <span className="inline-flex mt-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-primary text-black-primary">
+                    {roleLabel}
+                  </span>
+                  {user?.email ? (
+                    <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-lighter">
+                      <AtSign className="w-4 h-4 text-gray-lighter shrink-0" />
+                      <p className="truncate">{user.email}</p>
+                    </div>
+                  ) : null}
+                </div>
+                <DropdownMenuSeparator className="bg-gray-dark -mx-0 my-0" />
+                <div className="p-2">
+                  <DropdownMenuItem
+                    onSelect={() => setIsUserDetailOpen(true)}
+                    className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
+                  >
+                    <Eye className="w-4 h-4 text-orange-primary" />
+                    Detalles de usuario
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => void handleSwitchAccount()}
+                    className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
+                  >
+                    <User className="w-4 h-4 text-orange-primary" />
+                    Cambiar de cuenta
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => void handleLogout()}
+                    className="cursor-pointer text-red-400 focus:bg-red-500/10 focus:text-red-300 rounded-lg"
+                  >
+                    <LogOut className="w-4 h-4 text-red-400" />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
               </div>
             </div>
           </div>
