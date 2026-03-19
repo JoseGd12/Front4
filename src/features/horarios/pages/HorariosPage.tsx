@@ -488,76 +488,72 @@ export function HorariosPage() {
       const nuevoEstado = !horario.activo;
 
       if (!nuevoEstado) {
-        const fechaDefault = new Date().toISOString().slice(0, 10);
-        const fechaInput = window.prompt(
-          "Ingresa la fecha a desactivar (YYYY-MM-DD):",
-          fechaDefault
-        );
-        if (!fechaInput) return;
-
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaInput)) {
-          error("Fecha inválida", "Debes usar el formato YYYY-MM-DD.");
-          return;
-        }
-
-        const fechaReferencia = new Date(`${fechaInput}T00:00:00`);
-        if (Number.isNaN(fechaReferencia.getTime())) {
-          error("Fecha inválida", "La fecha ingresada no es válida.");
-          return;
-        }
-
-        const diasJs = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-        const diaSeleccionado = diasJs[fechaReferencia.getDay()];
-        const bloquesDelDia = horario.bloques.filter(
-          b => !!b.id && b.dia === diaSeleccionado && b.estado !== false
-        );
-
-        if (bloquesDelDia.length === 0) {
-          error("Sin horario activo", `No hay bloques activos para ${diaSeleccionado} en este barbero.`);
-          return;
-        }
-
         const usuarioSolicitanteId = obtenerUsuarioSolicitanteId();
         if (!usuarioSolicitanteId) {
           error("Sesión inválida", "No se pudo identificar el usuario solicitante.");
+          setTogglingId(null);
           return;
         }
 
-        const motivoInput = window.prompt(
-          "Motivo de la desactivación (opcional):",
-          "Día desactivado por administración."
-        );
-        const motivo = (motivoInput || "").trim() || "Día desactivado por administración.";
-
-        const resultados = await Promise.all(
-          bloquesDelDia.map(b =>
-            horariosService.toggleEstado(b.id!, false, {
-              usuarioSolicitanteId,
-              fechaReferencia: fechaInput,
-              motivo,
-              cantidadSugerencias: 3
+        const motivo = "Horario desactivado desde el panel de gestión.";
+        
+        // Deactivamos TODOS los bloques activos de este barbero
+        const bloquesAProcesar = horario.bloques.filter(b => b.estado !== false && !!b.id);
+        
+        if (bloquesAProcesar.length > 0) {
+          const resultados = await Promise.all(
+            bloquesAProcesar.map(b => {
+                const fechaRef = formatDateLocal(getDateForThisWeek(b.dia));
+                return horariosService.toggleEstado(b.id!, false, {
+                  usuarioSolicitanteId,
+                  fechaReferencia: fechaRef,
+                  motivo,
+                  cantidadSugerencias: 3
+                });
             })
-          )
-        );
+          );
 
-        const totalCanceladas = resultados.reduce((acumulado, item) => {
-          const valor = Number(item?.citasCanceladas ?? 0);
-          return acumulado + (Number.isFinite(valor) ? valor : 0);
-        }, 0);
+          let totalCanceladas = 0;
+          const allDetalles: any[] = [];
 
+          resultados.forEach(res => {
+            totalCanceladas += Number(res?.citasCanceladas || 0);
+            if (Array.isArray(res?.detalle)) {
+                allDetalles.push(...res.detalle);
+            }
+          });
+
+          // --- NOTIFICACIÓN VÍA EMAILJS ---
+          if (allDetalles.length > 0) {
+            allDetalles.forEach(item => {
+              if (item?.clienteCorreo) {
+                emailJsService.notificarCancelacion({
+                  cliente_nombre: item.clienteNombre || "Cliente",
+                  cliente_email: item.clienteCorreo,
+                  barbero_nombre: item.barberoNombre || "Tu barbero",
+                  fecha_original: item.fechaHoraOriginal ? new Date(item.fechaHoraOriginal).toLocaleString('es-CO') : "Fecha no especificada",
+                  motivo_cancelacion: motivo,
+                  sugerencias_reprogramacion: Array.isArray(item.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : []
+                });
+              }
+            });
+          }
+
+          await loadData(true);
+          success("Horario desactivado", `Se han desactivado ${bloquesAProcesar.length} turnos y cancelado ${totalCanceladas} citas. Los correos de notificación han sido enviados.`);
+        } else {
+            // Si por alguna razón no hay bloques marcados como activos pero el toggle decía activo
+            await loadData(true);
+            success("Estado actualizado", "El horario ya no está operativo.");
+        }
+      } else {
+        // ACTIVAR: Activamos todos los bloques que estén inactivos
+        const bloquesInactivos = horario.bloques.filter(b => !!b.id && b.estado === false);
+        const promises = bloquesInactivos.map(b => horariosService.toggleEstado(b.id!, true));
+        await Promise.all(promises);
         await loadData(true);
-        success(
-          "Día desactivado",
-          `Se desactivó ${diaSeleccionado} para ${horario.barbero}. Citas canceladas: ${totalCanceladas}.`
-        );
-        return;
+        success("Estado actualizado", `El horario de ${horario.barbero} ahora está activo`);
       }
-
-      const bloquesInactivos = horario.bloques.filter(b => !!b.id && b.estado === false);
-      const promises = bloquesInactivos.map(b => horariosService.toggleEstado(b.id!, true));
-      await Promise.all(promises);
-      await loadData(true);
-      success("Estado actualizado", `El horario de ${horario.barbero} ahora está activo`);
     } catch (err) {
       console.error(err);
       error("Error", "No se pudo cambiar el estado.");
