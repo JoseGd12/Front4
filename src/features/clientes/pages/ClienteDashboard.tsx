@@ -56,6 +56,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
+  const [preSelectedProduct, setPreSelectedProduct] = useState<any>(null);
 
   const roleLabel = "Cliente";
   const displayGreetingName = String(user?.name || "Usuario").trim().split(" ")[0] || "Usuario";
@@ -72,6 +73,11 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
 
   const handleReservationRedirect = (item: any) => {
     setPreSelectedReservation(item);
+    setActivePage("Mis Citas");
+  };
+
+  const handleProductReservation = (product: any) => {
+    setPreSelectedProduct(product);
     setActivePage("Mis Citas");
   };
 
@@ -111,9 +117,11 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
   const renderContent = () => {
     switch (activePage) {
       case "Mis Citas":
-        return <ClienteMisCitasPageCalendar 
-                 initialItem={preSelectedReservation} 
-                 onClearInitialItem={() => setPreSelectedReservation(null)} 
+        return <ClienteMisCitasPageCalendar
+                 initialItem={preSelectedReservation}
+                 onClearInitialItem={() => setPreSelectedReservation(null)}
+                 preSelectedProduct={preSelectedProduct}
+                 onClearPreSelectedProduct={() => setPreSelectedProduct(null)}
                />;
       case "Mis Compras":
         return <ClienteHistorialVentasPage />;
@@ -122,7 +130,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
       case "Servicios":
         return <ClienteServiciosPage onSelectReservation={handleReservationRedirect} />;
       case "Productos":
-        return <ClienteProductosPage />;
+        return <ClienteProductosPage onSelectProduct={handleProductReservation} />;
       case "Cuenta":
         return <ClientePerfilPage />;
       default:

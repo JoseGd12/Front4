@@ -9,7 +9,7 @@ import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../services/horariosService";
 import { Input } from "../../../shared/components/ui/input";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, ArrowLeft, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -17,6 +17,9 @@ import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { emailJsService } from "../../../shared/services/emailJsService";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { FormSection } from "../../../shared/components/ui/FormSection";
+import { SearchField } from "../../../shared/components/ui/SearchField";
+import { QuickClientForm } from "../../../shared/components/ui/QuickClientForm";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
@@ -125,6 +128,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
   const [slotFilterEstado, setSlotFilterEstado] = useState("all");
   const [activeTab, setActiveTab] = useState<'lista' | 'crear' | 'detalle'>('lista');
   const [selectedCita, setSelectedCita] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'calendar' | 'crear'>('calendar');
   const [ventasPorCita, setVentasPorCita] = useState<Record<number, number>>({});
 
   // Estados para formulario de nueva cita
@@ -233,6 +237,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       telefono: '',
       servicioId: isPaquete ? null : itemId,
       servicioIds: isPaquete ? [] : [itemId],
+      productoIds: [],
       paqueteId: isPaquete ? itemId : null,
       servicio: String(item.nombre || ''),
       barberoId: 0,
@@ -245,8 +250,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       notas: ''
     });
 
-    setActiveTab("crear");
-    setIsSlotModalOpen(true);
+    setViewMode('crear');
+    setSelectedCita(null);
     onClearInitialItem?.();
   };
 
@@ -627,7 +632,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       setClienteSearchTerm('');
       setBarberoFormSearchTerm('');
       success("¡Cita creada exitosamente!", `La cita ha sido registrada.`);
-      setActiveTab('lista');
+      setViewMode('calendar');
     } catch (err: any) {
       console.error("Error al crear cita:", err);
       // Extraemos el mensaje de la API si existe, sino damos un mensaje genérico.
@@ -669,7 +674,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
       setClienteSearchTerm(citaCompleta.clienteNombre || '');
       setBarberoFormSearchTerm(citaCompleta.barberoNombre || '');
-      setActiveTab('crear');
+      setViewMode('crear');
+      setIsSlotModalOpen(false);
     } catch (err) {
       console.error("Error al obtener la cita completa:", err);
       error("Error al cargar cita", "No se pudo traer toda la información desde el servidor para editar.");
@@ -724,7 +730,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
       success("¡Cita actualizada exitosamente!", `Los cambios han sido guardados correctamente.`);
       setSelectedCita(null);
-      setActiveTab('lista');
+      setViewMode('calendar');
     } catch (err: any) {
       console.error("Error al actualizar:", err);
       const errorMsg = err?.message || err || "No se pudieron guardar los cambios en el servidor.";
@@ -883,6 +889,469 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
           </div>
         )}
 
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* VISTA DE CREAR / EDITAR CITA (inline, no modal) */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {viewMode === 'crear' && (
+          <div className="flex flex-col gap-6 h-full">
+            {/* Header con botón Volver */}
+            <div className="flex items-center gap-4 shrink-0">
+              <button
+                onClick={() => { setViewMode('calendar'); setSelectedCita(null); setShowFormErrors(false); }}
+                className="elegante-button-secondary flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Volver al Calendario
+              </button>
+              <h2 className="text-xl font-bold text-white-primary">
+                {selectedCita ? 'Editar Cita' : 'Nueva Cita'}
+              </h2>
+            </div>
+
+            {/* Master-Detail Layout */}
+            <div
+              className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden"
+              style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
+            >
+              {/* ── Panel Izquierdo: Formulario ── */}
+              <aside className="lg:min-h-0 lg:min-w-0">
+              <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0 divide-y divide-gray-dark">
+                {/* Sección: Cliente */}
+                <FormSection title="Cliente" icon={<User className="w-4 h-4 text-orange-primary" />}>
+                  <SearchField<any>
+                    label="Buscar cliente"
+                    placeholder="Nombre del cliente..."
+                    value={clienteSearchTerm}
+                    onChange={setClienteSearchTerm}
+                    items={clientesList}
+                    filterFn={(c, term) =>
+                      (c.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
+                      (c.telefono || '').includes(term)
+                    }
+                    onSelect={(c) => {
+                      setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: c.nombre, telefono: c.telefono || '' }));
+                      setClienteSearchTerm(c.nombre);
+                    }}
+                    onClear={() => {
+                      setNuevaCita(prev => ({ ...prev, clienteId: 0, cliente: '', telefono: '' }));
+                      setClienteSearchTerm('');
+                    }}
+                    renderItem={(c) => (
+                      <div>
+                        <p className="text-white-primary text-sm font-medium">{c.nombre}</p>
+                        <p className="text-gray-lighter text-xs">{c.telefono || 'Sin teléfono'}</p>
+                      </div>
+                    )}
+                    isSelected={!!nuevaCita.clienteId}
+                    error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
+                  />
+                  {!nuevaCita.clienteId && (
+                    <QuickClientForm
+                      searchTerm={clienteSearchTerm}
+                      onClientCreated={(c) => {
+                        setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: c.nombre, telefono: c.telefono || '' }));
+                        setClienteSearchTerm(c.nombre);
+                        // Refrescar lista de clientes para que aparezca en futuras búsquedas
+                        fetchData();
+                      }}
+                      onError={(msg) => error("Error al registrar", msg)}
+                    />
+                  )}
+                  {nuevaCita.telefono && (
+                    <div className="mt-2">
+                      <Label className="text-xs text-gray-lighter">Teléfono</Label>
+                      <p className="text-sm text-white-primary">{nuevaCita.telefono}</p>
+                    </div>
+                  )}
+                </FormSection>
+
+                {/* Sección: Servicios */}
+                <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
+                  <p className="text-xs text-gray-lighter mb-2">
+                    {nuevaCita.paqueteId ? 'Desactiva el paquete para seleccionar servicios individuales' : 'Selecciona uno o más servicios'}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                    {serviciosList.map(s => {
+                      const isSelected = nuevaCita.servicioIds.includes(s.id);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          disabled={!!nuevaCita.paqueteId}
+                          onClick={() => toggleServicio(s.id)}
+                          className={`text-left p-2 rounded-lg border transition-all text-xs ${isSelected
+                            ? 'border-orange-primary bg-orange-primary/10 text-orange-primary'
+                            : 'border-gray-dark bg-gray-darker text-gray-lightest hover:border-gray-medium'
+                          } ${nuevaCita.paqueteId ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        >
+                          <span className="font-semibold block truncate">{s.nombre}</span>
+                          <span className="text-[10px] opacity-70">{formatearPrecio(s.precio)} · {s.duracion || 60}min</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && (
+                    <p className="text-red-400 text-xs mt-1">Selecciona al menos un servicio o paquete</p>
+                  )}
+                </FormSection>
+
+                {/* Sección: Paquetes */}
+                <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
+                  <Select
+                    value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : "none"}
+                    onValueChange={handlePaqueteChange}
+                  >
+                    <SelectTrigger className="elegante-input">
+                      <SelectValue placeholder="Sin paquete" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark">
+                      <SelectItem value="none" className="text-white-primary">Sin paquete</SelectItem>
+                      {paquetesList.map(p => (
+                        <SelectItem key={p.id} value={`p-${p.id}`} className="text-white-primary">
+                          {p.nombre} — {formatearPrecio(p.precio)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormSection>
+
+                {/* Sección: Productos */}
+                {(nuevaCita.servicioIds.length > 0 || nuevaCita.paqueteId) && productosList.length > 0 && (
+                  <FormSection title="Productos adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                      {productosList.map(p => {
+                        const isSelected = nuevaCita.productoIds.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => toggleProducto(p.id)}
+                            className={`text-left p-2 rounded-lg border transition-all text-xs ${isSelected
+                              ? 'border-orange-primary bg-orange-primary/10 text-orange-primary'
+                              : 'border-gray-dark bg-gray-darker text-gray-lightest hover:border-gray-medium'
+                            }`}
+                          >
+                            <span className="font-semibold block truncate">{p.nombre}</span>
+                            <span className="text-[10px] opacity-70">{formatearPrecio(p.precioVenta || p.precio || 0)} · Stock: {p.stockVentas}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </FormSection>
+                )}
+
+                {/* Sección: Barbero */}
+                <FormSection title="Barbero" icon={<User className="w-4 h-4 text-orange-primary" />}>
+                  <SearchField<any>
+                    label="Buscar barbero"
+                    placeholder="Nombre del barbero..."
+                    value={barberoFormSearchTerm}
+                    onChange={setBarberoFormSearchTerm}
+                    items={barberosList}
+                    filterFn={(b, term) => (b.nombre || '').toLowerCase().includes(term.toLowerCase())}
+                    onSelect={(b) => {
+                      setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: b.nombre }));
+                      setBarberoFormSearchTerm(b.nombre);
+                    }}
+                    onClear={() => {
+                      setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
+                      setBarberoFormSearchTerm('');
+                    }}
+                    renderItem={(b) => (
+                      <p className="text-white-primary text-sm">{b.nombre}</p>
+                    )}
+                    isSelected={!!nuevaCita.barberoId}
+                    error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
+                  />
+                </FormSection>
+
+                {/* Sección: Fecha y Hora */}
+                <FormSection title="Fecha y Hora" icon={<CalendarDays className="w-4 h-4 text-orange-primary" />}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-lighter">Fecha</Label>
+                      <Input
+                        type="date"
+                        value={nuevaCita.fecha}
+                        onChange={e => setNuevaCita(prev => ({ ...prev, fecha: e.target.value }))}
+                        className="elegante-input"
+                      />
+                      {showFormErrors && !nuevaCita.fecha && <p className="text-red-400 text-xs mt-1">Requerido</p>}
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-lighter">Hora</Label>
+                      {nuevaCita.barberoId && nuevaCita.fecha ? (
+                        <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita(prev => ({ ...prev, hora: v }))}>
+                          <SelectTrigger className="elegante-input">
+                            <SelectValue placeholder="Seleccionar hora" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
+                            {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
+                              <SelectItem key={h} value={h} className="text-white-primary">{h}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          type="time"
+                          value={nuevaCita.hora}
+                          onChange={e => setNuevaCita(prev => ({ ...prev, hora: e.target.value }))}
+                          className="elegante-input"
+                        />
+                      )}
+                      {showFormErrors && !nuevaCita.hora && <p className="text-red-400 text-xs mt-1">Requerido</p>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <Label className="text-xs text-gray-lighter">Duración (min)</Label>
+                      <Input
+                        type="number"
+                        value={nuevaCita.duracion}
+                        onChange={e => setNuevaCita(prev => ({ ...prev, duracion: parseInt(e.target.value) || 60 }))}
+                        className="elegante-input"
+                        min={15} step={15}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-lighter">Estado</Label>
+                      <Select value={nuevaCita.estado} onValueChange={v => setNuevaCita(prev => ({ ...prev, estado: v }))}>
+                        <SelectTrigger className="elegante-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-darkest border-gray-dark">
+                          {estados.map(e => (
+                            <SelectItem key={e.value} value={e.value} className="text-white-primary">{e.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </FormSection>
+
+                {/* Sección: Notas */}
+                <FormSection title="Notas" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
+                  <Textarea
+                    value={nuevaCita.notas}
+                    onChange={e => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
+                    placeholder="Notas adicionales..."
+                    className="elegante-input min-h-[80px]"
+                  />
+                </FormSection>
+                </div>
+
+                {/* Footer fijo con botones */}
+                <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
+                  <button
+                    onClick={() => { setViewMode('calendar'); setSelectedCita(null); setShowFormErrors(false); }}
+                    className="elegante-button-secondary py-3 px-8"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={selectedCita ? handleUpdateCita : handleCreateCita}
+                    className="elegante-button-primary py-3 px-8 flex items-center gap-2"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    {selectedCita ? 'Actualizar Cita' : 'Crear Cita'}
+                  </button>
+                </div>
+              </div>
+              </aside>
+
+              {/* ── Panel Derecho: Resumen ── */}
+              <section className="lg:min-h-0 lg:min-w-0">
+              <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
+                {/* Header con gradiente */}
+                <div className="bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
+                  <h3 className="text-white-primary font-bold text-lg flex items-center gap-2">
+                    <Eye className="w-5 h-5 text-orange-primary" />
+                    Resumen de la Cita
+                  </h3>
+                  <p className="text-xs text-gray-lighter mt-1">Vista previa de los datos seleccionados</p>
+                </div>
+
+                {/* Contenido scrollable */}
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
+                  {/* Cliente */}
+                  {nuevaCita.clienteId > 0 && (
+                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Cliente</p>
+                      <p className="text-white-primary font-semibold">{nuevaCita.cliente}</p>
+                      {nuevaCita.telefono && <p className="text-xs text-gray-lighter">{nuevaCita.telefono}</p>}
+                    </div>
+                  )}
+
+                  {/* Servicios seleccionados */}
+                  {nuevaCita.servicioIds.length > 0 && !nuevaCita.paqueteId && (
+                    <div>
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
+                        Servicios ({nuevaCita.servicioIds.length})
+                      </p>
+                      <div className="space-y-2">
+                        {nuevaCita.servicioIds.map(sId => {
+                          const srv = serviciosList.find(s => s.id === sId);
+                          if (!srv) return null;
+                          return (
+                            <div key={sId} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Scissors className="w-4 h-4 text-orange-primary shrink-0" />
+                                  <span className="text-white-primary text-sm font-medium truncate">{srv.nombre}</span>
+                                </div>
+                                <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(srv.precio)}</span>
+                              </div>
+                              {srv.descripcion && (
+                                <p className="text-xs text-gray-lighter mt-2 ml-6 italic">
+                                  {srv.descripcion}
+                                </p>
+                              )}
+                              <p className="text-[10px] text-gray-lighter mt-1 ml-6">{srv.duracion || 60} min</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Paquete seleccionado */}
+                  {nuevaCita.paqueteId && (() => {
+                    const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                    if (!paq) return null;
+                    return (
+                      <div>
+                        <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">Paquete</p>
+                        <div className="bg-gray-darker rounded-lg p-3 border border-orange-primary/30">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <Package className="w-4 h-4 text-orange-primary" />
+                              <span className="text-white-primary font-semibold text-sm">{paq.nombre}</span>
+                            </div>
+                            <span className="text-orange-primary font-bold text-sm">{formatearPrecio(paq.precio)}</span>
+                          </div>
+                          {paq.descripcion && (
+                            <p className="text-xs text-gray-lighter mt-1 ml-6 italic">{paq.descripcion}</p>
+                          )}
+                          {paq.precioOriginal && paq.precioOriginal > paq.precio && (
+                            <p className="text-[10px] text-gray-lighter mt-1 ml-6">
+                              Precio original: <span className="line-through">{formatearPrecio(paq.precioOriginal)}</span>
+                              {' '}— Ahorras {formatearPrecio(paq.precioOriginal - paq.precio)}
+                            </p>
+                          )}
+                          {/* Servicios incluidos en el paquete */}
+                          {paq.servicios && paq.servicios.length > 0 && (
+                            <div className="mt-3 ml-6 pt-2 border-t border-gray-dark/50">
+                              <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Servicios incluidos</p>
+                              <div className="space-y-1">
+                                {paq.servicios.map((sName: string, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <Scissors className="w-3 h-3 text-orange-primary/60" />
+                                    <span className="text-xs text-gray-lightest">{sName}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-[10px] text-gray-lighter mt-1 ml-6">{paq.duracion || 60} min</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Productos seleccionados */}
+                  {nuevaCita.productoIds.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
+                        Productos ({nuevaCita.productoIds.length})
+                      </p>
+                      <div className="space-y-2">
+                        {nuevaCita.productoIds.map(pId => {
+                          const prod = productosList.find(p => p.id === pId);
+                          if (!prod) return null;
+                          return (
+                            <div key={pId} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <ShoppingBag className="w-4 h-4 text-orange-primary shrink-0" />
+                                  <span className="text-white-primary text-sm font-medium truncate">{prod.nombre}</span>
+                                </div>
+                                <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(prod.precioVenta || prod.precio || 0)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Barbero */}
+                  {nuevaCita.barberoId > 0 && (
+                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Barbero</p>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-orange-primary" />
+                        <span className="text-white-primary font-medium text-sm">{nuevaCita.barbero}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Horario */}
+                  {(nuevaCita.fecha || nuevaCita.hora) && (
+                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Horario</p>
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-orange-primary" />
+                        <span className="text-white-primary text-sm">
+                          {nuevaCita.fecha && new Date(nuevaCita.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                          {nuevaCita.hora && ` — ${nuevaCita.hora}`}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-lighter mt-1 ml-6">Duración: {nuevaCita.duracion} min</p>
+                    </div>
+                  )}
+
+                  {/* Estado */}
+                  <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                    <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Estado</p>
+                    <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getEstadoInfo(nuevaCita.estado).color} text-white`}>
+                      {getEstadoInfo(nuevaCita.estado).label}
+                    </div>
+                  </div>
+
+                  {/* Notas */}
+                  {nuevaCita.notas && (
+                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Notas</p>
+                      <p className="text-gray-lightest text-xs italic">"{nuevaCita.notas}"</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Sticky con Total */}
+                <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90">
+                  <div
+                    className="flex justify-between items-center rounded-lg px-4 py-3"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(174,120,14,0.15) 0%, rgba(244,194,69,0.08) 100%)',
+                      border: '1px solid rgba(244,194,69,0.25)',
+                    }}
+                  >
+                    <span className="text-white-primary font-bold text-base tracking-wide">TOTAL</span>
+                    <span className="text-orange-primary font-bold text-2xl tabular-nums">{formatearPrecio(nuevaCita.precio)}</span>
+                  </div>
+                </div>
+              </div>
+              </section>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* VISTA DE CALENDARIO */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {viewMode === 'calendar' && (<>
+
         {/* Stats Cards */}
         <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="elegante-card text-center">
@@ -922,6 +1391,26 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
             </div>
 
             <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const { fecha, hora } = getAutoDateTime();
+                  setSelectedCita(null);
+                  setShowFormErrors(false);
+                  setClienteSearchTerm('');
+                  setBarberoFormSearchTerm('');
+                  setNuevaCita({
+                    clienteId: 0, cliente: '', telefono: '',
+                    servicioId: null, servicioIds: [], productoIds: [],
+                    paqueteId: null, servicio: '', barberoId: 0, barbero: '',
+                    fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
+                  });
+                  setViewMode('crear');
+                }}
+                className="elegante-button-primary flex items-center gap-2 text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Nueva Cita
+              </button>
               <button
                 onClick={() => setCurrentWeek(0)}
                 className="elegante-button-secondary text-sm"
@@ -1050,11 +1539,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
             </div>
           </div>
         </div>
+
+        </>)}
       </main>
 
       {/* Modal de Gestión de Franja Horaria */}
       <Dialog open={isSlotModalOpen} onOpenChange={setIsSlotModalOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark w-[95vw] max-w-6xl max-h-[95vh] overflow-y-auto">
+        <DialogContent className="bg-gray-darkest border-gray-dark w-[95vw] max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader className="border-b border-gray-dark pb-4">
             <DialogTitle className="text-white-primary text-2xl flex items-center gap-3">
               <Clock className="w-7 h-7 text-orange-primary" />
@@ -1066,80 +1557,59 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
           </DialogHeader>
 
           {/* Tabs de navegación */}
-          <div className="flex border-b border-gray-dark mb-6">
-            <button
-              onClick={() => setActiveTab('lista')}
-              className={`px-6 py-3 border-b-2 transition-colors ${activeTab === 'lista'
-                ? 'border-orange-primary text-orange-primary'
-                : 'border-transparent text-gray-lightest hover:text-white-primary'
-                }`}
-            >
-              Lista de Citas
-            </button>
+          <div className="flex items-center justify-between border-b border-gray-dark mb-6">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('lista')}
+                className={`px-6 py-3 border-b-2 transition-colors ${activeTab === 'lista'
+                  ? 'border-orange-primary text-orange-primary'
+                  : 'border-transparent text-gray-lightest hover:text-white-primary'
+                  }`}
+              >
+                Lista de Citas
+              </button>
+              {activeTab === 'detalle' && selectedCita && (
+                <button
+                  onClick={() => setActiveTab('detalle')}
+                  className="px-6 py-3 border-b-2 border-orange-primary text-orange-primary"
+                >
+                  Detalle de Cita
+                </button>
+              )}
+            </div>
             {(() => {
-              // Validar si el slot seleccionado es en el pasado
               let slotEsPasado = false;
               if (selectedSlot) {
                 const today = new Date();
                 const todayStr = today.toISOString().split('T')[0];
-                if (selectedSlot.fecha < todayStr) {
-                  slotEsPasado = true;
-                } else if (selectedSlot.fecha === todayStr) {
-                  if (selectedSlot.hora <= today.getHours()) {
-                    slotEsPasado = true;
-                  }
-                }
+                if (selectedSlot.fecha < todayStr) slotEsPasado = true;
+                else if (selectedSlot.fecha === todayStr && selectedSlot.hora <= today.getHours()) slotEsPasado = true;
               }
-
-              // Si el slot es pasado Y NO se ha seleccionado una cita (para editar tab), no mostramos el botón de crear.
-              // O si lo mostramos, lo deshabilitamos. Mejor ocultarlo si no hay cita seleccionada.
-              if (slotEsPasado && !selectedCita) {
-                 return null;
-              }
-
+              if (slotEsPasado) return null;
               return (
                 <button
                   onClick={() => {
-                    setActiveTab('crear');
                     setShowFormErrors(false);
-                    if (!selectedCita) {
-                      setNuevaCita({
-                        clienteId: 0,
-                        cliente: '',
-                        telefono: '',
-                        servicioId: null,
-                        servicioIds: [],
-                        productoIds: [],
-                        paqueteId: null,
-                        servicio: '',
-                        barberoId: 0,
-                        barbero: '',
-                        fecha: selectedSlot?.fecha || '',
-                        hora: selectedSlot?.hora.toString().padStart(2, '0') + ':00' || '',
-                        duracion: 60,
-                        precio: 0,
-                        estado: 'Pendiente',
-                        notas: ''
-                      });
-                    }
+                    setSelectedCita(null);
+                    setNuevaCita({
+                      clienteId: 0, cliente: '', telefono: '',
+                      servicioId: null, servicioIds: [], productoIds: [],
+                      paqueteId: null, servicio: '', barberoId: 0, barbero: '',
+                      fecha: selectedSlot?.fecha || '', hora: selectedSlot?.hora.toString().padStart(2, '0') + ':00' || '',
+                      duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
+                    });
+                    setClienteSearchTerm('');
+                    setBarberoFormSearchTerm('');
+                    setIsSlotModalOpen(false);
+                    setViewMode('crear');
                   }}
-                  className={`px-6 py-3 border-b-2 transition-colors ${activeTab === 'crear'
-                    ? 'border-orange-primary text-orange-primary'
-                    : 'border-transparent text-gray-lightest hover:text-white-primary'
-                    }`}
+                  className="elegante-button-primary flex items-center gap-2 mb-2"
                 >
-                  {selectedCita ? 'Editar Cita' : 'Nueva Cita'}
+                  <Plus className="w-4 h-4" />
+                  Nueva Cita
                 </button>
               );
             })()}
-            {activeTab === 'detalle' && selectedCita && (
-              <button
-                onClick={() => setActiveTab('detalle')}
-                className="px-6 py-3 border-b-2 border-orange-primary text-orange-primary"
-              >
-                Detalle de Cita
-              </button>
-            )}
           </div>
 
           {/* Contenido según tab activo */}
@@ -1283,327 +1753,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     <Calendar className="w-12 h-12 text-gray-medium mx-auto mb-4" />
                     <p className="text-gray-lightest">No hay citas para esta franja horaria</p>
                     <button
-                      onClick={() => setActiveTab('crear')}
+                      onClick={() => { setIsSlotModalOpen(false); setSelectedCita(null); setViewMode('crear'); }}
                       className="elegante-button-primary mt-4"
                     >
-
                       Crear Cita
                     </button>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'crear' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Información del Cliente */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white-primary">Información del Cliente</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-white-primary mb-2">Cliente*</Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                        <Input
-                          placeholder="Buscar cliente por nombre o documento..."
-                          value={clienteSearchTerm}
-                          onChange={(e) => { setClienteSearchTerm(e.target.value); setShowClienteResults(true); }}
-                          onFocus={() => setShowClienteResults(true)}
-                          onBlur={() => setTimeout(() => setShowClienteResults(false), 200)}
-                          className="elegante-input pl-10"
-                        />
-                        {showClienteResults && clienteSearchTerm.trim() && (
-                          <div className="absolute z-50 w-full mt-1 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-52 overflow-y-auto">
-                            {clientesList
-                              .filter(c => `${c.nombre} ${c.apellido}`.toLowerCase().includes(clienteSearchTerm.toLowerCase()) ||
-                                (c.documento || '').includes(clienteSearchTerm))
-                              .map(cliente => (
-                                <div
-                                  key={cliente.id}
-                                  onMouseDown={() => {
-                                    setNuevaCita({
-                                      ...nuevaCita,
-                                      clienteId: cliente.id,
-                                      cliente: `${cliente.nombre} ${cliente.apellido}`,
-                                      telefono: cliente.telefono || ''
-                                    });
-                                    setClienteSearchTerm(`${cliente.nombre} ${cliente.apellido}`);
-                                    setShowClienteResults(false);
-                                  }}
-                                  className="p-3 border-b border-gray-dark hover:bg-gray-dark cursor-pointer group"
-                                >
-                                  <p className="text-white-primary text-sm font-medium group-hover:text-orange-primary transition-colors">
-                                    {cliente.nombre} {cliente.apellido}
-                                  </p>
-                                  <p className="text-gray-lightest text-xs">{cliente.documento || ''} &bull; {cliente.telefono || ''}</p>
-                                </div>
-                              ))
-                            }
-                            {clientesList.filter(c => `${c.nombre} ${c.apellido}`.toLowerCase().includes(clienteSearchTerm.toLowerCase())).length === 0 && (
-                              <div className="p-3 text-center text-gray-lightest text-sm italic">No se encontraron clientes</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {showFormErrors && !nuevaCita.clienteId && (
-                      <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
-                    )}
-                    <div>
-                      <Label className="text-white-primary mb-2">Teléfono</Label>
-                      <Input
-                        value={nuevaCita.telefono}
-                        onChange={(e) => setNuevaCita({ ...nuevaCita, telefono: e.target.value })}
-                        placeholder="+57 300 123 4567"
-                        className="elegante-input"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Detalles del Servicio */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white-primary">Detalles del Servicio</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-white-primary mb-2">Servicios (puedes elegir varios)</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
-                        {serviciosList.map((servicio) => {
-                          const isSelected = nuevaCita.servicioIds.includes(servicio.id) && !nuevaCita.paqueteId;
-                          return (
-                            <button
-                              key={servicio.id}
-                              type="button"
-                              onClick={() => toggleServicio(servicio.id)}
-                              className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
-                                ? "border-orange-primary bg-orange-primary/20 text-white-primary"
-                                : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
-                            >
-                              <div className="text-sm font-medium">{servicio.nombre}</div>
-                              <div className="text-xs text-orange-primary">{formatearPrecio(servicio.precio)}</div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    {paquetesList.length > 0 && (
-                      <div>
-                        <Label className="text-white-primary mb-2">O selecciona un paquete</Label>
-                        <Select
-                          value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : "none"}
-                          onValueChange={handlePaqueteChange}
-                        >
-                          <SelectTrigger className="elegante-input">
-                            <SelectValue placeholder="Seleccionar paquete" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-darkest border-gray-dark max-h-72 overflow-y-auto">
-                            <SelectItem value="none">Sin paquete</SelectItem>
-                            {paquetesList.map((paquete) => (
-                              <SelectItem key={`p-${paquete.id}`} value={`p-${paquete.id}`} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
-                                {paquete.nombre} - {formatearPrecio(paquete.precio)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    {showFormErrors && !(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId && (
-                      <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
-                    )}
-                    {/* Productos adicionales (opcional) */}
-                    {productosList.length > 0 && (
-                      <div>
-                        <Label className="text-white-primary mb-2 flex items-center gap-2">
-                          <ShoppingBag className="w-4 h-4" />
-                          Productos adicionales (opcional)
-                        </Label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
-                          {productosList.map((producto) => {
-                            const isSelected = nuevaCita.productoIds.includes(producto.id);
-                            return (
-                              <button
-                                key={producto.id}
-                                type="button"
-                                onClick={() => toggleProducto(producto.id)}
-                                className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
-                                  ? "border-orange-primary bg-orange-primary/20 text-white-primary"
-                                  : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
-                              >
-                                <div className="text-sm font-medium">{producto.nombre}</div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xs text-orange-primary">{formatearPrecio(producto.precioVenta)}</span>
-                                  <span className="text-xs text-gray-lighter">Stock: {producto.stockVentas ?? producto.stockTotal ?? 0}</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {nuevaCita.productoIds.length > 0 && (
-                          <p className="text-xs text-orange-primary mt-1">
-                            {nuevaCita.productoIds.length} producto(s) seleccionado(s) — {formatearPrecio(calcularPrecioProductos(nuevaCita.productoIds))}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <div>
-                      <Label className="text-white-primary mb-2">Barbero*</Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                        <Input
-                          placeholder="Buscar barbero por nombre..."
-                          value={barberoFormSearchTerm}
-                          onChange={(e) => { setBarberoFormSearchTerm(e.target.value); setShowBarberoFormResults(true); }}
-                          onFocus={() => setShowBarberoFormResults(true)}
-                          onBlur={() => setTimeout(() => setShowBarberoFormResults(false), 200)}
-                          className="elegante-input pl-10"
-                        />
-                        {showBarberoFormResults && barberoFormSearchTerm.trim() && (
-                          <div className="absolute z-50 w-full mt-1 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-52 overflow-y-auto">
-                            {barberosList
-                              .filter(b => {
-                                const searchMatch = `${b.nombres || b.nombre} ${b.apellidos || b.apellido || ''}`.toLowerCase().includes(barberoFormSearchTerm.toLowerCase());
-                                if (nuevaCita.fecha && nuevaCita.hora) {
-                                  return searchMatch && !validarDisponibilidadBarbero(b.id);
-                                }
-                                return searchMatch;
-                              })
-                              .map(barbero => (
-                                <div
-                                  key={barbero.id}
-                                  onMouseDown={() => {
-                                    const nombreCompleto = `${barbero.nombres || barbero.nombre} ${barbero.apellidos || barbero.apellido || ''}`.trim();
-                                    setNuevaCita({
-                                      ...nuevaCita,
-                                      barberoId: barbero.id,
-                                      barbero: nombreCompleto
-                                    });
-                                    setBarberoFormSearchTerm(nombreCompleto);
-                                    setShowBarberoFormResults(false);
-                                  }}
-                                  className="p-3 border-b border-gray-dark hover:bg-gray-dark cursor-pointer group"
-                                >
-                                  <p className="text-white-primary text-sm font-medium group-hover:text-orange-primary transition-colors">
-                                    {barbero.nombres || barbero.nombre} {barbero.apellidos || barbero.apellido || ''}
-                                  </p>
-                                </div>
-                              ))
-                            }
-                            {barberosList.filter(b => {
-                              const searchMatch = `${b.nombres || b.nombre} ${b.apellidos || b.apellido || ''}`.toLowerCase().includes(barberoFormSearchTerm.toLowerCase());
-                              if (nuevaCita.fecha && nuevaCita.hora) {
-                                return searchMatch && !validarDisponibilidadBarbero(b.id);
-                              }
-                              return searchMatch;
-                            }).length === 0 && (
-                                <div className="p-3 text-center text-gray-lightest text-sm italic">No se encontraron barberos disponibles</div>
-                              )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {showFormErrors && !nuevaCita.barberoId && (
-                      <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
-                    )}
-
-                  </div>
-                </div>
-
-                {/* Programación */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white-primary">Programación</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-white-primary  mb-2">Fecha*</Label>
-                      <Input
-                        type="date"
-                        min={new Date().toISOString().split('T')[0]}
-                        value={nuevaCita.fecha}
-                        onChange={(e) => setNuevaCita({ ...nuevaCita, fecha: e.target.value })}
-                        className="elegante-input"
-                      />
-                      {showFormErrors && !nuevaCita.fecha && (
-                        <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-white-primary mb-2">Hora</Label>
-                      <Input
-                        type="time"
-                        value={nuevaCita.hora}
-                        onChange={(e) => setNuevaCita({ ...nuevaCita, hora: e.target.value })}
-                        className="elegante-input"
-                      />
-                      {showFormErrors && !nuevaCita.hora && (
-                        <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-white-primary mb-2">Duración (min)</Label>
-                      <Input
-                        type="number"
-                        value={nuevaCita.duracion}
-                        readOnly
-                        aria-readonly="true"
-                        onChange={(e) => setNuevaCita({ ...nuevaCita, duracion: parseInt(e.target.value) })}
-                        className="elegante-input opacity-60 cursor-not-allowed"
-                        step="15"
-                        min="15"
-                        max="180"
-                        title="La duración no se puede editar desde el agendamiento."
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Precio */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white-primary">Precio</h3>
-                  <div>
-                    <Label className="text-white-primary mb-2">Precio (COP)</Label>
-                    <Input
-                      type="number"
-                      value={nuevaCita.precio}
-                      readOnly
-                      aria-readonly="true"
-                      onChange={(e) => setNuevaCita({ ...nuevaCita, precio: parseFloat(e.target.value) })}
-                      className="elegante-input opacity-60 cursor-not-allowed"
-                      step="1000"
-                      title="El precio no se puede editar desde el agendamiento."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Notas */}
-              <div>
-                <Label className="text-white-primary mb-2">Notas Adicionales</Label>
-                <Textarea
-                  value={nuevaCita.notas}
-                  onChange={(e) => setNuevaCita({ ...nuevaCita, notas: e.target.value })}
-                  placeholder="Comentarios especiales sobre la cita..."
-                  className="elegante-input min-h-[50px]"
-                />
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex justify-end gap-4 pt-4 border-t border-gray-dark">
-                <button
-                  onClick={() => {
-                    setActiveTab('lista');
-                    setSelectedCita(null);
-                  }}
-                  className="elegante-button-secondary"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={selectedCita ? handleUpdateCita : handleCreateCita}
-                  className="elegante-button-primary"
-                >
-                  {selectedCita ? 'Actualizar' : 'Crear'} Cita
-                </button>
               </div>
             </div>
           )}

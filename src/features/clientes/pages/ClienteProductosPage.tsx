@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, ShoppingBag, Check, Sparkles } from "lucide-react";
+import { Package, ShoppingBag, Check, Sparkles, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { productoService, ApiProducto, ApiCategoria } from "../../productos/services/productos";
@@ -302,6 +302,18 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                   >
                     Volver
                   </button>
+                  {onSelectProduct && (
+                    <button
+                      onClick={() => {
+                        setIsDetailOpen(false);
+                        onSelectProduct(selectedProducto);
+                      }}
+                      className="flex-1 py-3 rounded-lg bg-orange-primary text-black-primary font-bold uppercase tracking-wider hover:bg-orange-primary/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Reservar con este producto
+                    </button>
+                  )}
                 </div>
               </div>
             </>

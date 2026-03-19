@@ -286,6 +286,47 @@ class ClientesService {
     return createdUsuario;
   }
 
+  /**
+   * Registro rápido de "cliente de paso": solo requiere nombre y opcionalmente teléfono.
+   * Genera automáticamente documento, correo y contraseña temporales.
+   * Retorna el cliente creado con su id listo para usar en ventas/agendamientos.
+   */
+  async createClienteRapido(nombre: string, telefono?: string): Promise<ClienteAPI> {
+    const ts = Date.now();
+    const partes = nombre.trim().split(/\s+/);
+    const primerNombre = partes[0] || 'Cliente';
+    const apellido = partes.length > 1 ? partes.slice(1).join(' ') : 'De Paso';
+    const documento = `PASO-${ts}`;
+    const correo = `paso.${ts}@manito.temp`;
+    const contrasena = `Paso${ts}*`;
+
+    const result = await this.createCliente({
+      nombre: primerNombre,
+      apellido,
+      documento,
+      correo,
+      telefono: telefono || '',
+    });
+
+    // createCliente usa Flow 2 (sin usuarioId) → POST /api/Usuarios con RolId=3
+    // El resultado puede ser el usuario creado o el perfil cliente encontrado
+    // Necesitamos el id del Cliente (no del Usuario)
+    const clienteId = result?.id || result?.Id || 0;
+    if (!clienteId) {
+      throw new Error('No se pudo obtener el ID del cliente creado.');
+    }
+
+    return {
+      id: clienteId,
+      nombre: primerNombre,
+      apellido,
+      documento,
+      correo,
+      telefono: telefono || '',
+      estado: true,
+    };
+  }
+
   async updateCliente(id: number, clienteData: any): Promise<any> {
     const apiData = {
       Id: id,

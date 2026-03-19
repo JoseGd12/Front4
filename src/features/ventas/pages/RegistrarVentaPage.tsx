@@ -42,6 +42,7 @@ import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { FormSection } from "../../../shared/components/ui/FormSection";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { DetailPanel } from "../components/DetailPanel";
+import { QuickClientForm } from "../../../shared/components/ui/QuickClientForm";
 
 // Utilities
 const formatCurrency = (amount: number): string => {
@@ -1205,6 +1206,22 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     shakeClass={shakeClass}
                     onFocus={clearValidationErrors}
                   />
+                  {!nuevaVenta.clienteId && (
+                    <QuickClientForm
+                      searchTerm={clientSearchTerm}
+                      onClientCreated={(c) => {
+                        setNuevaVenta({
+                          ...nuevaVenta,
+                          clienteId: c.id as any,
+                          clienteDocumento: c.documento || '',
+                        });
+                        setClientSearchTerm(`${c.nombre}${c.documento ? ` — ${c.documento}` : ''}`);
+                        // Refrescar clientes para que aparezca en futuras búsquedas
+                        loadData();
+                      }}
+                      onError={(msg) => error("Error al registrar", msg)}
+                    />
+                  )}
                 </div>
 
                 {/* Saldo a Favor */}
