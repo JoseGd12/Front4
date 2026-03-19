@@ -75,6 +75,33 @@ export interface DetallePaquete {
 }
 
 class ApiService {
+  // Caché en memoria con TTL para reducir peticiones repetidas
+  private _cache = new Map<string, { data: any; timestamp: number }>();
+  private readonly CACHE_TTL = 30000; // 30 segundos
+
+  private getCached<T>(key: string): T | null {
+    const entry = this._cache.get(key);
+    if (entry && Date.now() - entry.timestamp < this.CACHE_TTL) {
+      return entry.data as T;
+    }
+    this._cache.delete(key);
+    return null;
+  }
+
+  private setCache(key: string, data: any): void {
+    this._cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  invalidateCache(prefix?: string): void {
+    if (!prefix) {
+      this._cache.clear();
+      return;
+    }
+    for (const key of this._cache.keys()) {
+      if (key.startsWith(prefix)) this._cache.delete(key);
+    }
+  }
+
   async uploadImage(file: File, opts?: { productoId?: number; usuarioId?: number }): Promise<string> {
     const formData = new FormData();
     // Campo requerido por el backend: "imagen"
@@ -262,7 +289,7 @@ class ApiService {
     return [];
   }
 
-  private async fetchAllPages(endpoint: string, pageSize = 5): Promise<any[]> {
+  private async fetchAllPages(endpoint: string, pageSize = 100): Promise<any[]> {
     const query = endpoint.includes('?') ? '&' : '?';
     const firstResponse = await this.request(`${endpoint}${query}page=1&pageSize=${pageSize}`);
     const firstText = await firstResponse.text();
@@ -460,8 +487,10 @@ class ApiService {
   }
 
   async getUsuarios(): Promise<ApiUser[]> {
+    const cached = this.getCached<ApiUser[]>('usuarios');
+    if (cached) return cached;
     try {
-      const items = await this.fetchAllPages('/Usuarios', 5);
+      const items = await this.fetchAllPages('/Usuarios');
 
       const normalizedData = items.map((item: any) => ({
         id: item.id || item.Id,
@@ -486,6 +515,7 @@ class ApiService {
         } : undefined
       }));
 
+      this.setCache('usuarios', normalizedData);
       return normalizedData;
     } catch (error) {
       console.error('Error fetching usuarios:', error);
@@ -610,11 +640,15 @@ class ApiService {
 
   // ==================== MÉTODOS PARA ROLES ====================
   async getRoles(): Promise<any[]> {
+    const cached = this.getCached<any[]>('roles');
+    if (cached) return cached;
     try {
       console.log('📥 Obteniendo roles desde:', `${API_BASE_URL}/Roles`);
-      const data = await this.fetchAllPages('/Roles', 5);
+      const data = await this.fetchAllPages('/Roles');
       console.log('✅ Roles obtenidos:', data);
-      return Array.isArray(data) ? data : [];
+      const result = Array.isArray(data) ? data : [];
+      this.setCache('roles', result);
+      return result;
     } catch (error: any) {
       console.error('❌ Error obteniendo roles:', error);
       throw error;
@@ -686,11 +720,15 @@ class ApiService {
 
   // ==================== MÉTODOS PARA MÓDULOS ====================
   async getModulos(): Promise<any[]> {
+    const cached = this.getCached<any[]>('modulos');
+    if (cached) return cached;
     try {
       console.log('📥 Obteniendo módulos desde:', `${API_BASE_URL}/Modulos`);
-      const data = await this.fetchAllPages('/Modulos', 5);
+      const data = await this.fetchAllPages('/Modulos');
       console.log('✅ Módulos obtenidos:', data);
-      return Array.isArray(data) ? data : [];
+      const result = Array.isArray(data) ? data : [];
+      this.setCache('modulos', result);
+      return result;
     } catch (error: any) {
       console.error('❌ Error obteniendo módulos:', error);
       throw error;
@@ -839,11 +877,14 @@ class ApiService {
 
   // ==================== MÉTODOS PARA SERVICIOS ====================
   async getServicios(): Promise<Servicio[]> {
+    const cached = this.getCached<Servicio[]>('servicios');
+    if (cached) return cached;
     try {
       console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/Servicios`);
-      const arr = await this.fetchAllPages('/Servicios', 5);
+      const arr = await this.fetchAllPages('/Servicios');
       const normalizedData = arr.map(item => this.normalizeServicioData(item));
       console.log('✅ Servicios normalizados:', normalizedData);
+      this.setCache('servicios', normalizedData);
       return normalizedData;
     } catch (error: any) {
       console.error('❌ Error obteniendo servicios:', error);
@@ -1026,13 +1067,16 @@ class ApiService {
 
   // ==================== MÉTODOS PARA PAQUETES ====================
   async getPaquetes(): Promise<Paquete[]> {
+    const cached = this.getCached<Paquete[]>('paquetes');
+    if (cached) return cached;
     try {
       console.log('📥 Obteniendo paquetes desde:', `${API_BASE_URL}/Paquetes`);
-      const parsed = await this.fetchAllPages('/Paquetes', 5);
+      const parsed = await this.fetchAllPages('/Paquetes');
       console.log('✅ Paquetes obtenidos');
       const arr: any[] = Array.isArray(parsed) ? parsed : [];
       const normalizedData = arr.map(item => this.normalizePaqueteData(item));
       console.log('✅ Paquetes normalizados:', normalizedData.length);
+      this.setCache('paquetes', normalizedData);
       return normalizedData;
     } catch (error: any) {
       console.error('❌ Error obteniendo paquetes:', error);

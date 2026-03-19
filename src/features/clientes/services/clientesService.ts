@@ -111,7 +111,7 @@ class ClientesService {
   async getClientes(): Promise<ClienteAPI[]> {
     const headers = await this.getAuthHeaders();
     const merged: any[] = [];
-    const first = await fetch(`${API_BASE_URL}?page=1&pageSize=5`, { headers });
+    const first = await fetch(`${API_BASE_URL}?page=1&pageSize=100`, { headers });
     if (!first.ok) throw new Error(`Error: ${first.status}`);
     const firstText = await first.text();
     const firstRaw = firstText ? JSON.parse(firstText) : [];
@@ -135,7 +135,7 @@ class ClientesService {
       const promises: Promise<any[]>[] = [];
       for (let page = 2; page <= totalPages; page++) {
         promises.push((async () => {
-          const response = await fetch(`${API_BASE_URL}?page=${page}&pageSize=5`, { headers });
+          const response = await fetch(`${API_BASE_URL}?page=${page}&pageSize=100`, { headers });
           if (!response.ok) return [];
           const text = await response.text();
           const raw = text ? JSON.parse(text) : [];

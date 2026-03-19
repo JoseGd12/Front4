@@ -435,7 +435,7 @@ class VentaService {
     try {
       console.log('📥 Obteniendo ventas desde:', `${API_BASE_URL}/ventas`);
       const arr: any[] = [];
-      const firstResponse = await this.request('/Ventas?page=1&pageSize=5');
+      const firstResponse = await this.request('/Ventas?page=1&pageSize=100');
       const firstText = await firstResponse.text();
       const firstParsed = this.safeParseJson(firstText);
       arr.push(...this.extractArrayPayload(firstParsed));
@@ -447,7 +447,7 @@ class VentaService {
         const promises: Promise<any[]>[] = [];
         for (let page = 2; page <= totalPages; page++) {
           promises.push((async () => {
-            const response = await this.request(`/Ventas?page=${page}&pageSize=5`);
+            const response = await this.request(`/Ventas?page=${page}&pageSize=100`);
             const text = await response.text();
             const parsed = this.safeParseJson(text);
             return this.extractArrayPayload(parsed);

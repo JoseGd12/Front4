@@ -68,7 +68,7 @@ class CategoriaService {
         : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
         : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
         : [];
-      const firstResponse = await this.request('/Categorias?page=1&pageSize=5');
+      const firstResponse = await this.request('/Categorias?page=1&pageSize=100');
       const firstText = await firstResponse.text();
       const firstRaw = firstText ? JSON.parse(firstText) : [];
       data.push(...extract(firstRaw));
@@ -80,7 +80,7 @@ class CategoriaService {
         const promises: Promise<any[]>[] = [];
         for (let page = 2; page <= totalPages; page++) {
           promises.push((async () => {
-            const response = await this.request(`/Categorias?page=${page}&pageSize=5`);
+            const response = await this.request(`/Categorias?page=${page}&pageSize=100`);
             const text = await response.text();
             const raw = text ? JSON.parse(text) : [];
             return extract(raw);

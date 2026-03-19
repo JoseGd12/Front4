@@ -236,7 +236,7 @@ class CompraService {
     async getCompras(): Promise<Array<Compra & { searchString: string }>> {
         try {
             const arr: any[] = [];
-            const firstResponse = await this.request('/Compras?page=1&pageSize=5');
+            const firstResponse = await this.request('/Compras?page=1&pageSize=100');
             const firstText = await firstResponse.text();
             const firstData: any = firstText ? JSON.parse(firstText) : [];
             arr.push(...this.extractArray(firstData));
@@ -248,7 +248,7 @@ class CompraService {
                 const promises: Promise<any[]>[] = [];
                 for (let page = 2; page <= totalPages; page++) {
                     promises.push((async () => {
-                        const response = await this.request(`/Compras?page=${page}&pageSize=5`);
+                        const response = await this.request(`/Compras?page=${page}&pageSize=100`);
                         const text = await response.text();
                         const data: any = text ? JSON.parse(text) : [];
                         return this.extractArray(data);

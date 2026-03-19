@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { authSyncService } from "../../auth/services/authSyncService";
 import { rolesApiService } from "../../administracion/services/rolesApiService";
@@ -41,26 +41,27 @@ import {
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
 import logo from "../assets/a51cd14e3664f3752eaa436dadb14492d91e40aa.png";
-import { DashboardPage } from "../pages/DashboardPage";
-import { AgendamientoPage } from "../../agendamiento/pages/AgendamientoPage";
-import { ServiciosPage } from "../../servicios/pages/ServiciosPage";
-import { BarberosPage } from "../../administracion/pages/BarberosPage";
-import { ProductosPage } from "../../productos/pages/ProductosPage";
-import { VentasPage } from "../../ventas/pages/VentasPage";
-import { ClientesPage } from "../../clientes/pages/ClientesPage";
-import { HorariosPage } from "../../horarios/pages/HorariosPage";
-import { PaquetesPage } from "../../paquetes/pages/PaquetesPage";
-import { ComprasPage } from "../../inventario/pages/ComprasPage";
-import { RegistrarCompraPage } from "../../inventario/pages/RegistrarCompraPage";
-import { ProveedoresPage } from "../../inventario/pages/ProveedoresPage";
-import { CategoriasPage } from "../../inventario/pages/CategoriasPage";
-import { EntregaInsumosPage } from "../../inventario/pages/EntregaInsumosPage";
-import { DevolucionesPage } from "../../ventas/pages/DevolucionesPage";
-import { RegistrarVentaPage } from "../../ventas/pages/RegistrarVentaPage";
-import { RegistrarDevolucionPage } from "../../ventas/pages/RegistrarDevolucionPage";
-import { RegistrarEntregaPage } from "../../inventario/pages/RegistrarEntregaPage";
-import { RolesPage } from "../../administracion/pages/RolesPage";
-import { UsersPage } from "../../administracion/pages/UsersPage";
+// Lazy loading de páginas para mejorar rendimiento de carga inicial
+const DashboardPage = React.lazy(() => import("../pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const AgendamientoPage = React.lazy(() => import("../../agendamiento/pages/AgendamientoPage").then(m => ({ default: m.AgendamientoPage })));
+const ServiciosPage = React.lazy(() => import("../../servicios/pages/ServiciosPage").then(m => ({ default: m.ServiciosPage })));
+const BarberosPage = React.lazy(() => import("../../administracion/pages/BarberosPage").then(m => ({ default: m.BarberosPage })));
+const ProductosPage = React.lazy(() => import("../../productos/pages/ProductosPage").then(m => ({ default: m.ProductosPage })));
+const VentasPage = React.lazy(() => import("../../ventas/pages/VentasPage").then(m => ({ default: m.VentasPage })));
+const ClientesPage = React.lazy(() => import("../../clientes/pages/ClientesPage").then(m => ({ default: m.ClientesPage })));
+const HorariosPage = React.lazy(() => import("../../horarios/pages/HorariosPage").then(m => ({ default: m.HorariosPage })));
+const PaquetesPage = React.lazy(() => import("../../paquetes/pages/PaquetesPage").then(m => ({ default: m.PaquetesPage })));
+const ComprasPage = React.lazy(() => import("../../inventario/pages/ComprasPage").then(m => ({ default: m.ComprasPage })));
+const RegistrarCompraPage = React.lazy(() => import("../../inventario/pages/RegistrarCompraPage").then(m => ({ default: m.RegistrarCompraPage })));
+const ProveedoresPage = React.lazy(() => import("../../inventario/pages/ProveedoresPage").then(m => ({ default: m.ProveedoresPage })));
+const CategoriasPage = React.lazy(() => import("../../inventario/pages/CategoriasPage").then(m => ({ default: m.CategoriasPage })));
+const EntregaInsumosPage = React.lazy(() => import("../../inventario/pages/EntregaInsumosPage").then(m => ({ default: m.EntregaInsumosPage })));
+const DevolucionesPage = React.lazy(() => import("../../ventas/pages/DevolucionesPage").then(m => ({ default: m.DevolucionesPage })));
+const RegistrarVentaPage = React.lazy(() => import("../../ventas/pages/RegistrarVentaPage").then(m => ({ default: m.RegistrarVentaPage })));
+const RegistrarDevolucionPage = React.lazy(() => import("../../ventas/pages/RegistrarDevolucionPage").then(m => ({ default: m.RegistrarDevolucionPage })));
+const RegistrarEntregaPage = React.lazy(() => import("../../inventario/pages/RegistrarEntregaPage").then(m => ({ default: m.RegistrarEntregaPage })));
+const RolesPage = React.lazy(() => import("../../administracion/pages/RolesPage").then(m => ({ default: m.RolesPage })));
+const UsersPage = React.lazy(() => import("../../administracion/pages/UsersPage").then(m => ({ default: m.UsersPage })));
 import manitoLogo from "../../../assets/Manito.jpeg";
 
 // Información de cada módulo para el título dinámico
@@ -699,7 +700,13 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                   : "overflow-y-auto"
               }`}
             >
-              {renderContent()}
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-64">
+                  <BarberPole />
+                </div>
+              }>
+                {renderContent()}
+              </Suspense>
             </div>
           </div>
         </div>

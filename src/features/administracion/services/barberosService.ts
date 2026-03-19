@@ -130,7 +130,7 @@ class BarberosService {
         }
         return [];
       };
-      const firstResponse = await this.request(`${BARBEROS_URL}?page=1&pageSize=5`);
+      const firstResponse = await this.request(`${BARBEROS_URL}?page=1&pageSize=100`);
       const firstRaw = await firstResponse.json();
       merged.push(...extract(firstRaw));
       let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
@@ -141,7 +141,7 @@ class BarberosService {
         const promises: Promise<any[]>[] = [];
         for (let page = 2; page <= totalPages; page++) {
           promises.push((async () => {
-            const response = await this.request(`${BARBEROS_URL}?page=${page}&pageSize=5`);
+            const response = await this.request(`${BARBEROS_URL}?page=${page}&pageSize=100`);
             const raw = await response.json();
             return extract(raw);
           })());

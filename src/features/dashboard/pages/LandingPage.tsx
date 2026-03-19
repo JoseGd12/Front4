@@ -220,20 +220,20 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     const fetchData = async () => {
       try {
         setLoading(true);
+        // Solo cargar los primeros 6 items para la landing (no cargar todo)
         const [serviciosRes, productosRes, paquetesRes] = await Promise.all([
-          apiService.getServicios(),
-          productoService.getProductos(),
-          apiService.getPaquetes()
+          apiService.getServiciosPaged({ page: 1, pageSize: 6 }).catch(() => ({ items: [] })),
+          productoService.getProductosPaged({ page: 1, pageSize: 6 }).catch(() => ({ items: [] })),
+          apiService.getPaquetesPaged({ page: 1, pageSize: 6 }).catch(() => ({ items: [] }))
         ]);
 
         // Combinar servicios y paquetes
-        const todosLosServicios = [
-          ...serviciosRes.filter(s => s.estado !== false).map(s => ({ ...s, type: 'servicio' })),
-          ...paquetesRes.filter(p => p.activo !== false).map(p => ({ ...p, type: 'paquete' }))
-        ];
+        const serviciosList = (serviciosRes.items || []).filter((s: any) => s.estado !== false).map((s: any) => ({ ...s, type: 'servicio' }));
+        const paquetesList = (paquetesRes.items || []).filter((p: any) => p.activo !== false).map((p: any) => ({ ...p, type: 'paquete' }));
+        const todosLosServicios = [...serviciosList, ...paquetesList];
 
         setServicios(todosLosServicios.slice(0, 6));
-        setProductos(productosRes.filter(p => p.activo !== false).slice(0, 6));
+        setProductos((productosRes.items || []).filter((p: any) => p.activo !== false).slice(0, 6));
       } catch (error) {
         console.error("Error fetching landing data:", error);
       } finally {
@@ -630,7 +630,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <div key={`srv-${idx}`} className="w-[380px] shrink-0 px-3 group">
                   <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
                     <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
-                      <img src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'} alt={servicio.nombre} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
+                      <img loading="lazy" src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'} alt={servicio.nombre} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                       <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-y-2 group-hover:translate-y-0 text-white">
                         <Clock className="w-4 h-4 text-[#d8b081]" />
@@ -719,7 +719,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <div key={`prod-${idx}`} className="w-[380px] shrink-0 px-3 group">
                   <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
                     <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
-                      <img src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'} alt={producto.nombre} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
+                      <img loading="lazy" src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'} alt={producto.nombre} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                     </div>
                     <div className="px-6 pt-5 pb-6">

@@ -53,7 +53,7 @@ class ServicioService {
         : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
         : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
         : [];
-      const firstResponse = await this.request('/servicios?page=1&pageSize=5');
+      const firstResponse = await this.request('/servicios?page=1&pageSize=100');
       const firstText = await firstResponse.text();
       const firstParsed = firstText ? JSON.parse(firstText) : [];
       arr.push(...extract(firstParsed));
@@ -65,7 +65,7 @@ class ServicioService {
         const promises: Promise<any[]>[] = [];
         for (let page = 2; page <= totalPages; page++) {
           promises.push((async () => {
-            const response = await this.request(`/servicios?page=${page}&pageSize=5`);
+            const response = await this.request(`/servicios?page=${page}&pageSize=100`);
             const text = await response.text();
             const parsed = text ? JSON.parse(text) : [];
             return extract(parsed);

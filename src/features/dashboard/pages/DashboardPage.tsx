@@ -131,13 +131,28 @@ const getVentas = async (): Promise<Venta[]> => {
     serviciosPaquetesDetalle: []
   }));
   const ids = ventasBase.slice(0, 50).map(v => v.id);
-  const detallesPorVenta = await Promise.all(ids.map(async id => {
-    const dr = await fetchWithAuth(`/api/DetallesVenta/venta/${id}`).catch(() => null);
-    if (!dr || !dr.ok) return { id, detalles: [] as any[] };
-    const dj = await dr.json();
-    return { id, detalles: Array.isArray(dj) ? dj : [] };
-  }));
-  const mapa = new Map<number, any[]>(detallesPorVenta.map(d => [d.id, d.detalles]));
+  // Usar endpoint bulk para obtener todos los detalles en una sola petición
+  let mapa = new Map<number, any[]>();
+  try {
+    const bulkRes = await fetchWithAuth(`/api/DetallesVenta/por-ventas?ids=${ids.join(',')}`);
+    if (bulkRes && bulkRes.ok) {
+      const bulkData = await bulkRes.json();
+      if (bulkData && typeof bulkData === 'object') {
+        Object.entries(bulkData).forEach(([key, value]) => {
+          mapa.set(Number(key), Array.isArray(value) ? value : []);
+        });
+      }
+    }
+  } catch {
+    // Fallback: si el endpoint bulk no existe, usar peticiones individuales (legacy)
+    const detallesPorVenta = await Promise.all(ids.slice(0, 10).map(async id => {
+      const dr = await fetchWithAuth(`/api/DetallesVenta/venta/${id}`).catch(() => null);
+      if (!dr || !dr.ok) return { id, detalles: [] as any[] };
+      const dj = await dr.json();
+      return { id, detalles: Array.isArray(dj) ? dj : [] };
+    }));
+    mapa = new Map<number, any[]>(detallesPorVenta.map(d => [d.id, d.detalles]));
+  }
   ventasBase.forEach(v => {
     const dets = mapa.get(v.id) ?? [];
     const productos = dets.filter((d: any) => d.producto || d.Producto).map((d: any) => ({
