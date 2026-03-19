@@ -156,7 +156,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
       <AuthBackground>
         <div className="w-full max-w-md">
           <div className="elegante-card text-center">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 elegante-shadow-lg relative overflow-hidden">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-6 elegante-shadow-lg relative overflow-hidden">
               <img src={LOGO_URL} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-white-primary mb-4">
@@ -190,7 +190,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
             <div className="space-y-3">
               <Button
                 onClick={onBack}
-                className="elegante-button-primary w-full"
+                className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
               >
                 Solicitar nuevo enlace
               </Button>
@@ -219,7 +219,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
             <div className="space-y-3">
               <Button
                 onClick={onComplete}
-                className="elegante-button-primary w-full"
+                className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
               >
                 Ir a iniciar sesión
               </Button>
@@ -236,7 +236,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
       <div className="w-full max-w-lg">
         {/* Header con información de la solicitud */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 elegante-shadow-lg relative overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 elegante-shadow-lg relative overflow-hidden">
             <img src={LOGO_URL} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white-primary mb-2">
@@ -354,7 +354,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
               <Button
                 type="submit"
                 disabled={isLoading || !passwords.newPassword || !passwords.confirmPassword || passwords.newPassword !== passwords.confirmPassword || !passwordValidations.minLength}
-                className="elegante-button-primary w-full flex items-center justify-center"
+                className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] flex items-center justify-center"
               >
                 {isLoading ? (
                   <>

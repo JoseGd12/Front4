@@ -15,7 +15,8 @@ import {
   Calendar,
   Heart,
   Sparkles,
-  Trophy
+  Trophy,
+  LogOut
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
@@ -178,7 +179,7 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashboard, onSelectReservation }: LandingPageProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const { info, success } = useCustomAlert();
   const [scrolled, setScrolled] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
@@ -337,14 +338,25 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
           <div className="flex items-center space-x-6">
             {isAuthenticated ? (
-              <button
-                onClick={onRequestDashboard}
-                className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
-                title="Ir a mi panel de control"
-              >
-                Dashboard
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
-              </button>
+              <>
+                <button
+                  onClick={onRequestDashboard}
+                  className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
+                  title="Ir a mi panel de control"
+                >
+                  Dashboard
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
+                </button>
+                <button
+                  onClick={logout}
+                  className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300 flex items-center gap-2"
+                  title="Cerrar sesión"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Salir
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
+                </button>
+              </>
             ) : (
               <button
                 onClick={onRequestLogin}
@@ -373,31 +385,21 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           className="relative z-10 text-center px-6 max-w-5xl mx-auto reveal-item active"
           style={{ opacity: heroOpacity, transform: `translateY(${(1 - heroOpacity) * 40}px)`, transition: 'none' }}
         >
-          <span className="text-xs font-black uppercase tracking-[0.5em] text-[#d8b081] mb-8 block">Bogotá, Colombia</span>
-          <h1 className="text-6xl sm:text-7xl md:text-9xl font-bold mb-8 tracking-tight font-title text-gradient leading-none">MANITO BARBERSHOP</h1>
-          <p className="text-2xl sm:text-3xl mb-14 text-gray-300 max-w-2xl mx-auto leading-relaxed font-light">Estilo, Elegancia y Profesionalismo en Cada Corte</p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
-            <button
-              onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
-              title="Reserva tu cita ahora — rápido y fácil"
-              className="inline-flex items-center gap-3 px-10 py-5 bg-[#d8b081] text-black font-bold text-lg rounded-xl shadow-2xl shadow-[#d8b081]/30 hover:bg-[#e8c091] hover:scale-105 transition-all duration-300"
-            >
-              {isAuthenticated ? 'Gestionar Mis Citas' : 'Reserva tu Cita'}
-              <ChevronRight className="w-6 h-6" />
-            </button>
-            <button
-              onClick={() => scrollToSection('servicios')}
-              title="Ver todos nuestros servicios"
-              className="inline-flex items-center gap-3 px-10 py-5 border-2 border-white/20 text-white font-semibold text-lg rounded-xl hover:border-[#d8b081]/60 hover:bg-white/5 hover:scale-105 transition-all duration-300"
-            >
-              Ver Servicios
-            </button>
-          </div>
+          <h1 className="font-bold tracking-tight font-title text-gradient leading-none mb-6" style={{ fontSize: 'clamp(2.5rem, 7vw, 6rem)' }}>MANITO BARBERSHOP</h1>
+          <button
+            onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
+            title="Reserva tu cita ahora — rápido y fácil"
+            className="inline-flex items-center gap-3 px-10 py-5 bg-[#d8b081] text-black font-bold text-lg rounded-xl shadow-2xl shadow-[#d8b081]/30 hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 mb-10"
+          >
+            {isAuthenticated ? 'Gestionar Mis Citas' : 'Reserva tu Cita'}
+            <ChevronRight className="w-6 h-6" />
+          </button>
+          <p className="text-2xl sm:text-3xl text-gray-300 max-w-2xl mx-auto leading-relaxed font-light">Estilo, Elegancia y Profesionalismo en Cada Corte</p>
         </div>
       </header>
 
       {/* Nosotros Section */}
-      <section id="nosotros" className="nosotros-section relative overflow-hidden border-y border-white/5" style={{ padding: '5rem 0' }}>
+      <section id="nosotros" className="nosotros-section relative overflow-hidden" style={{ padding: '5rem 0' }}>
         {/* Decorative background elements */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
@@ -406,14 +408,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
         <div className="content-max-width relative z-10">
           {/* Título de sección */}
-          <div className="text-center mb-12 reveal-item">
+          <div className="text-center mb-8 reveal-item">
             <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
               Nosotros
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto text-base leading-relaxed mt-4">
-              Más de 2 años transformando estilos en el corazón de Bogotá
+              Más de 2 años transformando estilos en el corazón de Medellín
             </p>
-            <div className="nosotros-divider max-w-xs mx-auto mt-6" />
           </div>
 
           {/* Contenido en dos columnas */}
@@ -434,7 +435,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </div>
 
                 <p className="text-gray-200 text-base leading-relaxed mb-8">
-                  Somos una barbería ubicada en Bogotá, dedicada al cuidado de la apariencia masculina.
+                  Somos una barbería ubicada en Medellín, dedicada al cuidado de la apariencia masculina.
                   Contamos con un equipo de
                   <span className="text-[#d8b081] font-black"> 6 colaboradores</span>,
                   entre ellos
@@ -498,13 +499,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   {/* Ubicación */}
                   <div className="glass-card-dark rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
                         <MapPin className="w-5 h-5 text-[#d8b081]" />
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">📍 Ubicación</p>
-                        <p className="text-lg font-bold text-white">Calle 79 #52-12</p>
-                        <p className="text-sm text-gray-400 mt-0.5">Barrio El Bosque, Bogotá</p>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Ubicación</p>
+                        <p className="text-lg font-bold text-gray-400">Calle 79 #52-12</p>
+                        <p className="text-sm text-gray-500 mt-0.5">Barrio El Bosque, Medellín</p>
                       </div>
                     </div>
                   </div>
@@ -512,13 +513,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   {/* Contacto */}
                   <div className="glass-card-dark rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
                         <Phone className="w-5 h-5 text-[#d8b081]" />
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">📞 Contacto</p>
-                        <p className="text-lg font-bold text-white">301 483 6189</p>
-                        <p className="text-sm text-gray-400 mt-0.5">Llámanos o escríbenos</p>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Contacto</p>
+                        <p className="text-lg font-bold text-gray-400">301 483 6189</p>
+                        <p className="text-sm text-gray-500 mt-0.5">Llámanos o escríbenos</p>
                       </div>
                     </div>
                   </div>
@@ -526,18 +527,18 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   {/* Horario */}
                   <div className="glass-card-dark rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
                         <Calendar className="w-5 h-5 text-[#d8b081]" />
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">🕐 Horario</p>
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Horario</p>
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-sm font-semibold text-gray-300">Lun — Sáb</span>
-                          <span className="text-sm font-bold text-white">9:00 — 20:00</span>
+                          <span className="text-sm font-semibold text-white">Lun — Sáb</span>
+                          <span className="text-sm font-bold text-gray-400">9:00 — 20:00</span>
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-sm font-semibold text-gray-500">Domingo</span>
-                          <span className="text-sm font-semibold text-gray-500">Cerrado</span>
+                          <span className="text-sm font-semibold text-gray-600">Cerrado</span>
                         </div>
                       </div>
                     </div>
@@ -546,12 +547,12 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   {/* Equipo */}
                   <div className="glass-card-dark rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                      <div className="w-11 h-11 rounded-xl icon-float flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
                         <Scissors className="w-5 h-5 text-[#d8b081]" />
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500 font-bold mb-1">✂️ Equipo</p>
-                        <p className="text-sm text-gray-200 leading-relaxed">
+                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Equipo</p>
+                        <p className="text-sm text-gray-500 leading-relaxed">
                           5 barberos profesionales y personal administrativo a tu servicio.
                         </p>
                       </div>
@@ -593,8 +594,35 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Carousel de Servicios */}
         <div ref={servCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
           {loading ? (
-            <div className="flex gap-6 px-8 mb-12 justify-center">
-              {[1, 2, 3].map(i => <div key={i} className="w-[380px] h-[420px] bg-zinc-900 animate-pulse rounded-2xl shrink-0"></div>)}
+            <div className="flex gap-6 px-6 overflow-hidden w-full" style={{ marginBottom: '2rem' }}>
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="w-[380px] shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]" style={{ animationDelay: `${i * 150}ms` }}>
+                  {/* Imagen skeleton con shimmer dorado */}
+                  <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                    <div className="absolute inset-0 skeleton-shimmer-gold" />
+                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+                    {/* Badge skeleton */}
+                    <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
+                  </div>
+                  {/* Contenido skeleton */}
+                  <div className="px-6 pt-5 pb-6 space-y-4">
+                    {/* Etiqueta tipo */}
+                    <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                    {/* Título + precio */}
+                    <div className="flex items-baseline justify-between">
+                      <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                      <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+                    </div>
+                    {/* Descripción */}
+                    <div className="space-y-2">
+                      <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                      <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                    </div>
+                    {/* Botón skeleton */}
+                    <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div ref={servCarousel.trackRef} className="carousel-track">
@@ -659,8 +687,31 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Carousel de Productos — dirección inversa */}
         <div ref={prodCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
           {loading ? (
-            <div className="flex gap-6 px-8 justify-center">
-              {[1, 2, 3].map(i => <div key={i} className="w-[380px] h-[380px] bg-zinc-900 animate-pulse rounded-2xl shrink-0"></div>)}
+            <div className="flex gap-6 px-6 overflow-hidden w-full" style={{ marginBottom: '2rem' }}>
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="w-[380px] shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]" style={{ animationDelay: `${i * 150}ms` }}>
+                  {/* Imagen skeleton con shimmer dorado */}
+                  <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                    <div className="absolute inset-0 skeleton-shimmer-gold" />
+                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+                  </div>
+                  {/* Contenido skeleton */}
+                  <div className="px-6 pt-5 pb-6 space-y-4">
+                    {/* Etiqueta categoría */}
+                    <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                    {/* Título + precio */}
+                    <div className="flex items-baseline justify-between">
+                      <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                      <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+                    </div>
+                    {/* Descripción */}
+                    <div className="space-y-2">
+                      <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                      <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div ref={prodCarousel.trackRef} className="carousel-track">
@@ -689,66 +740,124 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
 
       {/* Footer */}
-      <footer id="footer" className="border-t border-white/10" style={{ backgroundColor: '#0d0d0d', paddingTop: '6rem', paddingBottom: '4rem' }}>
-        <div className="content-max-width">
-          <div className="grid md:grid-cols-4 gap-14 mb-16">
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <img src={LOGO_URL} alt="Logo" className="w-10 h-10 rounded-full object-cover" />
-                <span className="text-2xl font-black font-title tracking-tight text-white uppercase">Manito</span>
-              </div>
-              <p className="text-gray-400 text-sm italic leading-relaxed">"El estilo es una forma de decir quién eres sin tener que hablar."</p>
+      <footer id="footer" className="relative overflow-hidden border-t border-white/10 bg-[#111117]">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-28 left-1/2 -translate-x-1/2 w-[52rem] h-[24rem] rounded-full bg-[#d8b081]/6 blur-[130px]" />
+        </div>
+
+        {/* CTA Banner */}
+        <div className="relative border-b border-white/5">
+          <div className="content-max-width relative z-10 py-16 md:py-20 px-8 md:px-12 lg:px-16 flex flex-col md:flex-row items-center justify-between gap-7">
+            <div className="max-w-2xl text-center">
+              <p className="text-[11px] uppercase tracking-[0.45em] text-[#d8b081] font-black mt-4">Reserva tu momento</p>
+              <h3 className="text-2xl md:text-3xl font-bold font-title  text-white mb-2">¿Listo para tu próximo look?</h3>
+              <p className="text-gray-400 text-sm md:text-base mb-8">Agenda tu cita y vive la experiencia Manito Barbershop con atención profesional.</p>
             </div>
-            <div className="space-y-6">
-              <span className="text-xs font-black uppercase tracking-[0.5em] text-[#d8b081] block">Explorar</span>
-              <ul className="space-y-5">
-                {[['inicio', 'Inicio'], ['servicios', 'Servicios'], ['productos', 'Productos'], ['nosotros', 'Nosotros']].map(([id, label]) => (
-                  <li key={id}>
-                    <button
-                      onClick={() => scrollToSection(id)}
-                      title={`Ir a la sección ${label}`}
-                      className="text-sm font-semibold uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
-                    >
-                      {label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="space-y-6">
-              <span className="text-xs font-black uppercase tracking-[0.5em] text-[#d8b081] block">Horario</span>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-sm font-semibold text-gray-400"><span>Lun — Vie</span><span>9:00 — 20:00</span></div>
-                <div className="flex justify-between items-center text-sm font-semibold text-gray-400"><span>Sábado</span><span>9:00 — 20:00</span></div>
-                <div className="flex justify-between items-center text-sm font-semibold text-gray-600"><span>Domingo</span><span>Cerrado</span></div>
-              </div>
-            </div>
-            <div className="space-y-6">
-              <span className="text-xs font-black uppercase tracking-[0.5em] text-[#d8b081] block">Contacto</span>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-gray-400">
-                  <Phone className="w-4 h-4 text-[#d8b081] flex-shrink-0" />
-                  <span className="text-sm">301 483 6189</span>
-                </div>
-                <div className="flex items-center gap-3 text-gray-400">
-                  <MapPin className="w-4 h-4 text-[#d8b081] flex-shrink-0" />
-                  <span className="text-sm">Calle 79 #52-12, Bogotá</span>
+            <button
+              onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
+              title="Reservar cita ahora"
+              className="inline-flex items-center gap-3 px-10 pl-4 mb-4 py-4 bg-transparent text-[#d8b081] border-2 border-[#d8b081] font-bold text-sm uppercase tracking-widest rounded-xl shadow-2xl shadow-[#d8b081]/10 hover:scale-105 transition-all duration-300 shrink-0 gold-hover-transition"
+            >
+              {isAuthenticated ? 'Mi Panel' : 'Reservar Cita'}
+              <ChevronRight className="w-4 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Contenido principal */}
+        <div className="content-max-width relative z-10 py-20 px-8 md:px-12 lg:px-16">
+          <div className="grid md:grid-cols-3 gap-10 lg:gap-16">
+            {/* Marca */}
+            <div className="space-y-6 mt-4">
+              <div className="flex items-center gap-4">
+                <img src={LOGO_URL} alt="Manito Barbershop" className="w-12 h-12 rounded-full object-cover border-2 border-[#d8b081]/20" />
+                <div>
+                  <span className="text-xl font-black font-title mt-4 tracking-tight text-white uppercase block">Manito Barbershop</span>
+                  <span className="text-xs text-gray-500 uppercase tracking-widest">Medellín, Colombia</span>
                 </div>
               </div>
-              <button
-                onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
-                title="Reserva tu cita ahora"
-                className="mt-4 w-full py-4 bg-[#d8b081] text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300"
-              >
-                {isAuthenticated ? 'Mi Dashboard' : 'Reservar Cita'}
-              </button>
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Estilo, elegancia y profesionalismo en cada corte. Más de 2 años transformando estilos en el corazón de Bogotá.
+              </p>
+              <div className="space-y-2 text-xs text-gray-500 leading-relaxed">
+                <p>Atención personalizada desde el primer contacto hasta el resultado final.</p>
+                <p>En cada visita buscamos que te lleves una experiencia cómoda, precisa y memorable.</p>
+              </div>
+            </div>
+
+            {/* Horario */}
+            <div className="space-y-5 mt-6 mr-2">
+              <span className="text-lg  font-bold uppercase tracking-[0.3em] text-[#d8b081] block">Horario</span>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Lunes — Viernes</span>
+                  <span className="text-white font-medium">9:00 — 20:00</span>
+                </div>
+                <div className="h-px bg-white/5" />
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Sábado</span>
+                  <span className="text-white font-medium">9:00 — 20:00</span>
+                </div>
+                <div className="h-px bg-white/5" />
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Domingo</span>
+                  <span className="text-gray-600">Cerrado</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                Recomendamos agendar con antelación para asegurar tu horario ideal.
+              </p>
+            </div>
+
+            {/* Contacto */}
+            <div className="space-y-5 mt-6 ml-5">
+              <span className="text-lg  font-bold uppercase tracking-[0.3em] text-[#d8b081] block">Contacto</span>
+              <div className="space-y-4">
+                <a href="tel:3014836189" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group">
+                  <div className="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
+                    <Phone className="w-4 h-4 text-[#d8b081]" />
+                  </div>
+                  <div>
+                    <span className="text-sm block">301 483 6189</span>
+                    <span className="text-[11px] text-gray-600">Llámanos o escríbenos</span>
+                  </div>
+                </a>
+
+                <a href="mailto:manitobarbershop@gmail.com" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group">
+                  <div className="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
+                    <Mail className="w-4 h-4 text-[#d8b081]" />
+                  </div>
+                  <div>
+                    <span className="text-sm block">manitobarbershop@gmail.com</span>
+                    <span className="text-[11px] text-gray-600">Atención por correo</span>
+                  </div>
+                </a>
+
+                <div className="flex items-center gap-3 text-gray-400">
+                  <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center">
+                    <MapPin className="w-4 h-4 text-[#d8b081]" />
+                  </div>
+                  <div>
+                    <span className="text-sm block">Calle 79 #52-12</span>
+                    <span className="text-[11px] text-gray-600">Barrio El Bosque, Bogotá</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-600 leading-relaxed mb-4">
+                Si tienes dudas sobre servicios o productos, nuestro equipo te asesora sin costo.
+              </p>
             </div>
           </div>
-          <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">© 2025 Manito Barbershop. Todos los derechos reservados.</p>
-            <div className="flex items-center gap-2 text-gray-600">
-              <Scissors className="w-4 h-4 text-[#d8b081]" />
-              <span className="text-xs uppercase tracking-widest">Bogotá, Colombia</span>
+        </div>
+
+        {/* Barra inferior */}
+        <div className="relative z-10 border-t border-white/5">
+          <div className="content-max-width py-8 px-8 md:px-12 lg:px-16 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-gray-600 mt-4">© {new Date().getFullYear()} Manito Barbershop. Todos los derechos reservados.</p>
+            <div className="flex items-center gap-3 mb-4">
+              <Scissors className="w-3.5 h-3.5 text-[#d8b081]/40" />
+              <span className="text-xs text-gray-600 uppercase tracking-widest">Hecho con pasión</span>
+              <Scissors className="w-3.5 h-3.5 text-[#d8b081]/40 rotate-180" />
             </div>
           </div>
         </div>

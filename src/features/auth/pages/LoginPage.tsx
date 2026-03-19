@@ -3,7 +3,7 @@ import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
 import { Label } from '../../../shared/components/ui/label';
-import { Eye, EyeOff, Lock, AlertCircle, Mail, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Lock, AlertCircle, Mail, ArrowLeft, Scissors, Star } from 'lucide-react';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 import { PasswordResetPage } from './PasswordResetPage';
 import { SimpleCaptcha } from '../components/captcha/index';
@@ -11,20 +11,6 @@ import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
 const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
-
-function AuthBackground({ children }: { children: any }) {
-  return (
-    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4 relative overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url('${LANDING_BG_URL}')` }}
-      />
-      <div className="absolute inset-0 bg-black/65" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/75" />
-      <div className="relative z-10 w-full flex justify-center">{children}</div>
-    </div>
-  );
-}
 
 interface LoginPageProps {
   onRequestRegister?: () => void;
@@ -167,38 +153,115 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
   // Vista principal de login
   return (
-    <AuthBackground>
-      <div className="w-full max-w-sm">
-        {/* Logo y título */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 elegante-shadow-lg relative overflow-hidden">
-            <img src={LOGO_URL} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
+    <div className="min-h-screen flex font-body">
+      {/* ── Panel Izquierdo: Imagen + Branding ── */}
+      <div className="login-left-panel flex relative overflow-hidden items-center justify-center">
+        {/* Imagen de fondo */}
+        <div
+          className="absolute inset-0 bg-cover bg-center scale-125 grayscale opacity-50"
+          style={{
+            backgroundImage: `url('${LANDING_BG_URL}')`,
+            animation: 'login-slow-zoom 25s ease-in-out infinite alternate',
+          }}
+        />
+        {/* Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/40 via-[#0d0d0d]/70 to-black" />
+        <div className="absolute inset-0 bg-black/30" />
+
+        {/* Contenido del panel izquierdo */}
+        <div className="relative z-10 px-12 xl:px-20 max-w-xl text-center">
+          <div className="mb-8">
+            <img
+              src={LOGO_URL}
+              alt="Manito Barbershop"
+              className="w-14 h-14 rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-white-primary mb-2">
+
+          <h1
+            className="font-bold tracking-tight font-title leading-none mb-6"
+            style={{
+              fontSize: 'clamp(2rem, 4vw, 3.5rem)',
+              background: 'linear-gradient(135deg, #fff 0%, #d8b081 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
             MANITO BARBERSHOP
           </h1>
-          <p className="text-gray-lightest">
-            Sistema de Gestión Integral
+
+          <p className="text-gray-300 text-lg leading-relaxed mb-10 font-light">
+            Estilo, Elegancia y Profesionalismo en Cada Corte
           </p>
+
+          {/* Decorative separator */}
+          <div className="flex items-center justify-center gap-4 mb-10">
+            <span className="block w-16 h-px bg-gradient-to-r from-transparent to-[#d8b081]/60" />
+            <Scissors className="w-5 h-5 text-[#d8b081]/60" />
+            <span className="block w-16 h-px bg-gradient-to-l from-transparent to-[#d8b081]/60" />
+          </div>
+
+          {/* Testimonial / Social proof */}
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
+            <div className="flex items-center justify-center gap-1 mb-3">
+              {[1, 2, 3, 4, 5].map(i => (
+                <Star key={i} className="w-4 h-4 text-[#d8b081] fill-[#d8b081]" />
+              ))}
+            </div>
+            <p className="text-gray-300 text-sm italic leading-relaxed">
+              "La mejor barbería de Medellín. Atención profesional y un ambiente increíble."
+            </p>
+            <p className="text-[#d8b081] text-xs font-semibold mt-3 uppercase tracking-wider">
+              +2 años de experiencia
+            </p>
+          </div>
         </div>
 
-        {/* Formulario principal de login */}
-        <div className="elegante-card mb-6">
-          <form onSubmit={handleLogin} className="space-y-6">
+        {/* Bottom decorative gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
+      </div>
+
+      {/* ── Panel Derecho: Formulario ── */}
+      <div className="login-right-panel flex items-center justify-center bg-[#0a0a0a] relative overflow-hidden min-h-screen">
+        {/* Subtle background texture */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-1/4 right-0 w-96 h-96 rounded-full bg-[#d8b081]/5 blur-[120px]" />
+          <div className="absolute bottom-1/4 left-0 w-72 h-72 rounded-full bg-[#d8b081]/3 blur-[100px]" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-md px-8 sm:px-12 py-12">
+          {/* Mobile logo (only on small screens) */}
+          <div className="login-mobile-logo text-center mb-8">
+            <img
+              src={LOGO_URL}
+              alt="Manito Barbershop"
+              className="w-16 h-16 rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30"
+            />
+            <h1 className="text-2xl font-bold text-white font-title tracking-tight">MANITO BARBERSHOP</h1>
+          </div>
+
+          {/* Header del formulario */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-white font-title tracking-tight mb-2">Iniciar Sesión</h2>
+            <p className="text-gray-500 text-sm">Ingresa tus credenciales para acceder a tu cuenta</p>
+          </div>
+
+          {/* Formulario */}
+          <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="flex items-center space-x-2 p-3 rounded-lg bg-red-900/20 border border-red-600/30">
-                <AlertCircle className="w-5 h-5 text-red-400" />
+              <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
+                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
                 <span className="text-red-400 text-sm">{error}</span>
               </div>
             )}
             {error.toLowerCase().includes('verifica tu email') && (
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-lightest">¿No recibiste el correo?</span>
+                <span className="text-xs text-gray-500">¿No recibiste el correo?</span>
                 <button
                   type="button"
                   onClick={handleResendVerification}
                   disabled={resendLoading}
-                  className="text-xs text-orange-primary hover:text-orange-secondary underline"
+                  className="text-xs text-[#d8b081] hover:text-[#e8c091] underline transition-colors"
                 >
                   {resendLoading ? 'Enviando...' : (resendSent ? 'Enviado' : 'Reenviar verificación')}
                 </button>
@@ -206,7 +269,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-white-primary">Email</Label>
+              <Label htmlFor="email" className="text-gray-300 text-sm font-medium">Email</Label>
               <div className="relative">
                 <Input
                   id="email"
@@ -214,15 +277,15 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="tu@email.com"
-                  className="elegante-input pl-10"
+                  className="login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all"
                   required
                 />
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter" />
+                <Mail className="absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-500 pointer-events-none" style={{ left: '14px' }} />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white-primary">Contraseña</Label>
+              <Label htmlFor="password" className="text-gray-300 text-sm font-medium">Contraseña</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -230,110 +293,159 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="Tu contraseña"
-                  className="elegante-input pl-10 pr-10"
+                  className="login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all"
                   required
                 />
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter" />
+                <Lock className="absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-500 pointer-events-none" style={{ left: '14px' }} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-lighter hover:text-white-primary transition-colors"
+                  className="absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1.5"
+                  style={{ right: '10px' }}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                 </button>
               </div>
             </div>
 
-            {/* Captcha de seguridad - Siempre visible */}
-            <div className="mt-6">
+            {/* Forgot password link */}
+            <div className="flex justify-end pt-0.5">
+              <button
+                type="button"
+                onClick={() => setCurrentView('forgot-password')}
+                className="text-sm text-[#d8b081] hover:text-[#e8c091] transition-colors py-1"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+
+            {/* Captcha */}
+            <div>
               <SimpleCaptcha
                 key={captchaKey}
                 onValidate={handleCaptchaValidation}
               />
             </div>
 
+            {/* Login button */}
             <Button
               type="submit"
               disabled={isLoading || !captchaValidated}
-              className={`elegante-button-primary w-full flex items-center justify-center ${!captchaValidated ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+              className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
+                captchaValidated
+                  ? 'bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]'
+                  : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+              }`}
             >
               {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-black-primary border-t-transparent rounded-full animate-spin mr-2" />
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                   Iniciando sesión...
-                </>
+                </span>
               ) : (
-                <>
-
-                  Iniciar Sesión
-                </>
+                'Iniciar Sesión'
               )}
             </Button>
 
+            {/* Divider */}
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/10" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-[#0a0a0a] px-4 text-gray-600 uppercase tracking-wider">o continúa con</span>
+              </div>
+            </div>
+
+            {/* Google Sign-In */}
+            <Button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              variant="outline"
+              className="login-btn-google w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Continuar con Google
+            </Button>
+
+            {/* Register link */}
+            <p className="text-center text-sm text-gray-500 mt-6">
+              ¿No tienes una cuenta?{' '}
+              <button
+                type="button"
+                onClick={onRequestRegister}
+                className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
+              >
+                Regístrate aquí
+              </button>
+            </p>
+
+            {/* Back to landing */}
             {onBackToLanding && (
               <button
+                type="button"
                 onClick={onBackToLanding}
-                className="text-sm text-gray-lightest hover:text-white-primary flex items-center gap-2 justify-start"
-                style={{ marginBottom: '4px' }}
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto mt-4"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Volver al inicio
               </button>
             )}
-
-            {/* Botón de Google Sign-In */}
-            <div className="mt-4">
-              <Button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                variant="outline"
-                className="w-full flex items-center justify-center gap-2 border-gray-600 hover:bg-gray-800"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  />
-                </svg>
-                Continuar con Google
-              </Button>
-            </div>
-
-            {/* Enlaces de soporte */}
-            <div className="flex justify-between items-center pt-4">
-              <button
-                type="button"
-                onClick={() => setCurrentView('forgot-password')}
-                className="text-sm text-orange-primary hover:text-orange-secondary transition-colors underline"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-
-              <button
-                type="button"
-                onClick={onRequestRegister}
-                className="text-sm text-orange-primary hover:text-orange-secondary transition-colors underline"
-              >
-                Registrarse
-              </button>
-            </div>
           </form>
         </div>
       </div>
-    </AuthBackground>
+
+      {/* Inline styles */}
+      <style>{`
+        @keyframes login-slow-zoom {
+          0% { transform: scale(1.25); }
+          100% { transform: scale(1.35); }
+        }
+        .font-body { font-family: 'Outfit', sans-serif; }
+        .font-title { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
+
+        .login-input {
+          padding-inline: 44px 12px !important;
+          height: 48px !important;
+        }
+        .login-input-password {
+          padding-inline: 44px 44px !important;
+        }
+        .login-btn {
+          height: 48px !important;
+        }
+        .login-btn-google {
+          height: 48px !important;
+        }
+
+        .login-left-panel {
+          flex: 0 0 50%;
+        }
+        .login-right-panel {
+          flex: 0 0 50%;
+        }
+        .login-mobile-logo {
+          display: none;
+        }
+
+        @media (max-width: 1023px) {
+          .login-left-panel {
+            display: none !important;
+          }
+          .login-right-panel {
+            flex: 0 0 100%;
+          }
+          .login-mobile-logo {
+            display: block;
+          }
+        }
+      `}</style>
+    </div>
   );
 }

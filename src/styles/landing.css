@@ -387,3 +387,36 @@ body {
   -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
   mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
 }
+
+/* ─── Skeleton shimmer dorado para carruseles ─── */
+.skeleton-shimmer-gold {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer-gold::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(216, 176, 129, 0.04) 20%,
+    rgba(216, 176, 129, 0.08) 40%,
+    rgba(216, 176, 129, 0.12) 50%,
+    rgba(216, 176, 129, 0.08) 60%,
+    rgba(216, 176, 129, 0.04) 80%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-gold 2s ease-in-out infinite;
+}
+
+@keyframes shimmer-gold {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

@@ -3,25 +3,11 @@ import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
 import { Label } from '../../../shared/components/ui/label';
-import { Eye, EyeOff, User, Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, ArrowLeft, CheckCircle, AlertCircle, Scissors, Star, Lock } from 'lucide-react';
 import { SimpleCaptcha } from '../components/captcha/index';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
 const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
-
-function AuthBackground({ children }: { children: any }) {
-  return (
-    <div className="min-h-screen bg-black-primary flex items-center justify-center p-4 relative overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url('${LANDING_BG_URL}')` }}
-      />
-      <div className="absolute inset-0 bg-black/65" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/75" />
-      <div className="relative z-10 w-full flex justify-center">{children}</div>
-    </div>
-  );
-}
 
 interface RegisterPageProps {
   onBack: () => void;
@@ -36,16 +22,15 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
     password: '',
     confirmPassword: ''
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(''); // Error global
-  const [emailConflictError, setEmailConflictError] = useState(''); // Error específico de correo en uso
+  const [error, setError] = useState('');
+  const [emailConflictError, setEmailConflictError] = useState('');
   const [success, setSuccess] = useState(false);
   const [captchaValidated, setCaptchaValidated] = useState<boolean>(false);
-  
-  // Validaciones visuales y de animación
+
   const [showRegisterFormErrors, setShowRegisterFormErrors] = useState(false);
   const [registerValidationAttempt, setRegisterValidationAttempt] = useState(0);
 
@@ -78,12 +63,10 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
-    
-    // Al presionar el botón, forzamos mostrar los errores y re-lanzar la animación
+
     setShowRegisterFormErrors(true);
     setRegisterValidationAttempt(prev => prev + 1);
 
-    // Si falta algo o no es válido, no procedemos a llamar la API
     if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || confirmPasswordMissing || !passwordsMatch || !captchaValidated) {
       return;
     }
@@ -110,7 +93,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
         } else {
           setError(result.error || 'Error al crear la cuenta');
         }
-        // No reseteamos el captcha para permitir volver a presionar tras corregir el correo
       }
     } catch (err) {
       setError('Error al crear la cuenta. Intenta de nuevo.');
@@ -126,63 +108,134 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
   if (success) {
     return (
-      <AuthBackground>
-        <div className="w-full max-w-md">
-          <div className="elegante-card text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-green-600" />
-            <div className="w-20 h-20 bg-green-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6 mt-4">
-              <Mail className="w-10 h-10 text-green-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-white-primary mb-4">
-              ¡Revisa tu correo!
-            </h1>
-            <p className="text-gray-lightest mb-6">
-              Tu cuenta ha sido creada exitosamente. Hemos enviado un enlace de verificación a <strong>{formData.email}</strong>.
-            </p>
-            <p className="text-sm text-gray-lighter mb-8">
-              Por favor revisa tu bandeja de entrada o carpeta de spam y haz clic en el enlace para activar tu cuenta antes de iniciar sesión.
-            </p>
-            <Button
-              onClick={onBack}
-              className="elegante-button-primary w-full flex items-center justify-center"
-            >
-              Ir al inicio de sesión
-            </Button>
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-6">
+        <div className="w-full max-w-md bg-[#141414] border border-white/10 rounded-2xl p-8 text-center">
+          <div className="w-20 h-20 bg-green-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Mail className="w-10 h-10 text-green-400" />
           </div>
+          <h1 className="text-2xl font-bold text-white mb-4 font-title">
+            ¡Revisa tu correo!
+          </h1>
+          <p className="text-gray-400 mb-6">
+            Tu cuenta ha sido creada exitosamente. Hemos enviado un enlace de verificación a <strong className="text-[#d8b081]">{formData.email}</strong>.
+          </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Por favor revisa tu bandeja de entrada o carpeta de spam y haz clic en el enlace para activar tu cuenta antes de iniciar sesión.
+          </p>
+          <Button
+            onClick={onBack}
+            className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+          >
+            Ir al inicio de sesión
+          </Button>
         </div>
-      </AuthBackground>
+        <style>{`
+          .login-btn { height: 48px !important; }
+          .font-title { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
+        `}</style>
+      </div>
     );
   }
 
   return (
-    <AuthBackground>
-      <div className="w-full max-w-md">
-        {/* Logo y título */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 elegante-shadow-lg relative overflow-hidden">
-            <img src={LOGO_URL} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
+    <div className="min-h-screen flex font-body">
+      {/* ── Panel Izquierdo: Imagen + Branding ── */}
+      <div className="login-left-panel flex relative overflow-hidden items-center justify-center">
+        <div
+          className="absolute inset-0 bg-cover bg-center scale-125 grayscale opacity-50"
+          style={{
+            backgroundImage: `url('${LANDING_BG_URL}')`,
+            animation: 'login-slow-zoom 25s ease-in-out infinite alternate',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/40 via-[#0d0d0d]/70 to-black" />
+        <div className="absolute inset-0 bg-black/30" />
+
+        <div className="relative z-10 px-12 xl:px-20 max-w-xl text-center">
+          <div className="mb-8">
+            <img
+              src={LOGO_URL}
+              alt="Manito Barbershop"
+              className="w-14 h-14 rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-white-primary mb-2">
-            Crear Cuenta
+
+          <h1
+            className="font-bold tracking-tight font-title leading-none mb-6"
+            style={{
+              fontSize: 'clamp(2rem, 4vw, 3.5rem)',
+              background: 'linear-gradient(135deg, #fff 0%, #d8b081 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            MANITO BARBERSHOP
           </h1>
-          <p className="text-gray-lightest">
-            Únete a MANITO BARBERSHOP
+
+          <p className="text-gray-300 text-lg leading-relaxed mb-10 font-light">
+            Únete a nuestra comunidad y agenda tus citas fácilmente
           </p>
+
+          <div className="flex items-center justify-center gap-4 mb-10">
+            <span className="block w-16 h-px bg-gradient-to-r from-transparent to-[#d8b081]/60" />
+            <Scissors className="w-5 h-5 text-[#d8b081]/60" />
+            <span className="block w-16 h-px bg-gradient-to-l from-transparent to-[#d8b081]/60" />
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6">
+            <div className="flex items-center justify-center gap-1 mb-3">
+              {[1, 2, 3, 4, 5].map(i => (
+                <Star key={i} className="w-4 h-4 text-[#d8b081] fill-[#d8b081]" />
+              ))}
+            </div>
+            <p className="text-gray-300 text-sm italic leading-relaxed">
+              "Registro rápido, reserva fácil. La mejor experiencia desde el primer momento."
+            </p>
+            <p className="text-[#d8b081] text-xs font-semibold mt-3 uppercase tracking-wider">
+              +2 años de experiencia
+            </p>
+          </div>
         </div>
 
-        {/* Formulario de registro */}
-        <div className="elegante-card">
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
+      </div>
+
+      {/* ── Panel Derecho: Formulario ── */}
+      <div className="login-right-panel flex items-center justify-center bg-[#0a0a0a] relative overflow-hidden min-h-screen">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-1/4 right-0 w-96 h-96 rounded-full bg-[#d8b081]/5 blur-[120px]" />
+          <div className="absolute bottom-1/4 left-0 w-72 h-72 rounded-full bg-[#d8b081]/3 blur-[100px]" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-md px-8 sm:px-12 py-12">
+          {/* Mobile logo */}
+          <div className="login-mobile-logo text-center mb-8">
+            <img
+              src={LOGO_URL}
+              alt="Manito Barbershop"
+              className="w-16 h-16 rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30"
+            />
+            <h1 className="text-2xl font-bold text-white font-title tracking-tight">MANITO BARBERSHOP</h1>
+          </div>
+
+          {/* Header */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-white font-title tracking-tight mb-2">Crear Cuenta</h2>
+            <p className="text-gray-500 text-sm">Completa tus datos para registrarte</p>
+          </div>
+
+          {/* Formulario */}
           <form onSubmit={handleRegister} noValidate className="space-y-4">
             {error && (
-              <div className="flex items-center space-x-2 p-3 rounded-lg bg-red-900/20 border border-red-600/30">
-                <AlertCircle className="w-5 h-5 text-red-400" />
+              <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
+                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
                 <span className="text-red-400 text-sm">{error}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-white-primary">Nombre *</Label>
+                <Label htmlFor="name" className="text-gray-300 text-sm font-medium">Nombre *</Label>
                 <div className="relative">
                   <Input
                     id="name"
@@ -190,17 +243,17 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                     value={formData.name}
                     onChange={(e) => updateFormField('name', e.target.value)}
                     placeholder="Tu nombre"
-                    className={`elegante-input pl-10 ${showRegisterFormErrors && nameMissing ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                    className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${showRegisterFormErrors && nameMissing ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                   />
-                  <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${showRegisterFormErrors && nameMissing ? 'text-red-400' : 'text-gray-lighter'}`} />
+                  <User className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${showRegisterFormErrors && nameMissing ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
                 </div>
                 {showRegisterFormErrors && nameMissing && (
-                  <p className="text-xs text-red-400 mt-1">El nombre es obligatorio</p>
+                  <p className="text-xs text-red-400 mt-1">Obligatorio</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="apellido" className="text-white-primary">Apellido *</Label>
+                <Label htmlFor="apellido" className="text-gray-300 text-sm font-medium">Apellido *</Label>
                 <div className="relative">
                   <Input
                     id="apellido"
@@ -208,18 +261,18 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                     value={formData.apellido}
                     onChange={(e) => updateFormField('apellido', e.target.value)}
                     placeholder="Tu apellido"
-                    className={`elegante-input pl-10 ${showRegisterFormErrors && apellidoMissing ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                    className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${showRegisterFormErrors && apellidoMissing ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                   />
-                  <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${showRegisterFormErrors && apellidoMissing ? 'text-red-400' : 'text-gray-lighter'}`} />
+                  <User className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${showRegisterFormErrors && apellidoMissing ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
                 </div>
                 {showRegisterFormErrors && apellidoMissing && (
-                  <p className="text-xs text-red-400 mt-1">El apellido es obligatorio</p>
+                  <p className="text-xs text-red-400 mt-1">Obligatorio</p>
                 )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-white-primary">Email *</Label>
+              <Label htmlFor="email" className="text-gray-300 text-sm font-medium">Email *</Label>
               <div className="relative">
                 <Input
                   id="email"
@@ -227,9 +280,9 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   value={formData.email}
                   onChange={(e) => updateFormField('email', e.target.value)}
                   placeholder="tu@email.com"
-                  className={`elegante-input pl-10 ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                  className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
-                <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError ? 'text-red-400' : 'text-gray-lighter'}`} />
+                <Mail className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
               </div>
               {showRegisterFormErrors && emailMissing && (
                 <p className="text-xs text-red-400 mt-1">El email es obligatorio</p>
@@ -243,7 +296,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-white-primary">Contraseña *</Label>
+              <Label htmlFor="password" className="text-gray-300 text-sm font-medium">Contraseña *</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -251,15 +304,16 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   value={formData.password}
                   onChange={(e) => updateFormField('password', e.target.value)}
                   placeholder="Mínimo 6 caracteres"
-                  className={`elegante-input pl-10 pr-10 ${showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                  className={`login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
-                <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength) ? 'text-red-400' : 'text-gray-lighter'}`} />
+                <Lock className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength) ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-lighter hover:text-white-primary transition-colors"
+                  className="absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1.5"
+                  style={{ right: '10px' }}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                 </button>
               </div>
               {showRegisterFormErrors && passwordMissing && (
@@ -269,21 +323,20 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                 <p className="text-xs text-red-400 mt-1">Debe tener al menos 6 caracteres</p>
               )}
 
-              {/* Validaciones visuales en tiempo real */}
               {formData.password && (
-                <div className="mt-3 p-3 bg-gray-darker rounded-lg border border-gray-dark">
-                  <h4 className="text-white-primary text-sm font-medium mb-2">Requisitos de seguridad:</h4>
-                  <div className="space-y-1 text-sm">
-                    <div className={`flex items-center gap-2 ${passwordValidations.minLength ? 'text-green-400' : 'text-gray-lighter'}`}>
-                      <div className={`w-2 h-2 rounded-full ${passwordValidations.minLength ? 'bg-green-400' : 'bg-gray-medium'}`} />
+                <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                  <h4 className="text-white text-xs font-medium mb-2">Requisitos de seguridad:</h4>
+                  <div className="space-y-1 text-xs">
+                    <div className={`flex items-center gap-2 ${passwordValidations.minLength ? 'text-green-400' : 'text-gray-500'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.minLength ? 'bg-green-400' : 'bg-gray-600'}`} />
                       Mínimo 6 caracteres
                     </div>
-                    <div className={`flex items-center gap-2 ${passwordValidations.hasNumber ? 'text-green-400' : 'text-gray-lighter'}`}>
-                      <div className={`w-2 h-2 rounded-full ${passwordValidations.hasNumber ? 'bg-green-400' : 'bg-gray-medium'}`} />
+                    <div className={`flex items-center gap-2 ${passwordValidations.hasNumber ? 'text-green-400' : 'text-gray-500'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasNumber ? 'bg-green-400' : 'bg-gray-600'}`} />
                       Al menos un número (recomendado)
                     </div>
-                    <div className={`flex items-center gap-2 ${passwordValidations.hasUpperCase ? 'text-green-400' : 'text-gray-lighter'}`}>
-                      <div className={`w-2 h-2 rounded-full ${passwordValidations.hasUpperCase ? 'bg-green-400' : 'bg-gray-medium'}`} />
+                    <div className={`flex items-center gap-2 ${passwordValidations.hasUpperCase ? 'text-green-400' : 'text-gray-500'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasUpperCase ? 'bg-green-400' : 'bg-gray-600'}`} />
                       Al menos una mayúscula (recomendado)
                     </div>
                   </div>
@@ -292,7 +345,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-white-primary">Confirmar contraseña *</Label>
+              <Label htmlFor="confirmPassword" className="text-gray-300 text-sm font-medium">Confirmar contraseña *</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -300,15 +353,16 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   value={formData.confirmPassword}
                   onChange={(e) => updateFormField('confirmPassword', e.target.value)}
                   placeholder="Repite tu contraseña"
-                  className={`elegante-input pl-10 pr-10 ${showRegisterFormErrors && (confirmPasswordMissing || !passwordsMatch) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                  className={`login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${showRegisterFormErrors && (confirmPasswordMissing || !passwordsMatch) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
-                <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${showRegisterFormErrors && (confirmPasswordMissing || !passwordsMatch) ? 'text-red-400' : 'text-gray-lighter'}`} />
+                <Lock className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${showRegisterFormErrors && (confirmPasswordMissing || !passwordsMatch) ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-lighter hover:text-white-primary transition-colors"
+                  className="absolute top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1.5"
+                  style={{ right: '10px' }}
                 >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showConfirmPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                 </button>
               </div>
               {showRegisterFormErrors && confirmPasswordMissing && (
@@ -319,47 +373,95 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               )}
             </div>
 
-            {/* Captcha de seguridad */}
-            <div className={`mt-6 ${showRegisterFormErrors && !captchaValidated ? shakeClass : ''}`}>
-              <SimpleCaptcha
-                onValidate={handleCaptchaValidation}
-              />
+            {/* Captcha */}
+            <div className={`${showRegisterFormErrors && !captchaValidated ? shakeClass : ''}`}>
+              <SimpleCaptcha onValidate={handleCaptchaValidation} />
               {showRegisterFormErrors && !captchaValidated && (
                 <p className="text-xs text-red-400 mt-2 text-center">Completa el captcha para continuar</p>
               )}
             </div>
 
+            {/* Register button */}
             <Button
               type="submit"
               disabled={isLoading}
-              className="elegante-button-primary w-full flex items-center justify-center mt-6"
+              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] mt-2"
             >
               {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-black-primary border-t-transparent rounded-full animate-spin mr-2" />
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                   Creando cuenta...
-                </>
+                </span>
               ) : (
-                <>
-                  <User className="w-4 h-4 mr-2" />
-                  Crear Cuenta
-                </>
+                'Crear Cuenta'
               )}
             </Button>
-          </form>
 
-          {/* Botón de regreso */}
-          <div className="mt-6 pt-6 border-t border-gray-dark">
+            {/* Back link */}
+            <p className="text-center text-sm text-gray-500 mt-4">
+              ¿Ya tienes una cuenta?{' '}
+              <button
+                type="button"
+                onClick={onBack}
+                className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
+              >
+                Inicia sesión
+              </button>
+            </p>
+
             <button
+              type="button"
               onClick={onBack}
-              className="flex items-center gap-2 text-sm text-orange-primary hover:text-orange-secondary transition-colors mx-auto"
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto mt-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Volver al inicio de sesión
+              Volver
             </button>
-          </div>
+          </form>
         </div>
       </div>
-    </AuthBackground>
+
+      <style>{`
+        @keyframes login-slow-zoom {
+          0% { transform: scale(1.25); }
+          100% { transform: scale(1.35); }
+        }
+        .font-body { font-family: 'Outfit', sans-serif; }
+        .font-title { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
+
+        .login-input {
+          padding-inline: 44px 12px !important;
+          height: 48px !important;
+        }
+        .login-input-password {
+          padding-inline: 44px 44px !important;
+        }
+        .login-btn {
+          height: 48px !important;
+        }
+
+        .login-left-panel {
+          flex: 0 0 50%;
+        }
+        .login-right-panel {
+          flex: 0 0 50%;
+        }
+        .login-mobile-logo {
+          display: none;
+        }
+
+        @media (max-width: 1023px) {
+          .login-left-panel {
+            display: none !important;
+          }
+          .login-right-panel {
+            flex: 0 0 100%;
+          }
+          .login-mobile-logo {
+            display: block;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
