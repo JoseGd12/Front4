@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
+import { emailJsService } from "../../../shared/services/emailJsService";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -755,6 +756,19 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
           success("Cita cancelada", `La venta #${ventaIdCancel} asociada ha sido anulada.`);
         } else {
           success("Cita cancelada", "Estado actualizado correctamente.");
+        }
+
+        // --- NOTIFICACIÓN VÍA EMAILJS ---
+        const citaActual = citas.find(c => c.id === citaId);
+        if (citaActual && citaActual.clienteCorreo) {
+          emailJsService.notificarCancelacion({
+            cliente_nombre: citaActual.clienteNombre || "Cliente",
+            cliente_email: citaActual.clienteCorreo,
+            barbero_nombre: citaActual.barberoNombre || "Tu barbero",
+            fecha_original: `${citaActual.fecha} ${citaActual.hora}`,
+            motivo_cancelacion: "Cita cancelada por el administrador/barbero.",
+            sugerencias_reprogramacion: []
+          });
         }
         return;
       }

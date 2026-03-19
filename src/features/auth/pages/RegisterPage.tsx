@@ -108,30 +108,116 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-6">
-        <div className="w-full max-w-md bg-[#141414] border border-white/10 rounded-2xl p-8 text-center">
-          <div className="w-20 h-20 bg-green-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Mail className="w-10 h-10 text-green-400" />
+      <div className="min-h-screen flex font-body">
+        {/* ── Panel Izquierdo: Imagen + Branding ── */}
+        <div className="login-left-panel flex relative overflow-hidden items-center justify-center">
+          <div
+            className="absolute inset-0 bg-cover bg-center scale-125 grayscale opacity-50"
+            style={{
+              backgroundImage: `url('${LANDING_BG_URL}')`,
+              animation: 'login-slow-zoom 25s ease-in-out infinite alternate',
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/40 via-[#0d0d0d]/70 to-black" />
+          <div className="absolute inset-0 bg-black/30" />
+
+          <div className="relative z-10 px-12 xl:px-20 max-w-xl text-center">
+            <div className="mb-8">
+              <img
+                src={LOGO_URL}
+                alt="Manito Barbershop"
+                className="w-14 h-14 rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+              />
+            </div>
+
+            <h1
+              className="font-bold tracking-tight font-title leading-none mb-6"
+              style={{
+                fontSize: 'clamp(2rem, 4vw, 3.5rem)',
+                background: 'linear-gradient(135deg, #fff 0%, #d8b081 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              MANITO BARBERSHOP
+            </h1>
+
+            <p className="text-gray-300 text-lg leading-relaxed mb-10 font-light">
+              Únete a nuestra comunidad y agenda tus citas fácilmente
+            </p>
+
+            <div className="flex items-center justify-center gap-4 mb-10">
+              <span className="block w-16 h-px bg-gradient-to-r from-transparent to-[#d8b081]/60" />
+              <Scissors className="w-5 h-5 text-[#d8b081]/60" />
+              <span className="block w-16 h-px bg-gradient-to-l from-transparent to-[#d8b081]/60" />
+            </div>
+
+            <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 text-center">
+              <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">¡Casi listo!</h2>
+              <p className="text-gray-400 text-sm">Verifica tu correo para activar tu cuenta.</p>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-4 font-title">
-            ¡Revisa tu correo!
-          </h1>
-          <p className="text-gray-400 mb-6">
-            Tu cuenta ha sido creada exitosamente. Hemos enviado un enlace de verificación a <strong className="text-[#d8b081]">{formData.email}</strong>.
-          </p>
-          <p className="text-sm text-gray-500 mb-8">
-            Por favor revisa tu bandeja de entrada o carpeta de spam y haz clic en el enlace para activar tu cuenta antes de iniciar sesión.
-          </p>
-          <Button
-            onClick={onBack}
-            className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
-          >
-            Ir al inicio de sesión
-          </Button>
+
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
         </div>
+
+        {/* ── Panel Derecho: Mensaje de Éxito ── */}
+        <div className="login-right-panel flex items-center justify-center bg-[#0a0a0a] relative overflow-hidden min-h-screen">
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-1/4 right-0 w-96 h-96 rounded-full bg-[#d8b081]/5 blur-[120px]" />
+            <div className="absolute bottom-1/4 left-0 w-72 h-72 rounded-full bg-[#d8b081]/3 blur-[100px]" />
+          </div>
+
+          <div className="relative z-10 w-full max-w-md px-8 sm:px-12 py-12 text-center">
+            {/* Mobile logo */}
+            <div className="login-mobile-logo text-center mb-8">
+              <img
+                src={LOGO_URL}
+                alt="Manito Barbershop"
+                className="w-16 h-16 rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30"
+              />
+              <Mail className="w-12 h-12 text-green-400 mx-auto mb-4" />
+            </div>
+
+            <h1 className="text-3xl font-bold text-white mb-4 font-title">
+              ¡Revisa tu correo!
+            </h1>
+            <p className="text-gray-400 mb-6">
+              Tu cuenta ha sido creada exitosamente. Hemos enviado un enlace de verificación a <strong className="text-[#d8b081]">{formData.email}</strong>.
+            </p>
+            <p className="text-sm text-gray-500 mb-8">
+              Por favor revisa tu bandeja de entrada o carpeta de spam y haz clic en el enlace para activar tu cuenta antes de iniciar sesión.
+            </p>
+
+            <div className="auth-access-wrapper">
+              <Button
+                onClick={onBack}
+                className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+              >
+                Ir al inicio de sesión
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <style>{`
-          .login-btn { height: 48px !important; }
+          @keyframes login-slow-zoom {
+            0% { transform: scale(1.25); }
+            100% { transform: scale(1.35); }
+          }
+          .font-body { font-family: 'Outfit', sans-serif; }
           .font-title { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
+          .login-btn { height: 48px !important; }
+          .login-left-panel { flex: 0 0 50%; }
+          .login-right-panel { flex: 0 0 50%; }
+          .login-mobile-logo { display: none; }
+
+          @media (max-width: 1023px) {
+            .login-left-panel { display: none !important; }
+            .login-right-panel { flex: 0 0 100%; }
+            .login-mobile-logo { display: block; }
+          }
         `}</style>
       </div>
     );
@@ -156,7 +242,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             <img
               src={LOGO_URL}
               alt="Manito Barbershop"
-              className="w-14 h-14 rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+              className="rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+              style={{ width: 'var(--auth-logo-size)', height: 'var(--auth-logo-size)' }}
             />
           </div>
 
@@ -213,7 +300,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             <img
               src={LOGO_URL}
               alt="Manito Barbershop"
-              className="w-16 h-16 rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30"
+              className="rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+              style={{ width: 'var(--auth-logo-mobile-size)', height: 'var(--auth-logo-mobile-size)' }}
             />
             <h1 className="text-2xl font-bold text-white font-title tracking-tight">MANITO BARBERSHOP</h1>
           </div>
@@ -382,32 +470,38 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             </div>
 
             {/* Register button */}
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] mt-2"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  Creando cuenta...
-                </span>
-              ) : (
-                'Crear Cuenta'
-              )}
-            </Button>
+            <div className="auth-access-wrapper">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] mt-2"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    Creando cuenta...
+                  </span>
+                ) : (
+                  'Crear Cuenta'
+                )}
+              </Button>
+            </div>
 
             {/* Back link */}
-            <p className="text-center text-sm text-gray-500 mt-4">
-              ¿Ya tienes una cuenta?{' '}
-              <button
-                type="button"
-                onClick={onBack}
-                className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
-              >
-                Inicia sesión
-              </button>
-            </p>
+            <div className="flex justify-center mt-4">
+              <div className="auth-access-wrapper !w-auto !py-2 !px-4">
+                <p className="text-center text-sm text-gray-500">
+                  ¿Ya tienes una cuenta?{' '}
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
+                  >
+                    Inicia sesión
+                  </button>
+                </p>
+              </div>
+            </div>
 
             <button
               type="button"

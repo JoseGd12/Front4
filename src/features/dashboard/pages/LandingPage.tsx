@@ -336,7 +336,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             ))}
           </div>
 
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center gap-8">
             {isAuthenticated ? (
               <>
                 <button

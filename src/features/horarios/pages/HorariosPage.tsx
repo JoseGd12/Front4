@@ -49,6 +49,7 @@ import { TableLoadingStateRow } from "../../../shared/components/ui/table-loadin
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
 import { horariosService, HorarioBarbero } from "../../agendamiento/services/horariosService";
 import { agendamientoService } from "../../agendamiento/services/agendamientoService";
+import { emailJsService } from "../../../shared/services/emailJsService";
 
 const diasSemana = [
   "Lunes",
@@ -592,7 +593,16 @@ export function HorariosPage() {
       const erroresApi: string[] = [];
       const fechasUnicas = Array.from(new Set(selectedDates.map((d) => formatDateLocal(d))))
         .map((value) => new Date(`${value}T00:00:00`));
-      const collectedReprogram: Array<{ citaId: number; clienteId: number; barberoId: number; sugerencias: string[] }> = [];
+      const collectedReprogram: Array<{ 
+        citaId: number; 
+        clienteId: number; 
+        barberoId: number; 
+        sugerencias: string[];
+        clienteNombre?: string;
+        clienteCorreo?: string;
+        barberoNombre?: string;
+        fechaHoraOriginal?: string;
+      }> = [];
 
       for (const fecha of fechasUnicas) {
         const diaSemanaNombre = diasJs[fecha.getDay()];
@@ -617,7 +627,11 @@ export function HorariosPage() {
                 citaId: Number(item?.citaId || 0),
                 clienteId: Number(item?.clienteId || 0),
                 barberoId: Number(item?.barberoId || 0),
-                sugerencias: sug.map((s: any) => String(s))
+                sugerencias: sug.map((s: any) => String(s)),
+                clienteNombre: item?.clienteNombre,
+                clienteCorreo: item?.clienteCorreo,
+                barberoNombre: item?.barberoNombre,
+                fechaHoraOriginal: item?.fechaHoraOriginal
               });
             });
             continue;
@@ -644,7 +658,11 @@ export function HorariosPage() {
                 citaId: Number(item?.citaId || 0),
                 clienteId: Number(item?.clienteId || 0),
                 barberoId: Number(item?.barberoId || 0),
-                sugerencias: sug.map((s: any) => String(s))
+                sugerencias: sug.map((s: any) => String(s)),
+                clienteNombre: item?.clienteNombre,
+                clienteCorreo: item?.clienteCorreo,
+                barberoNombre: item?.barberoNombre,
+                fechaHoraOriginal: item?.fechaHoraOriginal
               });
             });
           } catch (apiError: any) {
@@ -659,6 +677,22 @@ export function HorariosPage() {
       setReprogramItems(collectedReprogram);
       if (collectedReprogram.length > 0) {
         setIsReprogramDialogOpen(true);
+        
+        // --- ENVÍO DE CORREOS VÍA EMAILJS ---
+        // Notificamos de manera asíncrona sin bloquear la UI
+        const motivo = (cancelMotive || "").trim() || "Día desactivado por administración.";
+        collectedReprogram.forEach(item => {
+          if (item.clienteCorreo) {
+            emailJsService.notificarCancelacion({
+              cliente_nombre: item.clienteNombre || "Cliente",
+              cliente_email: item.clienteCorreo,
+              barbero_nombre: item.barberoNombre || "Tu barbero",
+              fecha_original: item.fechaHoraOriginal ? new Date(item.fechaHoraOriginal).toLocaleString('es-CO') : "Fecha no especificada",
+              motivo_cancelacion: motivo,
+              sugerencias_reprogramacion: item.sugerencias
+            });
+          }
+        });
       }
       
       if (fechasFallidas.length > 0 && fechasFallidas.length === fechasUnicas.length && erroresApi.length === 0) {

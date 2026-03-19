@@ -174,7 +174,8 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             <img
               src={LOGO_URL}
               alt="Manito Barbershop"
-              className="w-14 h-14 rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+              className="rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+              style={{ width: 'var(--auth-logo-size)', height: 'var(--auth-logo-size)' }}
             />
           </div>
 
@@ -235,7 +236,8 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             <img
               src={LOGO_URL}
               alt="Manito Barbershop"
-              className="w-16 h-16 rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30"
+              className="rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
+              style={{ width: 'var(--auth-logo-mobile-size)', height: 'var(--auth-logo-mobile-size)' }}
             />
             <h1 className="text-2xl font-bold text-white font-title tracking-tight">MANITO BARBERSHOP</h1>
           </div>
@@ -310,13 +312,15 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
             {/* Forgot password link */}
             <div className="flex justify-end pt-0.5">
-              <button
-                type="button"
-                onClick={() => setCurrentView('forgot-password')}
-                className="text-sm text-[#d8b081] hover:text-[#e8c091] transition-colors py-1"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
+              <div className="auth-access-wrapper !w-auto !p-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('forgot-password')}
+                  className="text-sm text-[#d8b081] hover:text-[#e8c091] transition-colors py-1 px-2"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
             </div>
 
             {/* Captcha */}
@@ -328,24 +332,26 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             </div>
 
             {/* Login button */}
-            <Button
-              type="submit"
-              disabled={isLoading || !captchaValidated}
-              className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
-                captchaValidated
-                  ? 'bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]'
-                  : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  Iniciando sesión...
-                </span>
-              ) : (
-                'Iniciar Sesión'
-              )}
-            </Button>
+            <div className="auth-access-wrapper">
+              <Button
+                type="submit"
+                disabled={isLoading || !captchaValidated}
+                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
+                  captchaValidated
+                    ? 'bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]'
+                    : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    Iniciando sesión...
+                  </span>
+                ) : (
+                  'Iniciar Sesión'
+                )}
+              </Button>
+            </div>
 
             {/* Divider */}
             <div className="relative my-2">
@@ -375,27 +381,35 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             </Button>
 
             {/* Register link */}
-            <p className="text-center text-sm text-gray-500 mt-6">
-              ¿No tienes una cuenta?{' '}
-              <button
-                type="button"
-                onClick={onRequestRegister}
-                className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
-              >
-                Regístrate aquí
-              </button>
-            </p>
+            <div className="flex justify-center mt-6">
+              <div className="auth-access-wrapper !w-auto !py-2 !px-4">
+                <p className="text-sm text-gray-500">
+                  ¿No tienes una cuenta?{' '}
+                  <button
+                    type="button"
+                    onClick={onRequestRegister}
+                    className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
+                  >
+                    Regístrate aquí
+                  </button>
+                </p>
+              </div>
+            </div>
 
             {/* Back to landing */}
             {onBackToLanding && (
-              <button
-                type="button"
-                onClick={onBackToLanding}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto mt-4"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Volver al inicio
-              </button>
+              <div className="flex justify-center mt-6">
+                <div className="auth-access-wrapper !w-auto !py-1 !px-4">
+                  <button
+                    type="button"
+                    onClick={onBackToLanding}
+                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Volver al inicio
+                  </button>
+                </div>
+              </div>
             )}
           </form>
         </div>

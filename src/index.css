@@ -172,6 +172,8 @@
     --color-orange-darker: var(--orange-darker);
     --color-white-primary: var(--white-primary);
     --color-white-secondary: var(--white-secondary);
+    --auth-logo-size: 110px;
+    --auth-logo-mobile-size: 120px;
   }
 }
 

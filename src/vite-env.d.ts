@@ -36,6 +36,9 @@ interface ImportMetaEnv {
     readonly VITE_ENABLE_DEBUG: string
     readonly VITE_APP_NAME: string
     readonly VITE_APP_VERSION: string
+    readonly VITE_EMAILJS_SERVICE_ID: string
+    readonly VITE_EMAILJS_TEMPLATE_ID_CANCELACION: string
+    readonly VITE_EMAILJS_PUBLIC_KEY: string
 }
 
 interface ImportMeta {
