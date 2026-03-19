@@ -25,15 +25,38 @@ export const emailJsService = {
         return false;
       }
 
+      const formatFecha = (val: string) => {
+        try {
+          // Si es un ISO completo o una fecha válida
+          const date = new Date(val);
+          if (isNaN(date.getTime())) return val;
+          
+          return date.toLocaleString('es-ES', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+        } catch {
+          return val;
+        }
+      };
+
       const templateParams = {
         to_name: params.cliente_nombre,
         to_email: params.cliente_email,
         barbero_name: params.barbero_nombre,
-        fecha_hora: params.fecha_original,
+        fecha_hora: formatFecha(params.fecha_original),
         motivo: params.motivo_cancelacion,
-        sugerencias: params.sugerencias_reprogramacion?.join(', ') || 'No disponibles',
+        sugerencias: params.sugerencias_reprogramacion?.length 
+          ? params.sugerencias_reprogramacion.map(formatFecha).join(' | ') 
+          : 'No disponibles',
         app_name: params.app_name || import.meta.env.VITE_APP_NAME || 'Barbería App'
       };
+
+
 
       const response = await emailjs.send(
         SERVICE_ID,
