@@ -33,14 +33,14 @@ export interface Venta {
 }
 
 export interface ProductoDetalle {
-  id: string;
+  id: number;
   nombre: string;
   cantidad: number;
   precio: number;
 }
 
 export interface ServicioDetalle {
-  id: string;
+  id: number;
   nombre: string;
   cantidad?: number;
   precio: number;
@@ -182,8 +182,8 @@ class VentaService {
 
     if (data.productosDetalle && Array.isArray(data.productosDetalle)) {
       data.productosDetalle.forEach((p: any) => {
-        const productoId = parseInt(p.id);
-        if (!isNaN(productoId) && productoId > 0) {
+        const productoId = Number(p.id);
+        if (productoId > 0) {
           detalles.push({
             ProductoId: productoId,
             Cantidad: Number(p.cantidad || 1),

@@ -20,7 +20,7 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'https://manitobarbershop.up.railway.app',
+        target: process.env.VITE_API_BASE_URL || 'https://manitobarbershop.up.railway.app',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path,

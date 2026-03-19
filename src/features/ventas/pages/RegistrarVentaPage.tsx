@@ -851,7 +851,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     }
 
     const productosInvalidos = productosActuales.filter(
-      (p) => !p.id || isNaN(parseInt(p.id))
+      (p) => !p.id || isNaN(Number(p.id))
     );
     if (productosInvalidos.length > 0) {
       showErrorAlert(

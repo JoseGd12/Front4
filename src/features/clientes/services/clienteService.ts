@@ -1,3 +1,5 @@
+import { auth } from '../../../shared/services/firebase';
+
 const API_BASE_URL = '/api';
 
 export interface Cliente {
@@ -19,9 +21,17 @@ class ClienteService {
     private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
         const url = `${API_BASE_URL}${endpoint}`;
 
-        const defaultHeaders = {
+        let token = null;
+        if (auth.currentUser) {
+            token = await auth.currentUser.getIdToken();
+        }
+
+        const defaultHeaders: Record<string, string> = {
             'Content-Type': 'application/json',
         };
+        if (token) {
+            defaultHeaders['Authorization'] = `Bearer ${token}`;
+        }
 
         const config: RequestInit = {
             ...options,

@@ -1,6 +1,8 @@
+import { auth } from '../../../shared/services/firebase';
+import { apiService, type ApiUser } from '../../../shared/services/api';
+
 const BARBEROS_URL = '/api/Barberos';
 const USUARIOS_URL = '/api/Usuarios';
-import { apiService, type ApiUser } from '../../../shared/services/api';
 
 export interface Barbero {
   id: number;
@@ -42,11 +44,17 @@ export interface CreateBarberoData {
 
 class BarberosService {
   private async request(url: string, options: RequestInit = {}): Promise<Response> {
+    let token = null;
+    if (auth.currentUser) {
+      token = await auth.currentUser.getIdToken();
+    }
+
     const config: RequestInit = {
       ...options,
       headers: {
         ...options.headers,
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
     };
 

@@ -1249,7 +1249,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     }
 
     // Validar que los productos tengan IDs válidos
-    const productosInvalidos = productosActuales.filter(p => !p.id || isNaN(parseInt(p.id)));
+    const productosInvalidos = productosActuales.filter(p => !p.id || isNaN(Number(p.id)));
     if (productosInvalidos.length > 0) {
       console.error('❌ Productos con IDs inválidos:', productosInvalidos);
       showErrorAlert("Productos inválidos", `${productosInvalidos.length} producto(s) tienen IDs inválidos.`);

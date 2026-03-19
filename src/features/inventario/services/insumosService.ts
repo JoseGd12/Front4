@@ -1,3 +1,5 @@
+import { auth } from '../../../shared/services/firebase';
+
 /**
  * Servicio para gestión de Insumos/Productos
  * API: http://edwisbarber.somee.com/api/Productos
@@ -58,10 +60,20 @@ class InsumosService {
   private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const url = `${API_BASE_URL}${endpoint}`;
 
+    let token = null;
+    if (auth.currentUser) {
+      token = await auth.currentUser.getIdToken();
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       ...options,
     });
 
