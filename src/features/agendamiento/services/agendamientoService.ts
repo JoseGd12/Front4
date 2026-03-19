@@ -15,6 +15,8 @@ export interface Agendamiento {
     serviciosNombres: string[];
     paqueteId: number | null;
     paqueteNombre: string | null;
+    productoIds: number[];
+    productosNombres: string[];
     fecha: string;
     hora: string;
     duracion: number;
@@ -28,6 +30,7 @@ export interface CreateAgendamientoData {
     barberoId: number;
     servicioId: number | null;
     servicioIds?: number[];
+    productoIds?: number[];
     paqueteId: number | null;
     fecha: string;
     hora: string;
@@ -135,6 +138,16 @@ class AgendamientoService {
             serviciosNombres.push(String(servicioNom));
         }
 
+        // Extraer productos del agendamiento
+        const rawProductoIds = api.productoIds || api.ProductoIds || [];
+        const productoIds = Array.isArray(rawProductoIds)
+            ? rawProductoIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
+            : [];
+        const productosNombresRaw = api.productosNombres || api.ProductosNombres || [];
+        const productosNombres = Array.isArray(productosNombresRaw)
+            ? productosNombresRaw.map((nombre: any) => String(nombre)).filter((nombre: string) => nombre.trim().length > 0)
+            : [];
+
         return {
             id: Number(api.id || api.Id || 0),
             clienteId: Number(api.clienteId || api.ClienteId || 0),
@@ -148,6 +161,8 @@ class AgendamientoService {
             serviciosNombres,
             paqueteId: api.paqueteId || api.PaqueteId ? Number(api.paqueteId || api.PaqueteId) : null,
             paqueteNombre: api.paqueteNombre || api.PaqueteNombre || null,
+            productoIds,
+            productosNombres,
             fecha: fecha,
             hora: hora,
             duracion: duracionNum,
@@ -161,7 +176,7 @@ class AgendamientoService {
         return {
             id: 0, clienteId: 0, clienteNombre: 'Desconocido', clienteTelefono: '',
             barberoId: 0, barberoNombre: 'Desconocido', servicioId: 0, servicioIds: [], servicioNombre: 'Servicio', serviciosNombres: [],
-            paqueteId: null, paqueteNombre: null,
+            paqueteId: null, paqueteNombre: null, productoIds: [], productosNombres: [],
             fecha: '', hora: '', duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
         };
     }
@@ -241,6 +256,7 @@ class AgendamientoService {
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
             ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,
+            ProductoIds: data.productoIds && data.productoIds.length > 0 ? data.productoIds : undefined,
             PaqueteId: data.paqueteId,
             FechaHora: localIsoStr,
             Duracion: `${data.duracion} minutos`,
@@ -286,6 +302,7 @@ class AgendamientoService {
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
             ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,
+            ProductoIds: data.productoIds && data.productoIds.length > 0 ? data.productoIds : undefined,
             PaqueteId: data.paqueteId,
             FechaHora: localIsoStr,
             Duracion: `${data.duracion} minutos`,

@@ -6,9 +6,10 @@ import { barberosService } from "../../administracion/services/barberosService";
 import { servicioService } from "../../servicios/services/servicioService";
 import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
+import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../services/horariosService";
 import { Input } from "../../../shared/components/ui/input";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -60,6 +61,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
   // Listas para los selects
   const [serviciosList, setServiciosList] = useState<any[]>([]);
   const [paquetesList, setPaquetesList] = useState<any[]>([]);
+  const [productosList, setProductosList] = useState<any[]>([]);
   const [barberosList, setBarberosList] = useState<any[]>([]);
   const [clientesList, setClientesList] = useState<any[]>([]);
   const [horariosList, setHorariosList] = useState<any[]>([]);
@@ -86,13 +88,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [citasData, barberosData, serviciosData, clientesData, paquetesData, horariosData] = await Promise.all([
+      const [citasData, barberosData, serviciosData, clientesData, paquetesData, horariosData, productosData] = await Promise.all([
         agendamientoService.getAgendamientos(),
         barberosService.getBarberos(),
         servicioService.getServicios(),
         clientesService.getClientes(),
         apiService.getPaquetes(),
-        horariosService.getHorarios()
+        horariosService.getHorarios(),
+        productoService.getProductos().catch(() => [])
       ]);
 
       setCitas(citasData);
@@ -104,6 +107,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       setServiciosList(serviciosData.filter(s => s.estado === true));
       setClientesList(clientesData.filter(c => c.estado === true));
       setPaquetesList(paquetesData.filter(p => p.activo === true));
+      setProductosList(productosData.filter((p: any) => p.activo !== false && (p.stockVentas > 0 || p.stockTotal > 0)));
       setHorariosList(horariosData || []);
     } catch (err) {
       console.error("Error al cargar datos:", err);
@@ -130,6 +134,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
     telefono: '',
     servicioId: null as number | null,
     servicioIds: [] as number[],
+    productoIds: [] as number[],
     paqueteId: null as number | null,
     servicio: '',
     barberoId: 0,
@@ -485,6 +490,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       telefono: '',
       servicioId: null,
       servicioIds: [],
+      productoIds: [],
       paqueteId: null,
       servicio: '',
       barberoId: 0,
@@ -503,10 +509,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
     setIsSlotModalOpen(true);
   };
 
+  // Helper para calcular precio de productos seleccionados
+  const calcularPrecioProductos = (productoIds: number[]) => {
+    return productosList
+      .filter(p => productoIds.includes(p.id))
+      .reduce((acc, p) => acc + Number(p.precioVenta || 0), 0);
+  };
+
   const applyServiciosSelection = (servicioIds: number[]) => {
     const selectedServicios = serviciosList.filter(s => servicioIds.includes(s.id));
     const servicioNombres = selectedServicios.map(s => s.nombre).filter(Boolean);
-    const precioTotal = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    const precioServicios = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    const precioProductos = calcularPrecioProductos(nuevaCita.productoIds);
     const duracionTotal = selectedServicios.reduce((acc, s) => acc + Number(s.duracion || 60), 0);
     setNuevaCita(prev => ({
       ...prev,
@@ -514,7 +528,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       servicioId: servicioIds.length > 0 ? servicioIds[0] : null,
       servicioIds,
       servicio: servicioNombres.join(", "),
-      precio: precioTotal,
+      precio: precioServicios + precioProductos,
       duracion: servicioIds.length > 0 ? duracionTotal : 60
     }));
   };
@@ -526,7 +540,32 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
     applyServiciosSelection(nextServicioIds);
   };
 
+  const toggleProducto = (productoId: number) => {
+    const nextProductoIds = nuevaCita.productoIds.includes(productoId)
+      ? nuevaCita.productoIds.filter(id => id !== productoId)
+      : [...nuevaCita.productoIds, productoId];
+    const precioProductos = calcularPrecioProductos(nextProductoIds);
+
+    // Recalcular precio base (servicios o paquete)
+    let precioBase = 0;
+    if (nuevaCita.paqueteId) {
+      const paquete = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+      precioBase = paquete ? Number(paquete.precio || 0) : 0;
+    } else {
+      precioBase = serviciosList
+        .filter(s => nuevaCita.servicioIds.includes(s.id))
+        .reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    }
+
+    setNuevaCita(prev => ({
+      ...prev,
+      productoIds: nextProductoIds,
+      precio: precioBase + precioProductos
+    }));
+  };
+
   const handlePaqueteChange = (value: string) => {
+    const precioProductos = calcularPrecioProductos(nuevaCita.productoIds);
     if (value === "none") {
       setNuevaCita(prev => ({
         ...prev,
@@ -534,7 +573,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         servicioId: null,
         servicioIds: [],
         servicio: "",
-        precio: 0,
+        precio: precioProductos,
         duracion: 60
       }));
       return;
@@ -547,7 +586,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       servicioId: null,
       servicioIds: [],
       servicio: paquete ? paquete.nombre : "",
-      precio: paquete ? paquete.precio : 0,
+      precio: (paquete ? paquete.precio : 0) + precioProductos,
       duracion: paquete ? paquete.duracion : 60
     }));
   };
@@ -572,6 +611,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
         servicioIds: nuevaCita.servicioIds,
+        productoIds: nuevaCita.productoIds,
         paqueteId: nuevaCita.paqueteId,
         fecha: nuevaCita.fecha,
         hora: nuevaCita.hora,
@@ -614,6 +654,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         servicioIds: (citaCompleta.servicioIds && citaCompleta.servicioIds.length > 0)
           ? citaCompleta.servicioIds
           : (citaCompleta.servicioId ? [citaCompleta.servicioId] : []),
+        productoIds: citaCompleta.productoIds || [],
         paqueteId: citaCompleta.paqueteId,
         servicio: citaCompleta.servicioNombre || citaCompleta.paqueteNombre || '',
         barberoId: citaCompleta.barberoId,
@@ -668,6 +709,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
         servicioIds: nuevaCita.servicioIds,
+        productoIds: nuevaCita.productoIds,
         paqueteId: nuevaCita.paqueteId,
         fecha: nuevaCita.fecha,
         hora: nuevaCita.hora,
@@ -1067,6 +1109,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                         telefono: '',
                         servicioId: null,
                         servicioIds: [],
+                        productoIds: [],
                         paqueteId: null,
                         servicio: '',
                         barberoId: 0,
@@ -1369,6 +1412,41 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     {showFormErrors && !(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId && (
                       <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
                     )}
+                    {/* Productos adicionales (opcional) */}
+                    {productosList.length > 0 && (
+                      <div>
+                        <Label className="text-white-primary mb-2 flex items-center gap-2">
+                          <ShoppingBag className="w-4 h-4" />
+                          Productos adicionales (opcional)
+                        </Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
+                          {productosList.map((producto) => {
+                            const isSelected = nuevaCita.productoIds.includes(producto.id);
+                            return (
+                              <button
+                                key={producto.id}
+                                type="button"
+                                onClick={() => toggleProducto(producto.id)}
+                                className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
+                                  ? "border-orange-primary bg-orange-primary/20 text-white-primary"
+                                  : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
+                              >
+                                <div className="text-sm font-medium">{producto.nombre}</div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-orange-primary">{formatearPrecio(producto.precioVenta)}</span>
+                                  <span className="text-xs text-gray-lighter">Stock: {producto.stockVentas ?? producto.stockTotal ?? 0}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {nuevaCita.productoIds.length > 0 && (
+                          <p className="text-xs text-orange-primary mt-1">
+                            {nuevaCita.productoIds.length} producto(s) seleccionado(s) — {formatearPrecio(calcularPrecioProductos(nuevaCita.productoIds))}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <Label className="text-white-primary mb-2">Barbero*</Label>
                       <div className="relative">
@@ -1553,6 +1631,16 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                       <p className="text-white-primary">{selectedCita.servicioNombre}</p>
                       <p className="text-orange-primary font-semibold">{formatearPrecio(selectedCita.precio)}</p>
                     </div>
+                    {selectedCita.productosNombres && selectedCita.productosNombres.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-light mb-1 flex items-center gap-1">
+                          <ShoppingBag className="w-3.5 h-3.5" /> Productos
+                        </h4>
+                        {selectedCita.productosNombres.map((nombre: string, i: number) => (
+                          <p key={i} className="text-white-primary text-sm">• {nombre}</p>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">

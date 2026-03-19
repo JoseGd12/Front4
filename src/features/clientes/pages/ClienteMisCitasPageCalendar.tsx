@@ -16,7 +16,8 @@ import {
   Search,
   CheckCircle2,
   CalendarDays,
-  Package
+  Package,
+  ShoppingBag
 } from "lucide-react";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
@@ -32,6 +33,7 @@ import { barberosService } from "../../administracion/services/barberosService";
 import { servicioService } from "../../servicios/services/servicioService";
 import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
+import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../../agendamiento/services/horariosService";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -87,6 +89,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
   // Listas para los selects
   const [serviciosList, setServiciosList] = useState<any[]>([]);
   const [paquetesList, setPaquetesList] = useState<any[]>([]);
+  const [productosList, setProductosList] = useState<any[]>([]);
   const [barberosList, setBarberosList] = useState<any[]>([]);
   const [horariosList, setHorariosList] = useState<any[]>([]);
 
@@ -126,11 +129,12 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
         citasData = allCitas.filter(c => Number(c.clienteId) === Number(cliente.id));
       }
 
-      const [barberosData, serviciosData, paquetesData, horariosData] = await Promise.all([
+      const [barberosData, serviciosData, paquetesData, horariosData, productosData] = await Promise.all([
         barberosService.getBarberos().catch(() => []),
         servicioService.getServicios().catch(() => []),
         apiService.getPaquetes().catch(() => []),
-        horariosService.getHorarios().catch(() => [])
+        horariosService.getHorarios().catch(() => []),
+        productoService.getProductos().catch(() => [])
       ]);
 
       console.log("Datos recibidos:", {
@@ -164,6 +168,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
 
       setServiciosList((Array.isArray(serviciosData) ? serviciosData : []).filter(s => isRecordActive(s)));
       setPaquetesList((Array.isArray(paquetesData) ? paquetesData : []).filter(p => isRecordActive(p)));
+      setProductosList((Array.isArray(productosData) ? productosData : []).filter((p: any) => p.activo !== false && (p.stockVentas > 0 || p.stockTotal > 0)));
       setHorariosList(horariosData || []);
 
       // Si venimos con un item pre-seleccionado desde Servicios
@@ -191,6 +196,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
     barbero: '', // Almacenar nombre para el autocomplete
     servicioId: null as number | null,
     servicioIds: [] as number[],
+    productoIds: [] as number[],
     paqueteId: null as number | null,
     servicio: '',
     fecha: '',
@@ -435,6 +441,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       barbero: '',
       servicioId: null,
       servicioIds: [],
+      productoIds: [],
       paqueteId: null,
       servicio: '',
       fecha: '',
@@ -462,6 +469,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       barbero: '',
       servicioId: null,
       servicioIds: [],
+      productoIds: [],
       paqueteId: null,
       servicio: '',
       fecha: fechaCompleta,
@@ -485,6 +493,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       servicioIds: (cita.servicioIds && cita.servicioIds.length > 0)
         ? cita.servicioIds
         : (cita.servicioId ? [cita.servicioId] : []),
+      productoIds: cita.productoIds || [],
       paqueteId: cita.paqueteId,
       servicio: cita.servicioNombre || cita.paqueteNombre || '',
       fecha: cita.fecha,
@@ -517,6 +526,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
           barberoId: nuevaCita.barberoId,
           servicioId: nuevaCita.servicioId,
           servicioIds: nuevaCita.servicioIds,
+          productoIds: nuevaCita.productoIds,
           paqueteId: nuevaCita.paqueteId,
           fecha: nuevaCita.fecha,
           hora: nuevaCita.hora,
@@ -532,6 +542,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
           barberoId: nuevaCita.barberoId,
           servicioId: nuevaCita.servicioId,
           servicioIds: nuevaCita.servicioIds,
+          productoIds: nuevaCita.productoIds,
           paqueteId: nuevaCita.paqueteId,
           fecha: nuevaCita.fecha,
           hora: nuevaCita.hora,
@@ -562,18 +573,30 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
     }
   };
 
+  // Helper para calcular precio de productos seleccionados
+  const calcularPrecioProductos = (productoIds: number[]) => {
+    return productosList
+      .filter(p => productoIds.includes(p.id))
+      .reduce((acc, p) => acc + Number(p.precioVenta || 0), 0);
+  };
+
   const applyServiciosSelection = (servicioIds: number[]) => {
     const selectedServicios = serviciosList.filter(s => servicioIds.includes(s.id));
     const servicioNombres = selectedServicios.map(s => s.nombre).filter(Boolean);
-    const precioTotal = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    const precioServicios = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
     const duracionTotal = selectedServicios.reduce((acc, s) => acc + Number(s.duracion || 60), 0);
+    // Si no hay servicios ni paquete, limpiar productos seleccionados
+    const keepProducts = servicioIds.length > 0;
+    const nextProductoIds = keepProducts ? nuevaCita.productoIds : [];
+    const precioProductos = calcularPrecioProductos(nextProductoIds);
     setNuevaCita(prev => ({
       ...prev,
       paqueteId: null,
       servicioId: servicioIds.length > 0 ? servicioIds[0] : null,
       servicioIds,
+      productoIds: nextProductoIds,
       servicio: servicioNombres.join(", "),
-      precio: precioTotal,
+      precio: precioServicios + precioProductos,
       duracion: servicioIds.length > 0 ? duracionTotal : 60
     }));
   };
@@ -585,13 +608,39 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
     applyServiciosSelection(nextServicioIds);
   };
 
+  const toggleProducto = (productoId: number) => {
+    const nextProductoIds = nuevaCita.productoIds.includes(productoId)
+      ? nuevaCita.productoIds.filter(id => id !== productoId)
+      : [...nuevaCita.productoIds, productoId];
+    const precioProductos = calcularPrecioProductos(nextProductoIds);
+
+    // Recalcular precio base (servicios o paquete)
+    let precioBase = 0;
+    if (nuevaCita.paqueteId) {
+      const paquete = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+      precioBase = paquete ? Number(paquete.precio || 0) : 0;
+    } else {
+      precioBase = serviciosList
+        .filter(s => nuevaCita.servicioIds.includes(s.id))
+        .reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    }
+
+    setNuevaCita(prev => ({
+      ...prev,
+      productoIds: nextProductoIds,
+      precio: precioBase + precioProductos
+    }));
+  };
+
   const handlePaqueteChange = (value: string) => {
+    const precioProductos = calcularPrecioProductos(nuevaCita.productoIds);
     if (value === "none") {
       setNuevaCita(prev => ({
         ...prev,
         paqueteId: null,
         servicioId: null,
         servicioIds: [],
+        productoIds: [], // Sin servicio ni paquete, limpiar productos
         servicio: "",
         precio: 0,
         duracion: 60
@@ -606,7 +655,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
       servicioId: null,
       servicioIds: [],
       servicio: paquete?.nombre || "",
-      precio: paquete?.precio || 0,
+      precio: (paquete?.precio || 0) + precioProductos,
       duracion: paquete?.duracion || 60
     }));
   };
@@ -837,6 +886,50 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
                   )}
                 </div>
 
+                {/* Productos adicionales — solo si hay servicio o paquete seleccionado */}
+                {productosList.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-bold text-gray-lightest flex items-center gap-2">
+                      <ShoppingBag className="w-4 h-4 text-orange-primary" />
+                      Productos adicionales (opcional)
+                    </Label>
+                    {(nuevaCita.servicioIds.length > 0 || !!nuevaCita.paqueteId) ? (
+                      <>
+                        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
+                          {productosList.map((producto) => {
+                            const isSelected = nuevaCita.productoIds.includes(producto.id);
+                            return (
+                              <button
+                                key={producto.id}
+                                type="button"
+                                onClick={() => toggleProducto(producto.id)}
+                                className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
+                                  ? "border-orange-primary bg-orange-primary/20 text-white-primary"
+                                  : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
+                              >
+                                <div className="text-sm font-medium">{producto.nombre}</div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-orange-primary">{formatearPrecio(producto.precioVenta)}</span>
+                                  <span className="text-xs text-gray-lighter">Stock: {producto.stockVentas ?? producto.stockTotal ?? 0}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {nuevaCita.productoIds.length > 0 && (
+                          <p className="text-xs text-orange-primary">
+                            {nuevaCita.productoIds.length} producto(s) — {formatearPrecio(calcularPrecioProductos(nuevaCita.productoIds))}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-gray-lighter italic">
+                        Selecciona al menos un servicio o paquete para agregar productos.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <Label className="text-sm font-bold text-gray-lightest flex items-center gap-2">
                     <User className="w-4 h-4 text-orange-primary" />
@@ -1057,6 +1150,22 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem }:
                   </div>
                 </div>
               </div>
+
+              {/* Productos asociados */}
+              {selectedCita.productosNombres && selectedCita.productosNombres.length > 0 && (
+                <div className="bg-black/20 p-4 rounded-2xl border border-gray-dark/50">
+                  <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50 mb-2 flex items-center gap-1">
+                    <ShoppingBag className="w-3.5 h-3.5" /> Productos Incluidos
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCita.productosNombres.map((nombre: string, i: number) => (
+                      <span key={i} className="px-3 py-1 bg-orange-primary/10 border border-orange-primary/20 rounded-full text-xs text-orange-primary font-medium">
+                        {nombre}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Grid de información */}
               <div className="grid grid-cols-2 gap-6 bg-black/20 p-5 rounded-2xl border border-gray-dark/50">

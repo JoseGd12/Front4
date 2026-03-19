@@ -57,7 +57,7 @@ function getProductHighlights(producto: ApiProducto): string[] {
   ];
 }
 
-export function ClienteProductosPage() {
+export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (product: ApiProducto) => void }) {
   const [productos, setProductos] = useState<ApiProducto[]>([]);
   const [categorias, setCategorias] = useState<ApiCategoria[]>([]);
   const [loading, setLoading] = useState(true);
