@@ -9,7 +9,7 @@ import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../services/horariosService";
 import { Input } from "../../../shared/components/ui/input";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, ArrowLeft, Plus } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, ArrowLeft, Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -160,6 +160,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
   const [showClienteResults, setShowClienteResults] = useState(false);
   const [barberoFormSearchTerm, setBarberoFormSearchTerm] = useState('');
   const [showBarberoFormResults, setShowBarberoFormResults] = useState(false);
+  const [servicioSearchTerm, setServicioSearchTerm] = useState('');
+  const [paqueteSearchTerm, setPaqueteSearchTerm] = useState('');
+  const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [showFormErrors, setShowFormErrors] = useState(false);
 
   const getAutoDateTime = () => {
@@ -968,76 +971,171 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
                 {/* Sección: Servicios */}
                 <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
-                  <p className="text-xs text-gray-lighter mb-2">
-                    {nuevaCita.paqueteId ? 'Desactiva el paquete para seleccionar servicios individuales' : 'Selecciona uno o más servicios'}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                    {serviciosList.map(s => {
-                      const isSelected = nuevaCita.servicioIds.includes(s.id);
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          disabled={!!nuevaCita.paqueteId}
-                          onClick={() => toggleServicio(s.id)}
-                          className={`text-left p-2 rounded-lg border transition-all text-xs ${isSelected
-                            ? 'border-orange-primary bg-orange-primary/10 text-orange-primary'
-                            : 'border-gray-dark bg-gray-darker text-gray-lightest hover:border-gray-medium'
-                          } ${nuevaCita.paqueteId ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        >
-                          <span className="font-semibold block truncate">{s.nombre}</span>
-                          <span className="text-[10px] opacity-70">{formatearPrecio(s.precio)} · {s.duracion || 60}min</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && (
-                    <p className="text-red-400 text-xs mt-1">Selecciona al menos un servicio o paquete</p>
+                  {nuevaCita.paqueteId ? (
+                    <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
+                  ) : (
+                    <>
+                      <SearchField<any>
+                        label="Buscar servicio"
+                        placeholder="Buscar servicio..."
+                        value={servicioSearchTerm}
+                        onChange={setServicioSearchTerm}
+                        items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
+                        filterFn={(s, term) =>
+                          (s.nombre || '').toLowerCase().includes(term.toLowerCase())
+                        }
+                        onSelect={(s) => {
+                          toggleServicio(s.id);
+                          setServicioSearchTerm('');
+                        }}
+                        onClear={() => setServicioSearchTerm('')}
+                        renderItem={(s) => (
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-white-primary text-sm font-medium">{s.nombre}</p>
+                              <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                            </div>
+                            <span className="text-orange-primary text-sm font-bold">{formatearPrecio(s.precio)}</span>
+                          </div>
+                        )}
+                        error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                      />
+                    </>
+                  )}
+                  {/* Tags de servicios seleccionados */}
+                  {nuevaCita.servicioIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {nuevaCita.servicioIds.map(sId => {
+                        const srv = serviciosList.find(s => s.id === sId);
+                        if (!srv) return null;
+                        return (
+                          <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                            <Scissors className="w-3 h-3" />
+                            <span>{srv.nombre}</span>
+                            <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
+                            {!nuevaCita.paqueteId && (
+                              <button
+                                type="button"
+                                onClick={() => toggleServicio(sId)}
+                                className="ml-1 hover:text-red-400 transition-colors"
+                                title="Quitar servicio"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </FormSection>
 
                 {/* Sección: Paquetes */}
                 <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
-                  <Select
-                    value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : "none"}
-                    onValueChange={handlePaqueteChange}
-                  >
-                    <SelectTrigger className="elegante-input">
-                      <SelectValue placeholder="Sin paquete" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-darkest border-gray-dark">
-                      <SelectItem value="none" className="text-white-primary">Sin paquete</SelectItem>
-                      {paquetesList.map(p => (
-                        <SelectItem key={p.id} value={`p-${p.id}`} className="text-white-primary">
-                          {p.nombre} — {formatearPrecio(p.precio)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {nuevaCita.paqueteId ? (
+                    <div className="flex flex-wrap gap-2">
+                      {(() => {
+                        const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                        if (!paq) return null;
+                        return (
+                          <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                            <Package className="w-3 h-3" />
+                            <span>{paq.nombre}</span>
+                            <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlePaqueteChange('none');
+                                setPaqueteSearchTerm('');
+                              }}
+                              className="ml-1 hover:text-red-400 transition-colors"
+                              title="Quitar paquete"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <SearchField<any>
+                      label="Buscar paquete"
+                      placeholder="Buscar paquete..."
+                      value={paqueteSearchTerm}
+                      onChange={setPaqueteSearchTerm}
+                      items={paquetesList}
+                      filterFn={(p, term) =>
+                        (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                      }
+                      onSelect={(p) => {
+                        handlePaqueteChange(`p-${p.id}`);
+                        setPaqueteSearchTerm('');
+                      }}
+                      onClear={() => setPaqueteSearchTerm('')}
+                      renderItem={(p) => (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
+                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min</p>
+                          </div>
+                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precio)}</span>
+                        </div>
+                      )}
+                    />
+                  )}
                 </FormSection>
 
                 {/* Sección: Productos */}
                 {(nuevaCita.servicioIds.length > 0 || nuevaCita.paqueteId) && productosList.length > 0 && (
                   <FormSection title="Productos adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                      {productosList.map(p => {
-                        const isSelected = nuevaCita.productoIds.includes(p.id);
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => toggleProducto(p.id)}
-                            className={`text-left p-2 rounded-lg border transition-all text-xs ${isSelected
-                              ? 'border-orange-primary bg-orange-primary/10 text-orange-primary'
-                              : 'border-gray-dark bg-gray-darker text-gray-lightest hover:border-gray-medium'
-                            }`}
-                          >
-                            <span className="font-semibold block truncate">{p.nombre}</span>
-                            <span className="text-[10px] opacity-70">{formatearPrecio(p.precioVenta || p.precio || 0)} · Stock: {p.stockVentas}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <SearchField<any>
+                      label="Buscar producto"
+                      placeholder="Buscar producto..."
+                      value={productoSearchTerm}
+                      onChange={setProductoSearchTerm}
+                      items={productosList.filter(p => !nuevaCita.productoIds.includes(p.id))}
+                      filterFn={(p, term) =>
+                        (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                      }
+                      onSelect={(p) => {
+                        toggleProducto(p.id);
+                        setProductoSearchTerm('');
+                      }}
+                      onClear={() => setProductoSearchTerm('')}
+                      renderItem={(p) => (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
+                            <p className="text-gray-lighter text-xs">Stock: {p.stockVentas}</p>
+                          </div>
+                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
+                        </div>
+                      )}
+                    />
+                    {/* Tags de productos seleccionados */}
+                    {nuevaCita.productoIds.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {nuevaCita.productoIds.map(pId => {
+                          const prod = productosList.find(p => p.id === pId);
+                          if (!prod) return null;
+                          return (
+                            <div key={pId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                              <ShoppingBag className="w-3 h-3" />
+                              <span>{prod.nombre}</span>
+                              <span className="opacity-60">({formatearPrecio(prod.precioVenta || prod.precio || 0)})</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleProducto(pId)}
+                                className="ml-1 hover:text-red-400 transition-colors"
+                                title="Quitar producto"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </FormSection>
                 )}
 

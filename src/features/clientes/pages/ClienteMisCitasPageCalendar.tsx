@@ -20,7 +20,8 @@ import {
   ShoppingBag,
   FileText,
   ArrowLeft,
-  Eye
+  Eye,
+  X
 } from "lucide-react";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
@@ -216,6 +217,9 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
   const [barberoFormSearchTerm, setBarberoFormSearchTerm] = useState('');
   const [showBarberoFormResults, setShowBarberoFormResults] = useState(false);
+  const [servicioSearchTerm, setServicioSearchTerm] = useState('');
+  const [paqueteSearchTerm, setPaqueteSearchTerm] = useState('');
+  const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [pendingProduct, setPendingProduct] = useState<any>(null);
 
@@ -762,84 +766,171 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0 divide-y divide-gray-dark">
                 {/* Sección: Servicios */}
-                <FormSection title="Servicios" icon={Scissors}>
-                  <div className="space-y-3">
-                    <p className="text-xs text-gray-lighter">Puedes elegir uno o varios servicios</p>
-                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
-                      {serviciosList.map((servicio) => {
-                        const isSelected = nuevaCita.servicioIds.includes(servicio.id) && !nuevaCita.paqueteId;
+                <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
+                  {nuevaCita.paqueteId ? (
+                    <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
+                  ) : (
+                    <SearchField<any>
+                      label="Buscar servicio"
+                      placeholder="Buscar servicio..."
+                      value={servicioSearchTerm}
+                      onChange={setServicioSearchTerm}
+                      items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
+                      filterFn={(s, term) =>
+                        (s.nombre || '').toLowerCase().includes(term.toLowerCase())
+                      }
+                      onSelect={(s) => {
+                        toggleServicio(s.id);
+                        setServicioSearchTerm('');
+                      }}
+                      onClear={() => setServicioSearchTerm('')}
+                      renderItem={(s) => (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-white-primary text-sm font-medium">{s.nombre}</p>
+                            <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                          </div>
+                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(s.precio)}</span>
+                        </div>
+                      )}
+                      error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                    />
+                  )}
+                  {/* Tags de servicios seleccionados */}
+                  {nuevaCita.servicioIds.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {nuevaCita.servicioIds.map(sId => {
+                        const srv = serviciosList.find(s => s.id === sId);
+                        if (!srv) return null;
                         return (
-                          <button
-                            key={servicio.id}
-                            type="button"
-                            onClick={() => toggleServicio(servicio.id)}
-                            className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
-                              ? "border-orange-primary bg-orange-primary/20 text-white-primary"
-                              : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
-                          >
-                            <div className="text-sm font-medium">{servicio.nombre}</div>
-                            <div className="text-xs text-orange-primary">{formatearPrecio(servicio.precio)}</div>
-                          </button>
+                          <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                            <Scissors className="w-3 h-3" />
+                            <span>{srv.nombre}</span>
+                            <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
+                            {!nuevaCita.paqueteId && (
+                              <button
+                                type="button"
+                                onClick={() => toggleServicio(sId)}
+                                className="ml-1 hover:text-red-400 transition-colors"
+                                title="Quitar servicio"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
-                    {paquetesList.length > 0 && (
-                      <div className="space-y-1">
-                        <Label className="text-gray-lightest text-xs">O selecciona un paquete</Label>
-                        <Select
-                          value={nuevaCita.paqueteId ? `p-${nuevaCita.paqueteId}` : "none"}
-                          onValueChange={handlePaqueteChange}
-                        >
-                          <SelectTrigger className="elegante-input h-11">
-                            <SelectValue placeholder="O selecciona un paquete..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-darkest border-gray-dark max-h-72">
-                            <SelectItem value="none">Sin paquete</SelectItem>
-                            {paquetesList.map(p => (
-                              <SelectItem key={`p-${p.id}`} value={`p-${p.id}`} className="text-white-primary focus:bg-orange-primary/10 focus:text-orange-primary">
-                                {p.nombre} &bull; <span className="text-orange-primary font-bold">{formatearPrecio(p.precio)}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    {showFormErrors && !(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId && (
-                      <p className="text-xs text-red-400">Selecciona al menos un servicio o paquete.</p>
-                    )}
-                  </div>
+                  )}
+                </FormSection>
+
+                {/* Sección: Paquetes */}
+                <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
+                  {nuevaCita.paqueteId ? (
+                    <div className="flex flex-wrap gap-2">
+                      {(() => {
+                        const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                        if (!paq) return null;
+                        return (
+                          <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                            <Package className="w-3 h-3" />
+                            <span>{paq.nombre}</span>
+                            <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlePaqueteChange('none');
+                                setPaqueteSearchTerm('');
+                              }}
+                              className="ml-1 hover:text-red-400 transition-colors"
+                              title="Quitar paquete"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <SearchField<any>
+                      label="Buscar paquete"
+                      placeholder="Buscar paquete..."
+                      value={paqueteSearchTerm}
+                      onChange={setPaqueteSearchTerm}
+                      items={paquetesList}
+                      filterFn={(p, term) =>
+                        (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                      }
+                      onSelect={(p) => {
+                        handlePaqueteChange(`p-${p.id}`);
+                        setPaqueteSearchTerm('');
+                      }}
+                      onClear={() => setPaqueteSearchTerm('')}
+                      renderItem={(p) => (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
+                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min</p>
+                          </div>
+                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precio)}</span>
+                        </div>
+                      )}
+                    />
+                  )}
                 </FormSection>
 
                 {/* Sección: Productos adicionales */}
                 {productosList.length > 0 && (
-                  <FormSection title="Productos Adicionales" icon={ShoppingBag}>
+                  <FormSection title="Productos Adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
                     {(nuevaCita.servicioIds.length > 0 || !!nuevaCita.paqueteId) ? (
                       <>
-                        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-gray-dark bg-gray-darker/40">
-                          {productosList.map((producto) => {
-                            const isSelected = nuevaCita.productoIds.includes(producto.id);
-                            return (
-                              <button
-                                key={producto.id}
-                                type="button"
-                                onClick={() => toggleProducto(producto.id)}
-                                className={`text-left px-3 py-2 rounded-lg border transition-colors ${isSelected
-                                  ? "border-orange-primary bg-orange-primary/20 text-white-primary"
-                                  : "border-gray-dark text-gray-lightest hover:border-orange-primary/50"}`}
-                              >
-                                <div className="text-sm font-medium">{producto.nombre}</div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xs text-orange-primary">{formatearPrecio(producto.precioVenta)}</span>
-                                  <span className="text-xs text-gray-lighter">Stock: {producto.stockVentas ?? producto.stockTotal ?? 0}</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <SearchField<any>
+                          label="Buscar producto"
+                          placeholder="Buscar producto..."
+                          value={productoSearchTerm}
+                          onChange={setProductoSearchTerm}
+                          items={productosList.filter(p => !nuevaCita.productoIds.includes(p.id))}
+                          filterFn={(p, term) =>
+                            (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                          }
+                          onSelect={(p) => {
+                            toggleProducto(p.id);
+                            setProductoSearchTerm('');
+                          }}
+                          onClear={() => setProductoSearchTerm('')}
+                          renderItem={(p) => (
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
+                                <p className="text-gray-lighter text-xs">Stock: {p.stockVentas ?? p.stockTotal ?? 0}</p>
+                              </div>
+                              <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
+                            </div>
+                          )}
+                        />
+                        {/* Tags de productos seleccionados */}
                         {nuevaCita.productoIds.length > 0 && (
-                          <p className="text-xs text-orange-primary mt-1">
-                            {nuevaCita.productoIds.length} producto(s) — {formatearPrecio(calcularPrecioProductos(nuevaCita.productoIds))}
-                          </p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {nuevaCita.productoIds.map(pId => {
+                              const prod = productosList.find(p => p.id === pId);
+                              if (!prod) return null;
+                              return (
+                                <div key={pId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                  <ShoppingBag className="w-3 h-3" />
+                                  <span>{prod.nombre}</span>
+                                  <span className="opacity-60">({formatearPrecio(prod.precioVenta || prod.precio || 0)})</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleProducto(pId)}
+                                    className="ml-1 hover:text-red-400 transition-colors"
+                                    title="Quitar producto"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </>
                     ) : (
@@ -861,8 +952,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                 )}
 
                 {/* Sección: Barbero */}
-                <FormSection title="Barbero de Preferencia" icon={User}>
-                  <SearchField
+                <FormSection title="Barbero de Preferencia" icon={<User className="w-4 h-4 text-orange-primary" />}>
+                  <SearchField<any>
                     placeholder="Busca a tu barbero..."
                     value={barberoFormSearchTerm}
                     onChange={(val) => setBarberoFormSearchTerm(val)}
@@ -891,13 +982,12 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       setNuevaCita({ ...nuevaCita, barberoId: barbero.id, barbero: name });
                       setBarberoFormSearchTerm(name);
                     }}
-                    error={showFormErrors && !nuevaCita.barberoId}
-                    errorMessage="Debes seleccionar un barbero para continuar."
+                    error={showFormErrors && !nuevaCita.barberoId ? 'Debes seleccionar un barbero para continuar.' : undefined}
                   />
                 </FormSection>
 
                 {/* Sección: Fecha y Hora */}
-                <FormSection title="Fecha y Hora" icon={Calendar}>
+                <FormSection title="Fecha y Hora" icon={<Calendar className="w-4 h-4 text-orange-primary" />}>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label className="text-gray-lightest text-xs">Fecha *</Label>
@@ -935,7 +1025,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                 </FormSection>
 
                 {/* Sección: Notas */}
-                <FormSection title="Notas Adicionales" icon={FileText}>
+                <FormSection title="Notas Adicionales" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
                   <Textarea
                     value={nuevaCita.notas}
                     onChange={(e) => setNuevaCita({ ...nuevaCita, notas: e.target.value })}
@@ -946,7 +1036,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
                 {/* Sección: Estado (solo edición) */}
                 {isEditMode && selectedCita && (
-                  <FormSection title="Estado" icon={CheckCircle2}>
+                  <FormSection title="Estado" icon={<CheckCircle2 className="w-4 h-4 text-orange-primary" />}>
                     <Select value={nuevaCita.estado} onValueChange={(v) => setNuevaCita({ ...nuevaCita, estado: v })}>
                       <SelectTrigger className="elegante-input h-11">
                         <SelectValue />

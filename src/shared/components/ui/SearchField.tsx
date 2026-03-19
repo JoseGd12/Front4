@@ -4,6 +4,7 @@ import { Input } from "./input";
 
 interface SearchFieldProps<T> {
   placeholder: string;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
   onClear: () => void;
@@ -11,8 +12,8 @@ interface SearchFieldProps<T> {
   filterFn: (item: T, query: string) => boolean;
   renderItem: (item: T) => React.ReactNode;
   onSelect: (item: T) => void;
-  error?: boolean;
-  errorMessage?: string;
+  error?: string;
+  isSelected?: boolean;
   maxResults?: number;
   className?: string;
   shakeClass?: string;
@@ -28,8 +29,7 @@ export function SearchField<T>({
   filterFn,
   renderItem,
   onSelect,
-  error = false,
-  errorMessage,
+  error,
   maxResults = 50,
   className = "",
   shakeClass = "",
@@ -103,9 +103,10 @@ export function SearchField<T>({
           </div>
         )}
       </div>
-      {error && errorMessage && (
-        <p className="text-xs text-red-400 mt-1">{errorMessage}</p>
+      {error && (
+        <p className="text-xs text-red-400 mt-1">{error}</p>
       )}
     </div>
   );
 }
+
