@@ -320,8 +320,12 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
 
   function getFallbackModulesForRole(role: string | undefined): string[] {
     const r = (role || "").toLowerCase();
-    if (r === "super_admin" || r === "super administrador" || r === "admin" || r === "administrador" || r === "gerente") {
+    if (r === "super_admin" || r === "super administrador" || r === "gerente") {
       return ALL_MENU_LABELS;
+    }
+    if (r === "admin" || r === "administrador") {
+      // Admin tiene casi todo, pero excluimos Roles por seguridad en el fallback
+      return ALL_MENU_LABELS.filter(label => label !== "Roles");
     }
     if (r === "barbero" || r === "recepcionista" || r === "cajero") {
       return ["Agendamientos", "Horarios", "Barberos", "Ventas", "Servicios", "Paquetes", "Devoluciones", "Clientes", "Compras", "Productos", "Categorías", "Proveedores", "Entregas de Insumos"];
@@ -366,9 +370,9 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     return {
       ...section,
       items: section.items.filter(item => {
-        // Filtro adicional: Solo el 'super_admin' y 'admin' pueden ver el módulo de Roles
+        // Filtro adicional: Solo el 'super_admin' puede ver el módulo de Roles
         if (item.label === "Roles") {
-          return user?.role === 'super_admin' || checkModuleAccess(item.label);
+          return user?.role === 'super_admin';
         }
         return checkModuleAccess(item.label);
       })
