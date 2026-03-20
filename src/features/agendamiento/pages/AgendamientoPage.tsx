@@ -953,9 +953,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
               <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0">
                   {/* Fila 1: Cliente y Barbero */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-24 gap-y-10 border-b border-gray-dark pb-10 px-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 border-b border-gray-dark pb-10 px-2">
                     {/* Sección: Cliente */}
-                    <div className="space-y-0 px-4">
+                    <div className="space-y-0 px-2">
                       <FormSection title="Cliente" icon={<User className="w-4 h-4 text-orange-primary" />}>
                         <SearchField<any>
                           label="Buscar cliente"
@@ -994,7 +994,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     </div>
 
                     {/* Sección: Barbero */}
-                    <div className="pt-8 md:pt-0 px-4">
+                    <div className="pt-8 md:pt-0 px-2">
                       <FormSection title="Barbero" icon={<User className="w-4 h-4 text-orange-primary" />}>
                         <SearchField<any>
                           label="Buscar barbero"
@@ -1022,9 +1022,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                   </div>
 
                   {/* Fila 2: Servicios y Paquetes */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-24 gap-y-10 border-b border-gray-dark py-10 px-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 border-b border-gray-dark py-10 px-2">
                     {/* Sección: Servicios */}
-                    <div className="space-y-0 px-4">
+                    <div className="space-y-0 px-2">
                       <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
                         {nuevaCita.paqueteId ? (
                           <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
@@ -1090,7 +1090,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     </div>
 
                     {/* Sección: Paquetes */}
-                    <div className="pt-8 md:pt-0 px-4">
+                    <div className="pt-8 md:pt-0 px-2">
                       <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
                         {nuevaCita.paqueteId ? (
                           <div className="flex flex-wrap gap-2">
