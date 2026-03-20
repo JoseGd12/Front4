@@ -1,5 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;300;400;600;900&display=swap');
 
+/* Gallery horizontal scroll — hide scrollbar */
+.gallery-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.gallery-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 :root {
   --primary-gold: #d8b081;
   --bg-black: #000000;
@@ -122,7 +131,19 @@
     0 12px 34px rgba(216, 176, 129, 0.28);
 }
 
+.gold-hover-transition[data-selected='true'] {
+  color: #050505;
+  border-color: #d8b081;
+  box-shadow:
+    0 0 0 1px rgba(216, 176, 129, 0.55),
+    0 12px 34px rgba(216, 176, 129, 0.28);
+}
+
 .gold-hover-transition:hover::before {
+  transform: translateX(0) skewX(-12deg);
+}
+
+.gold-hover-transition[data-selected='true']::before {
   transform: translateX(0) skewX(-12deg);
 }
 
@@ -396,6 +417,11 @@ body {
   pointer-events: none;
 }
 
+/* Keep interactive buttons clickable even during drag */
+.carousel-container.is-dragging [data-carousel-no-drag="true"] {
+  pointer-events: auto;
+}
+
 .carousel-mask {
   -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
   mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
@@ -431,4 +457,142 @@ body {
   100% {
     background-position: -200% 0;
   }
+}
+
+/* ── Detail Modal Styles ── */
+.detail-modal-content {
+  animation: detail-modal-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Override Radix defaults */
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+/* Radix close button — elevated above image with glass bg */
+.detail-modal-content>button[data-slot="dialog-close"],
+.detail-modal-content>[data-slot="dialog-close"] {
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 0.75rem;
+  padding: 0.4rem;
+  opacity: 1;
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.detail-modal-content>button[data-slot="dialog-close"]:hover,
+.detail-modal-content>[data-slot="dialog-close"]:hover {
+  background: rgba(216, 176, 129, 0.2);
+  color: #d8b081;
+}
+
+@keyframes detail-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.detail-modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(216, 176, 129, 0.25) transparent;
+}
+
+.detail-modal-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.detail-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detail-modal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(216, 176, 129, 0.2);
+  border-radius: 10px;
+}
+
+.detail-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(216, 176, 129, 0.45);
+}
+
+/* Motivational quote */
+.detail-motivational-quote {
+  position: relative;
+  padding: 1rem 0 1rem 0;
+}
+
+.detail-quote-border {
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #d8b081 0%, rgba(216, 176, 129, 0.2) 100%);
+  box-shadow: 0 0 12px rgba(216, 176, 129, 0.3);
+}
+
+/* Info cards (duration, quality) */
+.detail-info-card {
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.06) 0%, rgba(216, 176, 129, 0.02) 100%);
+  border: 1px solid rgba(216, 176, 129, 0.12);
+  transition: all 0.4s ease;
+}
+
+.detail-info-card:hover {
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.12) 0%, rgba(216, 176, 129, 0.04) 100%);
+  border-color: rgba(216, 176, 129, 0.22);
+  transform: translateY(-1px);
+}
+
+/* Detail rows (key-value pairs) */
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.detail-row:hover {
+  border-color: rgba(216, 176, 129, 0.15);
+  background: rgba(216, 176, 129, 0.04);
+}
+
+/* Section cards (benefits, tips) */
+.detail-section-card {
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.01) 100%);
+  padding: 1.25rem;
+  transition: all 0.4s ease;
+}
+
+.detail-section-card:hover {
+  border-color: rgba(216, 176, 129, 0.15);
+}
+
+/* Experience callout */
+.detail-experience-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.125rem 1.25rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(216, 176, 129, 0.2);
+  background: linear-gradient(135deg, rgba(216, 176, 129, 0.08) 0%, rgba(216, 176, 129, 0.02) 100%);
+  transition: all 0.4s ease;
+}
+
+.detail-experience-callout:hover {
+  border-color: rgba(216, 176, 129, 0.3);
+  box-shadow: 0 8px 30px rgba(216, 176, 129, 0.08);
 }

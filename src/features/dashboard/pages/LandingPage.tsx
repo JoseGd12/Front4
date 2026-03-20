@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import {
   Scissors,
   Star,
   Clock,
+  Check,
   Phone,
   Mail,
   ChevronRight,
@@ -16,7 +17,9 @@ import {
   Heart,
   Sparkles,
   Trophy,
-  LogOut
+  LogOut,
+  Package,
+  ShieldCheck
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
@@ -36,10 +39,19 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
   const offsetRef = useRef(0);
   const isDraggingRef = useRef(false);
   const hasMovedRef = useRef(false);
+  const wasDraggingRef = useRef(false);
   const dragStartXRef = useRef(0);
   const dragStartOffsetRef = useRef(0);
   const animFrameRef = useRef<number>(0);
   const lastTimeRef = useRef(0);
+
+  const resetPosition = () => {
+    offsetRef.current = 0;
+    lastTimeRef.current = 0;
+    if (trackRef.current) {
+      trackRef.current.style.transform = 'translateX(0px)';
+    }
+  };
 
   useEffect(() => {
     if (!enabled) return;
@@ -78,6 +90,7 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
       if (isNoDragTarget(e.target)) return;
       isDraggingRef.current = true;
       hasMovedRef.current = false;
+      wasDraggingRef.current = false;
       dragStartXRef.current = e.clientX;
       dragStartOffsetRef.current = offsetRef.current;
       container.classList.add('is-dragging');
@@ -85,12 +98,6 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
 
     const onMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current) return;
-      if (isNoDragTarget(e.target)) {
-        isDraggingRef.current = false;
-        hasMovedRef.current = false;
-        container.classList.remove('is-dragging');
-        return;
-      }
       e.preventDefault();
       const dx = e.clientX - dragStartXRef.current;
       if (Math.abs(dx) > 3) hasMovedRef.current = true;
@@ -98,22 +105,29 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
     };
 
     const onMouseUp = () => {
+      // Record whether a real drag happened for the click handler
+      wasDraggingRef.current = hasMovedRef.current;
       isDraggingRef.current = false;
+      hasMovedRef.current = false;
       container.classList.remove('is-dragging');
     };
 
     const onMouseLeave = () => {
       if (isDraggingRef.current) {
+        wasDraggingRef.current = hasMovedRef.current;
         isDraggingRef.current = false;
+        hasMovedRef.current = false;
         container.classList.remove('is-dragging');
       }
     };
 
-    // Prevent accidental clicks after dragging
+    // Prevent accidental clicks after dragging — only block the click
+    // that immediately follows a real drag gesture
     const onClick = (e: MouseEvent) => {
-      if (hasMovedRef.current) {
+      if (wasDraggingRef.current) {
         e.preventDefault();
         e.stopPropagation();
+        wasDraggingRef.current = false;
       }
     };
 
@@ -122,25 +136,22 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
       if (isNoDragTarget(e.target)) return;
       isDraggingRef.current = true;
       hasMovedRef.current = false;
+      wasDraggingRef.current = false;
       dragStartXRef.current = e.touches[0].clientX;
       dragStartOffsetRef.current = offsetRef.current;
     };
 
     const onTouchMove = (e: TouchEvent) => {
       if (!isDraggingRef.current) return;
-      if (isNoDragTarget(e.target)) {
-        isDraggingRef.current = false;
-        hasMovedRef.current = false;
-        container.classList.remove('is-dragging');
-        return;
-      }
       const dx = e.touches[0].clientX - dragStartXRef.current;
       if (Math.abs(dx) > 3) hasMovedRef.current = true;
       offsetRef.current = dragStartOffsetRef.current + dx;
     };
 
     const onTouchEnd = () => {
+      wasDraggingRef.current = hasMovedRef.current;
       isDraggingRef.current = false;
+      hasMovedRef.current = false;
     };
 
     container.addEventListener('mousedown', onMouseDown);
@@ -165,7 +176,7 @@ function useCarouselDrag(speed: number = 0.5, enabled: boolean = true) {
     };
   }, [speed, enabled]);
 
-  return { trackRef, containerRef };
+  return { trackRef, containerRef, resetPosition };
 }
 
 
@@ -187,8 +198,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
 
   const [servicios, setServicios] = useState<any[]>([]);
+  const [paquetes, setPaquetes] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [servicesView, setServicesView] = useState<'servicios' | 'paquetes'>('servicios');
+  const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // Carousel hooks — services scroll left, products scroll right
   const servCarousel = useCarouselDrag(1, !loading);
@@ -227,12 +243,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           apiService.getPaquetesPaged({ page: 1, pageSize: 6 }).catch(() => ({ items: [] }))
         ]);
 
-        // Combinar servicios y paquetes
         const serviciosList = (serviciosRes.items || []).filter((s: any) => s.estado !== false).map((s: any) => ({ ...s, type: 'servicio' }));
         const paquetesList = (paquetesRes.items || []).filter((p: any) => p.activo !== false).map((p: any) => ({ ...p, type: 'paquete' }));
-        const todosLosServicios = [...serviciosList, ...paquetesList];
-
-        setServicios(todosLosServicios.slice(0, 6));
+        setServicios(serviciosList.slice(0, 6));
+        setPaquetes(paquetesList.slice(0, 6));
         setProductos((productosRes.items || []).filter((p: any) => p.activo !== false).slice(0, 6));
       } catch (error) {
         console.error("Error fetching landing data:", error);
@@ -304,8 +318,56 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleOpenDetail = async (item: any, kind: 'servicio' | 'producto') => {
+    const normalizedItem = kind === 'producto' ? { ...item, type: 'producto' } : item;
+    setSelectedDetailItem(normalizedItem);
+    setIsDetailDialogOpen(true);
+
+    const shouldLoadMore = kind === 'producto' || item.type === 'paquete';
+    if (!shouldLoadMore) {
+      setIsDetailLoading(false);
+      return;
+    }
+
+    setIsDetailLoading(true);
+    try {
+      if (kind === 'producto') {
+        const fullProducto = await productoService.getProductoById(item.id);
+        if (fullProducto) {
+          setSelectedDetailItem({ ...fullProducto, type: 'producto' });
+        }
+      } else if (item.type === 'paquete') {
+        const fullPaquete = await apiService.getPaqueteById(item.id);
+        if (fullPaquete) {
+          setSelectedDetailItem({ ...fullPaquete, type: 'paquete' });
+        }
+      }
+    } catch (error) {
+      console.warn('No se pudieron cargar los detalles completos del item:', error);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
+  const handleDetailDialogChange = (open: boolean) => {
+    setIsDetailDialogOpen(open);
+    if (!open) {
+      setIsDetailLoading(false);
+      setSelectedDetailItem(null);
+    }
+  };
+
+  const activeServiceItems = useMemo(
+    () => (servicesView === 'servicios' ? servicios : paquetes),
+    [servicesView, servicios, paquetes]
+  );
+
+  useEffect(() => {
+    servCarousel.resetPosition();
+  }, [servicesView]);
+
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden font-body landing-page-container">
+    <div className="min-h-screen bg-black text-white font-body landing-page-container" style={{ overflowX: 'clip' }}>
 
       {/* Navbar */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 backdrop-blur-md ${scrolled ? 'bg-black/80 border-b border-white/5 py-4' : 'bg-black/20 py-6'}`}>
@@ -398,13 +460,87 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </header>
 
-      {/* Nosotros Section */}
-      <section id="nosotros" className="nosotros-section relative overflow-hidden" style={{ padding: '5rem 0' }}>
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
-          <div className="absolute bottom-20 left-[5%] w-96 h-96 rounded-full bg-[#d8b081]/3 blur-[120px]" style={{ animationDelay: '3s' }} />
+      {/* ═══ Sticky Reveal: Gallery on top, Nosotros revealed underneath ═══ */}
+      {/* Gallery — solid bg, high z-index, scrolls away normally */}
+      <div style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
+        {/* Black transition line */}
+        <div className="bg-black" style={{ paddingTop: '4rem', paddingBottom: '2rem' }}>
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent" />
         </div>
+
+        {/* Gallery Mosaic */}
+        <div className="bg-black" style={{ paddingBottom: '3rem' }}>
+          {(() => {
+            const fallbackImages = [
+              'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=800&fit=crop',
+              'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&h=400&fit=crop',
+              'https://images.unsplash.com/photo-1521590832167-7228f5fa666e?w=600&h=400&fit=crop',
+              'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600&h=800&fit=crop',
+              'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600&h=400&fit=crop',
+              'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600&h=400&fit=crop',
+              'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600&h=800&fit=crop',
+              'https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?w=600&h=400&fit=crop',
+              'https://images.unsplash.com/photo-1596728325003-1f3e3c0f3e0a?w=600&h=400&fit=crop',
+            ];
+
+            const galleryImages: string[] = [];
+            paquetes.forEach((p: any) => {
+              const img = p.imagen || p.imagenUrl;
+              if (img && typeof img === 'string' && img.startsWith('http')) galleryImages.push(img);
+            });
+            servicios.forEach((s: any) => {
+              if (s.imagen && typeof s.imagen === 'string' && s.imagen.startsWith('http')) galleryImages.push(s.imagen);
+            });
+            productos.forEach((p: any) => {
+              if (p.imagenProduc && typeof p.imagenProduc === 'string' && p.imagenProduc.startsWith('http')) galleryImages.push(p.imagenProduc);
+            });
+            while (galleryImages.length < 15) {
+              galleryImages.push(fallbackImages[galleryImages.length % fallbackImages.length]);
+            }
+
+            const groups: string[][] = [];
+            for (let i = 0; i < galleryImages.length; i += 5) {
+              groups.push(galleryImages.slice(i, i + 5));
+            }
+
+            return (
+              <div className="relative">
+                <div
+                  className="flex overflow-x-auto gallery-scroll"
+                  style={{ height: '520px', gap: '6px', scrollBehavior: 'smooth' }}
+                >
+                  {groups.map((group, gi) => (
+                    <div key={`gallery-group-${gi}`} className="flex shrink-0 h-full" style={{ gap: '6px' }}>
+                      <div className="w-[380px] h-full shrink-0 overflow-hidden relative group rounded-lg">
+                        <img src={group[0]} alt="" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" loading="lazy" draggable={false} />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                      </div>
+                      <div className="grid grid-cols-2 grid-rows-2 shrink-0" style={{ width: '520px', height: '100%', gap: '6px' }}>
+                        {group.slice(1, 5).map((img, idx) => (
+                          <div key={idx} className="overflow-hidden relative group rounded-lg">
+                            <img src={img} alt="" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" loading="lazy" draggable={false} />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black to-transparent pointer-events-none z-10" />
+                <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black to-transparent pointer-events-none z-10" />
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* Nosotros — sticky, stays fixed while next section scrolls over it */}
+      <div id="nosotros" style={{ position: 'sticky', top: 0, zIndex: 1, height: '100vh', overflowY: 'auto' }} className="gallery-scroll">
+        <section className="nosotros-section relative bg-[#0a0a0a]" style={{ padding: '5rem 0', minHeight: '100vh' }}>
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
+            <div className="absolute bottom-20 left-[5%] w-96 h-96 rounded-full bg-[#d8b081]/3 blur-[120px]" style={{ animationDelay: '3s' }} />
+          </div>
 
         <div className="content-max-width relative z-10">
           {/* Título de sección */}
@@ -564,10 +700,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
           </div>
         </div>
-      </section>
+        </section>
+      </div>
 
       {/* Supertítulo que abarca servicios y productos */}
-      <div className="bg-[#0a0a0a] border-t border-white/5 pt-32 pb-8">
+      <div className="border-t border-white/5 pt-16 pb-0 backdrop-blur-md" style={{ position: 'relative', zIndex: 2, backgroundColor: 'rgba(0, 0, 0, 0.75)' }}>
         <div className="content-max-width text-center reveal-item">
           <div className="supertitle-wrapper">
             <span className="supertitle-line" />
@@ -581,13 +718,33 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       </div>
 
       {/* Servicios Section */}
-      <section id="servicios" className="pb-24 pt-16 border-white/5" style={{ backgroundColor: '#0a0a0a' }}>
+      <section id="servicios" className="pb-24 pt-0" style={{ backgroundColor: '#0a0a0a', position: 'relative', zIndex: 2 }}>
         <div className="content-max-width relative z-10">
-          <div className="text-center mb-14 reveal-item">
+          <div className="text-center mb-10 reveal-item">
 
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase " style={{ marginTop: '4rem' }}>
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem', marginBottom: '1rem' }}>
               Servicios
             </h3>
+            <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => setServicesView('servicios')}
+                title="Ver servicios individuales"
+                data-selected={servicesView === 'servicios'}
+                className="min-w-[210px] px-6 py-3 text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
+              >
+                Individuales
+              </button>
+              <button
+                type="button"
+                onClick={() => setServicesView('paquetes')}
+                title="Ver paquetes disponibles"
+                data-selected={servicesView === 'paquetes'}
+                className="min-w-[210px] px-6 py-3 text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
+              >
+                Paquetes
+              </button>
+            </div>
           </div>
         </div>
 
@@ -626,7 +783,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             </div>
           ) : (
             <div ref={servCarousel.trackRef} className="carousel-track">
-              {[...servicios, ...servicios].map((servicio, idx) => (
+              {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
                 <div key={`srv-${idx}`} className="w-[380px] shrink-0 px-3 group">
                   <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
                     <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
@@ -646,23 +803,38 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                         <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(servicio.precio)}</span>
                       </div>
                       <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
-                      <button
-                        data-carousel-no-drag="true"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isAuthenticated) {
-                            onSelectReservation?.(servicio);
-                          } else {
-                            onRequestLogin?.();
-                          }
-                        }}
-                        title={`Reservar ${servicio.nombre} ahora`}
-                        className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
-                      >
-                        Agendar Ahora
-                      </button>
+                      <div className="space-y-3">
+                        <button
+                          data-carousel-no-drag="true"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isAuthenticated) {
+                              onSelectReservation?.(servicio);
+                            } else {
+                              onRequestLogin?.();
+                            }
+                          }}
+                          title={`Reservar ${servicio.nombre} ahora`}
+                          className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
+                        >
+                          Agendar Ahora
+                        </button>
+                        <button
+                          data-carousel-no-drag="true"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDetail(servicio, 'servicio');
+                          }}
+                          title={`Ver detalles de ${servicio.nombre}`}
+                          className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
+                        >
+                          Ver Detalles
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -673,7 +845,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       </section>
 
       {/* Productos Section */}
-      <section id="productos" className="pb-24 pt-16 bg-[#0d0d0d]">
+      <section id="productos" className="pb-24 pt-16" style={{ position: 'relative', zIndex: 2, backgroundColor: '#0d0d0d' }}>
         <div className="content-max-width relative z-10">
           <div className="text-center mb-14 reveal-item">
 
@@ -729,6 +901,19 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                         <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(producto.precio)}</span>
                       </div>
                       <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">{producto.descripcion}</p>
+                      <button
+                        data-carousel-no-drag="true"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDetail(producto, 'producto');
+                        }}
+                        title={`Ver detalles de ${producto.nombre}`}
+                        className="w-full mt-6 py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
+                      >
+                        Ver Detalles
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -738,9 +923,292 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </section>
 
+      {/* ── Detail Modal ── */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={handleDetailDialogChange}>
+        <DialogContent className="detail-modal-content w-[96vw] max-w-[750px] max-h-[90vh] border border-[#d8b081]/15 !bg-[#0e0e13] !p-0 !gap-0 text-white overflow-hidden rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(216,176,129,0.08)]">
+
+          {/* ─── Skeleton / Loading state ─── */}
+          {isDetailLoading && !selectedDetailItem?.nombre ? (
+            <div className="p-0">
+              <div className="relative h-[130px] bg-[#1a1a1a] overflow-hidden">
+                <div className="absolute inset-0 skeleton-shimmer-gold" />
+                <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-[#0e0e13] to-transparent" />
+                <div className="absolute top-3 left-4 w-20 h-6 rounded-full bg-[#d8b081]/8 border border-[#d8b081]/10" />
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="w-2/3 h-5 rounded-lg bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="h-24 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/8 skeleton-shimmer-gold" />
+                  <div className="h-24 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/8 skeleton-shimmer-gold" />
+                </div>
+                <div className="flex justify-center gap-3">
+                  <div className="w-36 h-9 rounded-xl bg-[#d8b081]/8 border border-[#d8b081]/12 skeleton-shimmer-gold" />
+                  <div className="w-24 h-9 rounded-xl bg-white/5 border border-white/8 skeleton-shimmer-gold" />
+                </div>
+              </div>
+            </div>
+          ) : selectedDetailItem && (
+            <div className="overflow-y-auto detail-modal-scroll" style={{ maxHeight: 'calc(90vh - 2rem)' }}>
+
+              {/* ─── Image header ─── */}
+              <div
+                className="relative w-full overflow-hidden bg-[#111]"
+                style={{
+                  height: '100px',
+                  backgroundImage: `url('https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=900')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e13] via-[#0e0e13]/30 to-transparent" />
+
+                {/* Floating badge */}
+                <span className="absolute top-3 left-4 inline-flex items-center gap-1.5 rounded-full border border-[#d8b081]/40 bg-black/60 backdrop-blur-md px-3 py-1 text-[9px] font-black uppercase tracking-[0.35em] text-[#f2d6b3] shadow-lg z-10">
+                  {selectedDetailItem.type === 'producto' ? <ShoppingBag className="h-3 w-3" /> : selectedDetailItem.type === 'paquete' ? <Package className="h-3 w-3" /> : <Scissors className="h-3 w-3" />}
+                  {selectedDetailItem.type === 'producto' ? 'Producto' : selectedDetailItem.type === 'paquete' ? 'Paquete' : 'Servicio'}
+                </span>
+
+                {/* Price */}
+                <div className="absolute bottom-3 right-4 text-right z-10">
+                  <span className="text-2xl font-black font-title text-[#f2d6b3] drop-shadow-lg">${formatCurrency(selectedDetailItem.precio)}</span>
+                  {selectedDetailItem.type === 'paquete' && Number(selectedDetailItem.precioOriginal) > Number(selectedDetailItem.precio) && (
+                    <span className="block text-xs text-gray-400 line-through">${formatCurrency(selectedDetailItem.precioOriginal)}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* ─── Content body ─── */}
+              <div className="relative px-6 pb-5 pt-3">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_center,rgba(216,176,129,0.06),transparent_55%)] pointer-events-none" />
+
+                <div className="relative space-y-3">
+
+                  {/* ── Top: Name+Desc+Quote (left) | Info cards (right) ── */}
+                  <div className="flex gap-5 items-start">
+                    <div className="flex-1 space-y-2 min-w-0">
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-500 block mb-1">
+                          {selectedDetailItem.type === 'producto'
+                            ? selectedDetailItem.categoria?.nombre || 'Colección destacada'
+                            : selectedDetailItem.type === 'paquete' ? 'Experiencia combinada' : 'Cuidado personalizado'}
+                        </span>
+                        <h3 className="text-lg font-black font-title uppercase tracking-tight text-white leading-tight">
+                          {selectedDetailItem.nombre}
+                        </h3>
+                      </div>
+                      <p className="text-[13px] leading-relaxed text-gray-300">
+                        {selectedDetailItem.descripcion || (
+                          selectedDetailItem.type === 'producto'
+                            ? 'Producto seleccionado para complementar tu estilo y rutina de cuidado personal.'
+                            : 'Una propuesta premium para una experiencia cómoda, precisa y memorable.'
+                        )}
+                      </p>
+                      <div className="detail-motivational-quote">
+                        <div className="detail-quote-border" />
+                        <p className="text-[13px] font-title italic text-gray-200 leading-relaxed pl-3.5">
+                          {selectedDetailItem.type === 'producto'
+                            ? '"Tu imagen habla por ti. Elige los productos que reflejan quién eres."'
+                            : selectedDetailItem.type === 'paquete'
+                              ? '"Una experiencia completa merece una atención sin igual."'
+                              : '"Cada corte es una obra de arte. Tu estilo, nuestra inspiración."'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right: stacked info cards */}
+                    <div className="flex flex-col gap-2 w-[130px] shrink-0">
+                      <div className="detail-info-card rounded-xl p-2.5 text-center">
+                        <div className="w-7 h-7 rounded-lg icon-float flex items-center justify-center mx-auto mb-1">
+                          {selectedDetailItem.type === 'producto'
+                            ? <ShoppingBag className="w-3.5 h-3.5 text-[#d8b081]" />
+                            : <Clock className="w-3.5 h-3.5 text-[#d8b081]" />}
+                        </div>
+                        <span className="block text-sm font-black font-title text-white leading-none">
+                          {selectedDetailItem.type === 'producto'
+                            ? `${Number(selectedDetailItem.stockVentas || 0) + Number(selectedDetailItem.stockInsumos || 0)}`
+                            : `${selectedDetailItem.duracion} min`}
+                        </span>
+                        <span className="block text-[9px] text-gray-400 mt-1 uppercase tracking-wider font-semibold">
+                          {selectedDetailItem.type === 'producto' ? 'Disponibles' : 'Duración'}
+                        </span>
+                      </div>
+                      <div className="detail-info-card rounded-xl p-2.5 text-center">
+                        <div className="w-7 h-7 rounded-lg icon-float flex items-center justify-center mx-auto mb-1">
+                          <Star className="w-3.5 h-3.5 text-[#d8b081]" />
+                        </div>
+                        <span className="block text-sm font-black font-title text-white leading-none">Premium</span>
+                        <span className="block text-[9px] text-gray-400 mt-1 uppercase tracking-wider font-semibold">Calidad</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Detail rows (2-column wrap) ── */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedDetailItem.type === 'producto' ? (
+                      <>
+                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
+                          <span className="text-[12px] text-gray-400">Marca</span>
+                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.marca || 'Selección Manito'}</span>
+                        </div>
+                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
+                          <span className="text-[12px] text-gray-400">Stock ventas</span>
+                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.stockVentas ?? 0}</span>
+                        </div>
+                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
+                          <span className="text-[12px] text-gray-400">Stock insumos</span>
+                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.stockInsumos ?? 0}</span>
+                        </div>
+                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
+                          <span className="text-[12px] text-gray-400">IVA</span>
+                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.porcentajeIva ?? selectedDetailItem.iva ?? 0}%</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
+                          <span className="text-[12px] text-gray-400">Tipo</span>
+                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.type === 'paquete' ? 'Paquete integral' : 'Servicio individual'}</span>
+                        </div>
+                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
+                          <span className="text-[12px] text-gray-400">Atención</span>
+                          <span className="text-[12px] font-bold text-white">Personalizada</span>
+                        </div>
+                        {selectedDetailItem.type === 'paquete' && (
+                          <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
+                            <span className="text-[12px] text-gray-400">Ahorro</span>
+                            <span className="text-[12px] font-bold text-[#d8b081]">
+                              {Math.max(0, Number(selectedDetailItem.precioOriginal || 0) - Number(selectedDetailItem.precio || 0)) > 0
+                                ? `$${formatCurrency(Math.max(0, Number(selectedDetailItem.precioOriginal || 0) - Number(selectedDetailItem.precio || 0)))}`
+                                : 'Incluido'}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* ── Two-column sections: Benefits + Image ── */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="detail-section-card overflow-clip h-[110px]">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Check className="h-3.5 w-3.5 text-[#d8b081]" />
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-white">
+                          {selectedDetailItem.type === 'producto' ? 'Lo que debes saber' : selectedDetailItem.type === 'paquete' ? 'Incluye' : 'Beneficios'}
+                        </h4>
+                      </div>
+                      <div className="space-y-1">
+                        {selectedDetailItem.type === 'paquete' ? (
+                          Array.isArray(selectedDetailItem.servicios) && selectedDetailItem.servicios.length > 0 ? (
+                            selectedDetailItem.servicios.slice(0, 3).map((servicioIncluido: string, index: number) => (
+                              <div key={`${servicioIncluido}-${index}`} className="flex items-start gap-2">
+                                <div className="mt-1.5 h-1 w-1 rounded-full bg-[#d8b081] shadow-[0_0_6px_rgba(216,176,129,0.5)]" />
+                                <p className="text-[11px] text-gray-300 leading-snug">{servicioIncluido}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-[11px] text-gray-500 italic">Preparando el listado...</p>
+                          )
+                        ) : selectedDetailItem.type === 'producto' ? (
+                          [
+                            'Complementa tu rutina de cuidado.',
+                            'Alineado con el estándar Manito.',
+                            'Consulta en tu próxima visita.'
+                          ].map((tip, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <div className="mt-1.5 h-1 w-1 rounded-full bg-[#d8b081] shadow-[0_0_6px_rgba(216,176,129,0.5)]" />
+                              <p className="text-[11px] text-gray-300 leading-snug">{tip}</p>
+                            </div>
+                          ))
+                        ) : (
+                          [
+                            'Asesoría según tu estilo.',
+                            'Atención al detalle profesional.',
+                            'Imagen impecable garantizada.'
+                          ].map((benefit, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <div className="mt-1.5 h-1 w-1 rounded-full bg-[#d8b081] shadow-[0_0_6px_rgba(216,176,129,0.5)]" />
+                              <p className="text-[11px] text-gray-300 leading-snug">{benefit}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="detail-section-card h-[110px] flex items-center justify-center">
+                      <img
+                        src={
+                          selectedDetailItem.type === 'producto'
+                            ? selectedDetailItem.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'
+                            : selectedDetailItem.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'
+                        }
+                        alt={selectedDetailItem.nombre}
+                        style={{ width: '80px', height: '80px', minWidth: '80px', minHeight: '80px', maxWidth: '80px', maxHeight: '80px' }}
+                        className="object-cover rounded-lg shadow-lg shadow-black/30 border border-[#d8b081]/15"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ── Experience callout (full width, compact) ── */}
+                  <div className="detail-experience-callout">
+                    <Sparkles className="h-4 w-4 text-[#d8b081] shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#f2d6b3] mb-0.5">
+                        {selectedDetailItem.type === 'producto' ? 'Experiencia sugerida' : 'La promesa Manito'}
+                      </p>
+                      <p className="text-[12px] leading-relaxed text-gray-300">
+                        {selectedDetailItem.type === 'producto'
+                          ? 'Complementa la experiencia Manito y prolonga tu estilo entre visitas.'
+                          : 'Enfoque en detalle, comodidad y asesoría para una imagen que te haga sentir único.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ── Action buttons (centered, compact) ── */}
+                  <div className="flex items-center justify-center gap-3 pt-1">
+                    {selectedDetailItem.type === 'producto' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDetailDialogChange(false)}
+                        className="px-7 py-2.5 bg-transparent text-[#d8b081] text-[12px] font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] transition-all duration-300 gold-hover-transition"
+                      >
+                        Seguir Explorando
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleDetailDialogChange(false);
+                          if (isAuthenticated) {
+                            onSelectReservation?.(selectedDetailItem);
+                          } else {
+                            onRequestLogin?.();
+                          }
+                        }}
+                        className="px-7 py-2.5 bg-transparent text-[#d8b081] text-[12px] font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] transition-all duration-300 gold-hover-transition"
+                      >
+                        Agendar Ahora
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDetailDialogChange(false)}
+                      className="px-5 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] font-semibold uppercase tracking-widest text-gray-400 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-gray-200"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
 
       {/* Footer */}
-      <footer id="footer" className="relative overflow-hidden border-t border-white/10 bg-[#111117]">
+      <footer id="footer" className="overflow-hidden border-t border-white/10" style={{ position: 'relative', zIndex: 2, backgroundColor: '#080808' }}>
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -top-28 left-1/2 -translate-x-1/2 w-[52rem] h-[24rem] rounded-full bg-[#d8b081]/6 blur-[130px]" />
         </div>
@@ -777,7 +1245,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </div>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed">
-                Estilo, elegancia y profesionalismo en cada corte. Más de 2 años transformando estilos en el corazón de Bogotá.
+                Estilo, elegancia y profesionalismo en cada corte. Más de 2 años transformando estilos en el corazón de Medellín.
               </p>
               <div className="space-y-2 text-xs text-gray-500 leading-relaxed">
                 <p>Atención personalizada desde el primer contacto hasta el resultado final.</p>
@@ -839,7 +1307,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   </div>
                   <div>
                     <span className="text-sm block">Calle 79 #52-12</span>
-                    <span className="text-[11px] text-gray-600">Barrio El Bosque, Bogotá</span>
+                    <span className="text-[11px] text-gray-600">Barrio El Bosque, Medellín</span>
                   </div>
                 </div>
               </div>
