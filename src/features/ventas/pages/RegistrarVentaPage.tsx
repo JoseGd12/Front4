@@ -42,7 +42,7 @@ import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { FormSection } from "../../../shared/components/ui/FormSection";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { DetailPanel } from "../components/DetailPanel";
-import { QuickClientForm } from "../../../shared/components/ui/QuickClientForm";
+
 
 // Utilities
 const formatCurrency = (amount: number): string => {
@@ -102,8 +102,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const inicialNuevaVenta = {
     clienteId: null as number | null,
     clienteDocumento: "",
+    clienteNombreInvitado: "",
     fechaCreacion: "",
-    tipoVenta: "Venta directa",
+    tipoVenta: "Venta Invitado",
     metodoPago: "",
     barberoId: null as number | null,
     barberoNombre: "",
@@ -825,10 +826,13 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     const productosActuales = nuevaVenta.productos || [];
     const tieneServicios = serviciosAgregados.length > 0;
 
-    if (nuevaVenta.clienteId === null || !nuevaVenta.metodoPago) {
+    const tieneCliente = nuevaVenta.clienteId || nuevaVenta.clienteNombreInvitado.trim();
+    if (!tieneCliente || !nuevaVenta.metodoPago) {
       showErrorAlert(
         "Datos incompletos",
-        "Por favor completa el cliente y el método de pago."
+        !tieneCliente
+          ? "Por favor selecciona un cliente o escribe el nombre del invitado."
+          : "Por favor selecciona el método de pago."
       );
       return;
     }
@@ -923,7 +927,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       const ventaData = {
         numeroVenta,
         tipoVenta: nuevaVenta.tipoVenta,
-        clienteId: nuevaVenta.clienteId,
+        clienteId: nuevaVenta.clienteId || null,
+        clienteNombre: nuevaVenta.clienteNombreInvitado.trim() || clienteSeleccionadoNombre || undefined,
         usuarioId: Number(user.id),
         clienteDocumento: nuevaVenta.clienteDocumento || "",
         fecha: nuevaVenta.fechaCreacion,
@@ -1062,7 +1067,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
   const clienteSeleccionadoNombre =
     clientesDisponibles.find((c) => c.id === Number(nuevaVenta.clienteId))
-      ?.nombre || "";
+      ?.nombre || nuevaVenta.clienteNombreInvitado.trim() || "";
 
   return (
     <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
@@ -1112,7 +1117,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             {/* Section 1: Basic Info */}
             <FormSection
               title="Información Básica"
-              icon={Receipt}
+              icon={<Receipt className="w-4 h-4" />}
               headerRight={
                 <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                   <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
@@ -1138,7 +1143,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             />
 
             {/* Section 2: Client */}
-            <FormSection title="Cliente" icon={User}>
+            <FormSection title="Cliente" icon={<User className="w-4 h-4" />}>
               <div className="space-y-4">
                 <div className="space-y-1">
                   <SearchField
@@ -1149,8 +1154,10 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       setClientSearchTerm("");
                       setNuevaVenta((prev) => ({
                         ...prev,
-                        clienteId: 0 as any,
+                        clienteId: null,
                         clienteDocumento: "",
+                        clienteNombreInvitado: "",
+                        tipoVenta: "Venta Invitado",
                       }));
                     }}
                     items={clientesDisponibles}
@@ -1188,10 +1195,13 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       </div>
                     )}
                     onSelect={(cliente) => {
+                      const esInvitado = cliente.documento?.startsWith("PASO-");
                       setNuevaVenta({
                         ...nuevaVenta,
                         clienteId: cliente.id,
                         clienteDocumento: cliente.documento,
+                        clienteNombreInvitado: "",
+                        tipoVenta: esInvitado ? "Venta Invitado" : "Venta Cliente",
                       });
                       setClientSearchTerm(
                         `${cliente.nombre}${
@@ -1201,26 +1211,42 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         }`
                       );
                     }}
-                    error={showVentaFormErrors && !nuevaVenta.clienteId}
-                    errorMessage="Debes seleccionar un cliente del buscador."
+                    error={showVentaFormErrors && !nuevaVenta.clienteId && !nuevaVenta.clienteNombreInvitado.trim()}
+                    errorMessage="Selecciona un cliente o escribe el nombre del invitado."
                     shakeClass={shakeClass}
                     onFocus={clearValidationErrors}
                   />
                   {!nuevaVenta.clienteId && (
-                    <QuickClientForm
-                      searchTerm={clientSearchTerm}
-                      onClientCreated={(c) => {
-                        setNuevaVenta({
-                          ...nuevaVenta,
-                          clienteId: c.id as any,
-                          clienteDocumento: c.documento || '',
-                        });
-                        setClientSearchTerm(`${c.nombre}${c.documento ? ` — ${c.documento}` : ''}`);
-                        // Refrescar clientes para que aparezca en futuras búsquedas
-                        loadData();
-                      }}
-                      onError={(msg) => error("Error al registrar", msg)}
-                    />
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-px bg-gray-dark" />
+                        <span className="text-[10px] text-gray-lightest uppercase tracking-widest font-bold">o venta como invitado</span>
+                        <div className="flex-1 h-px bg-gray-dark" />
+                      </div>
+                      <Input
+                        placeholder="Nombre del invitado..."
+                        value={nuevaVenta.clienteNombreInvitado}
+                        onChange={(e) => {
+                          const nombre = e.target.value;
+                          setNuevaVenta((prev) => ({
+                            ...prev,
+                            clienteNombreInvitado: nombre,
+                            tipoVenta: "Venta Invitado",
+                          }));
+                        }}
+                        className={`elegante-input ${
+                          showVentaFormErrors && !nuevaVenta.clienteId && !nuevaVenta.clienteNombreInvitado.trim()
+                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                            : ""
+                        }`}
+                      />
+                      {nuevaVenta.clienteNombreInvitado.trim() && (
+                        <p className="text-[10px] text-orange-primary flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-primary" />
+                          Se creará la venta a nombre de "{nuevaVenta.clienteNombreInvitado.trim()}" sin registro de cliente
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -1320,11 +1346,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Tipo de Venta</Label>
-                  <Input
-                    value={nuevaVenta.tipoVenta}
-                    disabled
-                    className="elegante-input bg-gray-medium"
-                  />
+                  <div className={`elegante-input bg-gray-medium flex items-center gap-2 h-10 px-3 rounded-md text-sm ${
+                    nuevaVenta.tipoVenta === "Venta Cliente" ? "text-green-400" : "text-orange-primary"
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${
+                      nuevaVenta.tipoVenta === "Venta Cliente" ? "bg-green-400" : "bg-orange-primary"
+                    }`} />
+                    {nuevaVenta.tipoVenta}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Método de Pago *</Label>
@@ -1383,7 +1412,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             </section>
 
             {/* Section 4: Products */}
-            <FormSection title="Agregar Productos" icon={ShoppingBag}>
+            <FormSection title="Agregar Productos" icon={<ShoppingBag className="w-4 h-4" />}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Producto *</Label>
@@ -1500,7 +1529,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             </FormSection>
 
             {/* Section 5: Services */}
-            <FormSection title="Agregar Servicios" icon={Scissors}>
+            <FormSection title="Agregar Servicios" icon={<Scissors className="w-4 h-4" />}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">

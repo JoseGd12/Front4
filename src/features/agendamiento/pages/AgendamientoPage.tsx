@@ -9,7 +9,7 @@ import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../services/horariosService";
 import { Input } from "../../../shared/components/ui/input";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, ArrowLeft, Plus, X } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, ArrowLeft, Plus, Minus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -19,7 +19,7 @@ import { emailJsService } from "../../../shared/services/emailJsService";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { FormSection } from "../../../shared/components/ui/FormSection";
 import { SearchField } from "../../../shared/components/ui/SearchField";
-import { QuickClientForm } from "../../../shared/components/ui/QuickClientForm";
+import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
@@ -138,7 +138,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
     telefono: '',
     servicioId: null as number | null,
     servicioIds: [] as number[],
-    productoIds: [] as number[],
+    productoCantidades: {} as Record<number, number>,
     paqueteId: null as number | null,
     servicio: '',
     barberoId: 0,
@@ -240,7 +240,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       telefono: '',
       servicioId: isPaquete ? null : itemId,
       servicioIds: isPaquete ? [] : [itemId],
-      productoIds: [],
+      productoCantidades: {},
       paqueteId: isPaquete ? itemId : null,
       servicio: String(item.nombre || ''),
       barberoId: 0,
@@ -498,7 +498,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       telefono: '',
       servicioId: null,
       servicioIds: [],
-      productoIds: [],
+      productoCantidades: {},
       paqueteId: null,
       servicio: '',
       barberoId: 0,
@@ -518,17 +518,25 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
   };
 
   // Helper para calcular precio de productos seleccionados
-  const calcularPrecioProductos = (productoIds: number[]) => {
-    return productosList
-      .filter(p => productoIds.includes(p.id))
-      .reduce((acc, p) => acc + Number(p.precioVenta || 0), 0);
+  const calcularPrecioProductos = (cantidades: Record<number, number>) => {
+    return Object.entries(cantidades).reduce((acc, [idStr, cant]) => {
+      const prod = productosList.find(p => p.id === Number(idStr));
+      return acc + (prod ? Number(prod.precioVenta || 0) * cant : 0);
+    }, 0);
+  };
+
+  // Helper para convertir productoCantidades a array plano de IDs para la API
+  const flattenProductoCantidades = (cantidades: Record<number, number>): number[] => {
+    return Object.entries(cantidades).flatMap(([idStr, cant]) =>
+      Array.from({ length: cant }, () => Number(idStr))
+    );
   };
 
   const applyServiciosSelection = (servicioIds: number[]) => {
     const selectedServicios = serviciosList.filter(s => servicioIds.includes(s.id));
     const servicioNombres = selectedServicios.map(s => s.nombre).filter(Boolean);
     const precioServicios = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
-    const precioProductos = calcularPrecioProductos(nuevaCita.productoIds);
+    const precioProductos = calcularPrecioProductos(nuevaCita.productoCantidades);
     const duracionTotal = selectedServicios.reduce((acc, s) => acc + Number(s.duracion || 60), 0);
     setNuevaCita(prev => ({
       ...prev,
@@ -548,13 +556,30 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
     applyServiciosSelection(nextServicioIds);
   };
 
-  const toggleProducto = (productoId: number) => {
-    const nextProductoIds = nuevaCita.productoIds.includes(productoId)
-      ? nuevaCita.productoIds.filter(id => id !== productoId)
-      : [...nuevaCita.productoIds, productoId];
-    const precioProductos = calcularPrecioProductos(nextProductoIds);
+  const addProducto = (productoId: number) => {
+    const nextCantidades = { ...nuevaCita.productoCantidades, [productoId]: (nuevaCita.productoCantidades[productoId] || 0) + 1 };
+    recalcularPrecioConProductos(nextCantidades);
+  };
 
-    // Recalcular precio base (servicios o paquete)
+  const removeProducto = (productoId: number) => {
+    const current = nuevaCita.productoCantidades[productoId] || 0;
+    const nextCantidades = { ...nuevaCita.productoCantidades };
+    if (current <= 1) {
+      delete nextCantidades[productoId];
+    } else {
+      nextCantidades[productoId] = current - 1;
+    }
+    recalcularPrecioConProductos(nextCantidades);
+  };
+
+  const quitarProducto = (productoId: number) => {
+    const nextCantidades = { ...nuevaCita.productoCantidades };
+    delete nextCantidades[productoId];
+    recalcularPrecioConProductos(nextCantidades);
+  };
+
+  const recalcularPrecioConProductos = (cantidades: Record<number, number>) => {
+    const precioProductos = calcularPrecioProductos(cantidades);
     let precioBase = 0;
     if (nuevaCita.paqueteId) {
       const paquete = paquetesList.find(p => p.id === nuevaCita.paqueteId);
@@ -564,16 +589,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         .filter(s => nuevaCita.servicioIds.includes(s.id))
         .reduce((acc, s) => acc + Number(s.precio || 0), 0);
     }
-
     setNuevaCita(prev => ({
       ...prev,
-      productoIds: nextProductoIds,
+      productoCantidades: cantidades,
       precio: precioBase + precioProductos
     }));
   };
 
   const handlePaqueteChange = (value: string) => {
-    const precioProductos = calcularPrecioProductos(nuevaCita.productoIds);
+    const precioProductos = calcularPrecioProductos(nuevaCita.productoCantidades);
     if (value === "none") {
       setNuevaCita(prev => ({
         ...prev,
@@ -619,7 +643,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
         servicioIds: nuevaCita.servicioIds,
-        productoIds: nuevaCita.productoIds,
+        productoIds: flattenProductoCantidades(nuevaCita.productoCantidades),
         paqueteId: nuevaCita.paqueteId,
         fecha: nuevaCita.fecha,
         hora: nuevaCita.hora,
@@ -662,7 +686,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         servicioIds: (citaCompleta.servicioIds && citaCompleta.servicioIds.length > 0)
           ? citaCompleta.servicioIds
           : (citaCompleta.servicioId ? [citaCompleta.servicioId] : []),
-        productoIds: citaCompleta.productoIds || [],
+        productoCantidades: ((citaCompleta.productoIds || []) as number[]).reduce((acc: Record<number, number>, id: number) => {
+          acc[id] = (acc[id] || 0) + 1;
+          return acc;
+        }, {} as Record<number, number>),
         paqueteId: citaCompleta.paqueteId,
         servicio: citaCompleta.servicioNombre || citaCompleta.paqueteNombre || '',
         barberoId: citaCompleta.barberoId,
@@ -718,7 +745,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
         servicioIds: nuevaCita.servicioIds,
-        productoIds: nuevaCita.productoIds,
+        productoIds: flattenProductoCantidades(nuevaCita.productoCantidades),
         paqueteId: nuevaCita.paqueteId,
         fecha: nuevaCita.fecha,
         hora: nuevaCita.hora,
@@ -885,41 +912,46 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
   return (
     <>
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
-        {isLoading && (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-orange-primary text-xl animate-pulse">Cargando datos...</div>
-          </div>
-        )}
+      {isLoading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-orange-primary text-xl animate-pulse">Cargando datos...</div>
+        </div>
+      )}
 
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VISTA DE CREAR / EDITAR CITA (inline, no modal) */}
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        {viewMode === 'crear' && (
-          <div className="flex flex-col gap-6 h-full">
-            {/* Header con botón Volver */}
-            <div className="flex items-center gap-4 shrink-0">
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* VISTA DE CREAR / EDITAR CITA (inline, no modal) */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {viewMode === 'crear' && (
+        <div className="flex flex-col gap-4 h-full min-h-0 overflow-hidden">
+          {/* Header con botón Volver */}
+          <div className="flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => { setViewMode('calendar'); setSelectedCita(null); setShowFormErrors(false); }}
-                className="elegante-button-secondary flex items-center gap-2"
+                className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
+                title="Volver al Calendario"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Volver al Calendario
+                <ArrowLeft className="w-5 h-5" />
               </button>
-              <h2 className="text-xl font-bold text-white-primary">
-                {selectedCita ? 'Editar Cita' : 'Nueva Cita'}
-              </h2>
+              <div>
+                <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
+                  <CalendarDays className="w-6 h-6 text-orange-primary" />
+                  {selectedCita ? 'Editar Cita' : 'Nueva Cita'}
+                </h2>
+                <p className="text-sm text-gray-lightest">Completa la información del agendamiento</p>
+              </div>
             </div>
+          </div>
 
-            {/* Master-Detail Layout */}
-            <div
-              className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden"
-              style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
-            >
-              {/* ── Panel Izquierdo: Formulario ── */}
-              <aside className="lg:min-h-0 lg:min-w-0">
-              <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0 divide-y divide-gray-dark">
+          {/* Master-Detail Layout */}
+          <div
+            className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 flex-1 min-h-0 overflow-hidden"
+            style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
+          >
+            {/* ── Panel Izquierdo: Formulario ── */}
+            <aside className="min-h-0 min-w-0">
+            <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0 divide-y divide-gray-dark">
                 {/* Sección: Cliente */}
                 <FormSection title="Cliente" icon={<User className="w-4 h-4 text-orange-primary" />}>
                   <SearchField<any>
@@ -949,18 +981,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     isSelected={!!nuevaCita.clienteId}
                     error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
                   />
-                  {!nuevaCita.clienteId && (
-                    <QuickClientForm
-                      searchTerm={clienteSearchTerm}
-                      onClientCreated={(c) => {
-                        setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: c.nombre, telefono: c.telefono || '' }));
-                        setClienteSearchTerm(c.nombre);
-                        // Refrescar lista de clientes para que aparezca en futuras búsquedas
-                        fetchData();
-                      }}
-                      onError={(msg) => error("Error al registrar", msg)}
-                    />
-                  )}
                   {nuevaCita.telefono && (
                     <div className="mt-2">
                       <Label className="text-xs text-gray-lighter">Teléfono</Label>
@@ -990,12 +1010,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                         }}
                         onClear={() => setServicioSearchTerm('')}
                         renderItem={(s) => (
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="text-white-primary text-sm font-medium">{s.nombre}</p>
+                          <div className="flex items-center gap-3">
+                            <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                              <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
                               <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
                             </div>
-                            <span className="text-orange-primary text-sm font-bold">{formatearPrecio(s.precio)}</span>
+                            <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
                           </div>
                         )}
                         error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
@@ -1073,12 +1096,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                       }}
                       onClear={() => setPaqueteSearchTerm('')}
                       renderItem={(p) => (
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
-                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min</p>
+                        <div className="flex items-center gap-3">
+                          <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                            <Package className="w-5 h-5 text-orange-primary/50" />
                           </div>
-                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precio)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                          </div>
+                          <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                         </div>
                       )}
                     />
@@ -1093,43 +1119,76 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                       placeholder="Buscar producto..."
                       value={productoSearchTerm}
                       onChange={setProductoSearchTerm}
-                      items={productosList.filter(p => !nuevaCita.productoIds.includes(p.id))}
+                      items={productosList}
                       filterFn={(p, term) =>
                         (p.nombre || '').toLowerCase().includes(term.toLowerCase())
                       }
                       onSelect={(p) => {
-                        toggleProducto(p.id);
+                        addProducto(p.id);
                         setProductoSearchTerm('');
                       }}
                       onClear={() => setProductoSearchTerm('')}
-                      renderItem={(p) => (
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
-                            <p className="text-gray-lighter text-xs">Stock: {p.stockVentas}</p>
+                      renderItem={(p) => {
+                        const cantActual = nuevaCita.productoCantidades[p.id] || 0;
+                        return (
+                          <div className="flex items-center gap-3">
+                            <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                              <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                              <p className="text-gray-lighter text-xs">Stock: {p.stockVentas}{cantActual > 0 ? ` · Ya agregado: ${cantActual}` : ''}</p>
+                            </div>
+                            <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
                           </div>
-                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
-                        </div>
-                      )}
+                        );
+                      }}
                     />
-                    {/* Tags de productos seleccionados */}
-                    {nuevaCita.productoIds.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {nuevaCita.productoIds.map(pId => {
+                    {/* Productos seleccionados con control de cantidad */}
+                    {Object.keys(nuevaCita.productoCantidades).length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
+                          const pId = Number(idStr);
                           const prod = productosList.find(p => p.id === pId);
                           if (!prod) return null;
+                          const precioUnit = Number(prod.precioVenta || prod.precio || 0);
                           return (
-                            <div key={pId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                              <ShoppingBag className="w-3 h-3" />
-                              <span>{prod.nombre}</span>
-                              <span className="opacity-60">({formatearPrecio(prod.precioVenta || prod.precio || 0)})</span>
+                            <div key={pId} className="flex items-center gap-2 bg-orange-primary/10 border border-orange-primary/20 rounded-lg px-3 py-2">
+                              <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white-primary text-xs font-medium truncate">{prod.nombre}</p>
+                                <p className="text-orange-primary text-[10px] font-bold">{formatearPrecio(precioUnit)} c/u</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => removeProducto(pId)}
+                                  className="w-6 h-6 rounded-full bg-gray-dark hover:bg-gray-darker flex items-center justify-center text-white-primary transition-colors"
+                                  title="Disminuir cantidad"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="text-white-primary text-sm font-bold w-6 text-center">{cantidad}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => addProducto(pId)}
+                                  className="w-6 h-6 rounded-full bg-orange-primary/30 hover:bg-orange-primary/50 flex items-center justify-center text-orange-primary transition-colors"
+                                  title="Aumentar cantidad"
+                                  disabled={cantidad >= (prod.stockVentas || 99)}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <span className="text-orange-primary text-xs font-bold shrink-0 w-16 text-right">{formatearPrecio(precioUnit * cantidad)}</span>
                               <button
                                 type="button"
-                                onClick={() => toggleProducto(pId)}
-                                className="ml-1 hover:text-red-400 transition-colors"
+                                onClick={() => quitarProducto(pId)}
+                                className="ml-1 text-gray-lighter hover:text-red-400 transition-colors shrink-0"
                                 title="Quitar producto"
                               >
-                                <X className="w-3 h-3" />
+                                <X className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           );
@@ -1259,7 +1318,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
               </aside>
 
               {/* ── Panel Derecho: Resumen ── */}
-              <section className="lg:min-h-0 lg:min-w-0">
+              <section className="min-h-0 min-w-0">
               <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
                 {/* Header con gradiente */}
                 <div className="bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
@@ -1293,19 +1352,21 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                           if (!srv) return null;
                           return (
                             <div key={sId} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <Scissors className="w-4 h-4 text-orange-primary shrink-0" />
-                                  <span className="text-white-primary text-sm font-medium truncate">{srv.nombre}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                  <ImageRenderer url={srv.imagen || ""} alt={srv.nombre} className="w-full h-full border-0 bg-transparent" />
                                 </div>
-                                <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(srv.precio)}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white-primary text-sm font-medium truncate">{srv.nombre}</span>
+                                    <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(srv.precio)}</span>
+                                  </div>
+                                  {srv.descripcion && (
+                                    <p className="text-xs text-gray-lighter mt-0.5 italic truncate">{srv.descripcion}</p>
+                                  )}
+                                  <p className="text-[10px] text-gray-lighter mt-0.5">{srv.duracion || 60} min</p>
+                                </div>
                               </div>
-                              {srv.descripcion && (
-                                <p className="text-xs text-gray-lighter mt-2 ml-6 italic">
-                                  {srv.descripcion}
-                                </p>
-                              )}
-                              <p className="text-[10px] text-gray-lighter mt-1 ml-6">{srv.duracion || 60} min</p>
                             </div>
                           );
                         })}
@@ -1358,23 +1419,33 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                   })()}
 
                   {/* Productos seleccionados */}
-                  {nuevaCita.productoIds.length > 0 && (
+                  {Object.keys(nuevaCita.productoCantidades).length > 0 && (
                     <div>
                       <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
-                        Productos ({nuevaCita.productoIds.length})
+                        Productos ({Object.values(nuevaCita.productoCantidades).reduce((a, b) => a + b, 0)})
                       </p>
                       <div className="space-y-2">
-                        {nuevaCita.productoIds.map(pId => {
+                        {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
+                          const pId = Number(idStr);
                           const prod = productosList.find(p => p.id === pId);
                           if (!prod) return null;
+                          const precioUnit = Number(prod.precioVenta || prod.precio || 0);
                           return (
                             <div key={pId} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <ShoppingBag className="w-4 h-4 text-orange-primary shrink-0" />
-                                  <span className="text-white-primary text-sm font-medium truncate">{prod.nombre}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                  <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
                                 </div>
-                                <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(prod.precioVenta || prod.precio || 0)}</span>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-white-primary text-sm font-medium truncate block">{prod.nombre}</span>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-orange-primary text-sm font-bold">{formatearPrecio(precioUnit * cantidad)}</span>
+                                    {cantidad > 1 && (
+                                      <span className="text-gray-lighter text-[10px]">({cantidad} × {formatearPrecio(precioUnit)})</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className="bg-orange-primary/20 text-orange-primary text-xs font-bold px-2 py-0.5 rounded-full">{cantidad}</span>
                               </div>
                             </div>
                           );
@@ -1439,16 +1510,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     <span className="text-orange-primary font-bold text-2xl tabular-nums">{formatearPrecio(nuevaCita.precio)}</span>
                   </div>
                 </div>
-              </div>
-              </section>
             </div>
+            </section>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        {/* VISTA DE CALENDARIO */}
-        {/* ═══════════════════════════════════════════════════════════════════ */}
-        {viewMode === 'calendar' && (<>
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* VISTA DE CALENDARIO */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {viewMode === 'calendar' && (
+        <div className="overflow-auto h-full p-2">
 
         {/* Stats Cards */}
         <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -1498,7 +1570,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                   setBarberoFormSearchTerm('');
                   setNuevaCita({
                     clienteId: 0, cliente: '', telefono: '',
-                    servicioId: null, servicioIds: [], productoIds: [],
+                    servicioId: null, servicioIds: [], productoCantidades: {},
                     paqueteId: null, servicio: '', barberoId: 0, barbero: '',
                     fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
                   });
@@ -1638,8 +1710,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
           </div>
         </div>
 
-        </>)}
-      </main>
+        </div>
+      )}
 
       {/* Modal de Gestión de Franja Horaria */}
       <Dialog open={isSlotModalOpen} onOpenChange={setIsSlotModalOpen}>
@@ -1691,7 +1763,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     setSelectedCita(null);
                     setNuevaCita({
                       clienteId: 0, cliente: '', telefono: '',
-                      servicioId: null, servicioIds: [], productoIds: [],
+                      servicioId: null, servicioIds: [], productoCantidades: {},
                       paqueteId: null, servicio: '', barberoId: 0, barbero: '',
                       fecha: selectedSlot?.fecha || '', hora: selectedSlot?.hora.toString().padStart(2, '0') + ':00' || '',
                       duracion: 60, precio: 0, estado: 'Pendiente', notas: ''

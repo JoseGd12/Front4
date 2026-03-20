@@ -49,6 +49,7 @@ export interface ServicioDetalle {
 export interface CreateVentaRequest {
   numeroVenta: number;
   tipoVenta?: string;
+  clienteNombre?: string;
   clienteId: number | null;
   usuarioId?: number | null;
   clienteDocumento: string;
@@ -152,7 +153,7 @@ class VentaService {
 
     // Campos requeridos por el backend (VentaInput)
     if (data.id !== undefined) mapped.Id = data.id;
-    if (data.clienteId !== undefined && data.clienteId !== null) {
+    if (data.clienteId !== undefined && data.clienteId !== null && Number(data.clienteId) > 0) {
       mapped.ClienteId = Number(data.clienteId);
     }
 
@@ -167,6 +168,7 @@ class VentaService {
 
     if (data.metodoPago !== undefined) mapped.MetodoPago = data.metodoPago;
     if (data.tipoVenta !== undefined) mapped.TipoVenta = data.tipoVenta;
+    if (data.clienteNombre !== undefined) mapped.ClienteNombre = data.clienteNombre;
     if (data.numeroVenta !== undefined) mapped.NumeroVenta = Number(data.numeroVenta);
     if (data.fecha !== undefined) mapped.Fecha = data.fecha;
     if (data.estado !== undefined) mapped.Estado = data.estado;
@@ -237,10 +239,7 @@ class VentaService {
       }
     }
 
-    // Validar que ClienteId sea válido
-    if (!mapped.ClienteId || mapped.ClienteId <= 0) {
-      throw new Error('ClienteId es requerido y debe ser un número válido');
-    }
+    // ClienteId es opcional (ventas de invitado no lo requieren)
     // Validar responsable
     if (!mapped.UsuarioId || mapped.UsuarioId <= 0) {
       throw new Error('UsuarioId (responsable) es requerido y debe ser un número válido');

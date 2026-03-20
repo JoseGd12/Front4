@@ -6,9 +6,10 @@ import {
   Scissors,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  Minus,
   Edit,
   Trash2,
-  Plus,
   AlertTriangle,
   CheckCircle,
   Phone,
@@ -204,7 +205,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     barbero: '', // Almacenar nombre para el autocomplete
     servicioId: null as number | null,
     servicioIds: [] as number[],
-    productoIds: [] as number[],
+    productoCantidades: {} as Record<number, number>,
     paqueteId: null as number | null,
     servicio: '',
     fecha: '',
@@ -233,7 +234,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         barbero: '',
         servicioId: null,
         servicioIds: [],
-        productoIds: [],
+        productoCantidades: {},
         paqueteId: null,
         servicio: '',
         fecha: '',
@@ -304,7 +305,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       barbero: '',
       servicioId: isPaquete ? null : itemId,
       servicioIds: isPaquete ? [] : [itemId],
-      productoIds: [],
+      productoCantidades: {},
       paqueteId: isPaquete ? itemId : null,
       servicio: item.nombre,
       fecha: fechaAuto,
@@ -480,7 +481,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       barbero: '',
       servicioId: null,
       servicioIds: [],
-      productoIds: [],
+      productoCantidades: {},
       paqueteId: null,
       servicio: '',
       fecha: '',
@@ -508,7 +509,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       barbero: '',
       servicioId: null,
       servicioIds: [],
-      productoIds: [],
+      productoCantidades: {},
       paqueteId: null,
       servicio: '',
       fecha: fechaCompleta,
@@ -532,7 +533,10 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       servicioIds: (cita.servicioIds && cita.servicioIds.length > 0)
         ? cita.servicioIds
         : (cita.servicioId ? [cita.servicioId] : []),
-      productoIds: cita.productoIds || [],
+      productoCantidades: (cita.productoIds || []).reduce((acc: any, id: number) => {
+        acc[id] = (acc[id] || 0) + 1;
+        return acc;
+      }, {}),
       paqueteId: cita.paqueteId,
       servicio: cita.servicioNombre || cita.paqueteNombre || '',
       fecha: cita.fecha,
@@ -552,6 +556,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       return;
     }
 
+    const flattenedProductoIds = Object.entries(nuevaCita.productoCantidades).flatMap(([id, cant]) => Array(cant).fill(Number(id)));
+
     const errorDisp = validarDisponibilidad(nuevaCita.barberoId, nuevaCita.fecha, nuevaCita.hora, nuevaCita.duracion, selectedCita?.id);
     if (errorDisp) {
       error("No disponible", errorDisp);
@@ -565,7 +571,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
           barberoId: nuevaCita.barberoId,
           servicioId: nuevaCita.servicioId,
           servicioIds: nuevaCita.servicioIds,
-          productoIds: nuevaCita.productoIds,
+          productoIds: flattenedProductoIds,
           paqueteId: nuevaCita.paqueteId,
           fecha: nuevaCita.fecha,
           hora: nuevaCita.hora,
@@ -581,7 +587,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
           barberoId: nuevaCita.barberoId,
           servicioId: nuevaCita.servicioId,
           servicioIds: nuevaCita.servicioIds,
-          productoIds: nuevaCita.productoIds,
+          productoIds: flattenedProductoIds,
           paqueteId: nuevaCita.paqueteId,
           fecha: nuevaCita.fecha,
           hora: nuevaCita.hora,
@@ -613,10 +619,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   };
 
   // Helper para calcular precio de productos seleccionados
-  const calcularPrecioProductos = (productoIds: number[]) => {
-    return productosList
-      .filter(p => productoIds.includes(p.id))
-      .reduce((acc, p) => acc + Number(p.precioVenta || 0), 0);
+  const calcularPrecioProductos = (productoCantidades: Record<number, number>) => {
+    return Object.entries(productoCantidades).reduce((acc, [id, cant]) => {
+      const p = productosList.find(prod => prod.id === Number(id));
+      return acc + (Number(p?.precioVenta || 0) * cant);
+    }, 0);
   };
 
   const applyServiciosSelection = (servicioIds: number[]) => {
@@ -626,19 +633,19 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     const duracionTotal = selectedServicios.reduce((acc, s) => acc + Number(s.duracion || 60), 0);
     // Si no hay servicios ni paquete, limpiar productos seleccionados
     const keepProducts = servicioIds.length > 0;
-    let nextProductoIds = keepProducts ? nuevaCita.productoIds : [];
+    let nextProductoCantidades = keepProducts ? { ...nuevaCita.productoCantidades } : {};
     // Auto-agregar producto pendiente si el usuario acaba de seleccionar su primer servicio
-    if (keepProducts && pendingProduct && !nextProductoIds.includes(pendingProduct.id)) {
-      nextProductoIds = [...nextProductoIds, pendingProduct.id];
+    if (keepProducts && pendingProduct && !nextProductoCantidades[pendingProduct.id]) {
+      nextProductoCantidades[pendingProduct.id] = 1;
       setPendingProduct(null);
     }
-    const precioProductos = calcularPrecioProductos(nextProductoIds);
+    const precioProductos = calcularPrecioProductos(nextProductoCantidades);
     setNuevaCita(prev => ({
       ...prev,
       paqueteId: null,
       servicioId: servicioIds.length > 0 ? servicioIds[0] : null,
       servicioIds,
-      productoIds: nextProductoIds,
+      productoCantidades: nextProductoCantidades,
       servicio: servicioNombres.join(", "),
       precio: precioServicios + precioProductos,
       duracion: servicioIds.length > 0 ? duracionTotal : 60
@@ -652,13 +659,30 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     applyServiciosSelection(nextServicioIds);
   };
 
-  const toggleProducto = (productoId: number) => {
-    const nextProductoIds = nuevaCita.productoIds.includes(productoId)
-      ? nuevaCita.productoIds.filter(id => id !== productoId)
-      : [...nuevaCita.productoIds, productoId];
-    const precioProductos = calcularPrecioProductos(nextProductoIds);
+  const addProducto = (productoId: number) => {
+    const nextProductoCantidades = { ...nuevaCita.productoCantidades };
+    nextProductoCantidades[productoId] = (nextProductoCantidades[productoId] || 0) + 1;
+    updateNuevaCitaConProductos(nextProductoCantidades);
+  };
 
-    // Recalcular precio base (servicios o paquete)
+  const removeProducto = (productoId: number) => {
+    const nextProductoCantidades = { ...nuevaCita.productoCantidades };
+    if (nextProductoCantidades[productoId] > 1) {
+      nextProductoCantidades[productoId]--;
+    } else {
+      delete nextProductoCantidades[productoId];
+    }
+    updateNuevaCitaConProductos(nextProductoCantidades);
+  };
+
+  const quitarProducto = (productoId: number) => {
+    const nextProductoCantidades = { ...nuevaCita.productoCantidades };
+    delete nextProductoCantidades[productoId];
+    updateNuevaCitaConProductos(nextProductoCantidades);
+  };
+
+  const updateNuevaCitaConProductos = (nextProductoCantidades: Record<number, number>) => {
+    const precioProductos = calcularPrecioProductos(nextProductoCantidades);
     let precioBase = 0;
     if (nuevaCita.paqueteId) {
       const paquete = paquetesList.find(p => p.id === nuevaCita.paqueteId);
@@ -671,20 +695,19 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
     setNuevaCita(prev => ({
       ...prev,
-      productoIds: nextProductoIds,
+      productoCantidades: nextProductoCantidades,
       precio: precioBase + precioProductos
     }));
   };
 
   const handlePaqueteChange = (value: string) => {
-    const precioProductos = calcularPrecioProductos(nuevaCita.productoIds);
     if (value === "none") {
       setNuevaCita(prev => ({
         ...prev,
         paqueteId: null,
         servicioId: null,
         servicioIds: [],
-        productoIds: [], // Sin servicio ni paquete, limpiar productos
+        productoCantidades: {}, // Sin servicio ni paquete, limpiar productos
         servicio: "",
         precio: 0,
         duracion: 60
@@ -694,18 +717,18 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     const id = parseInt(value.replace("p-", ""));
     const paquete = paquetesList.find(p => p.id === id);
     // Auto-agregar producto pendiente al seleccionar paquete
-    let nextProductoIds = nuevaCita.productoIds;
-    if (pendingProduct && !nextProductoIds.includes(pendingProduct.id)) {
-      nextProductoIds = [...nextProductoIds, pendingProduct.id];
+    let nextProductoCantidades = { ...nuevaCita.productoCantidades };
+    if (pendingProduct && !nextProductoCantidades[pendingProduct.id]) {
+      nextProductoCantidades[pendingProduct.id] = 1;
       setPendingProduct(null);
     }
-    const precioProductosFinal = calcularPrecioProductos(nextProductoIds);
+    const precioProductosFinal = calcularPrecioProductos(nextProductoCantidades);
     setNuevaCita(prev => ({
       ...prev,
       paqueteId: id,
       servicioId: null,
       servicioIds: [],
-      productoIds: nextProductoIds,
+      productoCantidades: nextProductoCantidades,
       servicio: paquete?.nombre || "",
       precio: (paquete?.precio || 0) + precioProductosFinal,
       duracion: paquete?.duracion || 60
@@ -716,53 +739,60 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     <>
       <AlertContainer />
 
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white-primary">Mis Citas</h1>
-            <p className="text-sm text-gray-lightest mt-1">Gestiona tu agenda y programa nuevas visitas</p>
+      {viewMode === 'calendar' && (
+        <header className="bg-black-primary border-b border-gray-dark px-8 py-6 shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white-primary">Mis Citas</h1>
+              <p className="text-sm text-gray-lightest mt-1">Gestiona tu agenda y programa nuevas visitas</p>
+            </div>
+            <button
+              onClick={handleOpenCreate}
+              className="elegante-button-primary flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Agendar Nueva Cita
+            </button>
           </div>
-          <button
-            onClick={handleOpenCreate}
-            className="elegante-button-primary flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Agendar Nueva Cita
-          </button>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-orange-primary animate-pulse text-xl font-medium">Cargando tus citas...</div>
-          </div>
-        ) : viewMode === 'crear' ? (
-          /* ═══════════════════════════════════════════════════════════════════ */
-          /* VISTA DE CREAR / EDITAR CITA (inline, no modal) */
-          /* ═══════════════════════════════════════════════════════════════════ */
-          <div className="max-w-7xl mx-auto flex flex-col gap-6 h-full">
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-orange-primary animate-pulse text-xl font-medium">Cargando tus citas...</div>
+        </div>
+      ) : viewMode === 'crear' ? (
+        /* ═══════════════════════════════════════════════════════════════════ */
+        /* VISTA DE CREAR / EDITAR CITA (inline, no modal) */
+        /* ═══════════════════════════════════════════════════════════════════ */
+        <div className="flex flex-col gap-4 h-full min-h-0 overflow-hidden">
             {/* Header con botón Volver */}
-            <div className="flex items-center gap-4 shrink-0">
-              <button
-                onClick={() => { setViewMode('calendar'); setPendingProduct(null); }}
-                className="elegante-button-secondary flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Volver al Calendario
-              </button>
-              <h2 className="text-xl font-bold text-white-primary">
-                {isEditMode ? 'Editar tu Reservación' : 'Programar Nueva Cita'}
-              </h2>
+            <div className="flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => { setViewMode('calendar'); setPendingProduct(null); }}
+                  className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
+                  title="Volver al Calendario"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                  <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
+                    <CalendarDays className="w-6 h-6 text-orange-primary" />
+                    {isEditMode ? 'Editar tu Reservación' : 'Programar Nueva Cita'}
+                  </h2>
+                  <p className="text-sm text-gray-lightest">Selecciona los servicios y horario de tu preferencia</p>
+                </div>
+              </div>
             </div>
 
             {/* Master-Detail Layout */}
             <div
-              className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden"
+              className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 flex-1 min-h-0 overflow-hidden"
               style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
             >
               {/* ── Panel Izquierdo: Formulario ── */}
-              <aside className="lg:min-h-0 lg:min-w-0">
+              <aside className="min-h-0 min-w-0">
               <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0 divide-y divide-gray-dark">
                 {/* Sección: Servicios */}
@@ -785,12 +815,15 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       }}
                       onClear={() => setServicioSearchTerm('')}
                       renderItem={(s) => (
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-white-primary text-sm font-medium">{s.nombre}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                            <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
                             <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
                           </div>
-                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(s.precio)}</span>
+                          <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
                         </div>
                       )}
                       error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
@@ -867,12 +900,15 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       }}
                       onClear={() => setPaqueteSearchTerm('')}
                       renderItem={(p) => (
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
-                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min</p>
+                        <div className="flex items-center gap-3">
+                          <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                            <Package className="w-5 h-5 text-orange-primary/50" />
                           </div>
-                          <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precio)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                          </div>
+                          <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                         </div>
                       )}
                     />
@@ -889,44 +925,73 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                           placeholder="Buscar producto..."
                           value={productoSearchTerm}
                           onChange={setProductoSearchTerm}
-                          items={productosList.filter(p => !nuevaCita.productoIds.includes(p.id))}
+                          items={productosList.filter(p => !nuevaCita.productoCantidades[p.id])}
                           filterFn={(p, term) =>
                             (p.nombre || '').toLowerCase().includes(term.toLowerCase())
                           }
                           onSelect={(p) => {
-                            toggleProducto(p.id);
+                            addProducto(p.id);
                             setProductoSearchTerm('');
                           }}
                           onClear={() => setProductoSearchTerm('')}
                           renderItem={(p) => (
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="text-white-primary text-sm font-medium">{p.nombre}</p>
+                            <div className="flex items-center gap-3">
+                              <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
                                 <p className="text-gray-lighter text-xs">Stock: {p.stockVentas ?? p.stockTotal ?? 0}</p>
                               </div>
-                              <span className="text-orange-primary text-sm font-bold">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
+                              <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
                             </div>
                           )}
                         />
-                        {/* Tags de productos seleccionados */}
-                        {nuevaCita.productoIds.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {nuevaCita.productoIds.map(pId => {
-                              const prod = productosList.find(p => p.id === pId);
+                        {/* Lista de productos seleccionados con cantidades */}
+                        {Object.entries(nuevaCita.productoCantidades).length > 0 && (
+                          <div className="space-y-2 mt-3">
+                            {Object.entries(nuevaCita.productoCantidades).map(([pId, cant]) => {
+                              const prod = productosList.find(p => p.id === Number(pId));
                               if (!prod) return null;
                               return (
-                                <div key={pId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                  <ShoppingBag className="w-3 h-3" />
-                                  <span>{prod.nombre}</span>
-                                  <span className="opacity-60">({formatearPrecio(prod.precioVenta || prod.precio || 0)})</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleProducto(pId)}
-                                    className="ml-1 hover:text-red-400 transition-colors"
-                                    title="Quitar producto"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
+                                <div key={pId} className="flex items-center justify-between gap-3 bg-gray-darker/60 border border-gray-dark rounded-xl p-3 group hover:border-orange-primary/30 transition-all duration-300">
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="shrink-0 w-8 h-8 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark/50">
+                                      <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent object-cover" fallbackVariant="product" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white-primary text-sm font-medium truncate">{prod.nombre}</p>
+                                      <p className="text-orange-primary text-xs font-bold">{formatearPrecio(prod.precioVenta || prod.precio || 0)}</p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2 bg-gray-darkest rounded-lg border border-gray-dark px-1 py-1">
+                                      <button 
+                                        type="button"
+                                        onClick={() => removeProducto(Number(pId))}
+                                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-gray-light hover:text-white transition-colors"
+                                      >
+                                        <Minus className="w-3.5 h-3.5" />
+                                      </button>
+                                      <span className="text-white-primary font-bold text-sm w-4 text-center tabular-nums">{cant}</span>
+                                      <button 
+                                        type="button"
+                                        onClick={() => addProducto(Number(pId))}
+                                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-orange-primary hover:text-orange-secondary transition-colors"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => quitarProducto(Number(pId))}
+                                      className="p-2 rounded-lg hover:bg-red-500/10 text-gray-lighter hover:text-red-400 transition-all duration-300 border border-transparent hover:border-red-500/20"
+                                      title="Quitar"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1072,7 +1137,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               </aside>
 
               {/* ── Panel Derecho: Resumen ── */}
-              <section className="lg:min-h-0 lg:min-w-0">
+              <section className="min-h-0 min-w-0">
               <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
                 {/* Header con gradiente */}
                 <div className="sticky top-0 z-10 bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
@@ -1097,17 +1162,21 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                           if (!s) return null;
                           return (
                             <div key={id} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <Scissors className="w-4 h-4 text-orange-primary shrink-0" />
-                                  <span className="text-white-primary text-sm font-medium truncate">{s.nombre}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                  <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
                                 </div>
-                                <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(s.precio)}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white-primary text-sm font-medium truncate">{s.nombre}</span>
+                                    <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(s.precio)}</span>
+                                  </div>
+                                  {s.descripcion && (
+                                    <p className="text-xs text-gray-lighter mt-0.5 italic truncate">{s.descripcion}</p>
+                                  )}
+                                  <p className="text-[10px] text-gray-lighter mt-0.5">{s.duracion || 60} min</p>
+                                </div>
                               </div>
-                              {s.descripcion && (
-                                <p className="text-xs text-gray-lighter mt-2 ml-6 italic">{s.descripcion}</p>
-                              )}
-                              <p className="text-[10px] text-gray-lighter mt-1 ml-6">{s.duracion || 60} min</p>
                             </div>
                           );
                         })}
@@ -1133,12 +1202,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                           {paq.descripcion && (
                             <p className="text-xs text-gray-lighter mt-1 ml-6 italic">{paq.descripcion}</p>
                           )}
-                          {paq.precioOriginal && paq.precioOriginal > paq.precio && (
-                            <p className="text-[10px] text-gray-lighter mt-1 ml-6">
-                              Precio original: <span className="line-through">{formatearPrecio(paq.precioOriginal)}</span>
-                              {' '}— Ahorras {formatearPrecio(paq.precioOriginal - paq.precio)}
-                            </p>
-                          )}
                           {/* Servicios incluidos en el paquete */}
                           {paq.servicios && paq.servicios.length > 0 && (
                             <div className="mt-3 ml-6 pt-2 border-t border-gray-dark/50">
@@ -1153,30 +1216,35 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               </div>
                             </div>
                           )}
-                          <p className="text-[10px] text-gray-lighter mt-1 ml-6">{paq.duracion || 60} min</p>
+                          <p className="text-[10px] text-gray-lighter mt-2 ml-6">{paq.duracion || 60} min</p>
                         </div>
                       </div>
                     );
                   })()}
 
                   {/* Productos */}
-                  {nuevaCita.productoIds.length > 0 && (
+                  {Object.entries(nuevaCita.productoCantidades).length > 0 && (
                     <div>
                       <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
-                        Productos ({nuevaCita.productoIds.length})
+                        Productos ({Object.values(nuevaCita.productoCantidades).reduce((a, b) => a + b, 0)})
                       </p>
                       <div className="space-y-2">
-                        {nuevaCita.productoIds.map(id => {
-                          const p = productosList.find((pr: any) => pr.id === id);
+                        {Object.entries(nuevaCita.productoCantidades).map(([id, cant]) => {
+                          const p = productosList.find((pr: any) => pr.id === Number(id));
                           if (!p) return null;
                           return (
                             <div key={id} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <ShoppingBag className="w-4 h-4 text-orange-primary shrink-0" />
-                                  <span className="text-white-primary text-sm font-medium truncate">{p.nombre}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                  <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent object-cover" fallbackVariant="product" />
                                 </div>
-                                <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(p.precioVenta)}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white-primary text-sm font-medium truncate">{p.nombre}</span>
+                                    <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(Number(p.precioVenta || 0) * cant)}</span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-lighter mt-0.5">Cantidad: {cant} x {formatearPrecio(p.precioVenta)}</p>
+                                </div>
                               </div>
                             </div>
                           );
@@ -1249,6 +1317,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             </div>
           </div>
         ) : (
+          <div className="overflow-auto flex-1 p-2">
           <div className="max-w-7xl mx-auto space-y-8">
 
             {/* Navegación Semanal */}
@@ -1382,8 +1451,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               </div>
             </div>
           </div>
+          </div>
         )}
-      </main>
 
       {/* Modal Detalle Cita */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>

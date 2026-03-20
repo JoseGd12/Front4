@@ -445,7 +445,7 @@ class ApiService {
 
     if (Array.isArray(rawDetalles) && rawDetalles.length > 0) {
       serviciosStrings = rawDetalles.map((dp: any) =>
-        (dp.servicio?.Nombre || dp.servicio?.nombre || dp.nombreServicio || dp.NombreServicio || 'Servicio')
+        (dp.servicio?.Nombre || dp.servicio?.nombre || dp.NombreServicio || dp.nombreServicio || dp.Nombre || dp.nombre || 'Servicio')
       );
     } else if (Array.isArray(data.servicios || data.Servicios)) {
       serviciosStrings = data.servicios || data.Servicios;
