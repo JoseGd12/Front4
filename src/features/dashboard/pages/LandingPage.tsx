@@ -8,6 +8,7 @@ import {
   Phone,
   Mail,
   ChevronRight,
+  ChevronLeft,
   ArrowRight,
   ShoppingBag,
   MapPin,
@@ -205,6 +206,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [nosotrosSlide, setNosotrosSlide] = useState(0);
 
   // Carousel hooks — services scroll left, products scroll right
   const servCarousel = useCarouselDrag(1, !loading);
@@ -433,6 +435,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </nav>
 
+      {/* ═══ Sticky Reveal: Hero + Gallery scroll over Nosotros underneath ═══ */}
+      <div style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
+
       {/* Hero Section */}
       <header id="inicio" className="relative h-screen flex items-center justify-center overflow-hidden bg-black">
         <div className="absolute inset-0 z-0">
@@ -459,10 +464,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           <p className="text-2xl sm:text-3xl text-gray-300 max-w-2xl mx-auto leading-relaxed font-light">Estilo, Elegancia y Profesionalismo en Cada Corte</p>
         </div>
       </header>
-
-      {/* ═══ Sticky Reveal: Gallery on top, Nosotros revealed underneath ═══ */}
-      {/* Gallery — solid bg, high z-index, scrolls away normally */}
-      <div style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
         {/* Black transition line */}
         <div className="bg-black" style={{ paddingTop: '4rem', paddingBottom: '2rem' }}>
           <div className="h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent" />
@@ -532,11 +533,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             );
           })()}
         </div>
-      </div>
+      </div>{/* end of Hero + Gallery wrapper */}
 
-      {/* Nosotros — sticky, stays fixed while next section scrolls over it */}
-      <div id="nosotros" style={{ position: 'sticky', top: 0, zIndex: 1, height: '100vh', overflowY: 'auto' }} className="gallery-scroll">
-        <section className="nosotros-section relative bg-[#0a0a0a]" style={{ padding: '5rem 0', minHeight: '100vh' }}>
+      {/* Nosotros — scrolls naturally; zIndex:1 lets following sections (zIndex:2) slide over it */}
+      <div id="nosotros" style={{ position: 'relative', zIndex: 1 }}>
+        <section className="nosotros-section relative bg-[#0a0a0a]" style={{ padding: '2.5rem 0 10rem', minHeight: '100vh' }}>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
             <div className="absolute bottom-20 left-[5%] w-96 h-96 rounded-full bg-[#d8b081]/3 blur-[120px]" style={{ animationDelay: '3s' }} />
@@ -553,13 +554,126 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             </p>
           </div>
 
-          {/* Contenido en dos columnas */}
-          <div className="grid lg:grid-cols-2 gap-8 items-start">
+          {/* Dos columnas: Galería collage izquierda + Info derecha */}
+          <div className="grid lg:grid-cols-2 gap-6 items-start">
 
-            {/* Columna izquierda: esencia + stats + CTA */}
-            <div className="reveal-item space-y-6 rounded-3xl">
+            {/* Columna izquierda: Galería collage con flechas */}
+            <div className="reveal-item">
+              {(() => {
+                const galleryImgs: string[] = [
+                  ...servicios.filter((s: any) => s.imagen?.startsWith('http')).map((s: any) => s.imagen),
+                  ...paquetes.filter((p: any) => (p.imagen || p.imagenUrl)?.startsWith('http')).map((p: any) => p.imagen || p.imagenUrl),
+                  ...productos.filter((p: any) => p.imagenProduc?.startsWith('http')).map((p: any) => p.imagenProduc),
+                ];
+                const fallbacks = [
+                  'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=800&fit=crop',
+                  'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&h=400&fit=crop',
+                  'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600&h=400&fit=crop',
+                  'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600&h=800&fit=crop',
+                  'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600&h=400&fit=crop',
+                  'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600&h=400&fit=crop',
+                  'https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?w=600&h=400&fit=crop',
+                  'https://images.unsplash.com/photo-1596728325003-1f3e3c0f3e0a?w=600&h=400&fit=crop',
+                  'https://images.unsplash.com/photo-1521590832167-7228f5fa666e?w=600&h=400&fit=crop',
+                ];
+                while (galleryImgs.length < 9) {
+                  galleryImgs.push(fallbacks[galleryImgs.length % fallbacks.length]);
+                }
+
+                const totalPages = Math.ceil(galleryImgs.length / 3);
+                const pageIndex = nosotrosSlide % totalPages;
+
+                // Build all page sets
+                const pages: string[][] = [];
+                for (let p = 0; p < totalPages; p++) {
+                  const set = galleryImgs.slice(p * 3, p * 3 + 3);
+                  while (set.length < 3) set.push(galleryImgs[set.length % galleryImgs.length]);
+                  pages.push(set);
+                }
+
+                return (
+                  <div className="relative overflow-hidden rounded-2xl" style={{ height: '376px' }}>
+                    {/* Carousel track — all pages side by side */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        width: `${totalPages * 100}%`,
+                        height: '100%',
+                        transform: `translateX(-${pageIndex * (100 / totalPages)}%)`,
+                        transition: 'transform 0.5s ease-in-out',
+                      }}
+                    >
+                      {pages.map((set, pi) => (
+                        <div key={pi} style={{ width: `${100 / totalPages}%`, flexShrink: 0, padding: '0 2px' }}>
+                          <div
+                            className="h-full gap-4"
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1.2fr 1fr',
+                              gridTemplateRows: '1.3fr 1fr',
+                            }}
+                          >
+                            {/* Imagen principal — 2 filas */}
+                            <div className="rounded-2xl overflow-hidden relative group" style={{ gridRow: '1 / 3' }}>
+                              <img src={set[0]} alt="" className="w-full h-full object-cover transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-105" loading="lazy" draggable={false} />
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all duration-500" />
+                            </div>
+                            {/* Derecha superior */}
+                            <div className="rounded-2xl overflow-hidden relative group">
+                              <img src={set[1]} alt="" className="w-full h-full object-cover transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-105" loading="lazy" draggable={false} />
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all duration-500" />
+                            </div>
+                            {/* Derecha inferior */}
+                            <div className="rounded-2xl overflow-hidden relative group">
+                              <img src={set[2]} alt="" className="w-full h-full object-cover transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-105" loading="lazy" draggable={false} />
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all duration-500" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Flecha izquierda */}
+                    <button
+                      onClick={() => setNosotrosSlide((prev) => (prev - 1 + totalPages) % totalPages)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white hover:bg-[#d8b081]/30 hover:border-[#d8b081]/40 transition-all duration-300 z-10"
+                      title="Anterior"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+
+                    {/* Flecha derecha */}
+                    <button
+                      onClick={() => setNosotrosSlide((prev) => (prev + 1) % totalPages)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white hover:bg-[#d8b081]/30 hover:border-[#d8b081]/40 transition-all duration-300 z-10"
+                      title="Siguiente"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+
+                    {/* Indicadores de página */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                      {Array.from({ length: totalPages }).map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setNosotrosSlide(i)}
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            i === pageIndex
+                              ? 'bg-[#d8b081] w-6'
+                              : 'bg-white/40 hover:bg-white/60 w-2'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Columna derecha: esencia + stats + CTA */}
+            <div className="reveal-item space-y-6 rounded-3xl" style={{ transitionDelay: '0.15s' }}>
               {/* Card principal - Nuestra esencia */}
-              <div className="glass-card rounded-2xl p-8 md:p-10">
+              <div className="glass-card rounded-2xl p-8 mt-4">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-12 h-12 rounded-2xl icon-float flex items-center justify-center">
                     <Sparkles className="w-6 h-6 text-[#d8b081]" />
@@ -597,123 +711,48 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   </div>
                 </div>
               </div>
-
-              {/* CTA Card */}
-              <div className="glass-card rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl icon-float flex items-center justify-center shrink-0">
-                    <Heart className="w-5 h-5 text-[#d8b081]" />
-                  </div>
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    También ofrecemos productos para el cuidado facial, capilar y accesorios exclusivos.
-                  </p>
-                </div>
-                <button
-                  onClick={() => scrollToSection('servicios')}
-                  title="Conoce todos nuestros servicios disponibles"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#d8b081] text-black font-black text-sm uppercase tracking-wider rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 shrink-0 shadow-[0_4px_20px_rgba(216,176,129,0.25)]"
-                >
-                  Ver servicios <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
             </div>
 
-            {/* Columna derecha: datos clave */}
-            <div className="reveal-item rounded-3xl" style={{ transitionDelay: '0.15s' }}>
-              <div className="glass-card rounded-2xl p-8 md:p-10 h-full">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 rounded-2xl icon-float flex items-center justify-center">
-                    <Award className="w-6 h-6 text-[#d8b081]" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-black uppercase tracking-[0.5em] text-[#d8b081] block">Datos clave</span>
-                    <h3 className="text-2xl font-title font-black uppercase tracking-tight text-white">Manito Barber</h3>
-                  </div>
+          </div>
+
+          {/* CTA Card — centrada debajo del grid */}
+          <div className="max-w-2xl mx-auto mt-6 reveal-item">
+            <div className="glass-card rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl icon-float flex items-center justify-center shrink-0">
+                  <Heart className="w-5 h-5 text-[#d8b081]" />
                 </div>
-
-                <div className="space-y-4">
-                  {/* Ubicación */}
-                  <div className="glass-card-dark rounded-2xl p-5">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
-                        <MapPin className="w-5 h-5 text-[#d8b081]" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Ubicación</p>
-                        <p className="text-lg font-bold text-gray-400">Calle 79 #52-12</p>
-                        <p className="text-sm text-gray-500 mt-0.5">Barrio El Bosque, Medellín</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contacto */}
-                  <div className="glass-card-dark rounded-2xl p-5">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
-                        <Phone className="w-5 h-5 text-[#d8b081]" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Contacto</p>
-                        <p className="text-lg font-bold text-gray-400">301 483 6189</p>
-                        <p className="text-sm text-gray-500 mt-0.5">Llámanos o escríbenos</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Horario */}
-                  <div className="glass-card-dark rounded-2xl p-5">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
-                        <Calendar className="w-5 h-5 text-[#d8b081]" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Horario</p>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-sm font-semibold text-white">Lun — Sáb</span>
-                          <span className="text-sm font-bold text-gray-400">9:00 — 20:00</span>
-                        </div>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-sm font-semibold text-gray-500">Domingo</span>
-                          <span className="text-sm font-semibold text-gray-600">Cerrado</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Equipo */}
-                  <div className="glass-card-dark rounded-2xl p-5">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center shrink-0">
-                        <Scissors className="w-5 h-5 text-[#d8b081]" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-1">Equipo</p>
-                        <p className="text-sm text-gray-500 leading-relaxed">
-                          5 barberos profesionales y personal administrativo a tu servicio.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  También ofrecemos productos para el cuidado facial, capilar y accesorios exclusivos.
+                </p>
               </div>
+              <button
+                onClick={() => scrollToSection('servicios')}
+                title="Conoce todos nuestros servicios disponibles"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#d8b081] text-black font-black text-sm uppercase tracking-wider rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 shrink-0 shadow-[0_4px_20px_rgba(216,176,129,0.25)]"
+              >
+                Ver servicios <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
-
           </div>
         </div>
         </section>
       </div>
 
       {/* Supertítulo que abarca servicios y productos */}
-      <div className="border-t border-white/5 pt-16 pb-0 backdrop-blur-md" style={{ position: 'relative', zIndex: 2, backgroundColor: 'rgba(0, 0, 0, 0.75)' }}>
+      <div className="border-t border-white/5 pt-16 pb-0 backdrop-blur-md" style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
         <div className="content-max-width text-center reveal-item">
           <div className="supertitle-wrapper">
             <span className="supertitle-line" />
             <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-gradient uppercase">
               Lo que ofrecemos
+              
             </h2>
-            <span className="supertitle-line" />
+            
+            <span className="supertitle-line " />
+            
           </div>
-          <p className="text-gray-400 max-w-xl mx-auto text-lg font-medium leading-relaxed italic mt-6">"La calidad es el único estándar que no admite compromisos."</p>
+          <p className="text-gray-400 max-w-xl mx-auto text-lg font-medium leading-relaxed italic mt-6 mb-4">"La calidad es el único estándar que no admite compromisos."</p>
         </div>
       </div>
 
@@ -722,7 +761,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width relative z-10">
           <div className="text-center mb-10 reveal-item">
 
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem', marginBottom: '1rem' }}>
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '4rem', marginBottom: '1rem' }}>
               Servicios
             </h3>
             <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-4">
@@ -920,6 +959,85 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Datos Clave Section — moved from Nosotros */}
+      <section className="py-20" style={{ position: 'relative', zIndex: 2, backgroundColor: '#080808' }}>
+        <div className="content-max-width relative z-10 ">
+          <div className="text-center mb-12 reveal-item">
+            <div className="flex items-center justify-center gap-4 mb-4 ">
+              <div className="w-12 h-12 rounded-2xl icon-float flex mt-6 mb-6 items-center justify-center">
+                <Award className="w-6 h-6 text-[#d8b081]" />
+              </div>
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-[0.5em] text-[#d8b081] block"></span>
+                <h3 className="text-2xl mt-6 mb-6 font-title font-black uppercase tracking-tight text-white">Datos relevantes</h3>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 reveal-item">
+            {/* Ubicación */}
+            <div className="glass-card-dark rounded-2xl p-6 mb-8">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-[#d8b081]" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Ubicación</p>
+                  <p className="text-lg font-bold text-gray-400">Calle 79 #52-12</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Barrio El Bosque, Medellín</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contacto */}
+            <div className="glass-card-dark rounded-2xl p-6 mb-8">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-[#d8b081]" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Contacto</p>
+                  <p className="text-lg font-bold text-gray-400">301 483 6189</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Llámanos o escríbenos</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Horario */}
+            <div className="glass-card-dark rounded-2xl p-6 mb-8">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-[#d8b081]" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Horario</p>
+                  <div className="flex items-center justify-between mt-1 gap-4">
+                    <span className="text-sm font-semibold text-white">Lun — Dom</span>
+                    <span className="text-sm font-bold text-gray-400">9:00 — 20:00</span>
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+
+            {/* Equipo */}
+            <div className="glass-card-dark rounded-2xl p-6 mb-8">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center">
+                  <Scissors className="w-5 h-5 text-[#d8b081]" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Equipo</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    5 barberos profesionales y personal administrativo a tu servicio.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
