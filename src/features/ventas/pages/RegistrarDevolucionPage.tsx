@@ -748,7 +748,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               {/* Section 1: Información Básica */}
               <FormSection
                 title="Información Básica"
-                icon={Receipt}
+                icon={<Receipt className="w-4 h-4" />}
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                     <div className="flex items-center gap-2">
@@ -769,7 +769,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               />
 
               {/* Section 2: Tipo de devolución */}
-              <FormSection title="Tipo de Devolución" icon={FileText}>
+              <FormSection title="Tipo de Devolución" icon={<FileText className="w-4 h-4" />}>
                 <div className="flex gap-3">
                   <button
                     onClick={() => { setTipoDevolucion('venta'); limpiarFormulario(); setTipoDevolucion('venta'); }}
@@ -797,7 +797,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               {tipoDevolucion === 'venta' ? (
                 <>
                   {/* Section 3: Venta */}
-                  <FormSection title="Seleccionar Venta" icon={ShoppingBag}>
+                  <FormSection title="Seleccionar Venta" icon={<ShoppingBag className="w-4 h-4" />}>
                     <div className="space-y-1">
                       <SearchField
                         placeholder="Busca por Nº de venta, cliente o documento..."
@@ -845,8 +845,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                           handleVentaChange(String(venta.id));
                           setVentaSearchTerm(`Venta #${venta.numeroVenta} — ${venta.cliente}`);
                         }}
-                        error={showFormErrors && !ventaSeleccionada}
-                        errorMessage="Debes seleccionar una venta."
+                        error={showFormErrors && !ventaSeleccionada ? "Debes seleccionar una venta." : undefined}
                         shakeClass={shakeClass}
                         onFocus={clearValidationErrors}
                       />
@@ -855,7 +854,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
 
                   {/* Section 4: Productos de la venta */}
                   {ventaSeleccionada && (
-                    <FormSection title="Productos de la Venta" icon={Package}>
+                    <FormSection title="Productos de la Venta" icon={<Package className="w-4 h-4" />}>
                       <div className="space-y-2">
                         {(ventaSeleccionada.productos || []).length === 0 ? (
                           <p className="text-sm text-gray-lightest italic">Esta venta no tiene productos disponibles para devolución.</p>
@@ -919,7 +918,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               ) : (
                 <>
                   {/* Section 3: Barbero (insumos) */}
-                  <FormSection title="Barbero" icon={User}>
+                  <FormSection title="Barbero" icon={<User className="w-4 h-4" />}>
                     <div className="space-y-1">
                       <SearchField
                         placeholder="Busca un barbero..."
@@ -951,8 +950,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                           handleBarberoChange(barbero);
                           setBarberoSearchTerm(`${barbero.nombre || ''} ${barbero.apellido || ''}`.trim());
                         }}
-                        error={showFormErrors && tipoDevolucion === 'insumos' && !selectedBarbero}
-                        errorMessage="Debes seleccionar un barbero."
+                        error={showFormErrors && tipoDevolucion === 'insumos' && !selectedBarbero ? "Debes seleccionar un barbero." : undefined}
                         shakeClass={shakeClass}
                         onFocus={clearValidationErrors}
                       />
@@ -961,7 +959,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
 
                   {/* Section 4: Entregas del barbero */}
                   {selectedBarbero && entregasBarbero.length > 0 && (
-                    <FormSection title="Entrega de Origen" icon={Package}>
+                    <FormSection title="Entrega de Origen" icon={<Package className="w-4 h-4" />}>
                       <div className="space-y-1">
                         <Label className="text-gray-lightest text-xs">Seleccionar entrega</Label>
                         <select
@@ -984,7 +982,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
 
                   {/* Section 5: Productos de la entrega */}
                   {selectedBarbero && resumenEntregas.length > 0 && (
-                    <FormSection title="Productos de la Entrega" icon={Package}>
+                    <FormSection title="Productos de la Entrega" icon={<Package className="w-4 h-4" />}>
                       <div className="space-y-2">
                         {resumenEntregas.map((row: any) => {
                           const pid = Number(row.productoId);
@@ -1048,7 +1046,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               )}
 
               {/* Section: Motivo */}
-              <FormSection title="Motivo de Devolución" icon={AlertCircle}>
+              <FormSection title="Motivo de Devolución" icon={<AlertCircle className="w-4 h-4" />}>
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Motivo *</Label>

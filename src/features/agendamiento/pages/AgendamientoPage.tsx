@@ -346,7 +346,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
     const durNueva = Number(nuevaCita.duracion || 60);
     const [hhStr, mmStr = '0'] = String(nuevaCita.hora).split(':');
     const startNueva = (parseInt(hhStr || '0', 10) * 60) + (parseInt(mmStr || '0', 10));
-    
+
     // Validar hora pasada si es el día de hoy
     if (nuevaCita.fecha === todayStr) {
       const currentMinutes = today.getHours() * 60 + today.getMinutes();
@@ -406,15 +406,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
   const getHorasDisponiblesParaDia = (fechaStr: string, barberoId: number, duracion: number) => {
     if (!fechaStr || !barberoId) return [];
-    
+
     // Obtener el día de la semana
     const fechaObj = new Date(`${fechaStr}T12:00:00`);
     const dayIndex = fechaObj.getDay(); // 0=Domingo..6=Sábado
     const diaStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayIndex];
-    
+
     // Obtener horarios para ese día
     const horariosBarbero = horariosList.filter((h: any) => Number(h.barberoId) === Number(barberoId) && String(h.dia) === diaStr && h.estado === true);
-    
+
     if (horariosBarbero.length === 0) return [];
 
     let availableSlots: string[] = [];
@@ -423,12 +423,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
     horariosBarbero.forEach((h: any) => {
       const [hIniH, hIniM] = String(h.horaInicio || '00:00').split(':').map((x: string) => parseInt(x || '0', 10));
       const [hFinH, hFinM] = String(h.horaFin || '23:59').split(':').map((x: string) => parseInt(x || '0', 10));
-      
+
       const startH = hIniH * 60 + hIniM;
       const endH = hFinH * 60 + hFinM;
-      
+
       const intervaloMinutos = 30; // Mostrar intervalos de 30 minutos
-      
+
       const today = new Date();
       const todayStr = toLocalDateString(today);
       const isToday = fechaStr === todayStr;
@@ -449,14 +449,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
           // Ignorar canceladas
           const estado = String(cita.estado || '');
           if (estado.toLowerCase() === 'cancelada') return false;
-          
+
           const [ch, cm = '0'] = String(cita.hora || '').split(':');
           const startExist = (parseInt(ch || '0', 10) * 60) + (parseInt(cm || '0', 10));
           const durExist = Number(cita.duracion || 60);
           const endExist = startExist + durExist;
-          
+
           const endCurrentSlot = currentSlotStart + duracion;
-          
+
           // Se solapan si inician antes de que termine la otra y terminan después de que empiece
           return currentSlotStart < endExist && startExist < endCurrentSlot;
         });
@@ -728,10 +728,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
     if (String(nuevaCita.estado).toLowerCase() === 'completada') {
       const now = new Date();
-      const horaCompleta = nuevaCita.hora ? 
-        (String(nuevaCita.hora).includes(':') ? String(nuevaCita.hora) : `${nuevaCita.hora}:00`) 
+      const horaCompleta = nuevaCita.hora ?
+        (String(nuevaCita.hora).includes(':') ? String(nuevaCita.hora) : `${nuevaCita.hora}:00`)
         : '00:00';
-      const horaFormateada = horaCompleta.length === 4 && horaCompleta.indexOf(':') === 1 ? `0${horaCompleta}` : horaCompleta; 
+      const horaFormateada = horaCompleta.length === 4 && horaCompleta.indexOf(':') === 1 ? `0${horaCompleta}` : horaCompleta;
       const citaDate = new Date(`${nuevaCita.fecha}T${horaFormateada}:00`);
       if (citaDate > now) {
         error("Acción no permitida", "No se puede establecer una fecha futura a una cita completada.");
@@ -809,10 +809,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         if (citaActual) {
           const now = new Date();
           // Asegurar formato de hora válido, ej. '14:00'
-          const horaCompleta = citaActual.hora ? 
-            (citaActual.hora.includes(':') ? citaActual.hora : `${citaActual.hora}:00`) 
+          const horaCompleta = citaActual.hora ?
+            (citaActual.hora.includes(':') ? citaActual.hora : `${citaActual.hora}:00`)
             : '00:00';
-          const horaFormateada = horaCompleta.length === 4 && horaCompleta.indexOf(':') === 1 ? `0${horaCompleta}` : horaCompleta; 
+          const horaFormateada = horaCompleta.length === 4 && horaCompleta.indexOf(':') === 1 ? `0${horaCompleta}` : horaCompleta;
           const citaDate = new Date(`${citaActual.fecha}T${horaFormateada}:00`);
           if (citaDate > now) {
             error("Acción no permitida", "No se puede completar una cita futura.");
@@ -950,352 +950,375 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
           >
             {/* ── Panel Izquierdo: Formulario ── */}
             <aside className="min-h-0 min-w-0">
-            <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0 divide-y divide-gray-dark">
-                {/* Sección: Cliente */}
-                <FormSection title="Cliente" icon={<User className="w-4 h-4 text-orange-primary" />}>
-                  <SearchField<any>
-                    label="Buscar cliente"
-                    placeholder="Nombre del cliente..."
-                    value={clienteSearchTerm}
-                    onChange={setClienteSearchTerm}
-                    items={clientesList}
-                    filterFn={(c, term) =>
-                      (c.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
-                      (c.telefono || '').includes(term)
-                    }
-                    onSelect={(c) => {
-                      setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: c.nombre, telefono: c.telefono || '' }));
-                      setClienteSearchTerm(c.nombre);
-                    }}
-                    onClear={() => {
-                      setNuevaCita(prev => ({ ...prev, clienteId: 0, cliente: '', telefono: '' }));
-                      setClienteSearchTerm('');
-                    }}
-                    renderItem={(c) => (
-                      <div>
-                        <p className="text-white-primary text-sm font-medium">{c.nombre}</p>
-                        <p className="text-gray-lighter text-xs">{c.telefono || 'Sin teléfono'}</p>
-                      </div>
-                    )}
-                    isSelected={!!nuevaCita.clienteId}
-                    error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
-                  />
-                  {nuevaCita.telefono && (
-                    <div className="mt-2">
-                      <Label className="text-xs text-gray-lighter">Teléfono</Label>
-                      <p className="text-sm text-white-primary">{nuevaCita.telefono}</p>
-                    </div>
-                  )}
-                </FormSection>
-
-                {/* Sección: Servicios */}
-                <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
-                  {nuevaCita.paqueteId ? (
-                    <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
-                  ) : (
-                    <>
-                      <SearchField<any>
-                        label="Buscar servicio"
-                        placeholder="Buscar servicio..."
-                        value={servicioSearchTerm}
-                        onChange={setServicioSearchTerm}
-                        items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
-                        filterFn={(s, term) =>
-                          (s.nombre || '').toLowerCase().includes(term.toLowerCase())
-                        }
-                        onSelect={(s) => {
-                          toggleServicio(s.id);
-                          setServicioSearchTerm('');
-                        }}
-                        onClear={() => setServicioSearchTerm('')}
-                        renderItem={(s) => (
-                          <div className="flex items-center gap-3">
-                            <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                              <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
+              <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0">
+                  {/* Fila 1: Cliente y Barbero */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-24 gap-y-10 border-b border-gray-dark pb-10 px-2">
+                    {/* Sección: Cliente */}
+                    <div className="space-y-0 px-4">
+                      <FormSection title="Cliente" icon={<User className="w-4 h-4 text-orange-primary" />}>
+                        <SearchField<any>
+                          label="Buscar cliente"
+                          placeholder="Nombre del cliente..."
+                          value={clienteSearchTerm}
+                          onChange={setClienteSearchTerm}
+                          items={clientesList}
+                          filterFn={(c, term) =>
+                            (c.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
+                            (c.telefono || '').includes(term)
+                          }
+                          onSelect={(c) => {
+                            setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: c.nombre, telefono: c.telefono || '' }));
+                            setClienteSearchTerm(c.nombre);
+                          }}
+                          onClear={() => {
+                            setNuevaCita(prev => ({ ...prev, clienteId: 0, cliente: '', telefono: '' }));
+                            setClienteSearchTerm('');
+                          }}
+                          renderItem={(c) => (
+                            <div>
+                              <p className="text-white-primary text-sm font-medium">{c.nombre}</p>
+                              <p className="text-gray-lighter text-xs">{c.telefono || 'Sin teléfono'}</p>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
-                              <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
-                            </div>
-                            <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
+                          )}
+                          isSelected={!!nuevaCita.clienteId}
+                          error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
+                        />
+                        {nuevaCita.telefono && (
+                          <div className="mt-2">
+                            <Label className="text-xs text-gray-lighter">Teléfono</Label>
+                            <p className="text-sm text-white-primary">{nuevaCita.telefono}</p>
                           </div>
                         )}
-                        error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
-                      />
-                    </>
-                  )}
-                  {/* Tags de servicios seleccionados */}
-                  {nuevaCita.servicioIds.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {nuevaCita.servicioIds.map(sId => {
-                        const srv = serviciosList.find(s => s.id === sId);
-                        if (!srv) return null;
-                        return (
-                          <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                            <Scissors className="w-3 h-3" />
-                            <span>{srv.nombre}</span>
-                            <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
-                            {!nuevaCita.paqueteId && (
-                              <button
-                                type="button"
-                                onClick={() => toggleServicio(sId)}
-                                className="ml-1 hover:text-red-400 transition-colors"
-                                title="Quitar servicio"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
+                      </FormSection>
                     </div>
-                  )}
-                </FormSection>
 
-                {/* Sección: Paquetes */}
-                <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
-                  {nuevaCita.paqueteId ? (
-                    <div className="flex flex-wrap gap-2">
-                      {(() => {
-                        const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
-                        if (!paq) return null;
-                        return (
-                          <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                            <Package className="w-3 h-3" />
-                            <span>{paq.nombre}</span>
-                            <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handlePaqueteChange('none');
-                                setPaqueteSearchTerm('');
+                    {/* Sección: Barbero */}
+                    <div className="pt-8 md:pt-0 px-4">
+                      <FormSection title="Barbero" icon={<User className="w-4 h-4 text-orange-primary" />}>
+                        <SearchField<any>
+                          label="Buscar barbero"
+                          placeholder="Nombre del barbero..."
+                          value={barberoFormSearchTerm}
+                          onChange={setBarberoFormSearchTerm}
+                          items={barberosList}
+                          filterFn={(b, term) => (b.nombre || '').toLowerCase().includes(term.toLowerCase())}
+                          onSelect={(b) => {
+                            setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: b.nombre }));
+                            setBarberoFormSearchTerm(b.nombre);
+                          }}
+                          onClear={() => {
+                            setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
+                            setBarberoFormSearchTerm('');
+                          }}
+                          renderItem={(b) => (
+                            <p className="text-white-primary text-sm">{b.nombre}</p>
+                          )}
+                          isSelected={!!nuevaCita.barberoId}
+                          error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
+                        />
+                      </FormSection>
+                    </div>
+                  </div>
+
+                  {/* Fila 2: Servicios y Paquetes */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-24 gap-y-10 border-b border-gray-dark py-10 px-2">
+                    {/* Sección: Servicios */}
+                    <div className="space-y-0 px-4">
+                      <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
+                        {nuevaCita.paqueteId ? (
+                          <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
+                        ) : (
+                          <>
+                            <SearchField<any>
+                              label="Buscar servicio"
+                              placeholder="Buscar servicio..."
+                              value={servicioSearchTerm}
+                              onChange={setServicioSearchTerm}
+                              items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
+                              filterFn={(s, term) =>
+                                (s.nombre || '').toLowerCase().includes(term.toLowerCase())
+                              }
+                              onSelect={(s) => {
+                                toggleServicio(s.id);
+                                setServicioSearchTerm('');
                               }}
-                              className="ml-1 hover:text-red-400 transition-colors"
-                              title="Quitar paquete"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
+                              onClear={() => setServicioSearchTerm('')}
+                              renderItem={(s) => (
+                                <div className="flex items-center gap-3">
+                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                    <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
+                                    <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                                  </div>
+                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
+                                </div>
+                              )}
+                              error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                            />
+                          </>
+                        )}
+                        {/* Tags de servicios seleccionados */}
+                        {nuevaCita.servicioIds.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {nuevaCita.servicioIds.map(sId => {
+                              const srv = serviciosList.find(s => s.id === sId);
+                              if (!srv) return null;
+                              return (
+                                <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                  <Scissors className="w-3 h-3" />
+                                  <span>{srv.nombre}</span>
+                                  <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
+                                  {!nuevaCita.paqueteId && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleServicio(sId)}
+                                      className="ml-1 hover:text-red-400 transition-colors"
+                                      title="Quitar servicio"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })()}
+                        )}
+                      </FormSection>
                     </div>
-                  ) : (
-                    <SearchField<any>
-                      label="Buscar paquete"
-                      placeholder="Buscar paquete..."
-                      value={paqueteSearchTerm}
-                      onChange={setPaqueteSearchTerm}
-                      items={paquetesList}
-                      filterFn={(p, term) =>
-                        (p.nombre || '').toLowerCase().includes(term.toLowerCase())
-                      }
-                      onSelect={(p) => {
-                        handlePaqueteChange(`p-${p.id}`);
-                        setPaqueteSearchTerm('');
-                      }}
-                      onClear={() => setPaqueteSearchTerm('')}
-                      renderItem={(p) => (
-                        <div className="flex items-center gap-3">
-                          <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                            <Package className="w-5 h-5 text-orange-primary/50" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
-                          </div>
-                          <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
-                        </div>
-                      )}
-                    />
-                  )}
-                </FormSection>
 
-                {/* Sección: Productos */}
-                {(nuevaCita.servicioIds.length > 0 || nuevaCita.paqueteId) && productosList.length > 0 && (
-                  <FormSection title="Productos adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
-                    <SearchField<any>
-                      label="Buscar producto"
-                      placeholder="Buscar producto..."
-                      value={productoSearchTerm}
-                      onChange={setProductoSearchTerm}
-                      items={productosList}
-                      filterFn={(p, term) =>
-                        (p.nombre || '').toLowerCase().includes(term.toLowerCase())
-                      }
-                      onSelect={(p) => {
-                        addProducto(p.id);
-                        setProductoSearchTerm('');
-                      }}
-                      onClear={() => setProductoSearchTerm('')}
-                      renderItem={(p) => {
-                        const cantActual = nuevaCita.productoCantidades[p.id] || 0;
-                        return (
-                          <div className="flex items-center gap-3">
-                            <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                              <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                              <p className="text-gray-lighter text-xs">Stock: {p.stockVentas}{cantActual > 0 ? ` · Ya agregado: ${cantActual}` : ''}</p>
-                            </div>
-                            <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
+                    {/* Sección: Paquetes */}
+                    <div className="pt-8 md:pt-0 px-4">
+                      <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
+                        {nuevaCita.paqueteId ? (
+                          <div className="flex flex-wrap gap-2">
+                            {(() => {
+                              const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                              if (!paq) return null;
+                              return (
+                                <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                  <Package className="w-3 h-3" />
+                                  <span>{paq.nombre}</span>
+                                  <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handlePaqueteChange('none');
+                                      setPaqueteSearchTerm('');
+                                    }}
+                                    className="ml-1 hover:text-red-400 transition-colors"
+                                    title="Quitar paquete"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </div>
-                        );
-                      }}
-                    />
-                    {/* Productos seleccionados con control de cantidad */}
-                    {Object.keys(nuevaCita.productoCantidades).length > 0 && (
-                      <div className="space-y-2 mt-2">
-                        {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
-                          const pId = Number(idStr);
-                          const prod = productosList.find(p => p.id === pId);
-                          if (!prod) return null;
-                          const precioUnit = Number(prod.precioVenta || prod.precio || 0);
-                          return (
-                            <div key={pId} className="flex items-center gap-2 bg-orange-primary/10 border border-orange-primary/20 rounded-lg px-3 py-2">
-                              <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
+                        ) : (
+                          <SearchField<any>
+                            label="Buscar paquete"
+                            placeholder="Buscar paquete..."
+                            value={paqueteSearchTerm}
+                            onChange={setPaqueteSearchTerm}
+                            items={paquetesList}
+                            filterFn={(p, term) =>
+                              (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                            }
+                            onSelect={(p) => {
+                              handlePaqueteChange(`p-${p.id}`);
+                              setPaqueteSearchTerm('');
+                            }}
+                            onClear={() => setPaqueteSearchTerm('')}
+                            renderItem={(p) => (
+                              <div className="flex items-center gap-3">
+                                <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                  <Package className="w-5 h-5 text-orange-primary/50" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                  <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                                </div>
+                                <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-white-primary text-xs font-medium truncate">{prod.nombre}</p>
-                                <p className="text-orange-primary text-[10px] font-bold">{formatearPrecio(precioUnit)} c/u</p>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => removeProducto(pId)}
-                                  className="w-6 h-6 rounded-full bg-gray-dark hover:bg-gray-darker flex items-center justify-center text-white-primary transition-colors"
-                                  title="Disminuir cantidad"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <span className="text-white-primary text-sm font-bold w-6 text-center">{cantidad}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => addProducto(pId)}
-                                  className="w-6 h-6 rounded-full bg-orange-primary/30 hover:bg-orange-primary/50 flex items-center justify-center text-orange-primary transition-colors"
-                                  title="Aumentar cantidad"
-                                  disabled={cantidad >= (prod.stockVentas || 99)}
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                              </div>
-                              <span className="text-orange-primary text-xs font-bold shrink-0 w-16 text-right">{formatearPrecio(precioUnit * cantidad)}</span>
-                              <button
-                                type="button"
-                                onClick={() => quitarProducto(pId)}
-                                className="ml-1 text-gray-lighter hover:text-red-400 transition-colors shrink-0"
-                                title="Quitar producto"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                            )}
+                          />
+                        )}
+                      </FormSection>
+                    </div>
+                  </div>
+
+                  {/* Resto de secciones (Full width) */}
+                  <div className="divide-y divide-gray-dark">
+                    {/* Sección: Productos */}
+                    {(nuevaCita.servicioIds.length > 0 || nuevaCita.paqueteId) && productosList.length > 0 && (
+                      <div className="py-10">
+                        <FormSection title="Productos adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
+                          <SearchField<any>
+                            label="Buscar producto"
+                            placeholder="Buscar producto..."
+                            value={productoSearchTerm}
+                            onChange={setProductoSearchTerm}
+                            items={productosList}
+                            filterFn={(p, term) =>
+                              (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                            }
+                            onSelect={(p) => {
+                              addProducto(p.id);
+                              setProductoSearchTerm('');
+                            }}
+                            onClear={() => setProductoSearchTerm('')}
+                            renderItem={(p) => {
+                              const cantActual = nuevaCita.productoCantidades[p.id] || 0;
+                              return (
+                                <div className="flex items-center gap-3">
+                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                    <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                    <p className="text-gray-lighter text-xs">Stock: {p.stockVentas}{cantActual > 0 ? ` · Ya agregado: ${cantActual}` : ''}</p>
+                                  </div>
+                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
+                                </div>
+                              );
+                            }}
+                          />
+                          {/* Productos seleccionados con control de cantidad */}
+                          {Object.keys(nuevaCita.productoCantidades).length > 0 && (
+                            <div className="space-y-2 mt-2">
+                              {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
+                                const pId = Number(idStr);
+                                const prod = productosList.find(p => p.id === pId);
+                                if (!prod) return null;
+                                const precioUnit = Number(prod.precioVenta || prod.precio || 0);
+                                return (
+                                  <div key={pId} className="flex items-center gap-2 bg-orange-primary/10 border border-orange-primary/20 rounded-lg px-3 py-2">
+                                    <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                      <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white-primary text-xs font-medium truncate">{prod.nombre}</p>
+                                      <p className="text-orange-primary text-[10px] font-bold">{formatearPrecio(precioUnit)} c/u</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => removeProducto(pId)}
+                                        className="w-6 h-6 rounded-full bg-gray-dark hover:bg-gray-darker flex items-center justify-center text-white-primary transition-colors"
+                                        title="Disminuir cantidad"
+                                      >
+                                        <Minus className="w-3 h-3" />
+                                      </button>
+                                      <span className="text-white-primary text-sm font-bold w-6 text-center">{cantidad}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => addProducto(pId)}
+                                        className="w-6 h-6 rounded-full bg-orange-primary/30 hover:bg-orange-primary/50 flex items-center justify-center text-orange-primary transition-colors"
+                                        title="Aumentar cantidad"
+                                        disabled={cantidad >= (prod.stockVentas || 99)}
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                    <span className="text-orange-primary text-xs font-bold shrink-0 w-16 text-right">{formatearPrecio(precioUnit * cantidad)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => quitarProducto(pId)}
+                                      className="ml-1 text-gray-lighter hover:text-red-400 transition-colors shrink-0"
+                                      title="Quitar producto"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
+                          )}
+                        </FormSection>
                       </div>
                     )}
-                  </FormSection>
-                )}
 
-                {/* Sección: Barbero */}
-                <FormSection title="Barbero" icon={<User className="w-4 h-4 text-orange-primary" />}>
-                  <SearchField<any>
-                    label="Buscar barbero"
-                    placeholder="Nombre del barbero..."
-                    value={barberoFormSearchTerm}
-                    onChange={setBarberoFormSearchTerm}
-                    items={barberosList}
-                    filterFn={(b, term) => (b.nombre || '').toLowerCase().includes(term.toLowerCase())}
-                    onSelect={(b) => {
-                      setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: b.nombre }));
-                      setBarberoFormSearchTerm(b.nombre);
-                    }}
-                    onClear={() => {
-                      setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
-                      setBarberoFormSearchTerm('');
-                    }}
-                    renderItem={(b) => (
-                      <p className="text-white-primary text-sm">{b.nombre}</p>
-                    )}
-                    isSelected={!!nuevaCita.barberoId}
-                    error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
-                  />
-                </FormSection>
-
-                {/* Sección: Fecha y Hora */}
-                <FormSection title="Fecha y Hora" icon={<CalendarDays className="w-4 h-4 text-orange-primary" />}>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs text-gray-lighter">Fecha</Label>
-                      <Input
-                        type="date"
-                        value={nuevaCita.fecha}
-                        onChange={e => setNuevaCita(prev => ({ ...prev, fecha: e.target.value }))}
-                        className="elegante-input"
-                      />
-                      {showFormErrors && !nuevaCita.fecha && <p className="text-red-400 text-xs mt-1">Requerido</p>}
+                    {/* Sección: Fecha y Hora */}
+                    <div className="py-10">
+                      <FormSection title="Fecha y Hora" icon={<CalendarDays className="w-4 h-4 text-orange-primary" />}>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                          <div>
+                            <Label className="text-xs text-gray-lighter">Fecha</Label>
+                            <Input
+                              type="date"
+                              value={nuevaCita.fecha}
+                              onChange={e => setNuevaCita(prev => ({ ...prev, fecha: e.target.value }))}
+                              className="elegante-input"
+                            />
+                            {showFormErrors && !nuevaCita.fecha && <p className="text-red-400 text-xs mt-1">Requerido</p>}
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-lighter">Hora</Label>
+                            {nuevaCita.barberoId && nuevaCita.fecha ? (
+                              <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita(prev => ({ ...prev, hora: v }))}>
+                                <SelectTrigger className="elegante-input">
+                                  <SelectValue placeholder="Seleccionar hora" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
+                                  {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
+                                    <SelectItem key={h} value={h} className="text-white-primary">{h}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                type="time"
+                                value={nuevaCita.hora}
+                                onChange={e => setNuevaCita(prev => ({ ...prev, hora: e.target.value }))}
+                                className="elegante-input"
+                              />
+                            )}
+                            {showFormErrors && !nuevaCita.hora && <p className="text-red-400 text-xs mt-1">Requerido</p>}
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-lighter">Duración (min)</Label>
+                            <Input
+                              type="number"
+                              value={nuevaCita.duracion}
+                              onChange={e => setNuevaCita(prev => ({ ...prev, duracion: parseInt(e.target.value) || 60 }))}
+                              className="elegante-input"
+                              min={15} step={15}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-lighter">Estado</Label>
+                            <Select value={nuevaCita.estado} onValueChange={v => setNuevaCita(prev => ({ ...prev, estado: v }))}>
+                              <SelectTrigger className="elegante-input">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-darkest border-gray-dark">
+                                {estados.map(e => (
+                                  <SelectItem key={e.value} value={e.value} className="text-white-primary">{e.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </FormSection>
                     </div>
-                    <div>
-                      <Label className="text-xs text-gray-lighter">Hora</Label>
-                      {nuevaCita.barberoId && nuevaCita.fecha ? (
-                        <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita(prev => ({ ...prev, hora: v }))}>
-                          <SelectTrigger className="elegante-input">
-                            <SelectValue placeholder="Seleccionar hora" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
-                            {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
-                              <SelectItem key={h} value={h} className="text-white-primary">{h}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          type="time"
-                          value={nuevaCita.hora}
-                          onChange={e => setNuevaCita(prev => ({ ...prev, hora: e.target.value }))}
-                          className="elegante-input"
-                        />
-                      )}
-                      {showFormErrors && !nuevaCita.hora && <p className="text-red-400 text-xs mt-1">Requerido</p>}
+
+                    {/* Sección: Notas */}
+                    <div className="py-10 border-b border-gray-dark">
+                      <FormSection title="Notas" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
+                        <div className="grid grid-cols-1">
+                          <Textarea
+                            value={nuevaCita.notas}
+                            onChange={e => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
+                            placeholder="Notas adicionales..."
+                            className="elegante-input min-h-[80px]"
+                          />
+                        </div>
+                      </FormSection>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div>
-                      <Label className="text-xs text-gray-lighter">Duración (min)</Label>
-                      <Input
-                        type="number"
-                        value={nuevaCita.duracion}
-                        onChange={e => setNuevaCita(prev => ({ ...prev, duracion: parseInt(e.target.value) || 60 }))}
-                        className="elegante-input"
-                        min={15} step={15}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-lighter">Estado</Label>
-                      <Select value={nuevaCita.estado} onValueChange={v => setNuevaCita(prev => ({ ...prev, estado: v }))}>
-                        <SelectTrigger className="elegante-input">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-darkest border-gray-dark">
-                          {estados.map(e => (
-                            <SelectItem key={e.value} value={e.value} className="text-white-primary">{e.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </FormSection>
-
-                {/* Sección: Notas */}
-                <FormSection title="Notas" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
-                  <Textarea
-                    value={nuevaCita.notas}
-                    onChange={e => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
-                    placeholder="Notas adicionales..."
-                    className="elegante-input min-h-[80px]"
-                  />
-                </FormSection>
                 </div>
 
                 {/* Footer fijo con botones */}
@@ -1315,10 +1338,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                   </button>
                 </div>
               </div>
-              </aside>
+            </aside>
 
-              {/* ── Panel Derecho: Resumen ── */}
-              <section className="min-h-0 min-w-0">
+            {/* ── Panel Derecho: Resumen ── */}
+            <section className="min-h-0 min-w-0">
               <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
                 {/* Header con gradiente */}
                 <div className="bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
@@ -1510,7 +1533,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                     <span className="text-orange-primary font-bold text-2xl tabular-nums">{formatearPrecio(nuevaCita.precio)}</span>
                   </div>
                 </div>
-            </div>
+              </div>
             </section>
           </div>
         </div>
@@ -1522,193 +1545,193 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       {viewMode === 'calendar' && (
         <div className="overflow-auto h-full p-2">
 
-        {/* Stats Cards */}
-        <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="elegante-card text-center">
-            <Calendar className="w-8 h-8 text-orange-primary mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">{totalCitas}</h4>
-            <p className="text-gray-lightest text-sm">Total Citas</p>
-          </div>
-          <div className="elegante-card text-center">
-            <Clock className="w-8 h-8 text-green-400 mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">{citasActivas}</h4>
-            <p className="text-gray-lightest text-sm">Citas Activas</p>
-          </div>
-          <div className="elegante-card text-center">
-            <User className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">{citasHoy}</h4>
-            <p className="text-gray-lightest text-sm">Citas Hoy</p>
-          </div>
-        </div>
-
-        {/* Navegación de Semana */}
-        <div className="elegante-card mb-8">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setCurrentWeek(currentWeek - 1)}
-              className="elegante-button-secondary p-2"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-white-primary">
-                {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
-              </h3>
-              <p className="text-xs text-gray-lightest">
-                {getCurrentWeekDays()[0].fecha} - {getCurrentWeekDays()[6].fecha}
-              </p>
+          {/* Stats Cards */}
+          <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="elegante-card text-center">
+              <Calendar className="w-8 h-8 text-orange-primary mx-auto mb-2" />
+              <h4 className="text-2xl font-bold text-white-primary mb-1">{totalCitas}</h4>
+              <p className="text-gray-lightest text-sm">Total Citas</p>
             </div>
+            <div className="elegante-card text-center">
+              <Clock className="w-8 h-8 text-green-400 mx-auto mb-2" />
+              <h4 className="text-2xl font-bold text-white-primary mb-1">{citasActivas}</h4>
+              <p className="text-gray-lightest text-sm">Citas Activas</p>
+            </div>
+            <div className="elegante-card text-center">
+              <User className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+              <h4 className="text-2xl font-bold text-white-primary mb-1">{citasHoy}</h4>
+              <p className="text-gray-lightest text-sm">Citas Hoy</p>
+            </div>
+          </div>
 
-            <div className="flex gap-2">
+          {/* Navegación de Semana */}
+          <div className="elegante-card mb-8">
+            <div className="flex items-center justify-between">
               <button
-                onClick={() => {
-                  const { fecha, hora } = getAutoDateTime();
-                  setSelectedCita(null);
-                  setShowFormErrors(false);
-                  setClienteSearchTerm('');
-                  setBarberoFormSearchTerm('');
-                  setNuevaCita({
-                    clienteId: 0, cliente: '', telefono: '',
-                    servicioId: null, servicioIds: [], productoCantidades: {},
-                    paqueteId: null, servicio: '', barberoId: 0, barbero: '',
-                    fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
-                  });
-                  setViewMode('crear');
-                }}
-                className="elegante-button-primary flex items-center gap-2 text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Nueva Cita
-              </button>
-              <button
-                onClick={() => setCurrentWeek(0)}
-                className="elegante-button-secondary text-sm"
-              >
-                Hoy
-              </button>
-              <button
-                onClick={() => setCurrentWeek(currentWeek + 1)}
+                onClick={() => setCurrentWeek(currentWeek - 1)}
                 className="elegante-button-secondary p-2"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
-            </div>
-          </div>
-        </div>
 
-        {/* Calendario Semanal */}
-        <div className="elegante-card">
-          <div className="overflow-x-auto">
-            <div className="min-w-[1200px]">
-              {/* Header de días */}
-              <div className="grid grid-cols-8 gap-1 mb-4 border-b border-gray-dark pb-4">
-                <div className="text-center">
-                  <span className="text-sm font-semibold text-gray-light">Horas</span>
-                </div>
-                {getCurrentWeekDays().map(({ dia, fecha }) => (
-                  <div key={dia} className="text-center">
-                    <h4 className="font-semibold text-white-primary">{dia}</h4>
-                    <p className="text-xs text-gray-lightest">{fecha}</p>
-                    <div className="text-xs text-orange-primary mt-1">
-                      {getCitasPorDia(dia).length} citas
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-white-primary">
+                  {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
+                </h3>
+                <p className="text-xs text-gray-lightest">
+                  {getCurrentWeekDays()[0].fecha} - {getCurrentWeekDays()[6].fecha}
+                </p>
               </div>
 
-              {/* Grid de horarios */}
-              <div className="relative">
-                {(() => {
-                  const weekDays = getCurrentWeekDays();
-                  const todayStr = toLocalDateString(new Date());
-                  return horasDelDia.map((hora) => (
-                    <div key={hora} className="grid grid-cols-8 gap-1 h-14 border-b border-gray-dark">
-                      <div className="flex items-center justify-center text-xs text-gray-light font-medium">
-                        {formatHora12(hora)}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const { fecha, hora } = getAutoDateTime();
+                    setSelectedCita(null);
+                    setShowFormErrors(false);
+                    setClienteSearchTerm('');
+                    setBarberoFormSearchTerm('');
+                    setNuevaCita({
+                      clienteId: 0, cliente: '', telefono: '',
+                      servicioId: null, servicioIds: [], productoCantidades: {},
+                      paqueteId: null, servicio: '', barberoId: 0, barbero: '',
+                      fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
+                    });
+                    setViewMode('crear');
+                  }}
+                  className="elegante-button-primary flex items-center gap-2 text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nueva Cita
+                </button>
+                <button
+                  onClick={() => setCurrentWeek(0)}
+                  className="elegante-button-secondary text-sm"
+                >
+                  Hoy
+                </button>
+                <button
+                  onClick={() => setCurrentWeek(currentWeek + 1)}
+                  className="elegante-button-secondary p-2"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Calendario Semanal */}
+          <div className="elegante-card">
+            <div className="overflow-x-auto">
+              <div className="min-w-[1200px]">
+                {/* Header de días */}
+                <div className="grid grid-cols-8 gap-1 mb-4 border-b border-gray-dark pb-4">
+                  <div className="text-center">
+                    <span className="text-sm font-semibold text-gray-light">Horas</span>
+                  </div>
+                  {getCurrentWeekDays().map(({ dia, fecha }) => (
+                    <div key={dia} className="text-center">
+                      <h4 className="font-semibold text-white-primary">{dia}</h4>
+                      <p className="text-xs text-gray-lightest">{fecha}</p>
+                      <div className="text-xs text-orange-primary mt-1">
+                        {getCitasPorDia(dia).length} citas
                       </div>
-                      {diasSemana.map((dia) => {
-                        const citasEnSlot = getCitasEnSlot(dia, hora);
-                        const dayInfo = weekDays.find(d => d.dia === dia);
-                        
-                        let isPastSlot = false;
-                        if (dayInfo) {
-                           if (dayInfo.fechaCompleta < todayStr) {
+                    </div>
+                  ))}
+                </div>
+
+                {/* Grid de horarios */}
+                <div className="relative">
+                  {(() => {
+                    const weekDays = getCurrentWeekDays();
+                    const todayStr = toLocalDateString(new Date());
+                    return horasDelDia.map((hora) => (
+                      <div key={hora} className="grid grid-cols-8 gap-1 h-14 border-b border-gray-dark">
+                        <div className="flex items-center justify-center text-xs text-gray-light font-medium">
+                          {formatHora12(hora)}
+                        </div>
+                        {diasSemana.map((dia) => {
+                          const citasEnSlot = getCitasEnSlot(dia, hora);
+                          const dayInfo = weekDays.find(d => d.dia === dia);
+
+                          let isPastSlot = false;
+                          if (dayInfo) {
+                            if (dayInfo.fechaCompleta < todayStr) {
                               isPastSlot = true;
-                           } else if (dayInfo.fechaCompleta === todayStr) {
+                            } else if (dayInfo.fechaCompleta === todayStr) {
                               const today = new Date();
                               const currentMinutesAdjusted = today.getHours() * 60 + today.getMinutes();
                               // Se desactiva si han pasado más de 30 minutos desde el inicio de la hora
                               if ((hora * 60) <= currentMinutesAdjusted - 30) {
                                 isPastSlot = true;
                               }
-                           }
-                        }
+                            }
+                          }
 
-                        return (
-                          <div
-                            key={`${dia}-${hora}`}
-                            className={`relative rounded border transition-all duration-200 ${isPastSlot && citasEnSlot.length === 0
+                          return (
+                            <div
+                              key={`${dia}-${hora}`}
+                              className={`relative rounded border transition-all duration-200 ${isPastSlot && citasEnSlot.length === 0
                                 ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
                                 : isPastSlot && citasEnSlot.length > 0
                                   ? "bg-gray-darker border-gray-dark hover:bg-gray-dark opacity-80 cursor-pointer hover:border-orange-primary/50 group"
                                   : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
-                              }`}
-                            onClick={() => {
-                              // Permitir clic si no es pasada o si es pasada pero tiene citas (para poder editarlas)
-                              if (!isPastSlot || citasEnSlot.length > 0) handleSlotClick(dia, hora);
-                            }}
-                            title={isPastSlot && citasEnSlot.length === 0 ? "Franja pasada y sin citas" : `Gestionar citas de ${dia} a las ${formatHora12(hora)}`}
-                          >
-                            {/* Indicador de citas */}
-                            {citasEnSlot.length > 0 && (
-                              <div className={`absolute top-1 right-1 text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold ${isPastSlot ? "bg-gray-dark text-gray-light" : "bg-orange-primary text-black-primary"
-                                }`}>
-                                {citasEnSlot.length}
-                              </div>
-                            )}
-
-                            {/* Overlay hover */}
-                            {(!isPastSlot || citasEnSlot.length > 0) && (
-                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <div className="text-center">
-                                  <MoreHorizontal className="w-6 h-6 text-orange-primary mx-auto mb-1" />
-                                  <span className="text-xs text-orange-primary">Gestionar</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Vista previa de citas */}
-                            <div className="p-1 space-y-1 max-h-14 overflow-hidden">
-                              {citasEnSlot.slice(0, 2).map((cita) => (
-                                <div
-                                  key={cita.id}
-                                  className="text-xs p-1 rounded truncate"
-                                  style={{
-                                    backgroundColor: getCitaColor(cita.estado) + (isPastSlot ? '20' : '40'),
-                                    color: getCitaColor(cita.estado),
-                                    border: `1px solid ${getCitaColor(cita.estado)}`
-                                  }}
-                                >
-                                  {cita.clienteNombre}
-                                </div>
-                              ))}
-                              {citasEnSlot.length > 2 && (
-                                <div className="text-xs text-gray-light text-center">
-                                  +{citasEnSlot.length - 2} más
+                                }`}
+                              onClick={() => {
+                                // Permitir clic si no es pasada o si es pasada pero tiene citas (para poder editarlas)
+                                if (!isPastSlot || citasEnSlot.length > 0) handleSlotClick(dia, hora);
+                              }}
+                              title={isPastSlot && citasEnSlot.length === 0 ? "Franja pasada y sin citas" : `Gestionar citas de ${dia} a las ${formatHora12(hora)}`}
+                            >
+                              {/* Indicador de citas */}
+                              {citasEnSlot.length > 0 && (
+                                <div className={`absolute top-1 right-1 text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold ${isPastSlot ? "bg-gray-dark text-gray-light" : "bg-orange-primary text-black-primary"
+                                  }`}>
+                                  {citasEnSlot.length}
                                 </div>
                               )}
+
+                              {/* Overlay hover */}
+                              {(!isPastSlot || citasEnSlot.length > 0) && (
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                  <div className="text-center">
+                                    <MoreHorizontal className="w-6 h-6 text-orange-primary mx-auto mb-1" />
+                                    <span className="text-xs text-orange-primary">Gestionar</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Vista previa de citas */}
+                              <div className="p-1 space-y-1 max-h-14 overflow-hidden">
+                                {citasEnSlot.slice(0, 2).map((cita) => (
+                                  <div
+                                    key={cita.id}
+                                    className="text-xs p-1 rounded truncate"
+                                    style={{
+                                      backgroundColor: getCitaColor(cita.estado) + (isPastSlot ? '20' : '40'),
+                                      color: getCitaColor(cita.estado),
+                                      border: `1px solid ${getCitaColor(cita.estado)}`
+                                    }}
+                                  >
+                                    {cita.clienteNombre}
+                                  </div>
+                                ))}
+                                {citasEnSlot.length > 2 && (
+                                  <div className="text-xs text-gray-light text-center">
+                                    +{citasEnSlot.length - 2} más
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ));
-                })()}
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
         </div>
       )}
@@ -1865,7 +1888,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                           >
                             <Eye className="w-4 h-4 text-blue-400" />
                           </button>
-                          
+
                           {!isPasada && (
                             <>
                               <button
@@ -1894,29 +1917,29 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
                         </div>
                       </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-lightest">
-                      <div>
-                        <span className="text-gray-light">Servicio:</span> {cita.servicioNombre}
+                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-lightest">
+                        <div>
+                          <span className="text-gray-light">Servicio:</span> {cita.servicioNombre}
+                        </div>
+                        <div>
+                          <span className="text-gray-light">Barbero:</span> {cita.barberoNombre}
+                        </div>
+                        <div>
+                          <span className="text-gray-light">Hora:</span> {cita.hora} ({cita.duracion}min)
+                        </div>
+                        <div>
+                          <span className="text-gray-light">Precio:</span> {formatearPrecio(cita.precio)}
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-gray-light">Barbero:</span> {cita.barberoNombre}
-                      </div>
-                      <div>
-                        <span className="text-gray-light">Hora:</span> {cita.hora} ({cita.duracion}min)
-                      </div>
-                      <div>
-                        <span className="text-gray-light">Precio:</span> {formatearPrecio(cita.precio)}
-                      </div>
-                    </div>
 
-                    {cita.notas && (
-                      <div className="mt-2 text-sm text-gray-lightest">
-                        <span className="text-gray-light">Notas:</span> {cita.notas}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {cita.notas && (
+                        <div className="mt-2 text-sm text-gray-lightest">
+                          <span className="text-gray-light">Notas:</span> {cita.notas}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {selectedSlot && getCitasEnSlot(selectedSlot.dia, selectedSlot.hora).length === 0 && (
                   <div className="text-center py-8">

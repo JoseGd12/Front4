@@ -428,7 +428,7 @@ export function RegistrarEntregaPage({ onBack }: RegistrarEntregaPageProps) {
               {/* Section 1: Información Básica */}
               <FormSection
                 title="Información Básica"
-                icon={Receipt}
+                icon={<Receipt className="w-4 h-4" />}
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                     <div className="flex items-center gap-2">
@@ -449,7 +449,7 @@ export function RegistrarEntregaPage({ onBack }: RegistrarEntregaPageProps) {
               />
 
               {/* Section 2: Barbero */}
-              <FormSection title="Barbero" icon={User}>
+              <FormSection title="Barbero" icon={<User className="w-4 h-4" />}>
                 <div className="space-y-1">
                   <SearchField
                     placeholder="Busca un barbero..."
@@ -484,8 +484,7 @@ export function RegistrarEntregaPage({ onBack }: RegistrarEntregaPageProps) {
                       setBarberoSearchTerm(getFullName(barbero.nombre, barbero.apellido));
                       clearValidationErrors();
                     }}
-                    error={showFormErrors && !nuevaEntrega.barberoSeleccionado}
-                    errorMessage="Debes seleccionar un barbero."
+                    error={showFormErrors && !nuevaEntrega.barberoSeleccionado ? "Debes seleccionar un barbero." : undefined}
                     shakeClass={shakeClass}
                     onFocus={clearValidationErrors}
                   />
@@ -493,7 +492,7 @@ export function RegistrarEntregaPage({ onBack }: RegistrarEntregaPageProps) {
               </FormSection>
 
               {/* Section 3: Agregar Insumos */}
-              <FormSection title="Agregar Insumos" icon={Package}>
+              <FormSection title="Agregar Insumos" icon={<Package className="w-4 h-4" />}>
                 <div className="space-y-4" ref={addProductoRowRef}>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2 space-y-1">
@@ -542,8 +541,7 @@ export function RegistrarEntregaPage({ onBack }: RegistrarEntregaPageProps) {
                           setInsumoSearchTerm(insumo.nombre);
                           clearValidationErrors();
                         }}
-                        error={showInsumoSelectorError}
-                        errorMessage="Selecciona un producto."
+                        error={showInsumoSelectorError ? "Selecciona un producto." : undefined}
                         shakeClass={shakeClass}
                         onFocus={clearValidationErrors}
                       />

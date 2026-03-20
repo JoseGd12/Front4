@@ -336,11 +336,10 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
               <Button
                 type="submit"
                 disabled={isLoading || !captchaValidated}
-                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
-                  captchaValidated
+                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${captchaValidated
                     ? 'bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]'
                     : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">

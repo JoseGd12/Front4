@@ -832,7 +832,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
             {/* Section 1: Información Básica */}
             <FormSection
               title="Información Básica"
-              icon={Receipt}
+              icon={<Receipt className="w-4 h-4" />}
               headerRight={
                 <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                   <div className="flex items-center gap-2">
@@ -857,7 +857,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
             />
 
             {/* Section 2: Fecha Factura y Método de Pago */}
-            <FormSection title="Datos de Factura" icon={FileText}>
+            <FormSection title="Datos de Factura" icon={<FileText className="w-4 h-4" />}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Fecha de Factura *</Label>
@@ -911,7 +911,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
             </FormSection>
 
             {/* Section 3: Proveedor y Descuento */}
-            <FormSection title="Proveedor" icon={Building}>
+            <FormSection title="Proveedor" icon={<Building className="w-4 h-4" />}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Proveedor *</Label>
@@ -949,8 +949,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                         `${proveedor.nombre || ""}${proveedor.nit ? ` — NIT ${proveedor.nit}` : ""}`
                       );
                     }}
-                    error={showCompraFormErrors && !nuevaCompra.proveedorId}
-                    errorMessage="Debes seleccionar un proveedor del buscador."
+                    error={showCompraFormErrors && !nuevaCompra.proveedorId ? "Debes seleccionar un proveedor del buscador." : undefined}
                     shakeClass={shakeClass}
                     onFocus={clearValidationErrors}
                   />
@@ -977,7 +976,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
             </FormSection>
 
             {/* Section 4: Agregar Productos */}
-            <FormSection title="Agregar Productos" icon={ShoppingBag}>
+            <FormSection title="Agregar Productos" icon={<ShoppingBag className="w-4 h-4" />}>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-1 md:col-span-2">
@@ -1039,8 +1038,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                         setProductSearchTerm(producto.nombre);
                         if (showAddProductoErrors) setShowAddProductoErrors(false);
                       }}
-                      error={showProductoSelectorError}
-                      errorMessage="Debes seleccionar un producto del buscador."
+                      error={showProductoSelectorError ? "Debes seleccionar un producto del buscador." : undefined}
                       shakeClass={shakeClass}
                       maxResults={20}
                       onFocus={clearValidationErrors}

@@ -766,355 +766,370 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         /* VISTA DE CREAR / EDITAR CITA (inline, no modal) */
         /* ═══════════════════════════════════════════════════════════════════ */
         <div className="flex flex-col gap-4 h-full min-h-0 overflow-hidden">
-            {/* Header con botón Volver */}
-            <div className="flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => { setViewMode('calendar'); setPendingProduct(null); }}
-                  className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
-                  title="Volver al Calendario"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div>
-                  <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
-                    <CalendarDays className="w-6 h-6 text-orange-primary" />
-                    {isEditMode ? 'Editar tu Reservación' : 'Programar Nueva Cita'}
-                  </h2>
-                  <p className="text-sm text-gray-lightest">Selecciona los servicios y horario de tu preferencia</p>
-                </div>
+          {/* Header con botón Volver */}
+          <div className="flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => { setViewMode('calendar'); setPendingProduct(null); }}
+                className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
+                title="Volver al Calendario"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
+                  <CalendarDays className="w-6 h-6 text-orange-primary" />
+                  {isEditMode ? 'Editar tu Reservación' : 'Programar Nueva Cita'}
+                </h2>
+                <p className="text-sm text-gray-lightest">Selecciona los servicios y horario de tu preferencia</p>
               </div>
             </div>
+          </div>
 
-            {/* Master-Detail Layout */}
-            <div
-              className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 flex-1 min-h-0 overflow-hidden"
-              style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
-            >
-              {/* ── Panel Izquierdo: Formulario ── */}
-              <aside className="min-h-0 min-w-0">
+          {/* Master-Detail Layout */}
+          <div
+            className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 flex-1 min-h-0 overflow-hidden"
+            style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
+          >
+            {/* ── Panel Izquierdo: Formulario ── */}
+            <aside className="min-h-0 min-w-0">
               <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0 divide-y divide-gray-dark">
-                {/* Sección: Servicios */}
-                <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
-                  {nuevaCita.paqueteId ? (
-                    <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
-                  ) : (
-                    <SearchField<any>
-                      label="Buscar servicio"
-                      placeholder="Buscar servicio..."
-                      value={servicioSearchTerm}
-                      onChange={setServicioSearchTerm}
-                      items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
-                      filterFn={(s, term) =>
-                        (s.nombre || '').toLowerCase().includes(term.toLowerCase())
-                      }
-                      onSelect={(s) => {
-                        toggleServicio(s.id);
-                        setServicioSearchTerm('');
-                      }}
-                      onClear={() => setServicioSearchTerm('')}
-                      renderItem={(s) => (
-                        <div className="flex items-center gap-3">
-                          <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                            <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
-                            <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
-                          </div>
-                          <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
-                        </div>
-                      )}
-                      error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
-                    />
-                  )}
-                  {/* Tags de servicios seleccionados */}
-                  {nuevaCita.servicioIds.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {nuevaCita.servicioIds.map(sId => {
-                        const srv = serviciosList.find(s => s.id === sId);
-                        if (!srv) return null;
-                        return (
-                          <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                            <Scissors className="w-3 h-3" />
-                            <span>{srv.nombre}</span>
-                            <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
-                            {!nuevaCita.paqueteId && (
-                              <button
-                                type="button"
-                                onClick={() => toggleServicio(sId)}
-                                className="ml-1 hover:text-red-400 transition-colors"
-                                title="Quitar servicio"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </FormSection>
-
-                {/* Sección: Paquetes */}
-                <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
-                  {nuevaCita.paqueteId ? (
-                    <div className="flex flex-wrap gap-2">
-                      {(() => {
-                        const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
-                        if (!paq) return null;
-                        return (
-                          <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                            <Package className="w-3 h-3" />
-                            <span>{paq.nombre}</span>
-                            <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handlePaqueteChange('none');
-                                setPaqueteSearchTerm('');
-                              }}
-                              className="ml-1 hover:text-red-400 transition-colors"
-                              title="Quitar paquete"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <SearchField<any>
-                      label="Buscar paquete"
-                      placeholder="Buscar paquete..."
-                      value={paqueteSearchTerm}
-                      onChange={setPaqueteSearchTerm}
-                      items={paquetesList}
-                      filterFn={(p, term) =>
-                        (p.nombre || '').toLowerCase().includes(term.toLowerCase())
-                      }
-                      onSelect={(p) => {
-                        handlePaqueteChange(`p-${p.id}`);
-                        setPaqueteSearchTerm('');
-                      }}
-                      onClear={() => setPaqueteSearchTerm('')}
-                      renderItem={(p) => (
-                        <div className="flex items-center gap-3">
-                          <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                            <Package className="w-5 h-5 text-orange-primary/50" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                            <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
-                          </div>
-                          <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
-                        </div>
-                      )}
-                    />
-                  )}
-                </FormSection>
-
-                {/* Sección: Productos adicionales */}
-                {productosList.length > 0 && (
-                  <FormSection title="Productos Adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
-                    {(nuevaCita.servicioIds.length > 0 || !!nuevaCita.paqueteId) ? (
-                      <>
-                        <SearchField<any>
-                          label="Buscar producto"
-                          placeholder="Buscar producto..."
-                          value={productoSearchTerm}
-                          onChange={setProductoSearchTerm}
-                          items={productosList.filter(p => !nuevaCita.productoCantidades[p.id])}
-                          filterFn={(p, term) =>
-                            (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-10">
+                  {/* Sección: Barbero */}
+                  <div className="py-10">
+                    <FormSection title="Barbero de Preferencia" icon={<User className="w-4 h-4 text-orange-primary" />}>
+                      <SearchField<any>
+                        placeholder="Busca a tu barbero..."
+                        value={barberoFormSearchTerm}
+                        onChange={(val) => setBarberoFormSearchTerm(val)}
+                        onClear={() => {
+                          setBarberoFormSearchTerm('');
+                          setNuevaCita({ ...nuevaCita, barberoId: 0, barbero: '' });
+                        }}
+                        items={barberosList.filter((b: any) => {
+                          if (nuevaCita.fecha && nuevaCita.hora) {
+                            const errorDisp = validarDisponibilidad(b.id, nuevaCita.fecha, nuevaCita.hora, nuevaCita.duracion, selectedCita?.id);
+                            return !errorDisp;
                           }
-                          onSelect={(p) => {
-                            addProducto(p.id);
-                            setProductoSearchTerm('');
-                          }}
-                          onClear={() => setProductoSearchTerm('')}
-                          renderItem={(p) => (
-                            <div className="flex items-center gap-3">
-                              <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                                <p className="text-gray-lighter text-xs">Stock: {p.stockVentas ?? p.stockTotal ?? 0}</p>
-                              </div>
-                              <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
+                          return true;
+                        })}
+                        filterFn={(b: any, query: string) => {
+                          const fullName = `${b.nombre || b.nombres || ''} ${b.apellido || b.apellidos || ''}`.toLowerCase();
+                          return fullName.includes(query.toLowerCase());
+                        }}
+                        renderItem={(barbero: any) => (
+                          <p className="text-white-primary text-sm font-medium group-hover:text-orange-primary transition-colors">
+                            {barbero.nombre || barbero.nombres} {barbero.apellido || barbero.apellidos || ''}
+                          </p>
+                        )}
+                        onSelect={(barbero: any) => {
+                          const name = `${barbero.nombre || barbero.nombres || ''} ${barbero.apellido || barbero.apellidos || ''}`.trim();
+                          setNuevaCita({ ...nuevaCita, barberoId: barbero.id, barbero: name });
+                          setBarberoFormSearchTerm(name);
+                        }}
+                        error={showFormErrors && !nuevaCita.barberoId ? 'Debes seleccionar un barbero para continuar.' : undefined}
+                      />
+                    </FormSection>
+                  </div>
+
+                  {/* Sección: Servicios y Paquetes (Agrupados) */}
+                  <div className="py-10 border-t border-gray-dark">
+                    <div className="flex flex-row items-start w-full" style={{ gap: '10px' }}>
+                      <div className="flex-1 min-w-0">
+                        <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
+                          {nuevaCita.paqueteId ? (
+                            <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
+                          ) : (
+                            <SearchField<any>
+                              label="Buscar servicio"
+                              placeholder="Buscar servicio..."
+                              value={servicioSearchTerm}
+                              onChange={setServicioSearchTerm}
+                              items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
+                              filterFn={(s, term) =>
+                                (s.nombre || '').toLowerCase().includes(term.toLowerCase())
+                              }
+                              onSelect={(s) => {
+                                toggleServicio(s.id);
+                                setServicioSearchTerm('');
+                              }}
+                              onClear={() => setServicioSearchTerm('')}
+                              renderItem={(s) => (
+                                <div className="flex items-center gap-3">
+                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                    <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
+                                    <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                                  </div>
+                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
+                                </div>
+                              )}
+                              error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                            />
+                          )}
+                          {/* Tags de servicios seleccionados */}
+                          {nuevaCita.servicioIds.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {nuevaCita.servicioIds.map(sId => {
+                                const srv = serviciosList.find(s => s.id === sId);
+                                if (!srv) return null;
+                                return (
+                                  <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                    <Scissors className="w-3 h-3" />
+                                    <span>{srv.nombre}</span>
+                                    <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
+                                    {!nuevaCita.paqueteId && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleServicio(sId)}
+                                        className="ml-1 hover:text-red-400 transition-colors"
+                                        title="Quitar servicio"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
-                        />
-                        {/* Lista de productos seleccionados con cantidades */}
-                        {Object.entries(nuevaCita.productoCantidades).length > 0 && (
-                          <div className="space-y-2 mt-3">
-                            {Object.entries(nuevaCita.productoCantidades).map(([pId, cant]) => {
-                              const prod = productosList.find(p => p.id === Number(pId));
-                              if (!prod) return null;
-                              return (
-                                <div key={pId} className="flex items-center justify-between gap-3 bg-gray-darker/60 border border-gray-dark rounded-xl p-3 group hover:border-orange-primary/30 transition-all duration-300">
-                                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <div className="shrink-0 w-8 h-8 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark/50">
-                                      <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent object-cover" fallbackVariant="product" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-white-primary text-sm font-medium truncate">{prod.nombre}</p>
-                                      <p className="text-orange-primary text-xs font-bold">{formatearPrecio(prod.precioVenta || prod.precio || 0)}</p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-2 bg-gray-darkest rounded-lg border border-gray-dark px-1 py-1">
-                                      <button 
-                                        type="button"
-                                        onClick={() => removeProducto(Number(pId))}
-                                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-gray-light hover:text-white transition-colors"
-                                      >
-                                        <Minus className="w-3.5 h-3.5" />
-                                      </button>
-                                      <span className="text-white-primary font-bold text-sm w-4 text-center tabular-nums">{cant}</span>
-                                      <button 
-                                        type="button"
-                                        onClick={() => addProducto(Number(pId))}
-                                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-orange-primary hover:text-orange-secondary transition-colors"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
+                        </FormSection>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
+                          {nuevaCita.paqueteId ? (
+                            <div className="flex flex-wrap gap-2">
+                              {(() => {
+                                const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                                if (!paq) return null;
+                                return (
+                                  <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                    <Package className="w-3 h-3" />
+                                    <span>{paq.nombre}</span>
+                                    <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
                                     <button
                                       type="button"
-                                      onClick={() => quitarProducto(Number(pId))}
-                                      className="p-2 rounded-lg hover:bg-red-500/10 text-gray-lighter hover:text-red-400 transition-all duration-300 border border-transparent hover:border-red-500/20"
-                                      title="Quitar"
+                                      onClick={() => {
+                                        handlePaqueteChange('none');
+                                        setPaqueteSearchTerm('');
+                                      }}
+                                      className="ml-1 hover:text-red-400 transition-colors"
+                                      title="Quitar paquete"
                                     >
-                                      <X className="w-4 h-4" />
+                                      <X className="w-3 h-3" />
                                     </button>
                                   </div>
+                                );
+                              })()}
+                            </div>
+                          ) : (
+                            <SearchField<any>
+                              label="Buscar paquete"
+                              placeholder="Buscar paquete..."
+                              value={paqueteSearchTerm}
+                              onChange={setPaqueteSearchTerm}
+                              items={paquetesList}
+                              filterFn={(p, term) =>
+                                (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                              }
+                              onSelect={(p) => {
+                                handlePaqueteChange(`p-${p.id}`);
+                                setPaqueteSearchTerm('');
+                              }}
+                              onClear={() => setPaqueteSearchTerm('')}
+                              renderItem={(p) => (
+                                <div className="flex items-center gap-3">
+                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-orange-primary/50" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                    <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                                  </div>
+                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="space-y-2">
-                        {pendingProduct && (
-                          <div className="flex items-center gap-2 p-2 rounded-lg border border-orange-primary/40 bg-orange-primary/10">
-                            <ShoppingBag className="w-4 h-4 text-orange-primary shrink-0" />
-                            <p className="text-xs text-orange-primary font-medium">
-                              <strong>{pendingProduct.nombre}</strong> se agregará automáticamente al seleccionar un servicio o paquete.
+                              )}
+                            />
+                          )}
+                        </FormSection>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sección: Productos adicionales */}
+                  {productosList.length > 0 && (
+                    <div className="py-10">
+                      <FormSection title="Productos Adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
+                        {(nuevaCita.servicioIds.length > 0 || !!nuevaCita.paqueteId) ? (
+                          <>
+                            <SearchField<any>
+                              label="Buscar producto"
+                              placeholder="Buscar producto..."
+                              value={productoSearchTerm}
+                              onChange={setProductoSearchTerm}
+                              items={productosList.filter(p => !nuevaCita.productoCantidades[p.id])}
+                              filterFn={(p, term) =>
+                                (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                              }
+                              onSelect={(p) => {
+                                addProducto(p.id);
+                                setProductoSearchTerm('');
+                              }}
+                              onClear={() => setProductoSearchTerm('')}
+                              renderItem={(p) => (
+                                <div className="flex items-center gap-3">
+                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                    <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                    <p className="text-gray-lighter text-xs">Stock: {p.stockVentas ?? p.stockTotal ?? 0}</p>
+                                  </div>
+                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
+                                </div>
+                              )}
+                            />
+                            {/* Lista de productos seleccionados con cantidades */}
+                            {Object.entries(nuevaCita.productoCantidades).length > 0 && (
+                              <div className="space-y-2 mt-3">
+                                {Object.entries(nuevaCita.productoCantidades).map(([pId, cant]) => {
+                                  const prod = productosList.find(p => p.id === Number(pId));
+                                  if (!prod) return null;
+                                  return (
+                                    <div key={pId} className="flex items-center justify-between gap-3 bg-gray-darker/60 border border-gray-dark rounded-xl p-3 group hover:border-orange-primary/30 transition-all duration-300">
+                                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className="shrink-0 w-8 h-8 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark/50">
+                                          <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent object-cover" fallbackVariant="product" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-white-primary text-sm font-medium truncate">{prod.nombre}</p>
+                                          <p className="text-orange-primary text-xs font-bold">{formatearPrecio(prod.precioVenta || prod.precio || 0)}</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2 bg-gray-darkest rounded-lg border border-gray-dark px-1 py-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => removeProducto(Number(pId))}
+                                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-gray-light hover:text-white transition-colors"
+                                          >
+                                            <Minus className="w-3.5 h-3.5" />
+                                          </button>
+                                          <span className="text-white-primary font-bold text-sm w-4 text-center tabular-nums">{cant}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => addProducto(Number(pId))}
+                                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-orange-primary hover:text-orange-secondary transition-colors"
+                                          >
+                                            <Plus className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => quitarProducto(Number(pId))}
+                                          className="p-2 rounded-lg hover:bg-red-500/10 text-gray-lighter hover:text-red-400 transition-all duration-300 border border-transparent hover:border-red-500/20"
+                                          title="Quitar"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="space-y-2">
+                            {pendingProduct && (
+                              <div className="flex items-center gap-2 p-2 rounded-lg border border-orange-primary/40 bg-orange-primary/10">
+                                <ShoppingBag className="w-4 h-4 text-orange-primary shrink-0" />
+                                <p className="text-xs text-orange-primary font-medium">
+                                  <strong>{pendingProduct.nombre}</strong> se agregará automáticamente al seleccionar un servicio o paquete.
+                                </p>
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-lighter italic">
+                              Selecciona al menos un servicio o paquete para agregar productos.
                             </p>
                           </div>
                         )}
-                        <p className="text-xs text-gray-lighter italic">
-                          Selecciona al menos un servicio o paquete para agregar productos.
-                        </p>
+                      </FormSection>
+                    </div>
+                  )}
+
+                  {/* Sección: Fecha y Hora */}
+                  <div className="py-10">
+                    <FormSection title="Fecha y Hora" icon={<Calendar className="w-4 h-4 text-orange-primary" />}>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-gray-lightest text-xs">Fecha *</Label>
+                          <Input
+                            type="date"
+                            value={nuevaCita.fecha}
+                            onChange={(e) => setNuevaCita({ ...nuevaCita, fecha: e.target.value })}
+                            className="elegante-input h-11"
+                            min={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-gray-lightest text-xs">Hora *</Label>
+                          {nuevaCita.barberoId && nuevaCita.fecha ? (
+                            <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita({ ...nuevaCita, hora: v })}>
+                              <SelectTrigger className="elegante-input h-11">
+                                <SelectValue placeholder="Seleccionar hora" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
+                                {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
+                                  <SelectItem key={h} value={h} className="text-white-primary">{h}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              type="time"
+                              value={nuevaCita.hora}
+                              onChange={(e) => setNuevaCita({ ...nuevaCita, hora: e.target.value })}
+                              className="elegante-input h-11"
+                            />
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </FormSection>
-                )}
-
-                {/* Sección: Barbero */}
-                <FormSection title="Barbero de Preferencia" icon={<User className="w-4 h-4 text-orange-primary" />}>
-                  <SearchField<any>
-                    placeholder="Busca a tu barbero..."
-                    value={barberoFormSearchTerm}
-                    onChange={(val) => setBarberoFormSearchTerm(val)}
-                    onClear={() => {
-                      setBarberoFormSearchTerm('');
-                      setNuevaCita({ ...nuevaCita, barberoId: 0, barbero: '' });
-                    }}
-                    items={barberosList.filter((b: any) => {
-                      if (nuevaCita.fecha && nuevaCita.hora) {
-                        const errorDisp = validarDisponibilidad(b.id, nuevaCita.fecha, nuevaCita.hora, nuevaCita.duracion, selectedCita?.id);
-                        return !errorDisp;
-                      }
-                      return true;
-                    })}
-                    filterFn={(b: any, query: string) => {
-                      const fullName = `${b.nombre || b.nombres || ''} ${b.apellido || b.apellidos || ''}`.toLowerCase();
-                      return fullName.includes(query.toLowerCase());
-                    }}
-                    renderItem={(barbero: any) => (
-                      <p className="text-white-primary text-sm font-medium group-hover:text-orange-primary transition-colors">
-                        {barbero.nombre || barbero.nombres} {barbero.apellido || barbero.apellidos || ''}
-                      </p>
-                    )}
-                    onSelect={(barbero: any) => {
-                      const name = `${barbero.nombre || barbero.nombres || ''} ${barbero.apellido || barbero.apellidos || ''}`.trim();
-                      setNuevaCita({ ...nuevaCita, barberoId: barbero.id, barbero: name });
-                      setBarberoFormSearchTerm(name);
-                    }}
-                    error={showFormErrors && !nuevaCita.barberoId ? 'Debes seleccionar un barbero para continuar.' : undefined}
-                  />
-                </FormSection>
-
-                {/* Sección: Fecha y Hora */}
-                <FormSection title="Fecha y Hora" icon={<Calendar className="w-4 h-4 text-orange-primary" />}>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label className="text-gray-lightest text-xs">Fecha *</Label>
-                      <Input
-                        type="date"
-                        value={nuevaCita.fecha}
-                        onChange={(e) => setNuevaCita({ ...nuevaCita, fecha: e.target.value })}
-                        className="elegante-input h-11"
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-gray-lightest text-xs">Hora *</Label>
-                      {nuevaCita.barberoId && nuevaCita.fecha ? (
-                        <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita({ ...nuevaCita, hora: v })}>
-                          <SelectTrigger className="elegante-input h-11">
-                            <SelectValue placeholder="Seleccionar hora" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
-                            {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
-                              <SelectItem key={h} value={h} className="text-white-primary">{h}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          type="time"
-                          value={nuevaCita.hora}
-                          onChange={(e) => setNuevaCita({ ...nuevaCita, hora: e.target.value })}
-                          className="elegante-input h-11"
-                        />
-                      )}
-                    </div>
+                    </FormSection>
                   </div>
-                </FormSection>
 
-                {/* Sección: Notas */}
-                <FormSection title="Notas Adicionales" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
-                  <Textarea
-                    value={nuevaCita.notas}
-                    onChange={(e) => setNuevaCita({ ...nuevaCita, notas: e.target.value })}
-                    placeholder="¿Algún detalle especial que debamos saber?"
-                    className="elegante-input min-h-[80px] resize-none pt-3"
-                  />
-                </FormSection>
+                  {/* Sección: Notas */}
+                  <div className="py-10">
+                    <FormSection title="Notas Adicionales" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
+                      <Textarea
+                        value={nuevaCita.notas}
+                        onChange={(e) => setNuevaCita({ ...nuevaCita, notas: e.target.value })}
+                        placeholder="¿Algún detalle especial que debamos saber?"
+                        className="elegante-input min-h-[80px] resize-none pt-3"
+                      />
+                    </FormSection>
+                  </div>
 
-                {/* Sección: Estado (solo edición) */}
-                {isEditMode && selectedCita && (
-                  <FormSection title="Estado" icon={<CheckCircle2 className="w-4 h-4 text-orange-primary" />}>
-                    <Select value={nuevaCita.estado} onValueChange={(v) => setNuevaCita({ ...nuevaCita, estado: v })}>
-                      <SelectTrigger className="elegante-input h-11">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-darkest border-gray-dark">
-                        <SelectItem value={selectedCita.estado} className="text-white-primary">{selectedCita.estado}</SelectItem>
-                        {selectedCita.estado !== 'Cancelada' && (
-                          <SelectItem value="Cancelada" className="text-white-primary text-red-500">Cancelar Cita</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </FormSection>
-                )}
+                  {/* Sección: Estado (solo edición) */}
+                  {isEditMode && selectedCita && (
+                    <FormSection title="Estado" icon={<CheckCircle2 className="w-4 h-4 text-orange-primary" />}>
+                      <Select value={nuevaCita.estado} onValueChange={(v) => setNuevaCita({ ...nuevaCita, estado: v })}>
+                        <SelectTrigger className="elegante-input h-11">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-darkest border-gray-dark">
+                          <SelectItem value={selectedCita.estado} className="text-white-primary">{selectedCita.estado}</SelectItem>
+                          {selectedCita.estado !== 'Cancelada' && (
+                            <SelectItem value="Cancelada" className="text-white-primary text-red-500">Cancelar Cita</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                  )}
                 </div>
 
                 {/* Footer fijo con botones */}
@@ -1134,10 +1149,10 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   </button>
                 </div>
               </div>
-              </aside>
+            </aside>
 
-              {/* ── Panel Derecho: Resumen ── */}
-              <section className="min-h-0 min-w-0">
+            {/* ── Panel Derecho: Resumen ── */}
+            <section className="min-h-0 min-w-0">
               <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
                 {/* Header con gradiente */}
                 <div className="sticky top-0 z-10 bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
@@ -1150,6 +1165,17 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
                 {/* Contenido scrollable */}
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
+                  {/* Barbero */}
+                  {nuevaCita.barberoId > 0 && (
+                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Barbero</p>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-orange-primary" />
+                        <span className="text-white-primary font-medium text-sm">{nuevaCita.barbero}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Servicios */}
                   {nuevaCita.servicioIds.length > 0 && !nuevaCita.paqueteId && (
                     <div>
@@ -1253,17 +1279,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     </div>
                   )}
 
-                  {/* Barbero */}
-                  {nuevaCita.barberoId > 0 && (
-                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Barbero</p>
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-orange-primary" />
-                        <span className="text-white-primary font-medium text-sm">{nuevaCita.barbero}</span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Horario */}
                   {(nuevaCita.fecha || nuevaCita.hora) && (
                     <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
@@ -1313,11 +1328,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   </div>
                 </div>
               </div>
-              </section>
-            </div>
+            </section>
           </div>
-        ) : (
-          <div className="overflow-auto flex-1 p-2">
+        </div>
+      ) : (
+        <div className="overflow-auto flex-1 p-2">
           <div className="max-w-7xl mx-auto space-y-8">
 
             {/* Navegación Semanal */}
@@ -1451,8 +1466,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               </div>
             </div>
           </div>
-          </div>
-        )}
+        </div>
+      )}
 
       {/* Modal Detalle Cita */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
