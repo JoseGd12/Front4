@@ -338,7 +338,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
     // Validar fecha anterior al día actual
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = toLocalDateString(today);
     if (nuevaCita.fecha < todayStr) {
       return "No se permite agendar citas en días anteriores al día actual.";
     }
@@ -430,7 +430,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       const intervaloMinutos = 30; // Mostrar intervalos de 30 minutos
       
       const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = toLocalDateString(today);
       const isToday = fechaStr === todayStr;
       const currentMinutes = today.getHours() * 60 + today.getMinutes();
 

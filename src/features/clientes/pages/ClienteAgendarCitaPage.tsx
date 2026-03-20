@@ -147,7 +147,7 @@ export function ClienteAgendarCitaPage() {
                         value={formData.fecha}
                         onChange={(e) => setFormData({...formData, fecha: e.target.value})}
                         className="elegante-input"
-                        min={new Date().toISOString().split('T')[0]}
+                         min={new Date().toLocaleDateString('sv-SE')}
                       />
                     </div>
                     

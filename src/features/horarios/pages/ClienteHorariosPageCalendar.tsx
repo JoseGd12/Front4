@@ -128,13 +128,21 @@ export function ClienteHorariosPageCalendar() {
   const [isOccupiedAlertOpen, setIsOccupiedAlertOpen] = useState(false);
   const [occupiedInfo, setOccupiedInfo] = useState<any>(null);
 
-  // Funciones auxiliares para el calendario
+  const getMondayOfWeek = (weekOffset: number) => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Dom, 1=Lun
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday + (weekOffset * 7));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  };
+
   const getCurrentWeekDays = () => {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() + (currentWeek * 7));
+    const monday = getMondayOfWeek(currentWeek);
     return diasSemana.map((dia, index) => {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + index);
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
       return {
         dia,
         fecha: date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })

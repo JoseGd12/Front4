@@ -1377,7 +1377,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   {/* Grid de horarios */}
                   <div className="relative">
                     {(() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayStr = toLocalDateString(new Date());
                       const now = new Date();
                       const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
