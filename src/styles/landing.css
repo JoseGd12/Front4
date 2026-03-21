@@ -62,15 +62,16 @@
 .text-gradient {
   background: linear-gradient(135deg, #fff 0%, #d8b081 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Nav link hover: gold → white gradient transition */
 .nav-link-hover {
   background: linear-gradient(90deg, #d8b081 0%, #f5e6d0 50%, #ffffff 100%);
   background-size: 200% 100%;
   background-position: 0% 50%;
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   transition: background-position 0.4s ease;
 }
@@ -357,8 +358,14 @@ body {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Make sure all buttons in the landing page have a pointer cursor */
+.landing-page-container button {
+  cursor: pointer !important;
 }
 
 /* ── Section Titles ── */
@@ -619,3 +626,50 @@ body {
   border-color: rgba(216, 176, 129, 0.3);
   box-shadow: 0 8px 30px rgba(216, 176, 129, 0.08);
 }
+
+/* ── Barber Image Cropping (Plano Medio Corto) ── */
+.barber-crop-default {
+  object-position: center 15%;
+  transform: scale(1.35);
+  transform-origin: center 20%;
+}
+.group:hover .barber-crop-default {
+  transform: scale(1.4);
+}
+
+/* Ajustes individuales especificados por el usuario */
+.barber-crop-juan {
+  object-position: center 30%; /* Movido hacia el centro para quitar espacio sobre la cabeza */
+  transform: scale(1.25); /* Un poco más de zoom centrado */
+  transform-origin: center 25%;
+}
+.group:hover .barber-crop-juan {
+  transform: scale(1.3);
+}
+
+.barber-crop-edwin {
+  object-position: center 30%;
+  transform: scale(1.6); /* Más zoom para reducir el espacio suelto arriba/abajo */
+  transform-origin: center 30%;
+}
+.group:hover .barber-crop-edwin {
+  transform: scale(1.65);
+}
+
+.barber-crop-eduardo {
+  object-position: center 22%; /* Porción más baja de la foto visible = cabeza baja en el marco */
+  transform: scale(1.35); 
+  transform-origin: center 35%; /* Ajustado para que el zoom no empuje hacia arriba */
+}
+.group:hover .barber-crop-eduardo {
+  transform: scale(1.4);
+}
+
+.barber-crop-christian {
+  object-position: center 5%; /* Bajar al máximo la posición para alinear la cabeza con los demás */
+  transform: scale(1.35);
+  transform-origin: center 40%;
+}
+.group:hover .barber-crop-christian {
+  transform: scale(1.4);
+}

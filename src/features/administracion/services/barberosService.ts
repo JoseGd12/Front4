@@ -213,7 +213,7 @@ class BarberosService {
       method: 'PUT',
       body: JSON.stringify(apiData)
     });
-    return response.status === 204 ? data : await response.json();
+    return response.status === 204 ? apiData : await response.json();
   }
 
   async deleteBarbero(id: number, info?: { correo?: string; documento?: string; tipoDocumento?: string }): Promise<void> {

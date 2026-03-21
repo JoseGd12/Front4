@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { authSyncService } from "../../auth/services/authSyncService";
 import { rolesApiService } from "../../administracion/services/rolesApiService";
@@ -244,10 +245,68 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const [activePage, setActivePage] = useState("Dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const pathToBasePage = (pathname: string) => {
+    const target = pathname.split('/dashboard/')[1] || '';
+    if (target === '') return 'Dashboard';
+    if (target === 'agendamientos') return 'Agendamientos';
+    if (target === 'horarios') return 'Horarios';
+    if (target === 'barberos') return 'Barberos';
+    if (target === 'servicios') return 'Servicios';
+    if (target === 'paquetes') return 'Paquetes';
+    if (target === 'ventas') return 'Ventas';
+    if (target === 'ventas/registrar') return 'RegistrarVenta';
+    if (target === 'devoluciones') return 'Devoluciones';
+    if (target === 'devoluciones/registrar') return 'RegistrarDevolucion';
+    if (target === 'clientes') return 'Clientes';
+    if (target === 'compras') return 'Compras';
+    if (target === 'compras/registrar') return 'RegistrarCompra';
+    if (target === 'productos') return 'Productos';
+    if (target === 'categorias') return 'Categorías';
+    if (target === 'proveedores') return 'Proveedores';
+    if (target === 'entregas-insumos') return 'Entregas de Insumos';
+    if (target === 'entregas-insumos/registrar') return 'RegistrarEntrega';
+    if (target === 'usuarios') return 'Usuarios';
+    if (target === 'roles') return 'Roles';
+    return 'Dashboard';
+  };
+
+  const pageToPath = (page: string) => {
+    if (page === 'Dashboard') return '';
+    if (page === 'Agendamientos') return 'agendamientos';
+    if (page === 'Horarios') return 'horarios';
+    if (page === 'Barberos') return 'barberos';
+    if (page === 'Servicios') return 'servicios';
+    if (page === 'Paquetes') return 'paquetes';
+    if (page === 'Ventas') return 'ventas';
+    if (page === 'RegistrarVenta') return 'ventas/registrar';
+    if (page === 'Devoluciones') return 'devoluciones';
+    if (page === 'RegistrarDevolucion') return 'devoluciones/registrar';
+    if (page === 'Clientes') return 'clientes';
+    if (page === 'Compras') return 'compras';
+    if (page === 'RegistrarCompra') return 'compras/registrar';
+    if (page === 'Productos') return 'productos';
+    if (page === 'Categorías') return 'categorias';
+    if (page === 'Proveedores') return 'proveedores';
+    if (page === 'Entregas de Insumos') return 'entregas-insumos';
+    if (page === 'RegistrarEntrega') return 'entregas-insumos/registrar';
+    if (page === 'Usuarios') return 'usuarios';
+    if (page === 'Roles') return 'roles';
+    return '';
+  };
+
+  const activePage = pathToBasePage(location.pathname);
+
+  const setActivePage = (page: string) => {
+    const path = pageToPath(page);
+    navigate(path ? `/dashboard/${path}` : '/dashboard');
+  };
 
   const roleLabel =
     user?.role === "super_admin"
@@ -613,13 +672,14 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                 {onBackToLanding && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button
+                      <Link
+                        to="/"
                         onClick={onBackToLanding}
-                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
+                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors cursor-pointer"
                         title="Volver a la landing"
                       >
                         <Home className="w-5 h-5 text-orange-primary" />
-                      </button>
+                      </Link>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
                       <p>Volver al inicio</p>

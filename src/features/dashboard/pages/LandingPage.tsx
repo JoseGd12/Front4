@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContext';
+import { useInstagramFeed } from '../../../hooks/useInstagramFeed';
 import {
   Scissors,
   Star,
@@ -27,6 +29,12 @@ import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
+import imgChristian from '../../../assets/Christian.jpg';
+import imgEduardo from '../../../assets/Eduardo.jpg';
+import imgEdwin from '../../../assets/Edwin.jpg';
+import imgJuan from '../../../assets/Juan.jpg';
+import imgMaicol from '../../../assets/Maicol.jpg';
+import imgTeam from '../../../assets/Team.jpg';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
 import '../../../styles/landing.css';
@@ -207,12 +215,29 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [nosotrosSlide, setNosotrosSlide] = useState(0);
+  const [ofrecemosBgIndex, setOfrecemosBgIndex] = useState(0);
+
+  const ofrecemosBackgrounds = useMemo(() => [
+    imgTeam,
+    'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop'
+  ], []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setOfrecemosBgIndex(prev => (prev === 0 ? 1 : 0));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Instagram feed for gallery
+  const { feed: instagramFeed } = useInstagramFeed(15);
 
   // Carousel hooks — services scroll left, products scroll right
   const servCarousel = useCarouselDrag(1, !loading);
   const prodCarousel = useCarouselDrag(-1, !loading);
 
   const lenisRef = useRef<Lenis | null>(null);
+  const heroGalleryRef = useRef<HTMLDivElement>(null);
 
   // Smooth scroll with Lenis
   useEffect(() => {
@@ -403,14 +428,15 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           <div className="flex items-center gap-8">
             {isAuthenticated ? (
               <>
-                <button
+                <Link
+                  to="/dashboard"
                   onClick={onRequestDashboard}
                   className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
                   title="Ir a mi panel de control"
                 >
                   Dashboard
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
-                </button>
+                </Link>
                 <button
                   onClick={logout}
                   className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300 flex items-center gap-2"
@@ -484,51 +510,132 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               'https://images.unsplash.com/photo-1596728325003-1f3e3c0f3e0a?w=600&h=400&fit=crop',
             ];
 
-            const galleryImages: string[] = [];
-            paquetes.forEach((p: any) => {
-              const img = p.imagen || p.imagenUrl;
-              if (img && typeof img === 'string' && img.startsWith('http')) galleryImages.push(img);
-            });
-            servicios.forEach((s: any) => {
-              if (s.imagen && typeof s.imagen === 'string' && s.imagen.startsWith('http')) galleryImages.push(s.imagen);
-            });
-            productos.forEach((p: any) => {
-              if (p.imagenProduc && typeof p.imagenProduc === 'string' && p.imagenProduc.startsWith('http')) galleryImages.push(p.imagenProduc);
-            });
-            while (galleryImages.length < 15) {
+            let galleryImages: string[] = [];
+
+            if (instagramFeed && instagramFeed.length > 0) {
+              // Uso del feed oficial de Instagram
+              galleryImages = instagramFeed.map(item => item.media_url);
+            } else {
+              // Fallback a imágenes de base de datos
+              paquetes.forEach((p: any) => {
+                const img = p.imagen || p.imagenUrl;
+                if (img && typeof img === 'string' && img.startsWith('http')) galleryImages.push(img);
+              });
+              servicios.forEach((s: any) => {
+                if (s.imagen && typeof s.imagen === 'string' && s.imagen.startsWith('http')) galleryImages.push(s.imagen);
+              });
+              productos.forEach((p: any) => {
+                if (p.imagenProduc && typeof p.imagenProduc === 'string' && p.imagenProduc.startsWith('http')) galleryImages.push(p.imagenProduc);
+              });
+            }
+
+            // Asegurar un llenado mínimo para que el grid mosaico funcione idealmente
+            const minDesiredCount = instagramFeed.length > 0 ? instagramFeed.length : 15;
+            while (galleryImages.length < minDesiredCount || galleryImages.length % 3 !== 0) {
               galleryImages.push(fallbackImages[galleryImages.length % fallbackImages.length]);
             }
 
-            const groups: string[][] = [];
-            for (let i = 0; i < galleryImages.length; i += 5) {
-              groups.push(galleryImages.slice(i, i + 5));
+            // Group into sets of 3: [Large, Small1, Small2]
+            const sets: string[][] = [];
+            for (let i = 0; i < galleryImages.length; i += 3) {
+              const set = galleryImages.slice(i, i + 3);
+              while (set.length < 3) set.push(fallbackImages[set.length % fallbackImages.length]);
+              sets.push(set);
             }
+
+            const allSets = [...sets, ...sets]; // Duplicate sets for loop
+
+            const scrollGallery = (direction: number) => {
+              const el = heroGalleryRef.current;
+              if (!el) return;
+              const scrollAmount = 800; // Scroll multiple columns
+              const newPos = el.scrollLeft + direction * scrollAmount;
+
+              const midpoint = el.scrollWidth / 2;
+              if (direction > 0 && newPos >= midpoint) {
+                el.scrollLeft = newPos - midpoint;
+                el.scrollTo({ left: el.scrollLeft + scrollAmount, behavior: 'smooth' });
+              } else if (direction < 0 && newPos <= 0) {
+                el.scrollLeft = midpoint + newPos;
+                el.scrollTo({ left: el.scrollLeft - scrollAmount, behavior: 'smooth' });
+              } else {
+                el.scrollTo({ left: newPos, behavior: 'smooth' });
+              }
+            };
 
             return (
               <div className="relative">
+                {/* Mosaic gallery row */}
                 <div
-                  className="flex overflow-x-auto gallery-scroll"
-                  style={{ height: '520px', gap: '6px', scrollBehavior: 'smooth' }}
+                  ref={heroGalleryRef}
+                  className="flex gallery-scroll"
+                  style={{ height: '520px', gap: '8px', overflowX: 'auto', scrollBehavior: 'auto' }}
                 >
-                  {groups.map((group, gi) => (
-                    <div key={`gallery-group-${gi}`} className="flex shrink-0 h-full" style={{ gap: '6px' }}>
-                      <div className="w-[380px] h-full shrink-0 overflow-hidden relative group rounded-lg">
-                        <img src={group[0]} alt="" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" loading="lazy" draggable={false} />
+                  {allSets.map((set, si) => (
+                    <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '8px' }}>
+                      {/* Large Image Column */}
+                      <div
+                        className="shrink-0 overflow-hidden relative group rounded-lg"
+                        style={{ width: '400px', height: '100%' }}
+                      >
+                        <img
+                          src={set[0]}
+                          alt=""
+                          className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                          loading="lazy"
+                          draggable={false}
+                        />
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
                       </div>
-                      <div className="grid grid-cols-2 grid-rows-2 shrink-0" style={{ width: '520px', height: '100%', gap: '6px' }}>
-                        {group.slice(1, 5).map((img, idx) => (
-                          <div key={idx} className="overflow-hidden relative group rounded-lg">
-                            <img src={img} alt="" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" loading="lazy" draggable={false} />
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                          </div>
-                        ))}
+
+                      {/* Small Images Column (Stacked) */}
+                      <div className="flex flex-col shrink-0 h-full" style={{ width: '280px', gap: '8px' }}>
+                        <div className="flex-1 overflow-hidden relative group rounded-lg">
+                          <img
+                            src={set[1]}
+                            alt=""
+                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                            loading="lazy"
+                            draggable={false}
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                        </div>
+                        <div className="flex-1 overflow-hidden relative group rounded-lg">
+                          <img
+                            src={set[2]}
+                            alt=""
+                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                            loading="lazy"
+                            draggable={false}
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
+
+                {/* Edge fade gradients */}
                 <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black to-transparent pointer-events-none z-10" />
                 <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black to-transparent pointer-events-none z-10" />
+
+                {/* Flecha izquierda */}
+                <button
+                  onClick={() => scrollGallery(-1)}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
+                  title="Anterior"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                {/* Flecha derecha */}
+                <button
+                  onClick={() => scrollGallery(1)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
+                  title="Siguiente"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
               </div>
             );
           })()}
@@ -636,7 +743,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     {/* Flecha izquierda */}
                     <button
                       onClick={() => setNosotrosSlide((prev) => (prev - 1 + totalPages) % totalPages)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white hover:bg-[#d8b081]/30 hover:border-[#d8b081]/40 transition-all duration-300 z-10"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-black shadow-lg flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
                       title="Anterior"
                     >
                       <ChevronLeft className="w-5 h-5" />
@@ -645,7 +752,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     {/* Flecha derecha */}
                     <button
                       onClick={() => setNosotrosSlide((prev) => (prev + 1) % totalPages)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white hover:bg-[#d8b081]/30 hover:border-[#d8b081]/40 transition-all duration-300 z-10"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-black shadow-lg flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
                       title="Siguiente"
                     >
                       <ChevronRight className="w-5 h-5" />
@@ -740,19 +847,70 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       </div>
 
       {/* Supertítulo que abarca servicios y productos */}
-      <div className="border-t border-white/5 pt-16 pb-0 backdrop-blur-md" style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
-        <div className="content-max-width text-center reveal-item">
+      <div 
+        className="relative border-t border-white/5 flex items-center justify-center overflow-hidden bg-black" 
+        style={{ zIndex: 2, minHeight: '380px', padding: '6rem 0' }}
+      >
+        <div className="absolute inset-0 z-0">
+          {ofrecemosBackgrounds.map((bg, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                index === ofrecemosBgIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              {index === 0 ? (
+                // Estructura especializada para el Equipo: no estira a los lados, usa caja gris y difuminados grises laterales
+                <div className="absolute inset-0 bg-[#161619] flex items-start justify-center overflow-hidden">
+                  <div className="relative w-full max-w-[850px] h-full overflow-hidden">
+                    <img 
+                      src={bg}
+                      alt="Equipo"
+                      className="w-full h-full object-cover animate-slow-zoom opacity-50 grayscale"
+                      style={{
+                        objectPosition: 'center 20%', /* Enfoque en la parte supero-media (top-mid) de la foto para plano medio corto */
+                        transformOrigin: 'center 20%',
+                        filter: 'contrast(1.15)'
+                      }}
+                    />
+                    {/* Difuminados de gris lateral para que la foto se pierda en el fondo sin cortes rígidos */}
+                    <div className="absolute inset-y-0 left-0 w-24 sm:w-48 bg-gradient-to-r from-[#161619] via-[#161619]/90 to-transparent pointer-events-none" />
+                    <div className="absolute inset-y-0 right-0 w-24 sm:w-48 bg-gradient-to-l from-[#161619] via-[#161619]/90 to-transparent pointer-events-none" />
+                  </div>
+                </div>
+              ) : (
+                // Estructura tipo Hero (cubriendo toda la pantalla, en negro)
+                <div className="absolute inset-0 bg-black">
+                  <div
+                    className="absolute inset-0 bg-cover animate-slow-zoom opacity-40 grayscale"
+                    style={{ 
+                      backgroundImage: `url(${bg})`,
+                      backgroundPosition: 'center center',
+                      filter: 'contrast(1.15)'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#000] to-transparent"></div>
+          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#000] to-transparent"></div>
+        </div>
+
+        {/* Contenido principal sobre todo */}
+
+        <div className="content-max-width text-center reveal-item relative z-10">
           <div className="supertitle-wrapper">
-            <span className="supertitle-line" />
-            <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-gradient uppercase">
+            <span className="supertitle-line opacity-70" />
+            <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-white drop-shadow-[0_4px_30px_rgba(0,0,0,1)] uppercase">
               Lo que ofrecemos
-              
             </h2>
-            
-            <span className="supertitle-line " />
-            
+            <span className="supertitle-line opacity-70" />
           </div>
-          <p className="text-gray-400 max-w-xl mx-auto text-lg font-medium leading-relaxed italic mt-6 mb-4">"La calidad es el único estándar que no admite compromisos."</p>
+          <p className="text-[#f2d6b3] max-w-xl mx-auto text-xl font-medium leading-relaxed italic mt-6 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+            "La calidad es el único estándar que no admite compromisos."
+          </p>
         </div>
       </div>
 
@@ -959,6 +1117,77 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Barberos / Equipo Section */}
+      <section id="equipo" className="relative z-10 w-full overflow-hidden bg-[#0a0a0a] py-16">
+        <div className="content-max-width relative z-10">
+          <div className="text-center mb-12">
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
+              Nuestro equipo
+            </h3>
+            <p className="text-gray-400 mt-4 max-w-xl mx-auto text-lg mb-4 leading-relaxed">Conoce a los artistas detrás de tu imagen. Nuestra dedicación se refleja en cada detalle.</p>
+          </div>
+          
+          <div className="flex w-full max-w-[850px] mx-auto overflow-hidden" style={{ height: '480px', gap: '6px' }}>
+            {[
+              { nombre: 'Maicol', foto: imgMaicol, imageClass: 'barber-crop-default' },
+              { nombre: 'Juan', foto: imgJuan, imageClass: 'barber-crop-juan' },
+              { nombre: 'Edwin', foto: imgEdwin, imageClass: 'barber-crop-edwin' },
+              { nombre: 'Eduardo', foto: imgEduardo, imageClass: 'barber-crop-eduardo' },
+              { nombre: 'Christian', foto: imgChristian, imageClass: 'barber-crop-christian' },
+            ].map((barbero, idx) => (
+              <div 
+                key={idx} 
+                className="relative flex flex-col bg-[#fdfdfd] rounded-2xl overflow-hidden shadow-2xl transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group"
+                style={{ flex: '1' }}
+                onMouseEnter={(e) => e.currentTarget.style.flex = '2'}
+                onMouseLeave={(e) => e.currentTarget.style.flex = '1'}
+              >
+                {/* Nombre arriba en negro con letra elegante */}
+                <div className="py-5 text-center px-2 flex flex-col justify-center items-center bg-[#fdfdfd] z-10">
+                  <h3 className="text-2xl md:text-3xl font-black font-title uppercase tracking-tight text-[#111111] group-hover:text-[#d8b081] transition-colors duration-300">
+                    {barbero.nombre}
+                  </h3>
+                </div>
+
+                {/* Imagen rellenando el espacio medio */}
+                <div className="flex-1 w-full relative overflow-hidden bg-black">
+                  <img 
+                    src={barbero.foto} 
+                    alt={barbero.nombre} 
+                    className={`w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 ${barbero.imageClass}`} 
+                  />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
+                </div>
+
+                {/* Botón de agendar directo sin contenedor */}
+                <button 
+                  className="relative z-10 w-full py-6 font-bold uppercase tracking-[0.2em] text-xs transition-colors duration-300 outline-none border-t border-black/5"
+                  style={{ backgroundColor: 'transparent', color: '#111111' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#d8b081';
+                    e.currentTarget.style.color = '#000000';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#111111';
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isAuthenticated) {
+                      onSelectReservation?.({ type: 'barbero', nombre: barbero.nombre });
+                    } else {
+                      onRequestLogin?.();
+                    }
+                  }}
+                >
+                  Agendar Cita
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

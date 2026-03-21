@@ -79,14 +79,21 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
 
   useEffect(() => {
     if (!initialItem || isLoading) return;
-    if (serviciosList.length === 0 && paquetesList.length === 0) return;
 
-    const key = `${initialItem.type || initialItem.tipoItem || "servicio"}-${initialItem.id || "0"}`;
+    const isBarberoType = initialItem.type === 'barbero';
+
+    // For barbero type, we need barberosList; for services/packages, we need those lists
+    if (!isBarberoType && serviciosList.length === 0 && paquetesList.length === 0) return;
+    if (isBarberoType && barberosList.length === 0) return;
+
+    const key = isBarberoType
+      ? `barbero-${initialItem.nombre || "0"}`
+      : `${initialItem.type || initialItem.tipoItem || "servicio"}-${initialItem.id || "0"}`;
     if (key === lastInitialItemKey) return;
 
     applyInitialReservationItem(initialItem);
     setLastInitialItemKey(key);
-  }, [initialItem, isLoading, serviciosList, paquetesList, lastInitialItemKey]);
+  }, [initialItem, isLoading, serviciosList, paquetesList, barberosList, lastInitialItemKey]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -198,6 +205,71 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
   const applyInitialReservationItem = (item: any) => {
     if (!item) return;
 
+    const { fecha, hora, hours } = getAutoDateTime();
+    const dayLabels = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const dayName = dayLabels[new Date(`${fecha}T12:00:00`).getDay()] || "Reserva";
+
+    // ── Handle barbero-type selection from landing page ──
+    if (item.type === 'barbero') {
+      const nombreBarbero = String(item.nombre || '').trim().toLowerCase();
+      const barberoMatch = barberosList.find(
+        (b: any) => String(b.nombre || '').trim().toLowerCase().includes(nombreBarbero)
+          || nombreBarbero.includes(String(b.nombre || '').trim().toLowerCase())
+      );
+
+      setSelectedSlot({ dia: dayName, hora: hours, fecha });
+      setSelectedCita(null);
+      setShowFormErrors(false);
+      setClienteSearchTerm("");
+
+      if (barberoMatch) {
+        setBarberoFormSearchTerm(`${barberoMatch.nombre} ${barberoMatch.apellido || ''}`.trim());
+        setNuevaCita({
+          clienteId: 0,
+          cliente: '',
+          telefono: '',
+          servicioId: null,
+          servicioIds: [],
+          productoCantidades: {},
+          paqueteId: null,
+          servicio: '',
+          barberoId: barberoMatch.id,
+          barbero: `${barberoMatch.nombre} ${barberoMatch.apellido || ''}`.trim(),
+          fecha,
+          hora,
+          duracion: 60,
+          precio: 0,
+          estado: 'Pendiente',
+          notas: ''
+        });
+      } else {
+        setBarberoFormSearchTerm(item.nombre || '');
+        setNuevaCita({
+          clienteId: 0,
+          cliente: '',
+          telefono: '',
+          servicioId: null,
+          servicioIds: [],
+          productoCantidades: {},
+          paqueteId: null,
+          servicio: '',
+          barberoId: 0,
+          barbero: item.nombre || '',
+          fecha,
+          hora,
+          duracion: 60,
+          precio: 0,
+          estado: 'Pendiente',
+          notas: ''
+        });
+      }
+
+      setViewMode('crear');
+      onClearInitialItem?.();
+      return;
+    }
+
+    // ── Handle servicio / paquete selection ──
     const isPaquete = item.type === "paquete" || item.tipoItem === "paquete";
     const itemId = Number(item.id || 0);
     if (!itemId) return;
@@ -218,10 +290,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
         duracion = Number(servicio.duracion || duracion || 60);
       }
     }
-
-    const { fecha, hora, hours } = getAutoDateTime();
-    const dayLabels = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const dayName = dayLabels[new Date(`${fecha}T12:00:00`).getDay()] || "Reserva";
 
     setSelectedSlot({
       dia: dayName,

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { useTheme } from "../../../shared/contexts/ThemeContext";
 import {
@@ -52,11 +53,41 @@ const navItems = [
 export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLanding?: () => void; initialItem?: any }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [activePage, setActivePage] = useState("Mis Citas");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedProduct, setPreSelectedProduct] = useState<any>(null);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const clientePathToBasePage = (pathname: string) => {
+    const target = pathname.split('/dashboard/')[1] || '';
+    if (target === '') return 'Mis Citas';
+    if (target === 'compras') return 'Mis Compras';
+    if (target === 'devoluciones') return 'Mis Devoluciones';
+    if (target === 'servicios') return 'Servicios';
+    if (target === 'productos') return 'Productos';
+    if (target === 'cuenta') return 'Cuenta';
+    return 'Mis Citas';
+  };
+
+  const clientePageToPath = (page: string) => {
+    if (page === 'Mis Citas') return '';
+    if (page === 'Mis Compras') return 'compras';
+    if (page === 'Mis Devoluciones') return 'devoluciones';
+    if (page === 'Servicios') return 'servicios';
+    if (page === 'Productos') return 'productos';
+    if (page === 'Cuenta') return 'cuenta';
+    return '';
+  };
+
+  const activePage = clientePathToBasePage(location.pathname);
+
+  const setActivePage = (page: string) => {
+    const path = clientePageToPath(page);
+    navigate(path ? `/dashboard/${path}` : '/dashboard');
+  };
 
   const roleLabel = "Cliente";
   const displayGreetingName = String(user?.name || "Usuario").trim().split(" ")[0] || "Usuario";
@@ -273,13 +304,14 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 {onBackToLanding && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button
+                      <Link
+                        to="/"
                         onClick={onBackToLanding}
-                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
+                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors cursor-pointer"
                         title="Volver a la landing"
                       >
                         <Home className="w-5 h-5 text-orange-primary" />
-                      </button>
+                      </Link>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
                       <p>Volver al inicio</p>

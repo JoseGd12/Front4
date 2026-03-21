@@ -98,19 +98,24 @@ export function BarberosPage() {
   const isDocDuplicateNewBarbero = React.useMemo(() => {
     const docVal = String(newBarbero.documento || '').trim();
     if (!docVal) return false;
-    const existeEnBarberos = barberos.some(b => String(b.documento || '').trim() === docVal);
-    const existeEnUsuarios = usuariosAll.some((u: any) => String(u.documento || '').trim() === docVal);
+    if (editingBarbero && docVal === String(editingBarbero.documento || '').trim()) return false;
+
+    const existeEnBarberos = barberos.some(b => b.id !== editingBarbero?.id && String(b.documento || '').trim() === docVal);
+    const existeEnUsuarios = usuariosAll.some((u: any) => u.id !== editingBarbero?.usuarioId && String(u.documento || '').trim() === docVal);
     const existeEnClientes = clientesAll.some((c: any) => String((c as any).documento || (c as any).numeroDocumento || '').trim() === docVal);
     return existeEnBarberos || existeEnUsuarios || existeEnClientes;
-  }, [newBarbero.documento, barberos, usuariosAll, clientesAll]);
+  }, [newBarbero.documento, barberos, usuariosAll, clientesAll, editingBarbero]);
+
   const isEmailDuplicateNewBarbero = React.useMemo(() => {
     const emailVal = String(newBarbero.correo || '').trim().toLowerCase();
     if (!emailVal) return false;
-    const existeEnBarberos = barberos.some(b => String(b.correo || '').trim().toLowerCase() === emailVal);
-    const existeEnUsuarios = usuariosAll.some((u: any) => String(u.correo || '').trim().toLowerCase() === emailVal);
+    if (editingBarbero && emailVal === String(editingBarbero.correo || '').trim().toLowerCase()) return false;
+
+    const existeEnBarberos = barberos.some(b => b.id !== editingBarbero?.id && String(b.correo || '').trim().toLowerCase() === emailVal);
+    const existeEnUsuarios = usuariosAll.some((u: any) => u.id !== editingBarbero?.usuarioId && String(u.correo || '').trim().toLowerCase() === emailVal);
     const existeEnClientes = clientesAll.some((c: any) => String((c?.correo || c?.Correo || c?.email || '')).trim().toLowerCase() === emailVal);
     return existeEnBarberos || existeEnUsuarios || existeEnClientes;
-  }, [newBarbero.correo, barberos, usuariosAll, clientesAll]);
+  }, [newBarbero.correo, barberos, usuariosAll, clientesAll, editingBarbero]);
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -221,6 +226,15 @@ export function BarberosPage() {
     if (!emailRegex.test(newBarbero.correo)) {
       return false;
     }
+
+    // Validar nombre único
+    const nombreCompleto = `${newBarbero.nombre || ''} ${newBarbero.apellido || ''}`.trim().toLowerCase();
+    const existeNombre = barberos.some(b => `${b.nombre || ''} ${b.apellido || ''}`.trim().toLowerCase() === nombreCompleto);
+    if (existeNombre) {
+      errorAlert("Nombre duplicado", "Ya existe un barbero con este nombre y apellido.");
+      return false;
+    }
+
     // Validar correo único contra Barberos/Usuarios/Clientes
     const emailVal = String(newBarbero.correo || '').trim().toLowerCase();
     if (emailVal) {
@@ -348,12 +362,23 @@ export function BarberosPage() {
         return;
       }
     }
+
+    const nombreCompleto = `${newBarbero.nombre || ''} ${newBarbero.apellido || ''}`.trim().toLowerCase();
+    if (nombreCompleto !== `${editingBarbero.nombre || ''} ${editingBarbero.apellido || ''}`.trim().toLowerCase()) {
+      const existeNombre = barberos.some(b => b.id !== editingBarbero.id && `${b.nombre || ''} ${b.apellido || ''}`.trim().toLowerCase() === nombreCompleto);
+      if (existeNombre) {
+        errorAlert("Nombre duplicado", "Ya existe otro barbero con este nombre y apellido.");
+        return;
+      }
+    }
+
     const docVal = String(newBarbero.documento || '').trim();
     if (newBarbero.documento !== editingBarbero.documento) {
       const existeEnBarberos = barberos.some(b => b.id !== editingBarbero.id && String(b.documento || '').trim() === docVal);
-      const existeEnUsuarios = usuariosAll.some((u: any) => String(u.documento || '').trim() === docVal);
+      const existeEnUsuarios = usuariosAll.some((u: any) => u.id !== editingBarbero.usuarioId && String(u.documento || '').trim() === docVal);
       const existeEnClientes = clientesAll.some((c: any) => String((c as any).documento || (c as any).numeroDocumento || '').trim() === docVal);
       if (existeEnBarberos || existeEnUsuarios || existeEnClientes) {
+        errorAlert("Documento duplicado", "Ya existe un registro con este número de documento (Usuario/Cliente/Barbero).");
         return;
       }
     }
@@ -367,6 +392,8 @@ export function BarberosPage() {
 
       const updatedBarbero = await barberosService.updateBarbero(editingBarbero.id, apiData);
       const mappedBarbero = barberosService.mapApiToComponent(updatedBarbero);
+      
+      mappedBarbero.id = editingBarbero.id; // Asegurar que sea el ID original para evitar duplicación visual
 
       setBarberos(barberos.map(b => b.id === editingBarbero.id ? mappedBarbero : b));
       resetForm();
@@ -746,7 +773,6 @@ export function BarberosPage() {
                   value={newBarbero.tipoDocumento}
                   onChange={(e) => setNewBarbero({ ...newBarbero, tipoDocumento: e.target.value })}
                   className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                  disabled={!!editingBarbero}
                 >
                   <option value="">Seleccionar...</option>
                   {TIPOS_DOCUMENTO.map(td => (
@@ -774,10 +800,9 @@ export function BarberosPage() {
                   maxLength={BARBERO_LIMITS.documento}
                   className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.documento.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="Número de documento (solo números)"
-                  disabled={!!editingBarbero}
                 />
                 {showBarberoFormErrors && !newBarbero.documento.trim() && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
-              {isDocDuplicateNewBarbero && !editingBarbero && <p className="text-xs text-red-400">Documento ya existe en el sistema.</p>}
+              {isDocDuplicateNewBarbero && <p className="text-xs text-red-400">Documento ya existe en el sistema.</p>}
               </div>
               <div className="space-y-2">
                 <Label className="text-white-primary flex items-center gap-2">
@@ -838,7 +863,7 @@ export function BarberosPage() {
                 onChange={(e) => setNewBarbero({ ...newBarbero, correo: e.target.value })}
                 maxLength={BARBERO_LIMITS.correo}
                className={`elegante-input w-full ${
-                 ((showBarberoFormErrors && (!newBarbero.correo.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newBarbero.correo))) || (isEmailDuplicateNewBarbero && !editingBarbero))
+                 ((showBarberoFormErrors && (!newBarbero.correo.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newBarbero.correo))) || isEmailDuplicateNewBarbero)
                    ? 'border-red-500 ring-1 ring-red-500'
                    : ''
                }`}
@@ -846,7 +871,7 @@ export function BarberosPage() {
               />
               {showBarberoFormErrors && !newBarbero.correo.trim() && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               {showBarberoFormErrors && newBarbero.correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newBarbero.correo) && <p className="text-xs text-red-400">Formato de correo inválido.</p>}
-            {isEmailDuplicateNewBarbero && !editingBarbero && <p className="text-xs text-red-400">Correo ya existe en el sistema.</p>}
+            {isEmailDuplicateNewBarbero && <p className="text-xs text-red-400">Correo ya existe en el sistema.</p>}
             </div>
               <div className="space-y-2">
                 <Label className="text-white-primary flex items-center gap-2">
@@ -926,48 +951,171 @@ export function BarberosPage() {
 
       {/* Dialogo de Detalles */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl text-white-primary">
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto text-white-primary">
           <DialogHeader>
-            <DialogTitle>Detalles del Barbero</DialogTitle>
+            <DialogTitle className="text-white-primary">Detalles del Barbero</DialogTitle>
+            <DialogDescription className="text-gray-lightest">
+              Información detallada del barbero seleccionado.
+            </DialogDescription>
           </DialogHeader>
+          
           {selectedBarbero && (
             <div className="space-y-6 pt-4">
-              <div className="flex items-center gap-6 p-4 bg-gray-darker rounded-lg border border-gray-dark">
-                <ImageRenderer url={selectedBarbero.fotoPerfil} className="h-24 w-24 rounded-full border-2 border-orange-primary" fallbackVariant="person" showLabel={false} />
-                <div>
-                  <h3 className="text-2xl font-bold text-white-primary">{selectedBarbero.nombre} {selectedBarbero.apellido}</h3>
-                  <p className="text-orange-primary font-medium">{selectedBarbero.especialidad || 'General'}</p>
-                  <p className="text-gray-lightest text-sm mt-1">ID Sistema: {selectedBarbero.id}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-orange-primary" />
+                    Foto de Perfil
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary flex items-center justify-center bg-gray-dark">
+                      <ImageRenderer
+                        url={selectedBarbero.fotoPerfil}
+                        className="w-full h-full rounded-full"
+                        fallbackVariant="person"
+                        showLabel={false}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-orange-primary" />
+                    Tipo de Documento
+                  </Label>
+                  <Input
+                    value={TIPOS_DOCUMENTO.find(td => td.value === selectedBarbero.tipoDocumento)?.label || selectedBarbero.tipoDocumento}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-x-8 gap-y-4 px-2">
-                <div>
-                  <Label className="text-gray-lightest text-xs uppercase tracking-wider">Documento</Label>
-                  <p className="text-white-primary py-1 border-b border-gray-dark">{selectedBarbero.tipoDocumento} {selectedBarbero.documento}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Hash className="w-4 h-4 text-orange-primary" />
+                    Número de Documento
+                  </Label>
+                  <Input
+                    value={selectedBarbero.documento}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div>
-                  <Label className="text-gray-lightest text-xs uppercase tracking-wider">Estado</Label>
-                  <p className={`py-1 border-b border-gray-dark ${selectedBarbero.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>
-                    {selectedBarbero.status === 'active' ? 'ACTIVO' : 'INACTIVO'}
-                  </p>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-orange-primary" />
+                    Nombres
+                  </Label>
+                  <Input
+                    value={selectedBarbero.nombre}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div>
-                  <Label className="text-gray-lightest text-xs uppercase tracking-wider">Correo</Label>
-                  <p className="text-white-primary py-1 border-b border-gray-dark">{selectedBarbero.correo}</p>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-orange-primary" />
+                    Apellidos
+                  </Label>
+                  <Input
+                    value={selectedBarbero.apellido}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div>
-                  <Label className="text-gray-lightest text-xs uppercase tracking-wider">Teléfono</Label>
-                  <p className="text-white-primary py-1 border-b border-gray-dark">{selectedBarbero.telefono}</p>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-orange-primary" />
+                    Fecha de Nacimiento
+                  </Label>
+                  <Input
+                    type="date"
+                    value={selectedBarbero.fechaNacimiento}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div className="col-span-2">
-                  <Label className="text-gray-lightest text-xs uppercase tracking-wider">Dirección</Label>
-                  <p className="text-white-primary py-1 border-b border-gray-dark">{selectedBarbero.direccion || 'No especificada'} {selectedBarbero.barrio ? ` - ${selectedBarbero.barrio}` : ''}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-orange-primary" />
+                    Correo Electrónico
+                  </Label>
+                  <Input
+                    type="email"
+                    value={selectedBarbero.correo}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-orange-primary" />
+                    Número de Celular
+                  </Label>
+                  <Input
+                    value={selectedBarbero.telefono}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Scissors className="w-4 h-4 text-orange-primary" />
+                    Especialidad
+                  </Label>
+                  <Input
+                    value={selectedBarbero.especialidad}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <ToggleRight className="w-4 h-4 text-orange-primary" />
+                    Estado
+                  </Label>
+                  <Input
+                    value={selectedBarbero.status === 'active' ? 'Activo' : 'Inactivo'}
+                    readOnly
+                    className={`elegante-input w-full cursor-default ${selectedBarbero.status === 'active' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-orange-primary" />
+                    Dirección
+                  </Label>
+                  <Input
+                    value={selectedBarbero.direccion}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-orange-primary" />
+                    Barrio
+                  </Label>
+                  <Input
+                    value={selectedBarbero.barrio}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
               </div>
             </div>
           )}
-          <div className="flex justify-end mt-6">
+
+          <div className="flex justify-end pt-4 mt-6 border-t border-gray-dark">
             <button onClick={() => setIsDetailDialogOpen(false)} className="elegante-button-primary px-8">
               Cerrar
             </button>

@@ -252,6 +252,77 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
   const handleSelectInitialItem = (item: any, currentServicios: any[], currentPaquetes: any[]) => {
     setIsEditMode(false);
+
+    // ── Handle barbero-type selection from landing page ──
+    if (item.type === 'barbero') {
+      const nombreBarbero = String(item.nombre || '').trim().toLowerCase();
+      const barberoMatch = barberosList.find(
+        (b: any) => String(b.nombre || '').trim().toLowerCase().includes(nombreBarbero)
+          || nombreBarbero.includes(String(b.nombre || '').trim().toLowerCase())
+      );
+
+      const today = new Date();
+      const future = new Date(today.getTime() + (60 * 60 * 1000));
+      let hours = future.getHours();
+      let minutes = future.getMinutes();
+      let targetDate = today;
+
+      if (minutes < 15) { minutes = 0; }
+      else if (minutes < 45) { minutes = 30; }
+      else { minutes = 0; hours += 1; }
+
+      if (hours >= 22 || (hours === 21 && minutes > 30)) {
+        targetDate = new Date(today.getTime() + (24 * 60 * 60 * 1000));
+        hours = 11; minutes = 0;
+      } else if (hours < 9) {
+        hours = 11; minutes = 0;
+      }
+
+      const fechaAuto = toLocalDateString(targetDate);
+      const horaAuto = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+      if (barberoMatch) {
+        setBarberoFormSearchTerm(`${barberoMatch.nombre} ${barberoMatch.apellido || ''}`.trim());
+        setNuevaCita({
+          barberoId: barberoMatch.id,
+          barbero: `${barberoMatch.nombre} ${barberoMatch.apellido || ''}`.trim(),
+          servicioId: null,
+          servicioIds: [],
+          productoCantidades: {},
+          paqueteId: null,
+          servicio: '',
+          fecha: fechaAuto,
+          hora: horaAuto,
+          notas: '',
+          duracion: 60,
+          precio: 0,
+          estado: 'Pendiente'
+        });
+      } else {
+        setBarberoFormSearchTerm(item.nombre || '');
+        setNuevaCita({
+          barberoId: 0,
+          barbero: item.nombre || '',
+          servicioId: null,
+          servicioIds: [],
+          productoCantidades: {},
+          paqueteId: null,
+          servicio: '',
+          fecha: fechaAuto,
+          hora: horaAuto,
+          notas: '',
+          duracion: 60,
+          precio: 0,
+          estado: 'Pendiente'
+        });
+      }
+
+      setViewMode('crear');
+      if (onClearInitialItem) onClearInitialItem();
+      return;
+    }
+
+    // ── Handle servicio / paquete selection ──
     const isPaquete = item.type === 'paquete' || item.tipoItem === 'paquete';
     const itemId = item.id;
 

@@ -13,9 +13,13 @@ import { ForzarCambioPassword } from "./features/auth/components/ForzarCambioPas
 import { checkPasswordPolicy } from "./features/auth/services/authUtils";
 import { firebaseAuthService } from "./shared/services/firebase";
 
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+
 function AppContent() {
   const { isAuthenticated, isAdmin, isCliente, logout } = useAuth();
-  const [publicView, setPublicView] = useState<"landing" | "login" | "register" | "verify" | "dashboard">("landing");
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [passwordPolicyReason, setPasswordPolicyReason] = useState<'first_login' | 'expired' | null>(null);
   const [passwordPolicyChecked, setPasswordPolicyChecked] = useState(false);
 
@@ -24,15 +28,6 @@ function AppContent() {
   const [initialReservation, setInitialReservation] = useState<any>(null);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      if (isAdmin()) {
-        setPublicView("dashboard");
-      } else {
-        setPublicView("landing");
-      }
-    }
-
-    // Solución REAL: Detectar parámetros y ruta de recuperación/verificación
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');
     const oobCode = urlParams.get('oobCode');
@@ -40,36 +35,28 @@ function AppContent() {
     const isVerifyPage = window.location.pathname.includes('verify-email');
     let handledSpecialLink = false;
 
-    // Priorizar siempre el mode proporcionado por Firebase por encima de la ruta, 
-    // en caso de que la URL de redirección en Firebase Console esté mal configurada.
     if ((mode === 'resetPassword' || (isResetPage && mode !== 'verifyEmail')) && oobCode) {
       console.log('🎯 Solución REAL: Detectado oobCode para reseteo, abriendo formulario personalizado');
       handledSpecialLink = true;
-      setPublicView("login");
       setResetData({ email: '', token: oobCode });
-
-      const newUrl = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
+      navigate('/login', { replace: true });
     } 
     else if ((mode === 'verifyEmail' || (isVerifyPage && mode !== 'resetPassword')) && oobCode) {
       console.log('📧 Detectado oobCode para verificación de email');
       handledSpecialLink = true;
       setVerifyCode(oobCode);
-      setPublicView("verify");
-
-      const newUrl = window.location.origin + '/'; // O la ruta base
-      window.history.replaceState({}, document.title, newUrl);
+      navigate('/verify-email', { replace: true });
     }
 
     if (!isAuthenticated && !handledSpecialLink) {
       const postLogoutView = sessionStorage.getItem("barbershop_post_logout_view");
-      if (postLogoutView === "login") setPublicView("login");
-      if (postLogoutView === "landing") setPublicView("landing");
+      if (postLogoutView === "login") navigate('/login');
+      if (postLogoutView === "landing") navigate('/');
       if (postLogoutView === "login" || postLogoutView === "landing") {
         sessionStorage.removeItem("barbershop_post_logout_view");
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -118,98 +105,80 @@ function AppContent() {
     );
   }
 
-  if (!isAuthenticated) {
-    if (publicView === "verify") {
-      return (
+  return (
+    <Routes>
+      <Route path="/" element={
+        <LandingPage
+          onRequestLogin={() => navigate('/login')}
+          onRequestRegister={() => navigate('/register')}
+          onRequestDashboard={() => navigate('/dashboard')}
+          onSelectReservation={(item) => {
+            setInitialReservation(item);
+            navigate('/dashboard');
+          }}
+        />
+      } />
+      
+      <Route path="/login" element={
+        isAuthenticated ? <Navigate to="/dashboard" /> : (
+          <LoginPage
+            onRequestRegister={() => navigate('/register')}
+            onBackToLanding={() => navigate('/')}
+            initialResetData={resetData}
+            onResetComplete={() => setResetData(null)}
+          />
+        )
+      } />
+
+      <Route path="/register" element={
+        isAuthenticated ? <Navigate to="/dashboard" /> : (
+          <RegisterPage onBack={() => navigate('/login')} />
+        )
+      } />
+
+      <Route path="/verify-email" element={
         <EmailVerificationPage 
           oobCode={verifyCode}
           onVerificationComplete={() => {
             setVerifyCode('');
-            setPublicView('login');
+            navigate('/login');
           }}
           onBackToLogin={() => {
             setVerifyCode('');
-            setPublicView('login');
+            navigate('/login');
           }}
         />
-      );
-    }
-    if (publicView === "login") {
-      return (
-        <LoginPage
-          onRequestRegister={() => setPublicView("register")}
-          onBackToLanding={() => setPublicView("landing")}
-          initialResetData={resetData}
-          onResetComplete={() => setResetData(null)}
-        />
-      );
-    }
+      } />
 
-    if (publicView === "register") {
-      return <RegisterPage onBack={() => setPublicView("login")} />;
-    }
-
-    return (
-      <LandingPage
-        onRequestLogin={() => setPublicView("login")}
-        onRequestRegister={() => setPublicView("register")}
-        onSelectReservation={(item) => {
-          setInitialReservation(item);
-          setPublicView("dashboard");
-        }}
-      />
-    );
-  }
-
-  if (isAdmin()) {
-    if (publicView === "landing") {
-      return (
-        <LandingPage
-          onRequestLogin={() => setPublicView("login")}
-          onRequestRegister={() => setPublicView("register")}
-          onRequestDashboard={() => setPublicView("dashboard")}
-          onSelectReservation={(item) => {
-            setInitialReservation(item);
-            setPublicView("dashboard");
-          }}
-        />
-      );
-    }
-    return (
-      <Dashboard
-        initialItem={initialReservation}
-        onClearInitialItem={() => setInitialReservation(null)}
-        onBackToLanding={() => setPublicView("landing")}
-      />
-    );
-  }
-
-  if (isCliente()) {
-    if (publicView === "landing") {
-      return (
-        <LandingPage
-          onRequestLogin={() => setPublicView("login")}
-          onRequestRegister={() => setPublicView("register")}
-          onRequestDashboard={() => setPublicView("dashboard")}
-          onSelectReservation={(item) => {
-            setInitialReservation(item);
-            setPublicView("dashboard");
-          }}
-        />
-      );
-    }
-    return (
-      <ClienteDashboard 
-        onBackToLanding={() => {
-          setInitialReservation(null);
-          setPublicView("landing");
-        }} 
-        initialItem={initialReservation}
-      />
-    );
-  }
-
-  return <LandingPage />;
+      <Route path="/dashboard/*" element={
+        isAuthenticated ? (
+          isAdmin() ? (
+            <Dashboard
+              initialItem={initialReservation}
+              onClearInitialItem={() => setInitialReservation(null)}
+              onBackToLanding={() => navigate('/')}
+            />
+          ) : (
+            isCliente() ? (
+              <ClienteDashboard 
+                initialItem={initialReservation}
+                onBackToLanding={() => {
+                  setInitialReservation(null);
+                  navigate('/');
+                }}
+              />
+            ) : (
+              <Navigate to="/" />
+            )
+          )
+        ) : (
+          <Navigate to="/login" />
+        )
+      } />
+      
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
+  );
 }
 
 export default function App() {
