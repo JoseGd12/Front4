@@ -23,6 +23,11 @@ declare module '*.webp' {
     export default value;
 }
 
+declare module '*.mp4' {
+    const value: string;
+    export default value;
+}
+
 interface ImportMetaEnv {
     readonly VITE_FIREBASE_API_KEY: string
     readonly VITE_FIREBASE_AUTH_DOMAIN: string

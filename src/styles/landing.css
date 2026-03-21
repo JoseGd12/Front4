@@ -171,19 +171,208 @@
   transform: translateX(0) skewX(-12deg);
 }
 
-@keyframes slow-zoom {
-  0% {
-    transform: scale(1);
+/* ── Hero Video Section (Inspired by barberiarand.com) ── */
+.hero-video-section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+/* Capa 1: YouTube iframe — sobre-escalado para cubrir sin barras negras */
+.hero-video-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Capa 1: YouTube iframe — scaled to cover viewport like object-fit:cover */
+.hero-video-container iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 100vh;
+  min-width: 177.77vh; /* 16:9 aspect ratio cover */
+  min-height: 56.25vw; /* 16:9 aspect ratio cover */
+  transform: translate(-50%, -50%);
+  border: none;
+  pointer-events: none;
+  filter: brightness(0.55) saturate(0.7);
+}
+
+/* Capa 2: Overlay oscuro con gradiente multitonal */
+.hero-video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(to bottom,
+      rgba(0, 0, 0, 0.35) 0%,
+      rgba(10, 10, 10, 0.55) 40%,
+      rgba(0, 0, 0, 0.75) 85%,
+      rgba(0, 0, 0, 0.95) 100%);
+  pointer-events: none;
+}
+
+/* Capa 3: Patrón diagonal (scanlines) — textura premium sutil */
+.hero-video-pattern {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.12) 0,
+    rgba(0, 0, 0, 0.12) 1px,
+    transparent 0,
+    transparent 50%
+  );
+  background-size: 4px 4px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Capa 4: Contenido central */
+.hero-video-content {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  padding: 0 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Título principal (ahora arriba — se lee primero) */
+.hero-main-title {
+  display: block;
+  font-size: clamp(3.5rem, 10vw, 9rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+  margin-bottom: -0.65em;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Texto de fondo grande semi-transparente (ahora debajo de MANITO) */
+.hero-bg-text {
+  display: block;
+  font-size: clamp(3rem, 12vw, 10rem);
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.06);
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 0;
+}
+
+/* Lista de servicios */
+.hero-services-text {
+  font-size: clamp(0.7rem, 1.5vw, 0.95rem);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 300;
+  margin-bottom: 0.75rem;
+}
+
+/* Tagline en itálica */
+.hero-tagline {
+  font-size: clamp(0.85rem, 1.8vw, 1.15rem);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #d8b081;
+  font-weight: 700;
+  font-style: italic;
+  margin-bottom: 2.5rem;
+}
+
+/* Botón CTA premium */
+.hero-cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2.8rem;
+  border: 2px solid #d8b081;
+  background: transparent;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 0;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.45s cubic-bezier(0.25, 0.8, 0.25, 1);
+  z-index: 1;
+}
+
+.hero-cta-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, #d8b081 0%, #e8c091 100%);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.hero-cta-button:hover {
+  color: #000;
+  border-color: #e8c091;
+  box-shadow: 0 8px 30px rgba(216, 176, 129, 0.35);
+  transform: translateY(-2px);
+}
+
+.hero-cta-button:hover::before {
+  transform: scaleX(1);
+}
+
+/* ── Responsive adjustments ── */
+@media (max-width: 768px) {
+  .hero-bg-text {
+    letter-spacing: 0.12em;
+    margin-bottom: -0.4em;
   }
 
-  100% {
-    transform: scale(1.1);
+  .hero-main-title {
+    margin-bottom: 1rem;
+  }
+
+  .hero-services-text {
+    letter-spacing: 0.15em;
+  }
+
+  .hero-tagline {
+    letter-spacing: 0.1em;
+    margin-bottom: 2rem;
+  }
+
+  .hero-cta-button {
+    padding: 0.85rem 2rem;
+    font-size: 0.85rem;
   }
 }
 
-.animate-slow-zoom {
-  animation: slow-zoom 20s infinite alternate ease-in-out;
-}
 
 .reveal-item {
   opacity: 0;
@@ -672,4 +861,4 @@ body {
 }
 .group:hover .barber-crop-christian {
   transform: scale(1.4);
-}
+}

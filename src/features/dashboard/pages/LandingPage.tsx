@@ -258,6 +258,67 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     };
   }, []);
 
+  // YouTube IFrame Player API — video from second 7 to 41 in loop
+  useEffect(() => {
+    let player: any;
+    let checkInterval: ReturnType<typeof setInterval>;
+
+    const createPlayer = () => {
+      player = new (window as any).YT.Player('hero-youtube-player', {
+        videoId: 'EP1tDRmycH8',
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          showinfo: 0,
+          modestbranding: 1,
+          rel: 0,
+          iv_load_policy: 3,
+          playsinline: 1,
+          start: 7,
+          disablekb: 1,
+          fs: 0,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: (event: any) => {
+            event.target.seekTo(7, true);
+            event.target.playVideo();
+            checkInterval = setInterval(() => {
+              if (player && typeof player.getCurrentTime === 'function') {
+                const currentTime = player.getCurrentTime();
+                if (currentTime >= 41) {
+                  player.seekTo(7, true);
+                }
+              }
+            }, 200);
+          },
+          onStateChange: (event: any) => {
+            if (event.data === (window as any).YT.PlayerState.ENDED) {
+              player.seekTo(7, true);
+              player.playVideo();
+            }
+          },
+        },
+      });
+    };
+
+    if ((window as any).YT && (window as any).YT.Player) {
+      createPlayer();
+    } else {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScript = document.getElementsByTagName('script')[0];
+      firstScript.parentNode?.insertBefore(tag, firstScript);
+      (window as any).onYouTubeIframeAPIReady = createPlayer;
+    }
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+      if (player && typeof player.destroy === 'function') player.destroy();
+    };
+  }, []);
+
   // Fetch data from API (Backend)
   useEffect(() => {
     const fetchData = async () => {
@@ -402,7 +463,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           <div className="flex items-center gap-8 sm:gap-12 lg:gap-16">
             <button
               onClick={() => scrollToSection('inicio')}
-              title="Ir al inicio"
+             
               className="flex items-center gap-4 transition-all duration-300 group"
             >
               <img src={LOGO_URL} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-lg" />
@@ -417,7 +478,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
                 className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
-                title={`Ir a ${item.label}`}
               >
                 {item.label}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -432,7 +492,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   to="/dashboard"
                   onClick={onRequestDashboard}
                   className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
-                  title="Ir a mi panel de control"
                 >
                   Dashboard
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -440,7 +499,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <button
                   onClick={logout}
                   className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300 flex items-center gap-2"
-                  title="Cerrar sesión"
                 >
                   <LogOut className="w-4 h-4" />
                   Salir
@@ -451,7 +509,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <button
                 onClick={onRequestLogin}
                 className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
-                title="Iniciar sesión en tu cuenta"
               >
                 Ingresar
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -464,30 +521,45 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       {/* ═══ Sticky Reveal: Hero + Gallery scroll over Nosotros underneath ═══ */}
       <div style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
 
-      {/* Hero Section */}
-      <header id="inicio" className="relative h-screen flex items-center justify-center overflow-hidden bg-black">
-        <div className="absolute inset-0 z-0">
-          <div
-            className="absolute inset-0 bg-cover bg-center animate-slow-zoom blur-[4px] opacity-40 grayscale"
-            style={{ backgroundImage: `url('https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop')` }}
-          ></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/40 via-[#0d0d0d]/70 to-black"></div>
-          <div className="absolute inset-0 bg-black/30"></div>
+      {/* Hero Section — Video Background (inspired by barberiarand.com) */}
+      <header id="inicio" className="hero-video-section">
+        {/* Capa 1: YouTube video background */}
+        <div className="hero-video-container">
+          <div id="hero-youtube-player" />
         </div>
+
+        {/* Capa 2: Overlay oscuro con gradiente */}
+        <div className="hero-video-overlay" />
+
+        {/* Capa 3: Patrón diagonal (scanlines) — textura premium */}
+        <div className="hero-video-pattern" />
+
+        {/* Capa 4: Contenido central */}
         <div
-          className="relative z-10 text-center px-6 max-w-5xl mx-auto reveal-item active"
+          className="hero-video-content reveal-item active"
           style={{ opacity: heroOpacity, transform: `translateY(${(1 - heroOpacity) * 40}px)`, transition: 'none' }}
         >
-          <h1 className="font-bold tracking-tight font-title text-gradient leading-none mb-6" style={{ fontSize: 'clamp(2.5rem, 7vw, 6rem)' }}>MANITO BARBERSHOP</h1>
-          <button
-            onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
-            title="Reserva tu cita ahora — rápido y fácil"
-            className="inline-flex items-center gap-3 px-10 py-5 bg-[#d8b081] text-black font-bold text-lg rounded-xl shadow-2xl shadow-[#d8b081]/30 hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 mb-10"
-          >
-            {isAuthenticated ? 'Gestionar Mis Citas' : 'Reserva tu Cita'}
-            <ChevronRight className="w-6 h-6" />
-          </button>
-          <p className="text-2xl sm:text-3xl text-gray-300 max-w-2xl mx-auto leading-relaxed font-light">Estilo, Elegancia y Profesionalismo en Cada Corte</p>
+          <h1 className="hero-main-title font-title text-gradient">MANITO</h1>
+          <span className="hero-bg-text font-title">BARBERSHOP</span>
+          <p className="hero-services-text">CORTE · BARBA · CEJAS · ESTILO MASCULINO</p>
+          <p className="hero-tagline">ESTILO, ELEGANCIA Y PROFESIONALISMO</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+            <button
+              onClick={() => scrollToSection('servicios')}
+              className="hero-cta-button"
+            >
+              Lo que ofrecemos
+              <ChevronRight className="w-6 h-6" />
+            </button>
+            <button
+              onClick={() => scrollToSection('nosotros')}
+              className="hero-cta-button"
+              style={{ background: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(216, 176, 129, 0.5)' }}
+            >
+              Conócenos
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </header>
         {/* Black transition line */}
@@ -497,6 +569,16 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
         {/* Gallery Mosaic */}
         <div className="bg-black" style={{ paddingBottom: '3rem' }}>
+          {/* Título de sección */}
+          <div className="text-center mb-10 reveal-item">
+            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '2rem', marginBottom: '1rem' }}>
+              Nuestro trabajo
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-base leading-relaxed">
+              El arte de la barbería reflejado en cada detalle
+            </p>
+          </div>
+
           {(() => {
             const fallbackImages = [
               'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=800&fit=crop',
@@ -623,7 +705,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <button
                   onClick={() => scrollGallery(-1)}
                   className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                  title="Anterior"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
@@ -632,7 +713,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <button
                   onClick={() => scrollGallery(1)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                  title="Siguiente"
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>
@@ -640,11 +720,16 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             );
           })()}
         </div>
+        
+        {/* Fade to Nosotros */}
+        <div style={{ background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)', paddingTop: '4rem', paddingBottom: '4rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent" />
+        </div>
       </div>{/* end of Hero + Gallery wrapper */}
 
       {/* Nosotros — scrolls naturally; zIndex:1 lets following sections (zIndex:2) slide over it */}
       <div id="nosotros" style={{ position: 'relative', zIndex: 1 }}>
-        <section className="nosotros-section relative bg-[#0a0a0a]" style={{ padding: '2.5rem 0 10rem', minHeight: '100vh' }}>
+        <section className="nosotros-section relative bg-[#0a0a0a]" style={{ paddingTop: '1rem', paddingBottom: '2rem' }}>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
             <div className="absolute bottom-20 left-[5%] w-96 h-96 rounded-full bg-[#d8b081]/3 blur-[120px]" style={{ animationDelay: '3s' }} />
@@ -744,7 +829,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     <button
                       onClick={() => setNosotrosSlide((prev) => (prev - 1 + totalPages) % totalPages)}
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-black shadow-lg flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                      title="Anterior"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -753,7 +837,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     <button
                       onClick={() => setNosotrosSlide((prev) => (prev + 1) % totalPages)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-black shadow-lg flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                      title="Siguiente"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -835,7 +918,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               </div>
               <button
                 onClick={() => scrollToSection('servicios')}
-                title="Conoce todos nuestros servicios disponibles"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#d8b081] text-black font-black text-sm uppercase tracking-wider rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 shrink-0 shadow-[0_4px_20px_rgba(216,176,129,0.25)]"
               >
                 Ver servicios <ArrowRight className="w-4 h-4" />
@@ -846,9 +928,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </section>
       </div>
 
+      {/* Fade from Nosotros to Supertitle */}
+      <div style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #000000 100%)', paddingTop: '4rem', paddingBottom: '4rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent" />
+      </div>
+
       {/* Supertítulo que abarca servicios y productos */}
       <div 
-        className="relative border-t border-white/5 flex items-center justify-center overflow-hidden bg-black" 
+        className="relative flex items-center justify-center overflow-hidden bg-black" 
         style={{ zIndex: 2, minHeight: '380px', padding: '6rem 0' }}
       >
         <div className="absolute inset-0 z-0">
@@ -914,8 +1001,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </div>
 
+      {/* Fade from Supertitle to Servicios */}
+      <div style={{ background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)', paddingTop: '4rem', paddingBottom: '4rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent" />
+      </div>
+
       {/* Servicios Section */}
-      <section id="servicios" className="pb-24 pt-0" style={{ backgroundColor: '#0a0a0a', position: 'relative', zIndex: 2 }}>
+      <section id="servicios" className="pb-8 pt-0" style={{ backgroundColor: '#0a0a0a', position: 'relative', zIndex: 2 }}>
         <div className="content-max-width relative z-10">
           <div className="text-center mb-10 reveal-item">
 
@@ -926,7 +1018,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <button
                 type="button"
                 onClick={() => setServicesView('servicios')}
-                title="Ver servicios individuales"
                 data-selected={servicesView === 'servicios'}
                 className="min-w-[210px] px-6 py-3 text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
               >
@@ -935,7 +1026,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <button
                 type="button"
                 onClick={() => setServicesView('paquetes')}
-                title="Ver paquetes disponibles"
                 data-selected={servicesView === 'paquetes'}
                 className="min-w-[210px] px-6 py-3 text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
               >
@@ -1013,7 +1103,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                               onRequestLogin?.();
                             }
                           }}
-                          title={`Reservar ${servicio.nombre} ahora`}
                           className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
                         >
                           Agendar Ahora
@@ -1026,7 +1115,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                             e.stopPropagation();
                             handleOpenDetail(servicio, 'servicio');
                           }}
-                          title={`Ver detalles de ${servicio.nombre}`}
                           className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
                         >
                           Ver Detalles
@@ -1041,8 +1129,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </section>
 
+      {/* Fade from Servicios to Productos */}
+      <div style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #000000 50%, #0d0d0d 100%)', paddingTop: '4rem', paddingBottom: '4rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
+        <div className="absolute inset-x-0 top-1/2 h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent -translate-y-1/2" />
+      </div>
+
       {/* Productos Section */}
-      <section id="productos" className="pb-24 pt-16" style={{ position: 'relative', zIndex: 2, backgroundColor: '#0d0d0d' }}>
+      <section id="productos" className="pb-0 pt-8" style={{ position: 'relative', zIndex: 2, backgroundColor: '#0d0d0d' }}>
         <div className="content-max-width relative z-10">
           <div className="text-center mb-14 reveal-item">
 
@@ -1056,7 +1149,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Carousel de Productos — dirección inversa */}
         <div ref={prodCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
           {loading ? (
-            <div className="flex gap-6 px-6 overflow-hidden w-full" style={{ marginBottom: '2rem' }}>
+            <div className="flex gap-6 px-6 overflow-hidden w-full" style={{ marginBottom: '1rem' }}>
               {[1, 2, 3, 4, 5, 6].map(i => (
                 <div key={i} className="w-[380px] shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]" style={{ animationDelay: `${i * 150}ms` }}>
                   {/* Imagen skeleton con shimmer dorado */}
@@ -1106,7 +1199,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                           e.stopPropagation();
                           handleOpenDetail(producto, 'producto');
                         }}
-                        title={`Ver detalles de ${producto.nombre}`}
                         className="w-full mt-6 py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
                       >
                         Ver Detalles
@@ -1120,8 +1212,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </section>
 
+      {/* Fade from Productos to Equipo */}
+      <div style={{ background: 'linear-gradient(to bottom, #0d0d0d 0%, #0a0a0a 100%)', paddingTop: '1.5rem', paddingBottom: '1.5rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
+        <div className="absolute inset-x-0 top-1/2 h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent -translate-y-1/2" />
+      </div>
+
       {/* Barberos / Equipo Section */}
-      <section id="equipo" className="relative z-10 w-full overflow-hidden bg-[#0a0a0a] py-16">
+      <section id="equipo" className="relative z-10 w-full overflow-hidden bg-[#0a0a0a] pt-0 pb-4">
         <div className="content-max-width relative z-10">
           <div className="text-center mb-12">
             <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
@@ -1191,8 +1288,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </section>
 
+      {/* Fade from Equipo to Datos Clave */}
+      <div style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #080808 100%)', paddingTop: '1.5rem', paddingBottom: '1.5rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
+        <div className="absolute inset-x-0 top-1/2 h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent -translate-y-1/2" />
+      </div>
+
       {/* Datos Clave Section — moved from Nosotros */}
-      <section className="py-20" style={{ position: 'relative', zIndex: 2, backgroundColor: '#080808' }}>
+      <section className="pt-10 pb-20" style={{ position: 'relative', zIndex: 2, backgroundColor: '#080808' }}>
         <div className="content-max-width relative z-10 ">
           <div className="text-center mb-12 reveal-item">
             <div className="flex items-center justify-center gap-4 mb-4 ">
@@ -1570,7 +1672,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             </div>
             <button
               onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
-              title="Reservar cita ahora"
               className="inline-flex items-center gap-3 px-10 pl-4 mb-4 py-4 bg-transparent text-[#d8b081] border-2 border-[#d8b081] font-bold text-sm uppercase tracking-widest rounded-xl shadow-2xl shadow-[#d8b081]/10 hover:scale-105 transition-all duration-300 shrink-0 gold-hover-transition"
             >
               {isAuthenticated ? 'Mi Panel' : 'Reservar Cita'}
