@@ -137,13 +137,13 @@
 .gold-hover-transition::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -1px;
   z-index: -1;
   background: linear-gradient(115deg,
       rgba(216, 176, 129, 0.18) 0%,
       rgba(216, 176, 129, 0.78) 45%,
       rgba(232, 192, 145, 1) 100%);
-  transform: translateX(-110%) skewX(-12deg);
+  transform: translateX(-120%) skewX(-12deg);
   transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -164,11 +164,11 @@
 }
 
 .gold-hover-transition:hover::before {
-  transform: translateX(0) skewX(-12deg);
+  transform: translateX(0) skewX(0deg);
 }
 
 .gold-hover-transition[data-selected='true']::before {
-  transform: translateX(0) skewX(-12deg);
+  transform: translateX(0) skewX(0deg);
 }
 
 /* ── Hero Video Section (Inspired by barberiarand.com) ── */
@@ -401,7 +401,7 @@
 
 /* ── Nosotros Section Premium ── */
 .nosotros-section {
-  background: linear-gradient(180deg, #0a0a0a 0%, #111113 30%, #15130f 60%, #0e0d0b 100%);
+  background: linear-gradient(180deg, #0a0a0a 0%, #111113 25%, #15130f 50%, #0e0d0b 75%, #000000 100%);
   position: relative;
 }
 

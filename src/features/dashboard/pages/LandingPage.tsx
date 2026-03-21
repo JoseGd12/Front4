@@ -568,10 +568,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
 
         {/* Gallery Mosaic */}
-        <div className="bg-black" style={{ paddingBottom: '3rem' }}>
+        <div className="bg-black" style={{ paddingBottom: '1rem' }}>
           {/* Título de sección */}
           <div className="text-center mb-10 reveal-item">
-            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '2rem', marginBottom: '1rem' }}>
+            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '0.5rem', marginBottom: '1rem' }}>
               Nuestro trabajo
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto text-base leading-relaxed">
@@ -651,14 +651,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <div
                   ref={heroGalleryRef}
                   className="flex gallery-scroll"
-                  style={{ height: '520px', gap: '8px', overflowX: 'auto', scrollBehavior: 'auto' }}
+                  style={{ height: '380px', gap: '3px', overflowX: 'auto', scrollBehavior: 'auto' }}
                 >
                   {allSets.map((set, si) => (
-                    <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '8px' }}>
+                    <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
                       {/* Large Image Column */}
                       <div
-                        className="shrink-0 overflow-hidden relative group rounded-lg"
-                        style={{ width: '400px', height: '100%' }}
+                        className="shrink-0 overflow-hidden relative group"
+                        style={{ width: '300px', height: '100%' }}
                       >
                         <img
                           src={set[0]}
@@ -671,8 +671,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       </div>
 
                       {/* Small Images Column (Stacked) */}
-                      <div className="flex flex-col shrink-0 h-full" style={{ width: '280px', gap: '8px' }}>
-                        <div className="flex-1 overflow-hidden relative group rounded-lg">
+                      <div className="flex flex-col shrink-0 h-full" style={{ width: '210px', gap: '3px' }}>
+                        <div className="flex-1 overflow-hidden relative group">
                           <img
                             src={set[1]}
                             alt=""
@@ -682,7 +682,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                           />
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
                         </div>
-                        <div className="flex-1 overflow-hidden relative group rounded-lg">
+                        <div className="flex-1 overflow-hidden relative group">
                           <img
                             src={set[2]}
                             alt=""
@@ -729,7 +729,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
       {/* Nosotros — scrolls naturally; zIndex:1 lets following sections (zIndex:2) slide over it */}
       <div id="nosotros" style={{ position: 'relative', zIndex: 1 }}>
-        <section className="nosotros-section relative bg-[#0a0a0a]" style={{ paddingTop: '1rem', paddingBottom: '2rem' }}>
+        <section className="nosotros-section relative" style={{ paddingTop: '1rem', paddingBottom: '5rem' }}>
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
             <div className="absolute bottom-20 left-[5%] w-96 h-96 rounded-full bg-[#d8b081]/3 blur-[120px]" style={{ animationDelay: '3s' }} />
@@ -738,7 +738,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width relative z-10">
           {/* Título de sección */}
           <div className="text-center mb-8 reveal-item">
-            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
+            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem' }}>
               Nosotros
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto text-base leading-relaxed mt-4">
@@ -928,15 +928,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </section>
       </div>
 
-      {/* Fade from Nosotros to Supertitle */}
-      <div style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #000000 100%)', paddingTop: '4rem', paddingBottom: '4rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent" />
-      </div>
-
       {/* Supertítulo que abarca servicios y productos */}
       <div 
         className="relative flex items-center justify-center overflow-hidden bg-black" 
-        style={{ zIndex: 2, minHeight: '380px', padding: '6rem 0' }}
+        style={{ zIndex: 2, minHeight: '380px', padding: '4rem 0', marginTop: '-2rem' }}
       >
         <div className="absolute inset-0 z-0">
           {ofrecemosBackgrounds.map((bg, index) => (
@@ -982,7 +977,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           ))}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#000] to-transparent"></div>
-          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#000] to-transparent"></div>
+          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#000] to-transparent"></div>
         </div>
 
         {/* Contenido principal sobre todo */}
@@ -1011,7 +1006,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width relative z-10">
           <div className="text-center mb-10 reveal-item">
 
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '4rem', marginBottom: '1rem' }}>
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem', marginBottom: '1rem' }}>
               Servicios
             </h3>
             <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-4">
@@ -1038,31 +1033,24 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Carousel de Servicios */}
         <div ref={servCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
           {loading ? (
-            <div className="flex gap-6 px-6 overflow-hidden w-full" style={{ marginBottom: '2rem' }}>
-              {[1, 2, 3, 4, 5, 6].map(i => (
+            <div className="flex gap-6 w-full" style={{ marginBottom: '2rem' }}>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                 <div key={i} className="w-[380px] shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]" style={{ animationDelay: `${i * 150}ms` }}>
-                  {/* Imagen skeleton con shimmer dorado */}
                   <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
                     <div className="absolute inset-0 skeleton-shimmer-gold" />
                     <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
-                    {/* Badge skeleton */}
                     <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
                   </div>
-                  {/* Contenido skeleton */}
                   <div className="px-6 pt-5 pb-6 space-y-4">
-                    {/* Etiqueta tipo */}
                     <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                    {/* Título + precio */}
                     <div className="flex items-baseline justify-between">
                       <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
                       <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
                     </div>
-                    {/* Descripción */}
                     <div className="space-y-2">
                       <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
                       <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
                     </div>
-                    {/* Botón skeleton */}
                     <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
                   </div>
                 </div>
@@ -1129,17 +1117,17 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </section>
 
-      {/* Fade from Servicios to Productos */}
-      <div style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #000000 50%, #0d0d0d 100%)', paddingTop: '4rem', paddingBottom: '4rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
-        <div className="absolute inset-x-0 top-1/2 h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent -translate-y-1/2" />
+      {/* Divider Servicios → Productos */}
+      <div style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #050505 50%, #0d0d0d 100%)', padding: '4rem 0', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: '75%', height: '3px', borderRadius: '2px', background: 'linear-gradient(90deg, transparent, #d8b081, transparent)' }} />
       </div>
 
       {/* Productos Section */}
-      <section id="productos" className="pb-0 pt-8" style={{ position: 'relative', zIndex: 2, backgroundColor: '#0d0d0d' }}>
+      <section id="productos" className="pb-0 pt-0" style={{ position: 'relative', zIndex: 2, backgroundColor: '#0d0d0d' }}>
         <div className="content-max-width relative z-10">
           <div className="text-center mb-14 reveal-item">
 
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem' }}>
               Productos
             </h3>
             <p className="text-gray-400 max-w-xl mx-auto text-lg leading-relaxed  mb-2">Reserva el producto que deseas y nosotros lo tendremos listo para ti en tu próxima visita.</p>
@@ -1149,24 +1137,19 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Carousel de Productos — dirección inversa */}
         <div ref={prodCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
           {loading ? (
-            <div className="flex gap-6 px-6 overflow-hidden w-full" style={{ marginBottom: '1rem' }}>
-              {[1, 2, 3, 4, 5, 6].map(i => (
+            <div className="flex gap-6 w-full" style={{ marginBottom: '1rem' }}>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                 <div key={i} className="w-[380px] shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]" style={{ animationDelay: `${i * 150}ms` }}>
-                  {/* Imagen skeleton con shimmer dorado */}
                   <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
                     <div className="absolute inset-0 skeleton-shimmer-gold" />
                     <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
                   </div>
-                  {/* Contenido skeleton */}
                   <div className="px-6 pt-5 pb-6 space-y-4">
-                    {/* Etiqueta categoría */}
                     <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                    {/* Título + precio */}
                     <div className="flex items-baseline justify-between">
                       <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
                       <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
                     </div>
-                    {/* Descripción */}
                     <div className="space-y-2">
                       <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
                       <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
@@ -1212,13 +1195,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </section>
 
-      {/* Fade from Productos to Equipo */}
-      <div style={{ background: 'linear-gradient(to bottom, #0d0d0d 0%, #0a0a0a 100%)', paddingTop: '1.5rem', paddingBottom: '1.5rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
-        <div className="absolute inset-x-0 top-1/2 h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent -translate-y-1/2" />
-      </div>
-
       {/* Barberos / Equipo Section */}
-      <section id="equipo" className="relative z-10 w-full overflow-hidden bg-[#0a0a0a] pt-0 pb-4">
+      <section id="equipo" className="relative z-10 w-full overflow-hidden" style={{ background: 'linear-gradient(to bottom, #0d0d0d 0%, #000000 10%, #000000 90%, #080808 100%)', paddingTop: '3rem', paddingBottom: '3rem' }}>
         <div className="content-max-width relative z-10">
           <div className="text-center mb-12">
             <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
@@ -1287,11 +1265,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           </div>
         </div>
       </section>
-
-      {/* Fade from Equipo to Datos Clave */}
-      <div style={{ background: 'linear-gradient(to bottom, #0a0a0a 0%, #080808 100%)', paddingTop: '1.5rem', paddingBottom: '1.5rem', position: 'relative', zIndex: 10, marginTop: '-2px', marginBottom: '-2px' }}>
-        <div className="absolute inset-x-0 top-1/2 h-px w-full bg-gradient-to-r from-transparent via-[#d8b081]/20 to-transparent -translate-y-1/2" />
-      </div>
 
       {/* Datos Clave Section — moved from Nosotros */}
       <section className="pt-10 pb-20" style={{ position: 'relative', zIndex: 2, backgroundColor: '#080808' }}>
