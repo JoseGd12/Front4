@@ -1771,11 +1771,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
                               {/* Overlay hover */}
                               {(!isPastSlot || citasEnSlot.length > 0) && (
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                  <div className="text-center">
-                                    <MoreHorizontal className="w-6 h-6 text-orange-primary mx-auto mb-1" />
-                                    <span className="text-xs text-orange-primary">Gestionar</span>
-                                  </div>
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gray-darkest/60 backdrop-blur-[1px]">
+                                  <Plus className="w-8 h-8 text-gray-light opacity-70" />
                                 </div>
                               )}
 
