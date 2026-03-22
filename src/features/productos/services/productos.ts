@@ -18,6 +18,7 @@ export interface ApiProducto {
   } | null;
   precioBase: number;
   precio: number;
+  tipo?: string;
   precioVenta?: number;
   precioCompra?: number;
   iva: number;
@@ -197,6 +198,7 @@ class ProductoService {
       nombre: data.Nombre || data.nombre,
       descripcion: data.Descripcion || data.descripcion,
       categoria: categoriaNormalizada,
+      tipo: data.Tipo || data.tipo || '',
       precioBase: Number(data.PrecioBase || data.precioBase || data.precioVenta || data.precioCompra || 0),
       precio: Number(data.Precio || data.precio || data.precioVenta || data.precioCompra || 0),
       precioVenta: Number(data.PrecioVenta || data.precioVenta || data.Precio || data.precio || 0),
@@ -294,6 +296,8 @@ class ProductoService {
       StockInsumos: Number(productoData.stockInsumos) || 0,
       StockMinimo: Number(productoData.minCantidad) || 0,
       CategoriaId: categoriaId,
+      Tipo: productoData.tipo || '',
+      tipo: productoData.tipo || '',
       ImagenProduc: productoData.imagenProduc || '',
       Estado: productoData.activo !== undefined ? !!productoData.activo : true,
       Activo: productoData.activo !== undefined ? !!productoData.activo : true
@@ -434,6 +438,8 @@ class ProductoService {
       cantidad: totalStockFinal,
       StockMinimo: Number(productoData.minCantidad),
       CategoriaId: categoriaId,
+      Tipo: productoData.tipo || '',
+      tipo: productoData.tipo || '',
       Marca: productoData.marca || '',
       ImagenProduc: productoData.imagenProduc || '',
       Estado: productoData.activo !== undefined ? !!productoData.activo : true,

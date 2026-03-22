@@ -861,17 +861,7 @@ export function RolesPage() {
             <div className="flex items-center justify-between pt-4 border-t border-gray-dark mt-2">
               <div className="flex items-center gap-3 text-sm text-gray-lightest">
                 <span>Página {currentPage} de {totalPages}</span>
-                <span className="flex items-center gap-2">
-                  Filas por página:
-                  <Select value={itemsPerPage.toString()} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
-                    <SelectTrigger className="bg-gray-darker border border-gray-dark rounded px-2 py-1 text-white-primary text-sm focus:outline-none focus:border-orange-primary">
-                      <SelectValue placeholder="5" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-darkest border-gray-dark">
-                      {[5].map(n => <SelectItem key={n} value={n.toString()} className="text-white-primary">{n}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </span>
+
               </div>
               <EllipsisPagination
                 currentPage={currentPage}

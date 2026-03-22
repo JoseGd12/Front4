@@ -92,12 +92,15 @@ export function ProductosPage() {
 
   const shakeClass = productoValidationAttempt > 0 ? 'animate-shake' : '';
   const esProductoSoloVenta = (producto: any): boolean => {
+    if (producto.tipo === 'solo_venta') return true;
+    if (producto.tipo === 'venta_e_insumo') return false;
     const uso = (producto as any)?.usoProducto;
     if (uso === 'solo_venta') return true;
     if (uso === 'venta_e_insumo') return false;
     return isSaleOnly(producto as any);
   };
   const getUsoProductoActual = (producto: any): 'solo_venta' | 'venta_e_insumo' => {
+    if (producto.tipo === 'solo_venta' || producto.tipo === 'venta_e_insumo') return producto.tipo;
     const uso = (producto as any)?.usoProducto;
     if (uso === 'solo_venta' || uso === 'venta_e_insumo') return uso;
     const stored = getStoredUsage(Number(producto.id));
@@ -225,7 +228,7 @@ export function ProductosPage() {
           q: `${searchTerm}${categoriaInQ}`.trim(),
           ...extra
         });
-        setPagedProductos(res.items);
+        setPagedProductos(normalizarProductosParaUI(res.items, categorias));
         setTotalPagesApi(res.totalPages);
         setTotalCountApi(res.totalCount);
         if (res.page !== currentPage) setCurrentPage(res.page);
@@ -386,6 +389,7 @@ export function ProductosPage() {
         stockInsumos,
         minCantidad: nuevoProducto.minCantidad || 0,
         marca: nuevoProducto.marca || '',
+        tipo: (nuevoProducto as any).usoProducto === 'solo_venta' ? 'solo_venta' : 'venta_e_insumo',
         imagenProduc: nuevoProducto.imagenProduc || '',
         activo: (nuevoProducto as any).activo ?? true
       };
@@ -536,6 +540,7 @@ export function ProductosPage() {
         stockInsumos: stockInsumosFinal,
         minCantidad: nuevoProducto.minCantidad,
         marca: nuevoProducto.marca,
+        tipo: usoProductoFinal,
         imagenProduc: nuevoProducto.imagenProduc,
         activo: nuevoProducto.activo,
         usoProducto: usoProductoFinal,
@@ -1441,23 +1446,6 @@ export function ProductosPage() {
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-lightest">
                   Página {currentPage} de {totalPages}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-lightest">Filas por página:</span>
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={() => {
-                      setItemsPerPage(5);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
-                      <SelectValue placeholder={itemsPerPage.toString()} />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
-                      <SelectItem value="5">5</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
               <EllipsisPagination

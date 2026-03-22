@@ -1159,23 +1159,6 @@ export function ProveedoresPage() {
                 <div className="text-sm text-gray-lightest">
                   Página {currentPage} de {totalPages}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-lightest">Filas por página:</span>
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={() => {
-                      setItemsPerPage(5);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-[110px] h-8 bg-gray-darker border-gray-dark text-gray-lightest">
-                      <SelectValue placeholder={itemsPerPage.toString()} />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
-                      <SelectItem value="5">5</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
               <EllipsisPagination
                 currentPage={currentPage}
