@@ -29,6 +29,7 @@ import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
+import heroVideo from '../../../assets/hero-video.mp4';
 import imgChristian from '../../../assets/Christian.jpg';
 import imgEduardo from '../../../assets/Eduardo.jpg';
 import imgEdwin from '../../../assets/Edwin.jpg';
@@ -203,6 +204,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const { info, success } = useCustomAlert();
   const [scrolled, setScrolled] = useState(false);
   const [heroOpacity, setHeroOpacity] = useState(1);
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
 
@@ -232,9 +234,77 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   // Instagram feed for gallery
   const { feed: instagramFeed } = useInstagramFeed(15);
 
-  // Carousel hooks — services scroll left, products scroll right
-  const servCarousel = useCarouselDrag(1, !loading);
-  const prodCarousel = useCarouselDrag(-1, !loading);
+  // Transform-based infinite carousels (no scrollLeft — seamless loop)
+  const servTrackRef = useRef<HTMLDivElement>(null);
+  const prodTrackRef = useRef<HTMLDivElement>(null);
+  const servOffsetRef = useRef(0);
+  const prodOffsetRef = useRef(0);
+  const servFrameRef = useRef<number>(0);
+  const prodFrameRef = useRef<number>(0);
+
+  const servTargetRef = useRef(0);
+  const prodTargetRef = useRef(0);
+  const carouselPausedRef = useRef(false);
+
+  const nudgeCarousel = (targetRef: React.MutableRefObject<number>, amount: number) => {
+    targetRef.current += amount;
+  };
+
+  useEffect(() => {
+    if (loading) return;
+    const track = servTrackRef.current;
+    if (!track) return;
+    let last = 0;
+    servOffsetRef.current = 0;
+    servTargetRef.current = 0;
+    const tick = (time: number) => {
+      if (!last) last = time;
+      const dt = time - last;
+      last = time;
+      if (!carouselPausedRef.current) {
+        servTargetRef.current -= 0.5 * (dt / 16);
+      }
+      const diff = servTargetRef.current - servOffsetRef.current;
+      servOffsetRef.current += diff * Math.min(1, 0.08 * (dt / 16));
+      const hw = track.scrollWidth / 2;
+      if (hw > 0) {
+        while (servOffsetRef.current <= -hw) { servOffsetRef.current += hw; servTargetRef.current += hw; }
+        while (servOffsetRef.current > 0) { servOffsetRef.current -= hw; servTargetRef.current -= hw; }
+      }
+      track.style.transform = `translateX(${servOffsetRef.current}px)`;
+      servFrameRef.current = requestAnimationFrame(tick);
+    };
+    servFrameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(servFrameRef.current);
+  }, [loading, servicesView]);
+
+  useEffect(() => {
+    if (loading) return;
+    const track = prodTrackRef.current;
+    if (!track) return;
+    let last = 0;
+    prodOffsetRef.current = 0;
+    prodTargetRef.current = 0;
+    const tick = (time: number) => {
+      if (!last) last = time;
+      const dt = time - last;
+      last = time;
+      if (!carouselPausedRef.current) {
+        prodTargetRef.current += 0.5 * (dt / 16);
+      }
+      const diff = prodTargetRef.current - prodOffsetRef.current;
+      prodOffsetRef.current += diff * Math.min(1, 0.08 * (dt / 16));
+      const hw = track.scrollWidth / 2;
+      if (hw > 0) {
+        while (prodOffsetRef.current >= 0) { prodOffsetRef.current -= hw; prodTargetRef.current -= hw; }
+        while (prodOffsetRef.current < -hw) { prodOffsetRef.current += hw; prodTargetRef.current += hw; }
+      }
+      track.style.transform = `translateX(${prodOffsetRef.current}px)`;
+      prodFrameRef.current = requestAnimationFrame(tick);
+    };
+    prodFrameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(prodFrameRef.current);
+  }, [loading]);
 
   const lenisRef = useRef<Lenis | null>(null);
   const heroGalleryRef = useRef<HTMLDivElement>(null);
@@ -258,64 +328,17 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     };
   }, []);
 
-  // YouTube IFrame Player API — video from second 7 to 41 in loop
+  // Hero video preload for faster start
   useEffect(() => {
-    let player: any;
-    let checkInterval: ReturnType<typeof setInterval>;
-
-    const createPlayer = () => {
-      player = new (window as any).YT.Player('hero-youtube-player', {
-        videoId: 'EP1tDRmycH8',
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 0,
-          showinfo: 0,
-          modestbranding: 1,
-          rel: 0,
-          iv_load_policy: 3,
-          playsinline: 1,
-          start: 7,
-          disablekb: 1,
-          fs: 0,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: (event: any) => {
-            event.target.seekTo(7, true);
-            event.target.playVideo();
-            checkInterval = setInterval(() => {
-              if (player && typeof player.getCurrentTime === 'function') {
-                const currentTime = player.getCurrentTime();
-                if (currentTime >= 41) {
-                  player.seekTo(7, true);
-                }
-              }
-            }, 200);
-          },
-          onStateChange: (event: any) => {
-            if (event.data === (window as any).YT.PlayerState.ENDED) {
-              player.seekTo(7, true);
-              player.playVideo();
-            }
-          },
-        },
-      });
-    };
-
-    if ((window as any).YT && (window as any).YT.Player) {
-      createPlayer();
-    } else {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScript = document.getElementsByTagName('script')[0];
-      firstScript.parentNode?.insertBefore(tag, firstScript);
-      (window as any).onYouTubeIframeAPIReady = createPlayer;
-    }
+    const preload = document.createElement('link');
+    preload.rel = 'preload';
+    preload.as = 'video';
+    preload.href = heroVideo;
+    preload.type = 'video/mp4';
+    document.head.appendChild(preload);
 
     return () => {
-      if (checkInterval) clearInterval(checkInterval);
-      if (player && typeof player.destroy === 'function') player.destroy();
+      document.head.removeChild(preload);
     };
   }, []);
 
@@ -410,6 +433,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     const normalizedItem = kind === 'producto' ? { ...item, type: 'producto' } : item;
     setSelectedDetailItem(normalizedItem);
     setIsDetailDialogOpen(true);
+    carouselPausedRef.current = true;
 
     const shouldLoadMore = kind === 'producto' || item.type === 'paquete';
     if (!shouldLoadMore) {
@@ -439,6 +463,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
   const handleDetailDialogChange = (open: boolean) => {
     setIsDetailDialogOpen(open);
+    carouselPausedRef.current = open;
     if (!open) {
       setIsDetailLoading(false);
       setSelectedDetailItem(null);
@@ -451,7 +476,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   );
 
   useEffect(() => {
-    servCarousel.resetPosition();
+    servOffsetRef.current = 0;
   }, [servicesView]);
 
   return (
@@ -521,11 +546,26 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       {/* ═══ Sticky Reveal: Hero + Gallery scroll over Nosotros underneath ═══ */}
       <div style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
 
-      {/* Hero Section — Video Background (inspired by barberiarand.com) */}
+      {/* Hero Section — Video Background */}
       <header id="inicio" className="hero-video-section">
-        {/* Capa 1: YouTube video background */}
-        <div className="hero-video-container">
-          <div id="hero-youtube-player" />
+        {/* Capa 1: Local video background + fallback image */}
+        <div className={`hero-video-container ${heroVideoReady ? 'video-ready' : ''}`}>
+          <img src={imgTeam} alt="" className="hero-video-fallback" loading="eager" aria-hidden="true" />
+          <video
+            className="hero-bg-video"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster={imgTeam}
+            disablePictureInPicture
+            onLoadedData={() => setHeroVideoReady(true)}
+            onCanPlay={() => setHeroVideoReady(true)}
+            aria-hidden="true"
+          >
+            <source src={heroVideo} type="video/mp4" />
+          </video>
         </div>
 
         {/* Capa 2: Overlay oscuro con gradiente */}
@@ -568,7 +608,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
 
         {/* Gallery Mosaic */}
-        <div className="bg-black" style={{ paddingBottom: '1rem' }}>
+        <div className="bg-black" style={{ paddingBottom: '0' }}>
           {/* Título de sección */}
           <div className="text-center mb-10 reveal-item">
             <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '0.5rem', marginBottom: '1rem' }}>
@@ -1031,43 +1071,42 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
 
         {/* Carousel de Servicios */}
-        <div ref={servCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
-          {loading ? (
-            <div className="flex gap-6 w-full" style={{ marginBottom: '2rem' }}>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                <div key={i} className="w-[380px] shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]" style={{ animationDelay: `${i * 150}ms` }}>
-                  <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
-                    <div className="absolute inset-0 skeleton-shimmer-gold" />
-                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
-                    <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
-                  </div>
-                  <div className="px-6 pt-5 pb-6 space-y-4">
-                    <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                    <div className="flex items-baseline justify-between">
-                      <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
-                      <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+        <div className="relative overflow-hidden carousel-mask">
+          <div className="flex gap-6 w-full" style={loading ? {} : { display: 'none' }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                  <div
+                    key={i}
+                    className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                    style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms`, marginBottom: '2rem' }}
+                  >
+                    <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                      <div className="absolute inset-0 skeleton-shimmer-gold" />
+                      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+                      <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
                     </div>
-                    <div className="space-y-2">
-                      <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
-                      <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
-                    </div>
-                    <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div ref={servCarousel.trackRef} className="carousel-track">
-              {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
-                <div key={`srv-${idx}`} className="w-[380px] shrink-0 px-3 group">
-                  <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
-                    <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
-                      <img loading="lazy" src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'} alt={servicio.nombre} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                      <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-y-2 group-hover:translate-y-0 text-white">
-                        <Clock className="w-4 h-4 text-[#d8b081]" />
-                        <span className="text-xs font-black uppercase tracking-widest">{servicio.duracion} min</span>
+                    <div className="px-6 pt-5 pb-6 space-y-4">
+                      <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                      <div className="flex items-baseline justify-between">
+                        <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                        <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
                       </div>
+                      <div className="space-y-2">
+                        <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                        <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                      </div>
+                      <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                    </div>
+                  </div>
+                ))}
+          </div>
+          {!loading && (
+            <div ref={servTrackRef} className="flex gap-6" style={{ width: 'max-content', willChange: 'transform', marginBottom: '2rem' }}>
+              {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
+                <div key={`srv-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
+                  <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
+                    <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(servicio, 'servicio')}>
+                      <img loading="lazy" src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'} alt={servicio.nombre} className="w-full h-full object-cover carousel-card-img" />
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                     </div>
                     <div className="px-6 pt-5 pb-6">
                       <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">
@@ -1077,42 +1116,38 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                         <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{servicio.nombre}</h3>
                         <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(servicio.precio)}</span>
                       </div>
-                      <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
-                      <div className="space-y-3">
-                        <button
-                          data-carousel-no-drag="true"
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onTouchStart={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isAuthenticated) {
-                              onSelectReservation?.(servicio);
-                            } else {
-                              onRequestLogin?.();
-                            }
-                          }}
-                          className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
-                        >
-                          Agendar Ahora
-                        </button>
-                        <button
-                          data-carousel-no-drag="true"
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onTouchStart={(e) => e.stopPropagation()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDetail(servicio, 'servicio');
-                          }}
-                          className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
-                        >
-                          Ver Detalles
-                        </button>
+                      <div className="flex items-center gap-2 text-gray-400 mb-3">
+                        <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
+                        <span className="text-xs font-bold uppercase tracking-widest">{servicio.duracion} min</span>
                       </div>
+                      <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
+                      <button
+                        onClick={() => {
+                          if (isAuthenticated) {
+                            onSelectReservation?.(servicio);
+                          } else {
+                            onRequestLogin?.();
+                          }
+                        }}
+                        className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
+                      >
+                        Agendar Ahora
+                      </button>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+          )}
+          {!loading && (
+            <>
+              <button onClick={() => nudgeCarousel(servTargetRef, 800)} className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button onClick={() => nudgeCarousel(servTargetRef, -800)} className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
           )}
         </div>
       </section>
@@ -1134,38 +1169,41 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           </div>
         </div>
 
-        {/* Carousel de Productos — dirección inversa */}
-        <div ref={prodCarousel.containerRef} className="overflow-hidden carousel-mask carousel-container">
-          {loading ? (
-            <div className="flex gap-6 w-full" style={{ marginBottom: '1rem' }}>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                <div key={i} className="w-[380px] shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]" style={{ animationDelay: `${i * 150}ms` }}>
-                  <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
-                    <div className="absolute inset-0 skeleton-shimmer-gold" />
-                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+        {/* Carousel de Productos */}
+        <div className="relative overflow-hidden carousel-mask">
+          <div className="flex gap-6 w-full" style={loading ? {} : { display: 'none' }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+              <div
+                key={i}
+                className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
+              >
+                <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                  <div className="absolute inset-0 skeleton-shimmer-gold" />
+                  <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+                </div>
+                <div className="px-6 pt-5 pb-6 space-y-4">
+                  <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                  <div className="flex items-baseline justify-between">
+                    <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                    <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
                   </div>
-                  <div className="px-6 pt-5 pb-6 space-y-4">
-                    <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                    <div className="flex items-baseline justify-between">
-                      <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
-                      <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
-                      <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
-                    </div>
+                  <div className="space-y-2">
+                    <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                    <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div ref={prodCarousel.trackRef} className="carousel-track">
+              </div>
+            ))}
+          </div>
+          {!loading && (
+            <div ref={prodTrackRef} className="flex gap-6" style={{ width: 'max-content', willChange: 'transform' }}>
               {[...productos, ...productos].map((producto, idx) => (
-                <div key={`prod-${idx}`} className="w-[380px] shrink-0 px-3 group">
+                <div key={`prod-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
                   <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
-                    <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
-                      <img loading="lazy" src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'} alt={producto.nombre} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                    <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(producto, 'producto')}>
+                      <img loading="lazy" src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'} alt={producto.nombre} className="w-full h-full object-cover carousel-card-img" />
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                     </div>
                     <div className="px-6 pt-5 pb-6">
                       <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">{producto.categoria?.nombre || 'Producto'}</span>
@@ -1174,23 +1212,21 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                         <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(producto.precio)}</span>
                       </div>
                       <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">{producto.descripcion}</p>
-                      <button
-                        data-carousel-no-drag="true"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetail(producto, 'producto');
-                        }}
-                        className="w-full mt-6 py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
-                      >
-                        Ver Detalles
-                      </button>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+          )}
+          {!loading && (
+            <>
+              <button onClick={() => nudgeCarousel(prodTargetRef, 800)} className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button onClick={() => nudgeCarousel(prodTargetRef, -800)} className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
           )}
         </div>
       </section>
@@ -1200,7 +1236,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width relative z-10">
           <div className="text-center mb-12">
             <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
-              Nuestro equipo
+              Nuestros barberos
             </h3>
             <p className="text-gray-400 mt-4 max-w-xl mx-auto text-lg mb-4 leading-relaxed">Conoce a los artistas detrás de tu imagen. Nuestra dedicación se refleja en cada detalle.</p>
           </div>
@@ -1347,252 +1383,99 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
       {/* ── Detail Modal ── */}
       <Dialog open={isDetailDialogOpen} onOpenChange={handleDetailDialogChange}>
-        <DialogContent className="detail-modal-content w-[96vw] max-w-[750px] max-h-[90vh] border border-[#d8b081]/15 !bg-[#0e0e13] !p-0 !gap-0 text-white overflow-hidden rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(216,176,129,0.08)]">
+        <DialogContent
+          className="detail-modal-content border border-[#d8b081]/15 !bg-[#0e0e13] !p-0 !gap-0 text-white overflow-hidden rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(216,176,129,0.08)]"
+          style={{
+            width: 'min(96vw, 750px)',
+            height: 'min(90vh, 720px)',
+            maxWidth: '750px',
+            maxHeight: '90vh',
+          }}
+        >
 
           {/* ─── Skeleton / Loading state ─── */}
           {isDetailLoading && !selectedDetailItem?.nombre ? (
-            <div className="p-0">
-              <div className="relative h-[130px] bg-[#1a1a1a] overflow-hidden">
-                <div className="absolute inset-0 skeleton-shimmer-gold" />
-                <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-[#0e0e13] to-transparent" />
-                <div className="absolute top-3 left-4 w-20 h-6 rounded-full bg-[#d8b081]/8 border border-[#d8b081]/10" />
-              </div>
-              <div className="p-5 space-y-3">
-                <div className="w-2/3 h-5 rounded-lg bg-[#d8b081]/10 skeleton-shimmer-gold" />
-                <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="h-24 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/8 skeleton-shimmer-gold" />
-                  <div className="h-24 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/8 skeleton-shimmer-gold" />
-                </div>
-                <div className="flex justify-center gap-3">
-                  <div className="w-36 h-9 rounded-xl bg-[#d8b081]/8 border border-[#d8b081]/12 skeleton-shimmer-gold" />
-                  <div className="w-24 h-9 rounded-xl bg-white/5 border border-white/8 skeleton-shimmer-gold" />
-                </div>
-              </div>
+            <div className="h-full p-8 space-y-4">
+              <div className="w-full h-[220px] rounded-2xl bg-white/5 skeleton-shimmer-gold" />
+              <div className="w-2/3 h-6 rounded-lg bg-white/5 skeleton-shimmer-gold" />
+              <div className="w-full h-4 rounded-full bg-white/5 skeleton-shimmer-gold" />
+              <div className="w-full h-4 rounded-full bg-white/5 skeleton-shimmer-gold" />
+              <div className="w-40 h-10 rounded-xl bg-[#d8b081]/10 skeleton-shimmer-gold" />
             </div>
           ) : selectedDetailItem && (
-            <div className="overflow-y-auto detail-modal-scroll" style={{ maxHeight: 'calc(90vh - 2rem)' }}>
+            <div className="h-full overflow-y-auto detail-modal-scroll">
+              <div className="relative h-full" style={{ background: '#0a0a0a', padding: '1rem' }}>
 
-              {/* ─── Image header ─── */}
-              <div
-                className="relative w-full overflow-hidden bg-[#111]"
-                style={{
-                  height: '100px',
-                  backgroundImage: `url('https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=900')`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center'
-                }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e13] via-[#0e0e13]/30 to-transparent" />
-
-                {/* Floating badge */}
-                <span className="absolute top-3 left-4 inline-flex items-center gap-1.5 rounded-full border border-[#d8b081]/40 bg-black/60 backdrop-blur-md px-3 py-1 text-[9px] font-black uppercase tracking-[0.35em] text-[#f2d6b3] shadow-lg z-10">
-                  {selectedDetailItem.type === 'producto' ? <ShoppingBag className="h-3 w-3" /> : selectedDetailItem.type === 'paquete' ? <Package className="h-3 w-3" /> : <Scissors className="h-3 w-3" />}
-                  {selectedDetailItem.type === 'producto' ? 'Producto' : selectedDetailItem.type === 'paquete' ? 'Paquete' : 'Servicio'}
-                </span>
-
-                {/* Price */}
-                <div className="absolute bottom-3 right-4 text-right z-10">
-                  <span className="text-2xl font-black font-title text-[#f2d6b3] drop-shadow-lg">${formatCurrency(selectedDetailItem.precio)}</span>
-                  {selectedDetailItem.type === 'paquete' && Number(selectedDetailItem.precioOriginal) > Number(selectedDetailItem.precio) && (
-                    <span className="block text-xs text-gray-400 line-through">${formatCurrency(selectedDetailItem.precioOriginal)}</span>
-                  )}
+                {/* Orbes difuminados dorados (estilo login) */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ opacity: 0.3 }}>
+                  <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full" style={{ background: 'rgba(216,176,129,0.05)', filter: 'blur(120px)' }} />
+                  <div className="absolute -bottom-16 -left-16 w-72 h-72 rounded-full" style={{ background: 'rgba(216,176,129,0.03)', filter: 'blur(100px)' }} />
                 </div>
-              </div>
 
-              {/* ─── Content body ─── */}
-              <div className="relative px-6 pb-5 pt-3">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_center,rgba(216,176,129,0.06),transparent_55%)] pointer-events-none" />
+                {/* Imagen principal */}
+                <div className="relative w-full overflow-hidden rounded-2xl" style={{ height: '260px' }}>
+                  <img
+                    src={
+                      selectedDetailItem.type === 'producto'
+                        ? selectedDetailItem.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'
+                        : selectedDetailItem.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'
+                    }
+                    alt={selectedDetailItem.nombre}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,0.4) 50%, transparent 100%)' }} />
+                </div>
 
-                <div className="relative space-y-3">
+                {/* Contenido */}
+                <div className="relative" style={{ marginTop: '-3rem', padding: '0 2.25rem 2.25rem' }}>
 
-                  {/* ── Top: Name+Desc+Quote (left) | Info cards (right) ── */}
-                  <div className="flex gap-5 items-start">
-                    <div className="flex-1 space-y-2 min-w-0">
-                      <div>
-                        <span className="text-[9px] font-black uppercase tracking-[0.5em] text-gray-500 block mb-1">
-                          {selectedDetailItem.type === 'producto'
-                            ? selectedDetailItem.categoria?.nombre || 'Colección destacada'
-                            : selectedDetailItem.type === 'paquete' ? 'Experiencia combinada' : 'Cuidado personalizado'}
-                        </span>
-                        <h3 className="text-lg font-black font-title uppercase tracking-tight text-white leading-tight">
-                          {selectedDetailItem.nombre}
-                        </h3>
-                      </div>
-                      <p className="text-[13px] leading-relaxed text-gray-300">
-                        {selectedDetailItem.descripcion || (
-                          selectedDetailItem.type === 'producto'
-                            ? 'Producto seleccionado para complementar tu estilo y rutina de cuidado personal.'
-                            : 'Una propuesta premium para una experiencia cómoda, precisa y memorable.'
-                        )}
-                      </p>
-                      <div className="detail-motivational-quote">
-                        <div className="detail-quote-border" />
-                        <p className="text-[13px] font-title italic text-gray-200 leading-relaxed pl-3.5">
-                          {selectedDetailItem.type === 'producto'
-                            ? '"Tu imagen habla por ti. Elige los productos que reflejan quién eres."'
-                            : selectedDetailItem.type === 'paquete'
-                              ? '"Una experiencia completa merece una atención sin igual."'
-                              : '"Cada corte es una obra de arte. Tu estilo, nuestra inspiración."'}
-                        </p>
-                      </div>
-                    </div>
+                  {/* Nombre */}
+                  <h3 className="font-black font-title uppercase tracking-tight text-white leading-tight mb-2" style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)' }}>
+                    {selectedDetailItem.nombre}
+                  </h3>
 
-                    {/* Right: stacked info cards */}
-                    <div className="flex flex-col gap-2 w-[130px] shrink-0">
-                      <div className="detail-info-card rounded-xl p-2.5 text-center">
-                        <div className="w-7 h-7 rounded-lg icon-float flex items-center justify-center mx-auto mb-1">
-                          {selectedDetailItem.type === 'producto'
-                            ? <ShoppingBag className="w-3.5 h-3.5 text-[#d8b081]" />
-                            : <Clock className="w-3.5 h-3.5 text-[#d8b081]" />}
-                        </div>
-                        <span className="block text-sm font-black font-title text-white leading-none">
-                          {selectedDetailItem.type === 'producto'
-                            ? `${Number(selectedDetailItem.stockVentas || 0) + Number(selectedDetailItem.stockInsumos || 0)}`
-                            : `${selectedDetailItem.duracion} min`}
-                        </span>
-                        <span className="block text-[9px] text-gray-400 mt-1 uppercase tracking-wider font-semibold">
-                          {selectedDetailItem.type === 'producto' ? 'Disponibles' : 'Duración'}
-                        </span>
-                      </div>
-                      <div className="detail-info-card rounded-xl p-2.5 text-center">
-                        <div className="w-7 h-7 rounded-lg icon-float flex items-center justify-center mx-auto mb-1">
-                          <Star className="w-3.5 h-3.5 text-[#d8b081]" />
-                        </div>
-                        <span className="block text-sm font-black font-title text-white leading-none">Premium</span>
-                        <span className="block text-[9px] text-gray-400 mt-1 uppercase tracking-wider font-semibold">Calidad</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── Detail rows (2-column wrap) ── */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedDetailItem.type === 'producto' ? (
-                      <>
-                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
-                          <span className="text-[12px] text-gray-400">Marca</span>
-                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.marca || 'Selección Manito'}</span>
-                        </div>
-                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
-                          <span className="text-[12px] text-gray-400">Stock ventas</span>
-                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.stockVentas ?? 0}</span>
-                        </div>
-                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
-                          <span className="text-[12px] text-gray-400">Stock insumos</span>
-                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.stockInsumos ?? 0}</span>
-                        </div>
-                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
-                          <span className="text-[12px] text-gray-400">IVA</span>
-                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.porcentajeIva ?? selectedDetailItem.iva ?? 0}%</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
-                          <span className="text-[12px] text-gray-400">Tipo</span>
-                          <span className="text-[12px] font-bold text-white">{selectedDetailItem.type === 'paquete' ? 'Paquete integral' : 'Servicio individual'}</span>
-                        </div>
-                        <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
-                          <span className="text-[12px] text-gray-400">Atención</span>
-                          <span className="text-[12px] font-bold text-white">Personalizada</span>
-                        </div>
-                        {selectedDetailItem.type === 'paquete' && (
-                          <div className="detail-row flex-1 min-w-[calc(50%-0.2rem)]">
-                            <span className="text-[12px] text-gray-400">Ahorro</span>
-                            <span className="text-[12px] font-bold text-[#d8b081]">
-                              {Math.max(0, Number(selectedDetailItem.precioOriginal || 0) - Number(selectedDetailItem.precio || 0)) > 0
-                                ? `$${formatCurrency(Math.max(0, Number(selectedDetailItem.precioOriginal || 0) - Number(selectedDetailItem.precio || 0)))}`
-                                : 'Incluido'}
-                            </span>
-                          </div>
-                        )}
-                      </>
+                  {/* Precio + duración */}
+                  <div className="flex items-baseline gap-4 mb-5">
+                    <span className="text-2xl font-black font-title" style={{ background: 'linear-gradient(135deg, #fff 0%, #d8b081 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                      ${formatCurrency(selectedDetailItem.precio)}
+                    </span>
+                    {selectedDetailItem.type === 'paquete' && Number(selectedDetailItem.precioOriginal) > Number(selectedDetailItem.precio) && (
+                      <span className="text-sm text-gray-500 line-through">${formatCurrency(selectedDetailItem.precioOriginal)}</span>
+                    )}
+                    {selectedDetailItem.type !== 'producto' && selectedDetailItem.duracion && (
+                      <span className="flex items-center gap-1.5 text-sm text-gray-400">
+                        <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
+                        {selectedDetailItem.duracion} min
+                      </span>
                     )}
                   </div>
 
-                  {/* ── Two-column sections: Benefits + Image ── */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="detail-section-card overflow-clip h-[110px]">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <Check className="h-3.5 w-3.5 text-[#d8b081]" />
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-white">
-                          {selectedDetailItem.type === 'producto' ? 'Lo que debes saber' : selectedDetailItem.type === 'paquete' ? 'Incluye' : 'Beneficios'}
-                        </h4>
-                      </div>
-                      <div className="space-y-1">
-                        {selectedDetailItem.type === 'paquete' ? (
-                          Array.isArray(selectedDetailItem.servicios) && selectedDetailItem.servicios.length > 0 ? (
-                            selectedDetailItem.servicios.slice(0, 3).map((servicioIncluido: string, index: number) => (
-                              <div key={`${servicioIncluido}-${index}`} className="flex items-start gap-2">
-                                <div className="mt-1.5 h-1 w-1 rounded-full bg-[#d8b081] shadow-[0_0_6px_rgba(216,176,129,0.5)]" />
-                                <p className="text-[11px] text-gray-300 leading-snug">{servicioIncluido}</p>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-[11px] text-gray-500 italic">Preparando el listado...</p>
-                          )
-                        ) : selectedDetailItem.type === 'producto' ? (
-                          [
-                            'Complementa tu rutina de cuidado.',
-                            'Alineado con el estándar Manito.',
-                            'Consulta en tu próxima visita.'
-                          ].map((tip, index) => (
-                            <div key={index} className="flex items-start gap-2">
-                              <div className="mt-1.5 h-1 w-1 rounded-full bg-[#d8b081] shadow-[0_0_6px_rgba(216,176,129,0.5)]" />
-                              <p className="text-[11px] text-gray-300 leading-snug">{tip}</p>
-                            </div>
-                          ))
-                        ) : (
-                          [
-                            'Asesoría según tu estilo.',
-                            'Atención al detalle profesional.',
-                            'Imagen impecable garantizada.'
-                          ].map((benefit, index) => (
-                            <div key={index} className="flex items-start gap-2">
-                              <div className="mt-1.5 h-1 w-1 rounded-full bg-[#d8b081] shadow-[0_0_6px_rgba(216,176,129,0.5)]" />
-                              <p className="text-[11px] text-gray-300 leading-snug">{benefit}</p>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="detail-section-card h-[110px] flex items-center justify-center">
-                      <img
-                        src={
-                          selectedDetailItem.type === 'producto'
-                            ? selectedDetailItem.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'
-                            : selectedDetailItem.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'
-                        }
-                        alt={selectedDetailItem.nombre}
-                        style={{ width: '80px', height: '80px', minWidth: '80px', minHeight: '80px', maxWidth: '80px', maxHeight: '80px' }}
-                        className="object-cover rounded-lg shadow-lg shadow-black/30 border border-[#d8b081]/15"
-                      />
-                    </div>
+                  {/* Separador estilo login (tijeras) */}
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(216,176,129,0.4))' }} />
+                    <Scissors className="w-4 h-4" style={{ color: 'rgba(216,176,129,0.5)' }} />
+                    <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(216,176,129,0.4))' }} />
                   </div>
 
-                  {/* ── Experience callout (full width, compact) ── */}
-                  <div className="detail-experience-callout">
-                    <Sparkles className="h-4 w-4 text-[#d8b081] shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#f2d6b3] mb-0.5">
-                        {selectedDetailItem.type === 'producto' ? 'Experiencia sugerida' : 'La promesa Manito'}
-                      </p>
-                      <p className="text-[12px] leading-relaxed text-gray-300">
-                        {selectedDetailItem.type === 'producto'
-                          ? 'Complementa la experiencia Manito y prolonga tu estilo entre visitas.'
-                          : 'Enfoque en detalle, comodidad y asesoría para una imagen que te haga sentir único.'}
-                      </p>
-                    </div>
-                  </div>
+                  {/* Descripción */}
+                  <p className="text-sm leading-relaxed text-gray-300 mb-6">
+                    {selectedDetailItem.descripcion || (
+                      selectedDetailItem.type === 'producto'
+                        ? 'Producto seleccionado para complementar tu estilo y rutina de cuidado personal.'
+                        : 'Una propuesta premium para una experiencia cómoda, precisa y memorable.'
+                    )}
+                  </p>
 
-                  {/* ── Action buttons (centered, compact) ── */}
-                  <div className="flex items-center justify-center gap-3 pt-1">
+                  {/* Botón de acción */}
+                  <div className="flex items-center gap-3">
                     {selectedDetailItem.type === 'producto' ? (
                       <button
                         type="button"
                         onClick={() => handleDetailDialogChange(false)}
-                        className="px-7 py-2.5 bg-transparent text-[#d8b081] text-[12px] font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] transition-all duration-300 gold-hover-transition"
+                        className="h-12 px-8 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
+                        style={{ background: '#d8b081', color: '#000' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#e8c091'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#d8b081'; e.currentTarget.style.transform = 'scale(1)'; }}
                       >
                         Seguir Explorando
                       </button>
@@ -1607,7 +1490,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                             onRequestLogin?.();
                           }
                         }}
-                        className="px-7 py-2.5 bg-transparent text-[#d8b081] text-[12px] font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] transition-all duration-300 gold-hover-transition"
+                        className="h-12 px-8 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
+                        style={{ background: '#d8b081', color: '#000' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#e8c091'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#d8b081'; e.currentTarget.style.transform = 'scale(1)'; }}
                       >
                         Agendar Ahora
                       </button>
@@ -1615,7 +1501,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     <button
                       type="button"
                       onClick={() => handleDetailDialogChange(false)}
-                      className="px-5 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-[12px] font-semibold uppercase tracking-widest text-gray-400 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-gray-200"
+                      className="h-12 px-6 rounded-xl border text-sm font-semibold uppercase tracking-wider transition-all duration-300"
+                      style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#9ca3af' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#e5e7eb'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#9ca3af'; }}
                     >
                       Cerrar
                     </button>

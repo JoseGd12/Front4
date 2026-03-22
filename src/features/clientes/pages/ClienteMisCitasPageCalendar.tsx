@@ -30,6 +30,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { Label } from "../../../shared/components/ui/label";
 import { Input } from "../../../shared/components/ui/input";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { FormSection } from "../../../shared/components/ui/FormSection";
@@ -1139,11 +1140,9 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <Label className="text-gray-lightest text-xs">Fecha *</Label>
-                          <Input
-                            type="date"
+                          <DatePicker
                             value={nuevaCita.fecha}
-                            onChange={(e) => setNuevaCita({ ...nuevaCita, fecha: e.target.value })}
-                            className="elegante-input h-11"
+                            onChange={(val) => setNuevaCita({ ...nuevaCita, fecha: val })}
                             min={new Date().toISOString().split('T')[0]}
                           />
                         </div>

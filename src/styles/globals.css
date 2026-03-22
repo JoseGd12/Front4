@@ -62,9 +62,7 @@
   --sidebar-accent-foreground: var(--black-primary);
   --sidebar-border: var(--gray-dark);
   --sidebar-ring: var(--orange-primary);
-  --search-filter-bg-dark: #333232;
-  --search-filter-bg-light: #d7d0c8;
-  --search-filter-bg: var(--search-filter-bg-dark);
+  --search-filter-bg: #333232;
 }
 
 @theme inline {
@@ -122,77 +120,6 @@
   --color-orange-darker: var(--orange-darker);
   --color-white-primary: var(--white-primary);
   --color-white-secondary: var(--white-secondary);
-}
-
-/* Modo Claro - Almendra, Café Oscuro y Tonos Cálidos */
-[data-theme="light"] {
-  /* Paleta Modo Claro - Alta Claridad y Contraste */
-  --black-primary: #e3ddd3;
-  /* Fondo principal: Gris claro cálido / Blanco más oscuro */
-  --black-secondary: #C9B7A3;
-  /* El mismo color que las gráficas (beige un poco más oscuro) */
-  --gray-darkest: #C9B7A3;
-  /* Paneles / Tarjetas */
-  --gray-darker: #F8F1E9;
-  /* Inputs / Superficies */
-  --gray-dark: #f8f1e9;
-  /* Bordes: Bronceado / Canela */
-  --search-filter-bg: var(--search-filter-bg-light);
-  /* Elementos medios */
-  --gray-light: #8E7B6D;
-  /* Gris cálido */
-  --gray-lighter: #4D4D4D;
-  /* Gris oscuro para iconos descatacados */
-  --gray-lightest: #2D2D2D;
-  /* Gris muy oscuro para texto secundario */
-  --orange-primary: #6F4E37;
-  /* Acentos: Café Café */
-  --orange-secondary: #5D4037;
-  --orange-darker: #3E2723;
-  --white-primary: #000000;
-  /* Texto principal: Negro puro para legibilidad */
-  --white-secondary: #1A1A1A;
-  /* Texto secundario: Casi negro */
-
-  /* Variables principales modo claro */
-  --background: #E5E2DD;
-  --foreground: #000000;
-  --card: #EADBC8;
-  --card-foreground: #000000;
-  --popover: #F5EFE6;
-  --popover-foreground: #000000;
-  --primary: #6F4E37;
-  --primary-foreground: #FFFFFF;
-  --secondary: #D2B48C;
-  --secondary-foreground: #000000;
-  --muted: #F8F1E9;
-  --muted-foreground: #4D4D4D;
-  --accent: #6F4E37;
-  --accent-foreground: #FFFFFF;
-  --destructive: #B91C1C;
-  --destructive-foreground: #FFFFFF;
-  --border: #D2B48C;
-  --input: #F8F1E9;
-  --input-background: #FDFBF7;
-  --switch-background: #BC9E82;
-  --ring: #6F4E37;
-
-  /* Colores de gráficos modo claro */
-  --chart-1: #6F4E37;
-  --chart-2: #8E7B6D;
-  --chart-3: #f8f1e9;
-  --chart-4: #5D4037;
-  --chart-5: #BC9E82;
-
-  /* Colores del sidebar modo claro */
-  --sidebar: #C9B7A3;
-  --sidebar-foreground: #000000;
-  --sidebar-primary: #000000;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EADBC8;
-  --sidebar-accent-foreground: #000000;
-  --sidebar-border: #f8f1e9;
-  --sidebar-ring: #6F4E37;
 }
 
 @layer base {

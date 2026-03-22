@@ -16,8 +16,6 @@ import {
   Scissors,
   FileText,
   ShieldCheck,
-  ArrowLeft,
-  RotateCcw,
   Plus,
 } from "lucide-react";
 import { Checkbox } from "../../../shared/components/ui/checkbox";
@@ -791,26 +789,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       actualizarPrecioServicio(servicioId, Math.max(0, n));
   };
 
-  const limpiarFormulario = () => {
-    setNuevaVenta({
-      ...inicialNuevaVenta,
-      fechaCreacion: generateCurrentDate(),
-    });
-    setCantidadProducto(0);
-    setCantidadProductoInput("");
-    setPorcentajeDescuentoInput("");
-    setTarjetaProductoInputs({});
-    setTarjetaServicioInputs({});
-    setServiciosAgregados([]);
-    setClientSearchTerm("");
-    setProductSearchTerm("");
-    setBarberoSearchTerm("");
-    setServiceSearchTerm("");
-    setShowVentaFormErrors(false);
-    setShowAddProductoErrors(false);
-    setShowAddServicioErrors(false);
-  };
-
   const handleCreateVenta = async () => {
     setShowVentaFormErrors(true);
     setVentaValidationAttempt((prev) => prev + 1);
@@ -1072,38 +1050,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   return (
     <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
       <AlertContainer />
-
-      {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
-            title="Volver a Ventas"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
-              <Receipt className="w-6 h-6 text-orange-primary" />
-              Registrar Nueva Venta
-            </h2>
-            <p className="text-sm text-gray-lightest">
-              Completa la información de la transacción
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={limpiarFormulario}
-            className="elegante-button-secondary flex items-center gap-2"
-            title="Limpiar formulario"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Limpiar
-          </button>
-        </div>
-      </div>
 
       {/* Master-Detail Layout */}
       <div

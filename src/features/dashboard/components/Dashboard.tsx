@@ -1,10 +1,9 @@
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { authSyncService } from "../../auth/services/authSyncService";
 import { rolesApiService } from "../../administracion/services/rolesApiService";
 import { modulosService } from "../../administracion/services/modulosService";
-import { useTheme } from "../../../shared/contexts/ThemeContext";
 import { BarberPole } from "../../../shared/components/ui/BarberPole";
 import {
   Calendar,
@@ -23,12 +22,10 @@ import {
   LogOut,
   Menu,
   RotateCcw,
-  Sun,
-  Moon,
   LayoutGrid,
   Eye,
   AtSign,
-  Home,
+  ArrowRight,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
@@ -65,6 +62,15 @@ const RolesPage = React.lazy(() => import("../../administracion/pages/RolesPage"
 const UsersPage = React.lazy(() => import("../../administracion/pages/UsersPage").then(m => ({ default: m.UsersPage })));
 import manitoLogo from "../../../assets/Manito.jpeg";
 
+type ModuleSubNavOverride = {
+  title: string;
+  subtitle?: string;
+  onBack?: () => void;
+  backTitle?: string;
+  icon?: React.ReactNode;
+  iconContainerClassName?: string;
+} | null;
+
 // Información de cada módulo para el título dinámico
 const moduleInfo: Record<string, {
   title: string;
@@ -85,8 +91,8 @@ const moduleInfo: Record<string, {
     color: "text-green-400"
   },
   "RegistrarVenta": {
-    title: "Gestión de Ventas",
-    description: "Procesamiento y seguimiento de ventas",
+    title: "Registrar Nueva Venta",
+    description: "Completa la información de la transacción",
     icon: DollarSign,
     color: "text-green-400"
   },
@@ -97,8 +103,8 @@ const moduleInfo: Record<string, {
     color: "text-blue-400"
   },
   "RegistrarCompra": {
-    title: "Gestión de Compras",
-    description: "Administración de compras y proveedores",
+    title: "Registrar Nueva Compra",
+    description: "Completa la información de la compra al proveedor",
     icon: ShoppingCart,
     color: "text-blue-400"
   },
@@ -109,14 +115,14 @@ const moduleInfo: Record<string, {
     color: "text-yellow-400"
   },
   "RegistrarDevolucion": {
-    title: "Devoluciones",
-    description: "Gestión de devoluciones y reembolsos",
+    title: "Registrar Nueva Devolución",
+    description: "Completa la información de la devolución",
     icon: RotateCcw,
     color: "text-yellow-400"
   },
   "RegistrarEntrega": {
-    title: "Entregas de Insumos",
-    description: "Gestión de entregas de insumos",
+    title: "Registrar Nueva Entrega",
+    description: "Completa la información de la entrega de insumos",
     icon: Truck,
     color: "text-green-400"
   },
@@ -243,11 +249,11 @@ interface DashboardProps {
 
 export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: DashboardProps) {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
+  const [subNavOverride, setSubNavOverride] = useState<ModuleSubNavOverride>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -302,6 +308,16 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   };
 
   const activePage = pathToBasePage(location.pathname);
+  const isRegistrarCompraPage = activePage === "RegistrarCompra";
+  const isRegistrarVentaPage = activePage === "RegistrarVenta";
+  const isRegistrarDevolucionPage = activePage === "RegistrarDevolucion";
+  const isRegistrarEntregaPage = activePage === "RegistrarEntrega";
+
+  useEffect(() => {
+    if (activePage !== "Agendamientos") {
+      setSubNavOverride(null);
+    }
+  }, [activePage]);
 
   const setActivePage = (page: string) => {
     const path = pageToPath(page);
@@ -425,18 +441,20 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     });
   };
 
-  const filteredMenuSections = menuSections.map(section => {
-    return {
-      ...section,
-      items: section.items.filter(item => {
-        // Filtro adicional: Solo el 'super_admin' puede ver el módulo de Roles
-        if (item.label === "Roles") {
-          return user?.role === 'super_admin';
-        }
-        return checkModuleAccess(item.label);
-      })
-    };
-  }).filter(section => section.items.length > 0);
+  const filteredMenuSections = useMemo(() => (
+    menuSections.map(section => {
+      return {
+        ...section,
+        items: section.items.filter(item => {
+          // Filtro adicional: Solo el 'super_admin' puede ver el módulo de Roles
+          if (item.label === "Roles") {
+            return user?.role === 'super_admin';
+          }
+          return checkModuleAccess(item.label);
+        })
+      };
+    }).filter(section => section.items.length > 0)
+  ), [allowedModules, user?.role]);
 
   const renderNavItem = (item: any) => {
     const Icon = item.icon;
@@ -483,6 +501,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               setPreSelectedReservation(null);
               onClearInitialItem?.();
             }}
+            onSubNavChange={setSubNavOverride}
           />
         );
       case "Horarios":
@@ -527,14 +546,56 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   };
 
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(filteredMenuSections.map(section => [section.title, false]))
+    Object.fromEntries(filteredMenuSections.map(section => [section.title, true]))
   );
 
+  useEffect(() => {
+    setCollapsedSections(prev =>
+      Object.fromEntries(
+        filteredMenuSections.map(section => [section.title, prev[section.title] ?? true])
+      )
+    );
+  }, [filteredMenuSections]);
+
+  const defaultSubNavConfig = {
+    title: moduleInfo[activePage] ? moduleInfo[activePage].title : activePage,
+    subtitle:
+      isRegistrarCompraPage ||
+      isRegistrarVentaPage ||
+      isRegistrarDevolucionPage ||
+      isRegistrarEntregaPage
+        ? moduleInfo[activePage]?.description
+        : undefined,
+    onBack:
+      isRegistrarCompraPage ? () => setActivePage("Compras") :
+      isRegistrarVentaPage ? () => setActivePage("Ventas") :
+      isRegistrarDevolucionPage ? () => setActivePage("Devoluciones") :
+      isRegistrarEntregaPage ? () => setActivePage("Entregas de Insumos") :
+      undefined,
+    backTitle:
+      isRegistrarCompraPage ? "Volver a Compras" :
+      isRegistrarVentaPage ? "Volver a Ventas" :
+      isRegistrarDevolucionPage ? "Volver a Devoluciones" :
+      isRegistrarEntregaPage ? "Volver a Entregas de Insumos" :
+      undefined,
+    icon: moduleInfo[activePage] && moduleInfo[activePage].icon
+      ? React.createElement(moduleInfo[activePage].icon, { className: "w-5 h-5" })
+      : undefined,
+    iconContainerClassName: moduleInfo[activePage] ? moduleInfo[activePage].color : undefined,
+  };
+
+  const currentSubNav = subNavOverride ?? defaultSubNavConfig;
+
   const toggleSection = (title: string) => {
-    setCollapsedSections(prev => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
+    setCollapsedSections(prev => {
+      const wasCollapsed = prev[title];
+      const allCollapsed = Object.fromEntries(
+        Object.keys(prev).map(key => [key, true])
+      );
+      return wasCollapsed
+        ? { ...allCollapsed, [title]: false }
+        : { ...allCollapsed, [title]: true };
+    });
   };
 
   return (
@@ -544,8 +605,8 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         <header
           className="border-b border-gray-dark py-4 flex items-center transition-colors z-[100] relative"
           style={{
-            backgroundColor: theme === 'dark' ? '#111111' : '#c9b7a3',
-            boxShadow: theme === 'dark' ? '0px 0px 25px rgba(0,0,0,0.8)' : '0px 0px 25px rgba(0,0,0,0.35)'
+            backgroundColor: "#111111",
+            boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
           }}
         >
           <div className="flex items-center w-full">
@@ -594,36 +655,38 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
-                <button
-                  onClick={toggleTheme}
-                  className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-                  title={theme === 'dark' ? "Modo Claro" : "Modo Oscuro"}
-                >
-                  {theme === 'dark' ? (
-                    <Sun className="w-5 h-5 text-orange-primary" />
-                  ) : (
-                    <Moon className="w-5 h-5 text-orange-primary" />
-                  )}
-                </button>
+                {onBackToLanding && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to="/"
+                        onClick={onBackToLanding}
+                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors cursor-pointer"
+                        title="Volver a la landing"
+                      >
+                        <ArrowRight className="w-5 h-5 text-orange-primary" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>Volver al inicio</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark hover:bg-gray-darker transition-colors"
+                      className="w-10 h-10 rounded-full overflow-hidden border border-orange-primary/30 hover:border-orange-primary/60 hover:scale-105 transition-all duration-200"
                       title="Cuenta"
                       type="button"
                     >
-                      <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark shrink-0">
-                        <ImageRenderer
-                          url={user?.fotoPerfil}
-                          className="w-full h-full object-cover"
-                          alt={user?.name}
-                        />
-                      </div>
-                      <div className="hidden md:flex flex-col text-left min-w-0">
-                        <p className="text-sm font-semibold text-white-primary truncate">{user?.name || "Usuario"}</p>
-                        <p className="text-xs text-gray-lighter truncate">{roleLabel}</p>
-                      </div>
+                      <ImageRenderer
+                        url={user?.fotoPerfil}
+                        className="w-full h-full object-cover rounded-full border-0 bg-transparent"
+                        alt={user?.name}
+                        showLabel={false}
+                        fallbackVariant="person"
+                      />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -668,24 +731,6 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                {onBackToLanding && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to="/"
-                        onClick={onBackToLanding}
-                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors cursor-pointer"
-                        title="Volver a la landing"
-                      >
-                        <Home className="w-5 h-5 text-orange-primary" />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>Volver al inicio</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
               </div>
             </div>
           </div>
@@ -695,8 +740,8 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           <aside
             className={`border-r border-gray-dark flex flex-col transition-[width] duration-200 ease-out will-change-[width] shrink-0 z-[90] relative ${sidebarCollapsed ? "w-20" : "w-72"}`}
             style={{
-              backgroundColor: theme === 'dark' ? '#111111' : '#c9b7a3',
-              boxShadow: theme === 'dark' ? '0px 0px 25px rgba(0,0,0,0.8)' : '0px 0px 25px rgba(0,0,0,0.35)'
+              backgroundColor: "#111111",
+              boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
             <div className={`px-4 py-5 ${sidebarCollapsed ? "flex justify-center" : "flex items-center gap-3"}`}>
@@ -728,21 +773,30 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                       <div key={section.title} className="space-y-2">
                         <button
                           onClick={() => toggleSection(section.title)}
-                          className="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] text-gray-lightest/80 px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
+                          className={`w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] px-3 py-2 rounded-md transition-colors ${!isCollapsed ? "text-orange-primary bg-orange-primary/5" : "text-gray-lightest/80 hover:bg-white/5"}`}
                           aria-expanded={!isCollapsed}
                         >
                           <span>{section.title}</span>
-                          <span className="text-xs">
+                          <span
+                            className="text-xs inline-block"
+                            style={{
+                              transition: 'transform 300ms cubic-bezier(0.4,0,0.2,1)',
+                              transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+                            }}
+                          >
                             {isCollapsed ? "+" : "–"}
                           </span>
                         </button>
                         <div
-                          className={`overflow-hidden transition-[max-height,opacity] duration-150 ease-out ${isCollapsed
-                            ? "max-h-0 opacity-0 pointer-events-none"
-                            : "max-h-96 opacity-100"
-                            } space-y-1 pl-1`}
+                          className={`overflow-hidden space-y-1 pl-1`}
+                          style={{
+                            maxHeight: isCollapsed ? 0 : `${section.items.length * 44}px`,
+                            opacity: isCollapsed ? 0 : 1,
+                            transition: 'max-height 300ms cubic-bezier(0.4,0,0.2,1), opacity 250ms ease',
+                            pointerEvents: isCollapsed ? 'none' : 'auto',
+                          }}
                         >
-                          {!isCollapsed && section.items.map(renderNavItem)}
+                          {section.items.map(renderNavItem)}
                         </div>
                       </div>
                     );
@@ -753,9 +807,12 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           </aside>
           <div className="flex-1 flex flex-col overflow-hidden">
             <ModuleSubNav
-              title={moduleInfo[activePage] ? moduleInfo[activePage].title : activePage}
-              icon={moduleInfo[activePage] && moduleInfo[activePage].icon ? React.createElement(moduleInfo[activePage].icon, { className: "w-5 h-5" }) : undefined}
-              iconContainerClassName={moduleInfo[activePage] ? moduleInfo[activePage].color : undefined}
+              title={currentSubNav.title}
+              subtitle={currentSubNav.subtitle}
+              onBack={currentSubNav.onBack}
+              backTitle={currentSubNav.backTitle}
+              icon={currentSubNav.icon}
+              iconContainerClassName={currentSubNav.iconContainerClassName}
             />
             <div
               className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${

@@ -4,7 +4,7 @@ import { Calendar, DollarSign, Users, Scissors, Package, Clock, Download, Chevro
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType } from "recharts";
 import { useThemeColors } from "../../../shared/utils/themeColors";
 import { Skeleton } from "../../../shared/components/ui/skeleton";
-import { Input } from "../../../shared/components/ui/input";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { auth } from "../../../shared/services/firebase";
 import * as XLSX from "xlsx";
@@ -1397,12 +1397,10 @@ export function DashboardPage() {
                     <Calendar className="w-4 h-4 text-orange-primary" />
                         Desde
                       </Label>
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={reportStart}
                     max={todayYMD}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onChange={(v) => {
                       const capped = v > todayYMD ? todayYMD : v;
                       setReportStart(capped);
                       if (reportEnd < capped) setReportEnd(capped);
@@ -1414,12 +1412,10 @@ export function DashboardPage() {
                         <Calendar className="w-4 h-4 text-orange-primary" />
                         Hasta
                       </Label>
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={reportEnd}
                     max={todayYMD}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onChange={(v) => {
                       const capped = v > todayYMD ? todayYMD : v;
                       setReportEnd(capped);
                       if (capped < reportStart) setReportStart(capped);

@@ -34,27 +34,18 @@ El sistema maneja dos tipos de roles con interfaces completamente diferentes:
 
 ## Esquema de Colores
 
-El sistema cuenta con dos modos de visualización: **Modo Oscuro** (predeterminado) y **Modo Claro**.
+El sistema usa un único modo de visualización: **Modo Oscuro**.
 
-### Modo Oscuro (Predeterminado)
+### Paleta Base
 - **Negro Primario**: #000000 - Fondo principal
 - **Grises**: #1a1a1a a #aaaaaa - Jerarquía de contenido
 - **Naranja Cobrizo**: #E3931C, #F5A642 - Elementos de acción y énfasis
 - **Blanco**: #FFFFFF - Texto principal
 
-### Modo Claro
-- **Almendra Oscuro**: #EDE0D0 - Fondo principal (más cálido y suave)
-- **Almendra/Crema**: #F5E6D3, #F5EAE0, #E5D4C0 - Cards y elementos secundarios
-- **Café Oscuro**: #5D4037, #4E342E, #3E2723 - Acento (reemplaza naranja), texto principal
-- **Tonos Café**: #D7CCC8, #BCAAA4, #A1887F - Bordes y elementos secundarios
-- **Sidebar**: #F5E6D3 - Tono almendra claro para contraste
-
-### Toggle de Tema
-- Ubicado en el sidebar junto al botón de colapso
-- Icono de Sol (☀️) en modo oscuro para cambiar a claro
-- Icono de Luna (🌙) en modo claro para cambiar a oscuro
-- Persistencia en localStorage con clave "barberia-theme"
-- Todos los colores amarillos/naranjas/dorados se convierten automáticamente a café oscuro en modo claro
+### Tema Único (Oscuro)
+- El proyecto usa únicamente paleta oscura con acentos dorados.
+- No existe toggle de tema ni persistencia de preferencia de modo claro/oscuro.
+- El atributo `data-theme` se fija en `dark` al iniciar la app.
 
 ### Uso de Colores en el Código
 
@@ -77,7 +68,7 @@ className="theme-primary-color theme-primary-bg theme-primary-border"
 import { useThemeColors } from '../utils/themeColors';
 
 function MyComponent() {
-  const colors = useThemeColors(); // Se actualiza automáticamente
+  const colors = useThemeColors(); // Retorna la paleta oscura fija
   
   return (
     <BarChart>
@@ -87,19 +78,13 @@ function MyComponent() {
 }
 ```
 
-**Mapeo de Colores por Tema:**
-- `#E3931C` (naranja) → `#5D4037` (café oscuro)
-- `#FFD700` (dorado) → `#5D4037` (café oscuro)
-- `#FFC107` (dorado alt) → `#4E342E` (café oscuro alt)
-- `#F5A642` (naranja claro) → `#6D4C41` (café medio)
-
 **Importante:** 
 - ✅ Usar `colors.primary`, `colors.gold`, `colors.accent` del hook `useThemeColors()`
 - ✅ Usar variables CSS: `var(--color-orange-primary)` 
 - ✅ Usar clases de utilidad: `text-orange-primary`, `bg-orange-primary`
 - ❌ NO usar colores hardcodeados: `#E3931C`, `#FFD700`, etc.
 
-**Colores que NO cambian con el tema:**
+**Colores que se mantienen fijos:**
 - Estados de éxito (verde): `#22C55E`, `#10B981`
 - Estados de error (rojo): `#EF4444`, `#DC2626`, `#C62828`
 - Estados de advertencia (amarillo): `#F59E0B`
@@ -107,22 +92,13 @@ function MyComponent() {
 
 ### Aplicación por Componente
 
-**Modo Oscuro:**
+**Diseño actual:**
 - **Botones primarios**: Fondo naranja cobrizo (#E3931C) con texto negro
 - **Botones secundarios**: Borde naranja con fondo transparente
 - **Cards**: Fondo gris oscuro (#1a1a1a) con bordes grises
 - **Navegación activa**: Borde naranja con fondo gris
 - **Estados de éxito**: Verde para completado
 - **Estados de advertencia**: Naranja para pendiente
-- **Estados de error**: Rojo para cancelado/error
-
-**Modo Claro:**
-- **Botones primarios**: Fondo café oscuro (#5D4037) con texto blanco
-- **Botones secundarios**: Borde café con fondo transparente
-- **Cards**: Fondo almendra (#F5E6D3) con bordes café claro
-- **Navegación activa**: Borde café oscuro con fondo crema
-- **Estados de éxito**: Verde para completado
-- **Estados de advertencia**: Café para pendiente
 - **Estados de error**: Rojo para cancelado/error
 
 ## Componentes Específicos

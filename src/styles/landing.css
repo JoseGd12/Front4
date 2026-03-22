@@ -183,7 +183,7 @@
   background: #000;
 }
 
-/* Capa 1: YouTube iframe — sobre-escalado para cubrir sin barras negras */
+/* Capa 1: Video local y fallback */
 .hero-video-container {
   position: absolute;
   inset: 0;
@@ -192,8 +192,8 @@
   overflow: hidden;
 }
 
-/* Capa 1: YouTube iframe — scaled to cover viewport like object-fit:cover */
-.hero-video-container iframe {
+.hero-video-fallback,
+.hero-bg-video {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -202,9 +202,27 @@
   min-width: 177.77vh; /* 16:9 aspect ratio cover */
   min-height: 56.25vw; /* 16:9 aspect ratio cover */
   transform: translate(-50%, -50%);
-  border: none;
   pointer-events: none;
+  object-fit: cover;
   filter: brightness(0.55) saturate(0.7);
+}
+
+.hero-video-fallback {
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+.hero-bg-video {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.hero-video-container.video-ready .hero-bg-video {
+  opacity: 1;
+}
+
+.hero-video-container.video-ready .hero-video-fallback {
+  opacity: 0;
 }
 
 /* Capa 2: Overlay oscuro con gradiente multitonal */
@@ -861,4 +879,13 @@ body {
 }
 .group:hover .barber-crop-christian {
   transform: scale(1.4);
+}
+
+.carousel-card-img {
+  opacity: 0.7;
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.group:hover .carousel-card-img {
+  opacity: 1;
+  transform: scale(1.05);
 }

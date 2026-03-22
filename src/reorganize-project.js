@@ -128,7 +128,6 @@ const fileMap = {
   '/components/ui/sidebar.tsx': '/src/shared/components/ui/sidebar.tsx',
   '/components/ui/skeleton.tsx': '/src/shared/components/ui/skeleton.tsx',
   '/components/ui/slider.tsx': '/src/shared/components/ui/slider.tsx',
-  '/components/ui/sonner.tsx': '/src/shared/components/ui/sonner.tsx',
   '/components/ui/switch.tsx': '/src/shared/components/ui/switch.tsx',
   '/components/ui/table.tsx': '/src/shared/components/ui/table.tsx',
   '/components/ui/tabs.tsx': '/src/shared/components/ui/tabs.tsx',
@@ -143,7 +142,6 @@ const fileMap = {
   '/components/figma/ImageWithFallback.tsx': '/src/shared/components/figma/ImageWithFallback.tsx',
 
   // SHARED - CONTEXTS
-  '/components/ThemeContext.tsx': '/src/shared/contexts/ThemeContext.tsx',
 
   // SHARED - UTILS
   '/components/utils/themeColors.ts': '/src/shared/utils/themeColors.ts',

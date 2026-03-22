@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
@@ -851,16 +852,16 @@ export function UsersPage() {
                           <IdCard className="w-4 h-4 text-orange-primary" />
                           Tipo de Documento *
                         </Label>
-                        <select
-                          value={newUser.tipoDocumento}
-                          onChange={(e) => setNewUser({ ...newUser, tipoDocumento: e.target.value })}
-                          className={`elegante-input w-full ${showUserFormErrors && !newUser.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                        >
-                          <option value="">Selecciona tipo de documento</option>
-                          {tiposDocumento.map(tipo => (
-                            <option key={tipo} value={tipo}>{tipo}</option>
-                          ))}
-                        </select>
+                        <Select value={newUser.tipoDocumento} onValueChange={(val) => setNewUser({ ...newUser, tipoDocumento: val })}>
+                          <SelectTrigger className={`elegante-input w-full ${showUserFormErrors && !newUser.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
+                            <SelectValue placeholder="Selecciona tipo de documento" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-darkest border-gray-dark">
+                            {tiposDocumento.map(tipo => (
+                              <SelectItem key={tipo} value={tipo} className="text-white-primary">{tipo}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         {showUserFormErrors && !newUser.tipoDocumento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                       </div>
                     </div>
@@ -919,13 +920,12 @@ export function UsersPage() {
                           <Calendar className="w-4 h-4 text-orange-primary" />
                           Fecha de Nacimiento *
                         </Label>
-                        <Input
-                          type="date"
+                        <DatePicker
                           value={newUser.fechaNacimiento}
-                          onChange={(e) => setNewUser({ ...newUser, fechaNacimiento: e.target.value })}
+                          onChange={(val) => setNewUser({ ...newUser, fechaNacimiento: val })}
                           min={minBirthDate}
                           max={maxBirthDateEight}
-                          className={`elegante-input w-full ${showUserFormErrors && !newUser.fechaNacimiento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                          error={showUserFormErrors && !newUser.fechaNacimiento}
                         />
                         {showUserFormErrors && !newUser.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                         {!!edadNewUser && <p className={`text-xs ${isTooYoungNewUser ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadNewUser} años{isTooYoungNewUser ? ' (mínimo 8)' : ''}</p>}
@@ -935,25 +935,25 @@ export function UsersPage() {
                           <UserCheck className="w-4 h-4 text-orange-primary" />
                           Rol *
                         </Label>
-                        <select
-                          value={newUser.rol}
-                          onChange={(e) => setNewUser({ ...newUser, rol: e.target.value })}
-                          className={`elegante-input w-full ${showUserFormErrors && !newUser.rol ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                        >
-                          <option value="">Selecciona un rol</option>
-                          {availableRoles
-                            .filter(r => r.estado)
-                            .filter(r => {
-                              // Regla: Solo un Super Administrador puede asignar el rol de Super Administrador
-                              if (currentUser?.role !== 'super_admin' && r.nombre?.toLowerCase() === 'super administrador') {
-                                return false;
-                              }
-                              return true;
-                            })
-                            .map(rol => (
-                              <option key={rol.id} value={rol.nombre}>{rol.nombre}</option>
-                            ))}
-                        </select>
+                        <Select value={newUser.rol} onValueChange={(val) => setNewUser({ ...newUser, rol: val })}>
+                          <SelectTrigger className={`elegante-input w-full ${showUserFormErrors && !newUser.rol ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
+                            <SelectValue placeholder="Selecciona un rol" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-darkest border-gray-dark">
+                            {availableRoles
+                              .filter(r => r.estado)
+                              .filter(r => {
+                                // Regla: Solo un Super Administrador puede asignar el rol de Super Administrador
+                                if (currentUser?.role !== 'super_admin' && r.nombre?.toLowerCase() === 'super administrador') {
+                                  return false;
+                                }
+                                return true;
+                              })
+                              .map(rol => (
+                                <SelectItem key={rol.id} value={rol.nombre} className="text-white-primary">{rol.nombre}</SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
                         {showUserFormErrors && !newUser.rol && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                       </div>
                       <div className="space-y-2">
@@ -1357,11 +1357,9 @@ export function UsersPage() {
                         <Calendar className="w-4 h-4 text-orange-primary" />
                         Fecha de Nacimiento
                       </Label>
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={selectedUser.fechaNacimiento}
                         readOnly
-                        className="elegante-input w-full bg-gray-dark cursor-not-allowed"
                       />
                     </div>
                     <div className="space-y-2">

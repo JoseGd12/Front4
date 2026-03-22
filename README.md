@@ -123,7 +123,6 @@ Barbería App es una solución completa de gestión empresarial diseñada espec�
 | **input-otp** | ^1.4.2 | Input para códigos OTP/PIN |
 | **react-resizable-panels** | ^2.1.7 | Paneles redimensionables por el usuario |
 | **vaul** | ^1.1.2 | Drawer (cajón deslizante) para móvil |
-| **next-themes** | ^0.4.6 | Gestión de temas claro/oscuro con persistencia |
 
 ### Herramientas de Desarrollo
 | Tecnología | Versión | Descripción |

@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
@@ -1345,15 +1346,18 @@ export function ClientesPage() {
                   <FileText className="w-4 h-4 text-orange-primary" />
                   Tipo de Documento *
                 </Label>
-                <select
-                  value={editForm.tipoDocumento}
-                  onChange={(e) => setEditForm({ ...editForm, tipoDocumento: e.target.value })}
-                  className={`elegante-input w-full ${showEditValidation && !editForm.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                >
-                  {TIPOS_DOCUMENTO.map(tipo => (
-                    <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
-                  ))}
-                </select>
+                <Select value={editForm.tipoDocumento || undefined} onValueChange={(val) => setEditForm({ ...editForm, tipoDocumento: val })}>
+                  <SelectTrigger className={`elegante-input w-full ${showEditValidation && !editForm.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    {TIPOS_DOCUMENTO.map((tipo) => (
+                      <SelectItem key={tipo.value} value={tipo.value} className="text-white-primary">
+                        {tipo.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {showEditValidation && !editForm.tipoDocumento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
             </div>
@@ -1413,13 +1417,12 @@ export function ClientesPage() {
                   <Calendar className="w-4 h-4 text-orange-primary" />
                   Fecha de Nacimiento *
                 </Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={editForm.fechaNacimiento}
-                  onChange={(e) => setEditForm({ ...editForm, fechaNacimiento: e.target.value })}
+                  onChange={(val) => setEditForm({ ...editForm, fechaNacimiento: val })}
                   min={minBirthDate}
                   max={maxBirthDateEight}
-                  className={`elegante-input w-full ${showEditValidation && !editForm.fechaNacimiento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  error={showEditValidation && !editForm.fechaNacimiento}
                 />
                 {showEditValidation && !editForm.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
@@ -1570,15 +1573,18 @@ export function ClientesPage() {
                   <FileText className="w-4 h-4 text-orange-primary" />
                   Tipo de Documento *
                 </Label>
-                <select
-                  value={createForm.tipoDocumento}
-                  onChange={(e) => setCreateForm({ ...createForm, tipoDocumento: e.target.value })}
-                  className={`elegante-input w-full ${showCreateValidation && !createForm.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                >
-                  {TIPOS_DOCUMENTO.map(tipo => (
-                    <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
-                  ))}
-                </select>
+                <Select value={createForm.tipoDocumento || undefined} onValueChange={(val) => setCreateForm({ ...createForm, tipoDocumento: val })}>
+                  <SelectTrigger className={`elegante-input w-full ${showCreateValidation && !createForm.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    {TIPOS_DOCUMENTO.map((tipo) => (
+                      <SelectItem key={tipo.value} value={tipo.value} className="text-white-primary">
+                        {tipo.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {showCreateValidation && !createForm.tipoDocumento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
             </div>
@@ -1638,13 +1644,12 @@ export function ClientesPage() {
                   <Calendar className="w-4 h-4 text-orange-primary" />
                   Fecha de Nacimiento *
                 </Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={createForm.fechaNacimiento}
-                  onChange={(e) => setCreateForm({ ...createForm, fechaNacimiento: e.target.value })}
+                  onChange={(val) => setCreateForm({ ...createForm, fechaNacimiento: val })}
                   min={minBirthDate}
                   max={maxBirthDateEight}
-                  className={`elegante-input w-full ${showCreateValidation && !createForm.fechaNacimiento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  error={showCreateValidation && !createForm.fechaNacimiento}
                 />
                 {showCreateValidation && !createForm.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                 {!!edadCreateCliente && <p className={`text-xs ${isTooYoungCreateCliente ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadCreateCliente} años{isTooYoungCreateCliente ? ' (mínimo 8)' : ''}</p>}

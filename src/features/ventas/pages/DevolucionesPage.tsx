@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from "../../../shared/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../shared/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
@@ -1523,20 +1524,16 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                     <div className="space-y-3">
                       <div>
                         <Label className="text-white-primary text-sm mb-2 block">Fecha Inicio</Label>
-                        <Input
-                          type="date"
+                        <DatePicker
                           value={customStartDate}
-                          onChange={(e) => setCustomStartDate(e.target.value)}
-                          className="elegante-input"
+                          onChange={(val) => setCustomStartDate(val)}
                         />
                       </div>
                       <div>
                         <Label className="text-white-primary text-sm mb-2 block">Fecha Fin</Label>
-                        <Input
-                          type="date"
+                        <DatePicker
                           value={customEndDate}
-                          onChange={(e) => setCustomEndDate(e.target.value)}
-                          className="elegante-input"
+                          onChange={(val) => setCustomEndDate(val)}
                         />
                       </div>
                       <button
@@ -2513,21 +2510,21 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   <AlertCircle className="w-4 h-4 text-orange-primary" />
                   Motivo de la Devolución *
                 </Label>
-                <select
-                  value={nuevaDevolucion.motivoCategoria}
-                  onChange={(e) => {
-                    if (showDevolucionFormErrors) setShowDevolucionFormErrors(false);
-                    setNuevaDevolucion(prev => ({ ...prev, motivoCategoria: e.target.value }));
-                  }}
-                  className={`elegante-input w-full ${showMotivoError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-                >
-                  <option value="">Seleccionar motivo...</option>
-                  {MOTIVOS_DEVOLUCION.map((motivo) => (
-                    <option key={motivo.value} value={motivo.value}>
-                      {motivo.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={nuevaDevolucion.motivoCategoria} onValueChange={(val) => {
+                  if (showDevolucionFormErrors) setShowDevolucionFormErrors(false);
+                  setNuevaDevolucion(prev => ({ ...prev, motivoCategoria: val }));
+                }}>
+                  <SelectTrigger className={`elegante-input w-full ${showMotivoError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}>
+                    <SelectValue placeholder="Seleccionar motivo..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    {MOTIVOS_DEVOLUCION.map((motivo) => (
+                      <SelectItem key={motivo.value} value={motivo.value} className="text-white-primary">
+                        {motivo.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {showMotivoError && (
                   <p className="text-xs text-red-400">Este campo es obligatorio.</p>
                 )}

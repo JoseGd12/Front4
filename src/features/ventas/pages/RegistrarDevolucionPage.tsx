@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Input } from "../../../shared/components/ui/input";
 import {
   Receipt,
-  ArrowLeft,
   RotateCcw,
   Hash,
   Calendar,
@@ -704,38 +703,6 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
     <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
       <AlertContainer />
 
-      {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
-            title="Volver a Devoluciones"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
-              <RotateCcw className="w-6 h-6 text-red-400" />
-              Registrar Nueva Devolución
-            </h2>
-            <p className="text-sm text-gray-lightest">
-              Completa la información de la devolución
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={limpiarFormulario}
-            className="elegante-button-secondary flex items-center gap-2"
-            title="Limpiar formulario"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Limpiar
-          </button>
-        </div>
-      </div>
-
       {/* Master-Detail Layout */}
       <div
         className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden"
@@ -744,11 +711,13 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
         {/* LEFT: Form */}
         <aside className="lg:min-h-0 lg:min-w-0">
           <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-5">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4" style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
               {/* Section 1: Información Básica */}
               <FormSection
                 title="Información Básica"
                 icon={<Receipt className="w-4 h-4" />}
+                className="space-y-2"
+                style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                     <div className="flex items-center gap-2">
@@ -769,7 +738,12 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               />
 
               {/* Section 2: Tipo de devolución */}
-              <FormSection title="Tipo de Devolución" icon={<FileText className="w-4 h-4" />}>
+              <FormSection
+                title="Tipo de Devolución"
+                icon={<FileText className="w-4 h-4" />}
+                className="space-y-2"
+                style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+              >
                 <div className="flex gap-3">
                   <button
                     onClick={() => { setTipoDevolucion('venta'); limpiarFormulario(); setTipoDevolucion('venta'); }}
@@ -797,7 +771,12 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               {tipoDevolucion === 'venta' ? (
                 <>
                   {/* Section 3: Venta */}
-                  <FormSection title="Seleccionar Venta" icon={<ShoppingBag className="w-4 h-4" />}>
+                  <FormSection
+                    title="Seleccionar Venta"
+                    icon={<ShoppingBag className="w-4 h-4" />}
+                    className="space-y-2"
+                    style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+                  >
                     <div className="space-y-1">
                       <SearchField
                         placeholder="Busca por Nº de venta, cliente o documento..."
@@ -854,7 +833,12 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
 
                   {/* Section 4: Productos de la venta */}
                   {ventaSeleccionada && (
-                    <FormSection title="Productos de la Venta" icon={<Package className="w-4 h-4" />}>
+                    <FormSection
+                      title="Productos de la Venta"
+                      icon={<Package className="w-4 h-4" />}
+                      className="space-y-2"
+                      style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+                    >
                       <div className="space-y-2">
                         {(ventaSeleccionada.productos || []).length === 0 ? (
                           <p className="text-sm text-gray-lightest italic">Esta venta no tiene productos disponibles para devolución.</p>
@@ -918,7 +902,12 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               ) : (
                 <>
                   {/* Section 3: Barbero (insumos) */}
-                  <FormSection title="Barbero" icon={<User className="w-4 h-4" />}>
+                  <FormSection
+                    title="Barbero"
+                    icon={<User className="w-4 h-4" />}
+                    className="space-y-2"
+                    style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+                  >
                     <div className="space-y-1">
                       <SearchField
                         placeholder="Busca un barbero..."
@@ -959,30 +948,41 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
 
                   {/* Section 4: Entregas del barbero */}
                   {selectedBarbero && entregasBarbero.length > 0 && (
-                    <FormSection title="Entrega de Origen" icon={<Package className="w-4 h-4" />}>
+                    <FormSection
+                      title="Entrega de Origen"
+                      icon={<Package className="w-4 h-4" />}
+                      className="space-y-2"
+                      style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+                    >
                       <div className="space-y-1">
                         <Label className="text-gray-lightest text-xs">Seleccionar entrega</Label>
-                        <select
-                          value={selectedEntrega?.id || ''}
-                          onChange={(e) => {
-                            const entrega = entregasBarbero.find((en: any) => String(en.id) === e.target.value);
-                            if (entrega) handleSelectEntrega(entrega);
-                          }}
-                          className="elegante-input w-full"
-                        >
-                          {entregasBarbero.map((entrega: any) => (
-                            <option key={entrega.id} value={entrega.id}>
-                              Entrega #{entrega.id} — {formatDate(entrega.fecha || '')}
-                            </option>
-                          ))}
-                        </select>
+                        <Select value={selectedEntrega ? String(selectedEntrega.id) : undefined} onValueChange={(val) => {
+                          const entrega = entregasBarbero.find((en: any) => String(en.id) === val);
+                          if (entrega) handleSelectEntrega(entrega);
+                        }}>
+                          <SelectTrigger className="elegante-input w-full">
+                            <SelectValue placeholder="Seleccionar entrega..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-darkest border-gray-dark">
+                            {entregasBarbero.map((entrega: any) => (
+                              <SelectItem key={entrega.id} value={String(entrega.id)} className="text-white-primary">
+                                Entrega #{entrega.id} — {formatDate(entrega.fecha || '')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </FormSection>
                   )}
 
                   {/* Section 5: Productos de la entrega */}
                   {selectedBarbero && resumenEntregas.length > 0 && (
-                    <FormSection title="Productos de la Entrega" icon={<Package className="w-4 h-4" />}>
+                    <FormSection
+                      title="Productos de la Entrega"
+                      icon={<Package className="w-4 h-4" />}
+                      className="space-y-2"
+                      style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+                    >
                       <div className="space-y-2">
                         {resumenEntregas.map((row: any) => {
                           const pid = Number(row.productoId);
@@ -1046,20 +1046,25 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
               )}
 
               {/* Section: Motivo */}
-              <FormSection title="Motivo de Devolución" icon={<AlertCircle className="w-4 h-4" />}>
+              <FormSection
+                title="Motivo de Devolución"
+                icon={<AlertCircle className="w-4 h-4" />}
+                className="space-y-2"
+                style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+              >
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Motivo *</Label>
-                    <select
-                      value={motivoCategoria}
-                      onChange={(e) => { setMotivoCategoria(e.target.value); clearValidationErrors(); }}
-                      className={`elegante-input w-full ${showFormErrors && !motivoCategoria ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}
-                    >
-                      <option value="">Seleccionar motivo...</option>
-                      {MOTIVOS_DEVOLUCION.map((m) => (
-                        <option key={m.value} value={m.value}>{m.label}</option>
-                      ))}
-                    </select>
+                    <Select value={motivoCategoria} onValueChange={(val) => { setMotivoCategoria(val); clearValidationErrors(); }}>
+                      <SelectTrigger className={`elegante-input w-full ${showFormErrors && !motivoCategoria ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}>
+                        <SelectValue placeholder="Seleccionar motivo..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-darkest border-gray-dark">
+                        {MOTIVOS_DEVOLUCION.map((m) => (
+                          <SelectItem key={m.value} value={m.value} className="text-white-primary">{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {showFormErrors && !motivoCategoria && (
                       <p className="text-xs text-red-400">Selecciona un motivo.</p>
                     )}

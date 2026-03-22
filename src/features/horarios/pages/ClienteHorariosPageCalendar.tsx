@@ -5,6 +5,7 @@ import { Calendar, Clock, User, ChevronLeft, ChevronRight, AlertTriangle, Filter
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -236,18 +237,19 @@ export function ClienteHorariosPageCalendar() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-orange-primary" />
-              <select
-                value={filterBarbero}
-                onChange={(e) => setFilterBarbero(e.target.value)}
-                className="elegante-input px-3 py-2"
-              >
-                <option value="all">Todos los barberos</option>
-                {barberos.map((barbero) => (
-                  <option key={barbero} value={barbero}>
-                    {barbero}
-                  </option>
-                ))}
-              </select>
+              <Select value={filterBarbero} onValueChange={(val) => setFilterBarbero(val)}>
+                <SelectTrigger className="elegante-input px-3 py-2">
+                  <SelectValue placeholder="Todos los barberos" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-darkest border-gray-dark">
+                  <SelectItem value="all" className="text-white-primary">Todos los barberos</SelectItem>
+                  {barberos.map((barbero) => (
+                    <SelectItem key={barbero} value={barbero} className="text-white-primary">
+                      {barbero}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

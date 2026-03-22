@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../../shared/components/ui/select";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import {
   Plus,
@@ -1647,9 +1648,23 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                           <FileText className="w-4 h-4 text-orange-primary" />
                           Fecha de Factura *
                         </Label>
-                        <Input
-                          type="date"
+                        <DatePicker
                           value={nuevaCompra.fechaFactura}
+                          onChange={(val) => {
+                            const now = new Date();
+                            const y = now.getFullYear();
+                            const m = String(now.getMonth() + 1).padStart(2, '0');
+                            const d = String(now.getDate()).padStart(2, '0');
+                            const max = `${y}-${m}-${d}`;
+                            const prev = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                            const min = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+                            if (!val) {
+                              setNuevaCompra({ ...nuevaCompra, fechaFactura: '' });
+                              return;
+                            }
+                            const clamped = val < min ? min : (val > max ? max : val);
+                            setNuevaCompra({ ...nuevaCompra, fechaFactura: clamped });
+                          }}
                           min={(() => {
                             const now = new Date();
                             const prev = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
@@ -1665,23 +1680,8 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                             const d = String(now.getDate()).padStart(2, '0');
                             return `${y}-${m}-${d}`;
                           })()}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const now = new Date();
-                            const y = now.getFullYear();
-                            const m = String(now.getMonth() + 1).padStart(2, '0');
-                            const d = String(now.getDate()).padStart(2, '0');
-                            const max = `${y}-${m}-${d}`;
-                            const prev = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-                            const min = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
-                            if (!val) {
-                              setNuevaCompra({ ...nuevaCompra, fechaFactura: '' });
-                              return;
-                            }
-                            const clamped = val < min ? min : (val > max ? max : val);
-                            setNuevaCompra({ ...nuevaCompra, fechaFactura: clamped });
-                          }}
-                          className={`elegante-input ${showCompraFormErrors && !nuevaCompra.fechaFactura ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                          error={showCompraFormErrors && !nuevaCompra.fechaFactura}
+                          className={showCompraFormErrors && !nuevaCompra.fechaFactura ? shakeClass : ''}
                         />
                         {showCompraFormErrors && !nuevaCompra.fechaFactura && (
                           <p className="text-xs text-red-400">Este campo es obligatorio.</p>
@@ -1692,16 +1692,19 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                           <CreditCard className="w-4 h-4 text-orange-primary" />
                           Metodo de Pago *
                         </Label>
-                        <select
-                          value={nuevaCompra.metodoPago}
-                          onChange={(e) => setNuevaCompra({ ...nuevaCompra, metodoPago: e.target.value })}
-                          className={`elegante-input w-full ${showCompraFormErrors && !nuevaCompra.metodoPago ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                        <Select
+                          value={nuevaCompra.metodoPago || undefined}
+                          onValueChange={(val) => setNuevaCompra({ ...nuevaCompra, metodoPago: val })}
                         >
-                          <option value="">Seleccionar metodo...</option>
-                          <option value="Efectivo">Efectivo</option>
-                          <option value="Tarjeta">Tarjeta</option>
-                          <option value="Transferencia">Transferencia</option>
-                        </select>
+                          <SelectTrigger className={`elegante-input w-full ${showCompraFormErrors && !nuevaCompra.metodoPago ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}>
+                            <SelectValue placeholder="Seleccionar metodo..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-darkest border-gray-dark">
+                            <SelectItem value="Efectivo" className="text-white-primary">Efectivo</SelectItem>
+                            <SelectItem value="Tarjeta" className="text-white-primary">Tarjeta</SelectItem>
+                            <SelectItem value="Transferencia" className="text-white-primary">Transferencia</SelectItem>
+                          </SelectContent>
+                        </Select>
                         {showCompraFormErrors && !nuevaCompra.metodoPago && (
                           <p className="text-xs text-red-400">Este campo es obligatorio.</p>
                         )}
@@ -2535,11 +2538,9 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                         <FileText className="w-4 h-4 text-orange-primary" />
                         Fecha de Factura
                       </Label>
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={selectedCompra.fechaFactura || ''}
                         disabled
-                        className="elegante-input bg-gray-medium"
                       />
                     </div>
                     <div className="space-y-2">

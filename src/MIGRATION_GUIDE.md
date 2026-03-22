@@ -192,9 +192,6 @@ mv components/ui/* src/shared/components/ui/
 # Figma Components
 mv components/figma/* src/shared/components/figma/
 
-# Contexts
-mv components/ThemeContext.tsx src/shared/contexts/
-
 # Utils
 mv components/utils/* src/shared/utils/
 
@@ -239,15 +236,6 @@ import { Button } from './components/ui/button';
 import { Button } from '../../../shared/components/ui/button';
 // o (desde src/)
 import { Button } from './shared/components/ui/button';
-```
-
-### Importaciones de Theme:
-```typescript
-// Antes
-import { useTheme } from './components/ThemeContext';
-
-// Después
-import { useTheme } from '../shared/contexts/ThemeContext';
 ```
 
 ### Importaciones de Utils:

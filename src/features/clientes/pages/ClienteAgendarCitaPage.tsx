@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Calendar, Clock, User, Phone, Mail, MapPin } from "lucide-react";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
@@ -142,12 +143,10 @@ export function ClienteAgendarCitaPage() {
                         <Calendar className="w-4 h-4 text-orange-primary" />
                         Fecha *
                       </Label>
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={formData.fecha}
-                        onChange={(e) => setFormData({...formData, fecha: e.target.value})}
-                        className="elegante-input"
-                         min={new Date().toLocaleDateString('sv-SE')}
+                        onChange={(val) => setFormData({...formData, fecha: val})}
+                        min={new Date().toLocaleDateString('sv-SE')}
                       />
                     </div>
                     

@@ -689,19 +689,22 @@ export function ProveedoresPage() {
                           <Building className="w-4 h-4 text-orange-primary" />
                           Tipo de Proveedor
                         </Label>
-                        <select
-                          id="tipoProveedor"
-                          value={formData.tipoProveedor}
-                          onChange={(e) => setFormData({ ...formData, tipoProveedor: e.target.value as 'Juridico' | 'Natural' })}
-                          className="elegante-input w-full"
+                        <Select
                           disabled={isEditDialogOpen}
+                          value={formData.tipoProveedor}
+                          onValueChange={(val) => setFormData({ ...formData, tipoProveedor: val as 'Juridico' | 'Natural' })}
                         >
-                          {TIPOS_PROVEEDOR.map(tipo => (
-                            <option key={tipo.value} value={tipo.value}>
-                              {tipo.label}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger id="tipoProveedor" className="elegante-input w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-darkest border-gray-dark">
+                            {TIPOS_PROVEEDOR.map((tipo) => (
+                              <SelectItem key={tipo.value} value={tipo.value} className="text-white-primary">
+                                {tipo.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                   

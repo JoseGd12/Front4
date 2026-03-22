@@ -37,6 +37,11 @@
     return originalFetch(input, { ...init, headers });
   };
 
+  // Tema fijo oscuro para toda la app
+  document.documentElement.classList.add("dark");
+  document.documentElement.setAttribute("data-theme", "dark");
+  window.localStorage.removeItem("barberia-theme");
+
   createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <App />

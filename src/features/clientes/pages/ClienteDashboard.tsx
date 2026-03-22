@@ -1,22 +1,19 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
-import { useTheme } from "../../../shared/contexts/ThemeContext";
 import {
   Calendar,
   DollarSign,
   RotateCcw,
   User,
   LogOut,
-  Sun,
-  Moon,
   Eye,
   Scissors,
   Package,
   AtSign,
   Search,
   X,
-  Home
+  ArrowRight
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
@@ -52,7 +49,6 @@ const navItems = [
 
 export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLanding?: () => void; initialItem?: any }) {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
@@ -176,8 +172,8 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
         <header
           className="border-b border-gray-dark py-4 flex items-center transition-colors z-[100] relative"
           style={{
-            backgroundColor: theme === 'dark' ? '#111111' : '#c9b7a3',
-            boxShadow: theme === 'dark' ? '0px 0px 25px rgba(0,0,0,0.8)' : '0px 0px 25px rgba(0,0,0,0.35)'
+            backgroundColor: "#111111",
+            boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
           }}
         >
           <div className="flex items-center w-full">
@@ -225,37 +221,37 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
               </div>
 
               <div className="flex items-center gap-4 shrink-0">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
-              title={theme === 'dark' ? "Modo Claro" : "Modo Oscuro"}
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5 text-orange-primary" />
-              ) : (
-                <Moon className="w-5 h-5 text-orange-primary" />
-              )}
-            </button>
+                {onBackToLanding && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to="/"
+                        onClick={onBackToLanding}
+                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors cursor-pointer"
+                        title="Volver a la landing"
+                      >
+                        <ArrowRight className="w-5 h-5 text-orange-primary" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>Volver al inicio</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-darkest border border-gray-dark hover:bg-gray-darker transition-colors"
+                  className="w-10 h-10 rounded-full overflow-hidden border border-orange-primary/30 hover:border-orange-primary/60 hover:scale-105 transition-all duration-200"
                   title="Cuenta"
                   type="button"
                 >
-                  <div className="w-8 h-8 rounded-full overflow-hidden border border-orange-primary/30 flex items-center justify-center bg-orange-primary/10 shrink-0">
-                    <ImageRenderer
-                      url={user?.fotoPerfil}
-                      className="w-full h-full object-cover"
-                      showLabel={false}
-                      fallbackVariant="person"
-                    />
-                  </div>
-                  <div className="hidden md:flex flex-col text-left min-w-0">
-                    <p className="text-sm font-semibold text-white-primary truncate">{user?.name || "Usuario"}</p>
-                    <p className="text-xs text-gray-lighter truncate">{roleLabel}</p>
-                  </div>
+                  <ImageRenderer
+                    url={user?.fotoPerfil}
+                    className="w-full h-full object-cover rounded-full border-0 bg-transparent"
+                    showLabel={false}
+                    fallbackVariant="person"
+                  />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -300,24 +296,6 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
-
-                {onBackToLanding && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to="/"
-                        onClick={onBackToLanding}
-                        className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors cursor-pointer"
-                        title="Volver a la landing"
-                      >
-                        <Home className="w-5 h-5 text-orange-primary" />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p>Volver al inicio</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
               </div>
             </div>
           </div>
@@ -328,8 +306,8 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
           <aside
             className={`border-r border-gray-dark flex flex-col transition-[width] duration-200 ease-out will-change-[width] shrink-0 z-[90] relative ${sidebarCollapsed ? "w-20" : "w-72"}`}
             style={{
-              backgroundColor: theme === 'dark' ? '#111111' : '#c9b7a3',
-              boxShadow: theme === 'dark' ? '0px 0px 25px rgba(0,0,0,0.8)' : '0px 0px 25px rgba(0,0,0,0.35)'
+              backgroundColor: "#111111",
+              boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
             {/* Navigation */}

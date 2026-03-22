@@ -8,8 +8,6 @@ import {
   Calculator,
   Building,
   FileText,
-  ArrowLeft,
-  RotateCcw,
   ShoppingBag,
 } from "lucide-react";
 import { Label } from "../../../shared/components/ui/label";
@@ -22,6 +20,7 @@ import { productoService } from "../../productos/services/productos";
 import { apiService, ApiUser } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { FormSection } from "../../../shared/components/ui/FormSection";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { DetailPanelCompra } from "../components/DetailPanelCompra";
 import { useAuth } from "../../../shared/contexts/AuthContext";
@@ -632,23 +631,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     }));
   };
 
-  // --- Form reset ---
-  const limpiarFormulario = () => {
-    setNuevaCompra({ ...inicialNuevaCompra, fechaRegistro: generateCurrentDate() });
-    setTarjetaInputs({});
-    setProductoSeleccionado("");
-    setProductSearchTerm("");
-    setPrecioUnitario(0);
-    setStockVentas(0);
-    setStockInsumos(0);
-    setStockVentasInput("");
-    setStockInsumosInput("");
-    setProveedorSearchTerm("");
-    setPorcentajeDescuentoInput("");
-    setShowCompraFormErrors(false);
-    setShowAddProductoErrors(false);
-  };
-
   // --- Submit ---
   const handleCreateCompra = async () => {
     if (isSubmitting) return;
@@ -788,38 +770,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
       <AlertContainer />
 
-      {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
-            title="Volver a Compras"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
-              <Receipt className="w-6 h-6 text-blue-400" />
-              Registrar Nueva Compra
-            </h2>
-            <p className="text-sm text-gray-lightest">
-              Completa la información de la compra al proveedor
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={limpiarFormulario}
-            className="elegante-button-secondary flex items-center gap-2"
-            title="Limpiar formulario"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Limpiar
-          </button>
-        </div>
-      </div>
-
       {/* Master-Detail Layout */}
       <div
         className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden"
@@ -828,11 +778,12 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
         {/* LEFT: Form */}
         <aside className="lg:min-h-0 lg:min-w-0">
           <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-5">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4" style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
             {/* Section 1: Información Básica */}
             <FormSection
               title="Información Básica"
               icon={<Receipt className="w-4 h-4" />}
+              className="space-y-2 py-2"
               headerRight={
                 <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                   <div className="flex items-center gap-2">
@@ -857,8 +808,13 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
             />
 
             {/* Section 2: Fecha Factura y Método de Pago */}
-            <FormSection title="Datos de Factura" icon={<FileText className="w-4 h-4" />}>
-              <div className="grid grid-cols-2 gap-4">
+            <FormSection
+              title="Datos de Factura"
+              icon={<FileText className="w-4 h-4" />}
+              className="space-y-2"
+              style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+            >
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Fecha de Factura *</Label>
                   <Input
@@ -892,17 +848,22 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Método de Pago *</Label>
-                  <select
-                    value={nuevaCompra.metodoPago}
-                    onChange={(e) => setNuevaCompra({ ...nuevaCompra, metodoPago: e.target.value })}
-                    onFocus={clearValidationErrors}
-                    className={`elegante-input w-full ${showCompraFormErrors && !nuevaCompra.metodoPago ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}
+                  <Select
+                    value={nuevaCompra.metodoPago || undefined}
+                    onValueChange={(val) => {
+                      setNuevaCompra({ ...nuevaCompra, metodoPago: val });
+                      clearValidationErrors();
+                    }}
                   >
-                    <option value="">Seleccionar método...</option>
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Tarjeta">Tarjeta</option>
-                    <option value="Transferencia">Transferencia</option>
-                  </select>
+                    <SelectTrigger className={`elegante-input w-full ${showCompraFormErrors && !nuevaCompra.metodoPago ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}>
+                      <SelectValue placeholder="Seleccionar método..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark">
+                      <SelectItem value="Efectivo" className="text-white-primary">Efectivo</SelectItem>
+                      <SelectItem value="Tarjeta" className="text-white-primary">Tarjeta</SelectItem>
+                      <SelectItem value="Transferencia" className="text-white-primary">Transferencia</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {showCompraFormErrors && !nuevaCompra.metodoPago && (
                     <p className="text-xs text-red-400">Este campo es obligatorio.</p>
                   )}
@@ -911,8 +872,13 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
             </FormSection>
 
             {/* Section 3: Proveedor y Descuento */}
-            <FormSection title="Proveedor" icon={<Building className="w-4 h-4" />}>
-              <div className="grid grid-cols-2 gap-4">
+            <FormSection
+              title="Proveedor"
+              icon={<Building className="w-4 h-4" />}
+              className="space-y-2"
+              style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+            >
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-gray-lightest text-xs">Proveedor *</Label>
                   <SearchField
@@ -976,9 +942,14 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
             </FormSection>
 
             {/* Section 4: Agregar Productos */}
-            <FormSection title="Agregar Productos" icon={<ShoppingBag className="w-4 h-4" />}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <FormSection
+              title="Agregar Productos"
+              icon={<ShoppingBag className="w-4 h-4" />}
+              className="space-y-2"
+              style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+            >
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div className="space-y-1 md:col-span-2">
                     <Label className="text-gray-lightest text-xs">Producto *</Label>
                     <SearchField

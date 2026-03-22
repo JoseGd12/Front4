@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
@@ -769,16 +770,16 @@ export function BarberosPage() {
                   <FileText className="w-4 h-4 text-orange-primary" />
                   Tipo de Documento *
                 </Label>
-                <select
-                  value={newBarbero.tipoDocumento}
-                  onChange={(e) => setNewBarbero({ ...newBarbero, tipoDocumento: e.target.value })}
-                  className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                >
-                  <option value="">Seleccionar...</option>
-                  {TIPOS_DOCUMENTO.map(td => (
-                    <option key={td.value} value={td.value}>{td.label}</option>
-                  ))}
-                </select>
+                <Select value={newBarbero.tipoDocumento} onValueChange={(val) => setNewBarbero({ ...newBarbero, tipoDocumento: val })}>
+                  <SelectTrigger className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.tipoDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    {TIPOS_DOCUMENTO.map(td => (
+                      <SelectItem key={td.value} value={td.value} className="text-white-primary">{td.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -837,13 +838,12 @@ export function BarberosPage() {
                   <Calendar className="w-4 h-4 text-orange-primary" />
                   Fecha de Nacimiento *
                 </Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={newBarbero.fechaNacimiento}
-                  onChange={(e) => setNewBarbero({ ...newBarbero, fechaNacimiento: e.target.value })}
+                  onChange={(val) => setNewBarbero({ ...newBarbero, fechaNacimiento: val })}
                   min={minBirthDate}
                   max={maxBirthDateEight}
-                  className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.fechaNacimiento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  error={showBarberoFormErrors && !newBarbero.fechaNacimiento}
                 />
                 {showBarberoFormErrors && !newBarbero.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               {!!edadNewBarbero && <p className={`text-xs ${isTooYoungNewBarbero ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadNewBarbero} años{isTooYoungNewBarbero ? ' (mínimo 8)' : ''}</p>}
@@ -1031,11 +1031,9 @@ export function BarberosPage() {
                     <Calendar className="w-4 h-4 text-orange-primary" />
                     Fecha de Nacimiento
                   </Label>
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={selectedBarbero.fechaNacimiento}
                     readOnly
-                    className="elegante-input w-full opacity-80 cursor-default"
                   />
                 </div>
               </div>

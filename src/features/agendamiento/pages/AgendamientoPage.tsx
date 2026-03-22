@@ -9,7 +9,7 @@ import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../services/horariosService";
 import { Input } from "../../../shared/components/ui/input";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, ArrowLeft, Plus, Minus, X } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, Plus, Minus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -53,9 +53,17 @@ const formatearPrecio = (precio: number): string => {
 interface AgendamientoPageProps {
   initialItem?: any;
   onClearInitialItem?: () => void;
+  onSubNavChange?: (config: {
+    title: string;
+    subtitle?: string;
+    onBack?: () => void;
+    backTitle?: string;
+    icon?: React.ReactNode;
+    iconContainerClassName?: string;
+  } | null) => void;
 }
 
-export function AgendamientoPage({ initialItem, onClearInitialItem }: AgendamientoPageProps) {
+export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChange }: AgendamientoPageProps) {
   const { user } = useAuth();
   const { success, error, AlertContainer } = useCustomAlert();
   const [citas, setCitas] = useState<any[]>([]);
@@ -171,6 +179,28 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
   const [paqueteSearchTerm, setPaqueteSearchTerm] = useState('');
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [showFormErrors, setShowFormErrors] = useState(false);
+
+  useEffect(() => {
+    if (!onSubNavChange) return;
+
+    if (viewMode === 'crear') {
+      onSubNavChange({
+        title: selectedCita ? 'Editar Cita' : 'Nueva Cita',
+        subtitle: 'Completa la información del agendamiento',
+        onBack: () => {
+          setViewMode('calendar');
+          setSelectedCita(null);
+          setShowFormErrors(false);
+        },
+        backTitle: 'Volver al Calendario',
+        icon: <CalendarDays className="w-5 h-5" />,
+        iconContainerClassName: 'text-orange-primary',
+      });
+      return;
+    }
+
+    onSubNavChange(null);
+  }, [viewMode, selectedCita, onSubNavChange]);
 
   const getAutoDateTime = () => {
     const now = new Date();
@@ -991,26 +1021,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem }: Agendamien
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {viewMode === 'crear' && (
         <div className="flex flex-col gap-4 h-full min-h-0 overflow-hidden">
-          {/* Header con botón Volver */}
-          <div className="flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => { setViewMode('calendar'); setSelectedCita(null); setShowFormErrors(false); }}
-                className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
-                title="Volver al Calendario"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
-                  <CalendarDays className="w-6 h-6 text-orange-primary" />
-                  {selectedCita ? 'Editar Cita' : 'Nueva Cita'}
-                </h2>
-                <p className="text-sm text-gray-lightest">Completa la información del agendamiento</p>
-              </div>
-            </div>
-          </div>
-
           {/* Master-Detail Layout */}
           <div
             className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 flex-1 min-h-0 overflow-hidden"

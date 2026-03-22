@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "../../../shared/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../shared/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 
@@ -453,20 +454,16 @@ export function NotasCreditoPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-xs text-gray-lighter">Desde</Label>
-                        <Input
-                          type="date"
+                        <DatePicker
                           value={customDateRange.startDate}
-                          onChange={(e) => setCustomDateRange(prev => ({...prev, startDate: e.target.value}))}
-                          className="elegante-input text-xs"
+                          onChange={(val) => setCustomDateRange(prev => ({...prev, startDate: val}))}
                         />
                       </div>
                       <div>
                         <Label className="text-xs text-gray-lighter">Hasta</Label>
-                        <Input
-                          type="date"
+                        <DatePicker
                           value={customDateRange.endDate}
-                          onChange={(e) => setCustomDateRange(prev => ({...prev, endDate: e.target.value}))}
-                          className="elegante-input text-xs"
+                          onChange={(val) => setCustomDateRange(prev => ({...prev, endDate: val}))}
                         />
                       </div>
                     </div>

@@ -849,18 +849,21 @@ export function PaquetesPage() {
 
                 <div className="flex flex-col sm:flex-row gap-2 items-center">
                   <div className="flex-1 w-full">
-                    <select
-                      value={servicioSeleccionado}
-                      onChange={(e) => setServicioSeleccionado(e.target.value)}
-                      className="elegante-input w-full h-9 text-sm"
+                    <Select
+                      value={servicioSeleccionado || undefined}
+                      onValueChange={(val) => setServicioSeleccionado(val)}
                     >
-                      <option value="">-- Seleccionar servicio --</option>
-                      {serviciosDisponibles.map((servicio, index) => (
-                        <option key={index} value={servicio.nombre}>
-                          {servicio.nombre} - ${(servicio.precio ?? 0).toLocaleString('es-CO')}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="elegante-input w-full h-9 text-sm">
+                        <SelectValue placeholder="-- Seleccionar servicio --" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-darkest border-gray-dark">
+                        {serviciosDisponibles.map((servicio, index) => (
+                          <SelectItem key={index} value={servicio.nombre} className="text-white-primary">
+                            {servicio.nombre} - ${(servicio.precio ?? 0).toLocaleString('es-CO')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <button
                     onClick={() => {

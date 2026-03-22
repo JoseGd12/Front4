@@ -24,6 +24,7 @@ import { Label } from "../../../shared/components/ui/label";
 import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { rolesApiService, RoleWithModules, CreateRoleData, UpdateRoleData, PermisoModulo } from "../services/rolesApiService";
 import { modulosService, Modulo } from "../services/modulosService";
 
@@ -717,15 +718,16 @@ export function RolesPage() {
 
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-lighter" />
-                <select
-                  value={filterEstado}
-                  onChange={(e) => { setFilterEstado(e.target.value as 'todos' | 'activo' | 'inactivo'); setCurrentPage(1); }}
-                  className="elegante-input px-3 py-2 text-sm"
-                >
-                  <option value="todos">Todos</option>
-                  <option value="activo">Activo</option>
-                  <option value="inactivo">Inactivo</option>
-                </select>
+                <Select value={filterEstado} onValueChange={(val) => { setFilterEstado(val as 'todos' | 'activo' | 'inactivo'); setCurrentPage(1); }}>
+                  <SelectTrigger className="elegante-input px-3 py-2 text-sm">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    <SelectItem value="todos" className="text-white-primary">Todos</SelectItem>
+                    <SelectItem value="activo" className="text-white-primary">Activo</SelectItem>
+                    <SelectItem value="inactivo" className="text-white-primary">Inactivo</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -861,13 +863,14 @@ export function RolesPage() {
                 <span>Página {currentPage} de {totalPages}</span>
                 <span className="flex items-center gap-2">
                   Filas por página:
-                  <select
-                    value={itemsPerPage}
-                    onChange={() => { setItemsPerPage(5); setCurrentPage(1); }}
-                    className="bg-gray-darker border border-gray-dark rounded px-2 py-1 text-white-primary text-sm focus:outline-none focus:border-orange-primary"
-                  >
-                    {[5].map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                  <Select value={itemsPerPage.toString()} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+                    <SelectTrigger className="bg-gray-darker border border-gray-dark rounded px-2 py-1 text-white-primary text-sm focus:outline-none focus:border-orange-primary">
+                      <SelectValue placeholder="5" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-darkest border-gray-dark">
+                      {[5].map(n => <SelectItem key={n} value={n.toString()} className="text-white-primary">{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </span>
               </div>
               <EllipsisPagination

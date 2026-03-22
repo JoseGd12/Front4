@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../../shared/components/ui/dialog";
 import { Label } from "../../../../shared/components/ui/label";
 import { Input } from "../../../../shared/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../shared/components/ui/select";
 import { insumosNativos } from "./constants";
 import { formatCurrency } from "./utils";
 
@@ -40,18 +41,21 @@ export function AgregarProductoDialog({
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label className="text-white-primary">Insumo</Label>
-            <select
-              value={productoSeleccionado}
-              onChange={(e) => setProductoSeleccionado(e.target.value)}
-              className="elegante-input w-full"
+            <Select
+              value={productoSeleccionado || undefined}
+              onValueChange={(val) => setProductoSeleccionado(val)}
             >
-              <option value="">Seleccionar insumo</option>
-              {insumosNativos.map(insumo => (
-                <option key={insumo.id} value={insumo.id}>
-                  {insumo.nombre} - ${formatCurrency(insumo.precio)} ({insumo.categoria})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="elegante-input w-full">
+                <SelectValue placeholder="Seleccionar insumo" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-darkest border-gray-dark">
+                {insumosNativos.map((insumo) => (
+                  <SelectItem key={insumo.id} value={String(insumo.id)} className="text-white-primary">
+                    {insumo.nombre} - ${formatCurrency(insumo.precio)} ({insumo.categoria})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label className="text-white-primary">Cantidad</Label>
