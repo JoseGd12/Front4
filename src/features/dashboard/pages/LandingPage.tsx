@@ -216,19 +216,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [nosotrosSlide, setNosotrosSlide] = useState(0);
-  const [ofrecemosBgIndex, setOfrecemosBgIndex] = useState(0);
-
-  const ofrecemosBackgrounds = useMemo(() => [
-    imgTeam,
-    'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop'
-  ], []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setOfrecemosBgIndex(prev => (prev === 0 ? 1 : 0));
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  // Fondo único a todo el ancho para “Lo que ofrecemos” (barbería)
+  const ofrecemosHeroBg =
+    'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop';
 
   // Instagram feed for gallery
   const { feed: instagramFeed } = useInstagramFeed(15);
@@ -604,19 +594,19 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
                 <button
                   type="button"
-                  onClick={() => scrollToSection('servicios')}
-                  className="hero-cta-button"
-                >
-                  Lo que ofrecemos
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-                <button
-                  type="button"
                   onClick={() => scrollToSection('nosotros')}
                   className="hero-cta-button"
                   style={{ background: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(216, 176, 129, 0.5)' }}
                 >
                   Conócenos
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('servicios')}
+                  className="hero-cta-button"
+                >
+                  Lo que ofrecemos
                   <ChevronRight className="w-6 h-6" />
                 </button>
               </div>
@@ -724,7 +714,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   </button>
                 </div>
 
-                <div className="hero-gallery-carousel relative flex-1 min-w-0">
+                <div className="hero-gallery-carousel hero-gallery-carousel--mosaic relative flex-1 min-w-0">
                   {/* Mosaic gallery row (capa base) */}
                   <div
                     ref={heroGalleryRef}
@@ -868,70 +858,115 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   pages.push(set);
                 }
 
+                const nosotrosMosaicGap = 3;
+
                 return (
-                  <div className="relative overflow-hidden rounded-2xl" style={{ height: '376px' }}>
-                    {/* Carousel track — all pages side by side */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        width: `${totalPages * 100}%`,
-                        height: '100%',
-                        transform: `translateX(-${pageIndex * (100 / totalPages)}%)`,
-                        transition: 'transform 0.5s ease-in-out',
-                      }}
-                    >
-                      {pages.map((set, pi) => (
-                        <div key={pi} style={{ width: `${100 / totalPages}%`, flexShrink: 0, padding: '0 2px' }}>
+                  <div className="min-w-0">
+                    <div className="flex items-stretch gap-6 sm:gap-8 md:gap-10 lg:gap-12">
+                      <div className="flex shrink-0 items-center justify-center self-center min-w-[2.75rem] sm:min-w-[3.5rem] md:min-w-[4rem] px-0.5 sm:px-1">
+                        <button
+                          type="button"
+                          onClick={() => setNosotrosSlide((prev) => (prev - 1 + totalPages) % totalPages)}
+                          aria-label="Página anterior de la galería"
+                          className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                      </div>
+
+                      <div className="hero-gallery-carousel hero-gallery-carousel--mosaic hero-gallery-carousel--nosotros relative flex-1 min-w-0">
+                        <div
+                          className="nosotros-gallery-mosaic-viewport relative z-[1] overflow-hidden"
+                          style={{ height: '380px' }}
+                        >
                           <div
-                            className="h-full gap-4"
                             style={{
-                              display: 'grid',
-                              gridTemplateColumns: '1.2fr 1fr',
-                              gridTemplateRows: '1.3fr 1fr',
+                              display: 'flex',
+                              width: `${totalPages * 100}%`,
+                              height: '100%',
+                              transform: `translateX(-${pageIndex * (100 / totalPages)}%)`,
+                              transition: 'transform 0.5s ease-in-out',
                             }}
                           >
-                            {/* Imagen principal — 2 filas */}
-                            <div className="rounded-2xl overflow-hidden relative group" style={{ gridRow: '1 / 3' }}>
-                              <img src={set[0]} alt="" className="w-full h-full object-cover transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-105" loading="lazy" draggable={false} />
-                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all duration-500" />
-                            </div>
-                            {/* Derecha superior */}
-                            <div className="rounded-2xl overflow-hidden relative group">
-                              <img src={set[1]} alt="" className="w-full h-full object-cover transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-105" loading="lazy" draggable={false} />
-                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all duration-500" />
-                            </div>
-                            {/* Derecha inferior */}
-                            <div className="rounded-2xl overflow-hidden relative group">
-                              <img src={set[2]} alt="" className="w-full h-full object-cover transition-all duration-500 grayscale group-hover:grayscale-0 group-hover:scale-105" loading="lazy" draggable={false} />
-                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all duration-500" />
-                            </div>
+                            {pages.map((set, pi) => (
+                              <div
+                                key={pi}
+                                className="h-full shrink-0 min-w-0"
+                                style={{ width: `${100 / totalPages}%` }}
+                              >
+                                <div
+                                  className="h-full w-full min-w-0"
+                                  style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'minmax(0, 300fr) minmax(0, 210fr)',
+                                    gridTemplateRows: '1fr 1fr',
+                                    gap: nosotrosMosaicGap,
+                                  }}
+                                >
+                                  <div
+                                    className="min-h-0 overflow-hidden relative group"
+                                    style={{ gridRow: '1 / 3' }}
+                                  >
+                                    <img
+                                      src={set[0]}
+                                      alt=""
+                                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                                      loading="lazy"
+                                      draggable={false}
+                                    />
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                                  </div>
+                                  <div className="min-h-0 overflow-hidden relative group">
+                                    <img
+                                      src={set[1]}
+                                      alt=""
+                                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                                      loading="lazy"
+                                      draggable={false}
+                                    />
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                                  </div>
+                                  <div className="min-h-0 overflow-hidden relative group">
+                                    <img
+                                      src={set[2]}
+                                      alt=""
+                                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                                      loading="lazy"
+                                      draggable={false}
+                                    />
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      ))}
+
+                        <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
+                        <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
+                        <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />
+                        <div className="hero-gallery-fade-in hero-gallery-fade-in--right" aria-hidden />
+                      </div>
+
+                      <div className="flex shrink-0 items-center justify-center self-center min-w-[2.75rem] sm:min-w-[3.5rem] md:min-w-[4rem] px-0.5 sm:px-1">
+                        <button
+                          type="button"
+                          onClick={() => setNosotrosSlide((prev) => (prev + 1) % totalPages)}
+                          aria-label="Página siguiente de la galería"
+                          className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300"
+                        >
+                          <ChevronRight className="w-6 h-6" />
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Flecha izquierda */}
-                    <button
-                      onClick={() => setNosotrosSlide((prev) => (prev - 1 + totalPages) % totalPages)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-black shadow-lg flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-
-                    {/* Flecha derecha */}
-                    <button
-                      onClick={() => setNosotrosSlide((prev) => (prev + 1) % totalPages)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-black shadow-lg flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-
-                    {/* Indicadores de página */}
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    <div className="flex justify-center gap-2 mt-4">
                       {Array.from({ length: totalPages }).map((_, i) => (
                         <button
                           key={i}
+                          type="button"
                           onClick={() => setNosotrosSlide(i)}
+                          aria-label={`Ir a la página ${i + 1} de la galería`}
                           className={`h-2 rounded-full transition-all duration-300 ${
                             i === pageIndex
                               ? 'bg-[#d8b081] w-6'
@@ -1013,61 +1048,47 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </section>
       </div>
 
-      {/* Supertítulo que abarca servicios y productos */}
-      <div 
-        className="relative flex items-center justify-center overflow-hidden bg-black" 
-        style={{ zIndex: 2, minHeight: '380px', padding: '4rem 0', marginTop: '-2rem' }}
+      {/* Supertítulo — fondo barbería a todo el ancho (sin foto equipo) */}
+      <div
+        className="relative flex items-center justify-center overflow-hidden bg-black"
+        style={{ zIndex: 2, minHeight: 'clamp(200px, 28vh, 280px)', padding: '2rem 0', marginTop: '-2rem' }}
       >
         <div className="absolute inset-0 z-0">
-          {ofrecemosBackgrounds.map((bg, index) => (
-            <div
-              key={index}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                index === ofrecemosBgIndex ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {index === 0 ? (
-                // Estructura especializada para el Equipo: no estira a los lados, usa caja gris y difuminados grises laterales
-                <div className="absolute inset-0 bg-[#161619] flex items-start justify-center overflow-hidden">
-                  <div className="relative w-full max-w-[850px] h-full overflow-hidden">
-                    <img 
-                      src={bg}
-                      alt="Equipo"
-                      className="w-full h-full object-cover animate-slow-zoom opacity-50 grayscale"
-                      style={{
-                        objectPosition: 'center 20%', /* Enfoque en la parte supero-media (top-mid) de la foto para plano medio corto */
-                        transformOrigin: 'center 20%',
-                        filter: 'contrast(1.15)'
-                      }}
-                    />
-                    {/* Difuminados de gris lateral para que la foto se pierda en el fondo sin cortes rígidos */}
-                    <div className="absolute inset-y-0 left-0 w-24 sm:w-48 bg-gradient-to-r from-[#161619] via-[#161619]/90 to-transparent pointer-events-none" />
-                    <div className="absolute inset-y-0 right-0 w-24 sm:w-48 bg-gradient-to-l from-[#161619] via-[#161619]/90 to-transparent pointer-events-none" />
-                  </div>
-                </div>
-              ) : (
-                // Estructura tipo Hero (cubriendo toda la pantalla, en negro)
-                <div className="absolute inset-0 bg-black">
-                  <div
-                    className="absolute inset-0 bg-cover animate-slow-zoom opacity-40 grayscale"
-                    style={{ 
-                      backgroundImage: `url(${bg})`,
-                      backgroundPosition: 'center center',
-                      filter: 'contrast(1.15)'
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#000] to-transparent"></div>
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#000] to-transparent"></div>
+          <div className="absolute inset-0 bg-black">
+            <img
+              src={ofrecemosHeroBg}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover animate-slow-zoom opacity-50 grayscale pointer-events-none"
+              style={{ filter: 'contrast(1.12)', objectPosition: 'center center' }}
+              draggable={false}
+            />
+          </div>
+          {/* Overlay oscuro uniforme sobre la foto */}
+          <div
+            className="absolute inset-0 bg-black/55 pointer-events-none"
+            aria-hidden
+          />
+          {/* Fade borde superior — fundido hacia la sección anterior */}
+          <div
+            className="absolute inset-x-0 top-0 h-[min(45%,10rem)] pointer-events-none"
+            style={{
+              background:
+                'linear-gradient(to bottom, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.72) 28%, rgba(0,0,0,0.28) 62%, transparent 100%)',
+            }}
+            aria-hidden
+          />
+          {/* Fade borde inferior — fundido hacia Servicios */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-[min(45%,10rem)] pointer-events-none"
+            style={{
+              background:
+                'linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.72) 28%, rgba(0,0,0,0.28) 62%, transparent 100%)',
+            }}
+            aria-hidden
+          />
         </div>
 
-        {/* Contenido principal sobre todo */}
-
-        <div className="content-max-width text-center reveal-item relative z-10">
+        <div className="content-max-width text-center reveal-item relative z-10 px-4">
           <div className="supertitle-wrapper">
             <span className="supertitle-line opacity-70" />
             <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-white drop-shadow-[0_4px_30px_rgba(0,0,0,1)] uppercase">
@@ -1075,7 +1096,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             </h2>
             <span className="supertitle-line opacity-70" />
           </div>
-          <p className="text-[#f2d6b3] max-w-xl mx-auto text-xl font-medium leading-relaxed italic mt-6 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+          <p className="text-[#f2d6b3] max-w-xl mx-auto text-lg sm:text-xl font-medium leading-relaxed italic mt-4 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
             "La calidad es el único estándar que no admite compromisos."
           </p>
         </div>
@@ -1130,40 +1151,40 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               </button>
             </div>
 
-            <div className="hero-gallery-carousel relative flex-1 min-w-0">
-              {loading ? (
-                <div className="flex gap-6 w-full overflow-hidden" style={{ marginBottom: '2rem' }}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                    <div
-                      key={i}
-                      className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
-                      style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
-                    >
-                      <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
-                        <div className="absolute inset-0 skeleton-shimmer-gold" />
-                        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
-                        <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
-                      </div>
-                      <div className="px-6 pt-5 pb-6 space-y-4">
-                        <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                        <div className="flex items-baseline justify-between">
-                          <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
-                          <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+            <div className="hero-gallery-carousel hero-gallery-carousel--cards relative flex-1 min-w-0">
+              <div className="hero-gallery-track-wrap">
+                {loading ? (
+                  <div className="flex gap-6 w-full overflow-hidden" style={{ marginBottom: '2rem' }}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                      <div
+                        key={i}
+                        className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                        style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
+                      >
+                        <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                          <div className="absolute inset-0 skeleton-shimmer-gold" />
+                          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+                          <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
                         </div>
-                        <div className="space-y-2">
-                          <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
-                          <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                        <div className="px-6 pt-5 pb-6 space-y-4">
+                          <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                          <div className="flex items-baseline justify-between">
+                            <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                            <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                            <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                          </div>
+                          <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
                         </div>
-                        <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <>
+                    ))}
+                  </div>
+                ) : (
                   <div
                     ref={servTrackRef}
-                    className="relative z-[1] flex gap-6"
+                    className="relative flex gap-6"
                     style={{ width: 'max-content', willChange: 'transform', marginBottom: '2rem' }}
                   >
                     {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
@@ -1203,6 +1224,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+              {!loading && (
+                <>
                   <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
                   <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
                   <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />
@@ -1237,7 +1262,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           <div className="text-center mb-14 reveal-item">
 
             <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem' }}>
-              Productos
+              Nuestra tienda fisica
             </h3>
             <p className="text-gray-400 max-w-xl mx-auto text-lg leading-relaxed  mb-2">Reserva el producto que deseas y nosotros lo tendremos listo para ti en tu próxima visita.</p>
           </div>
@@ -1258,36 +1283,36 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               </button>
             </div>
 
-            <div className="hero-gallery-carousel relative flex-1 min-w-0">
-              {loading ? (
-                <div className="flex gap-6 w-full overflow-hidden">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                    <div
-                      key={i}
-                      className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
-                      style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
-                    >
-                      <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
-                        <div className="absolute inset-0 skeleton-shimmer-gold" />
-                        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
-                      </div>
-                      <div className="px-6 pt-5 pb-6 space-y-4">
-                        <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                        <div className="flex items-baseline justify-between">
-                          <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
-                          <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+            <div className="hero-gallery-carousel hero-gallery-carousel--cards relative flex-1 min-w-0">
+              <div className="hero-gallery-track-wrap">
+                {loading ? (
+                  <div className="flex gap-6 w-full overflow-hidden">
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                      <div
+                        key={i}
+                        className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                        style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
+                      >
+                        <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                          <div className="absolute inset-0 skeleton-shimmer-gold" />
+                          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
                         </div>
-                        <div className="space-y-2">
-                          <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
-                          <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                        <div className="px-6 pt-5 pb-6 space-y-4">
+                          <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                          <div className="flex items-baseline justify-between">
+                            <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                            <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                            <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <>
-                  <div ref={prodTrackRef} className="relative z-[1] flex gap-6" style={{ width: 'max-content', willChange: 'transform', marginBottom: '4rem' }}>
+                    ))}
+                  </div>
+                ) : (
+                  <div ref={prodTrackRef} className="relative flex gap-6" style={{ width: 'max-content', willChange: 'transform', marginBottom: '4rem' }}>
                     {[...productos, ...productos].map((producto, idx) => (
                       <div key={`prod-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
                         <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
@@ -1307,6 +1332,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+              {!loading && (
+                <>
                   <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
                   <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
                   <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />

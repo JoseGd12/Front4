@@ -10,12 +10,24 @@
 }
 
 /*
- * Carrusel “Nuestro trabajo”: caja entre flechas (sin padding horizontal propio).
- * Luz y viñeta usan left/right: 0 en este rectángulo = “paredes” junto a las flechas.
+ * Carrusel entre flechas (sin padding horizontal propio en el rail).
+ * --mosaic / --cards: overflow hidden para que blur y sombras no se dibujen fuera del carril.
+ * El rail horizontal va en .hero-gallery-track-wrap (overflow-x: clip).
  */
 .hero-gallery-carousel {
   isolation: isolate;
+}
+
+.hero-gallery-carousel--mosaic,
+.hero-gallery-carousel--cards {
   overflow: hidden;
+}
+
+.hero-gallery-track-wrap {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 /* Sombra difusa solo negra desde cada pared hacia el centro (sin tono cálido) */
@@ -326,24 +338,28 @@
   pointer-events: none;
 }
 
-/* Capa 3: Patrón diagonal (scanlines) — textura premium sutil */
+/*
+ * Capa 3: líneas diagonales finas (misma geometría en todo el hero).
+ * z-index por encima del bloque de título/CTA para que el patrón también se vea sobre el texto;
+ * pointer-events: none mantiene los botones clicables.
+ */
 .hero-video-pattern {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(0, 0, 0, 0.12) 0,
-    rgba(0, 0, 0, 0.12) 1px,
+    rgba(0, 0, 0, 0.14) 0,
+    rgba(0, 0, 0, 0.14) 1px,
     transparent 0,
     transparent 50%
   );
   background-size: 4px 4px;
   pointer-events: none;
-  opacity: 0.7;
+  opacity: 0.62;
 }
 
-/* Capa 4: ancho completo del hero para el texto “BARBERSHOP” (muy ancho por letter-spacing) */
+/* Capa 4: título + CTAs (debajo del patrón visualmente; los clics atraviesan la capa del patrón) */
 .hero-video-content {
   position: relative;
   z-index: 3;
@@ -546,6 +562,38 @@
     radial-gradient(ellipse 80% 50% at 20% 40%, rgba(216, 176, 129, 0.06) 0%, transparent 70%),
     radial-gradient(ellipse 60% 40% at 80% 60%, rgba(216, 176, 129, 0.04) 0%, transparent 70%);
   pointer-events: none;
+}
+
+/* Gaps del mosaico: mismo gradiente base que .nosotros-section (evita negro plano bajo el grid) */
+.nosotros-gallery-mosaic-viewport {
+  background: linear-gradient(180deg, #0a0a0a 0%, #111113 25%, #15130f 50%, #0e0d0b 75%, #000000 100%);
+}
+
+/* Nosotros: fade de pared más corto y suave que en la galería hero */
+.hero-gallery-carousel--nosotros .hero-gallery-wall-glow {
+  filter: blur(16px);
+  opacity: 0.45;
+  max-width: 6rem;
+}
+
+.hero-gallery-carousel--nosotros .hero-gallery-fade-in--left,
+.hero-gallery-carousel--nosotros .hero-gallery-fade-in--right {
+  width: min(18%, 3rem);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.18) 50%,
+    transparent 100%
+  );
+}
+
+.hero-gallery-carousel--nosotros .hero-gallery-fade-in--right {
+  background: linear-gradient(
+    270deg,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.18) 50%,
+    transparent 100%
+  );
 }
 
 .glass-card {
