@@ -1221,8 +1221,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       const pageWidth = doc.internal.pageSize.getWidth();
       const hMargin = 20;
 
-      doc.setFillColor(26, 26, 26);
-      doc.rect(0, 0, pageWidth, 65, 'F');
+      
 
       try {
         doc.addImage(manitoLogo, 'JPEG', pageWidth / 2 - 12.5, 5, 25, 25);
@@ -1232,7 +1231,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       const negocioEmail = "Edwainsolano007@gmail.com";
       const negocioDireccion = "Calle 79 #52 12 Aranjuez, Medellín";
       const negocioTelefono = "301 4836189";
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.text(negocioNombre, pageWidth - hMargin, 12, { align: "right" });
@@ -1242,29 +1241,28 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       doc.text(negocioDireccion, pageWidth - hMargin, 24, { align: "right" });
       doc.text(negocioTelefono, pageWidth - hMargin, 30, { align: "right" });
 
-      doc.setTextColor(216, 176, 129);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(24);
       doc.text("MANITO BARBERSHOP", pageWidth / 2, 40, { align: "center" });
 
       doc.setFontSize(10);
-      doc.setTextColor(170, 170, 170);
+      doc.setTextColor(0, 0, 0);
       doc.text("Comprobante de Compra", pageWidth / 2, 48, { align: "center" });
 
-      doc.setFillColor(216, 176, 129);
-      doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, 'F');
+      doc.setDrawColor(0, 0, 0); doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, "S");
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
       const compraId = String((compra as any).numeroCompra || compra.id || "N/A");
       doc.text(`COMPRA #${compraId}`, pageWidth / 2, 56.5, { align: "center" });
 
       let y = 80;
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("INFORMACIÓN GENERAL", hMargin, y);
 
-      doc.setDrawColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(hMargin, y + 2, 85, y + 2);
 
@@ -1323,24 +1321,23 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       const totalNum = Number((compra as any).total || subtotalNum + ivaNum - descuentoNum);
       y += 15;
       doc.setFontSize(14);
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text("DETALLE DE PRODUCTOS", hMargin, y);
       doc.line(hMargin, y + 2, 87, y + 2);
 
       y += 12;
-      doc.setFillColor(26, 26, 26);
-      doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, 'F');
-      doc.setTextColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0); doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, "S");
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
-      doc.text("PRODUCTO", hMargin + 2, y + 6.5);
-      doc.text("CATEGORÍA", hMargin + 60, y + 6.5);
-      doc.text("CANT.", hMargin + 100, y + 6.5, { align: "right" });
-      doc.text("PREC. UNIT", hMargin + 130, y + 6.5, { align: "right" });
-      doc.text("SUBTOTAL", hMargin + 160, y + 6.5, { align: "right" });
+      doc.text("PRODUCTO", hMargin + 30, y + 6.5, { align: "center" });
+      doc.text("CATEGORÍA", hMargin + 75, y + 6.5, { align: "center" });
+      doc.text("CANT.", hMargin + 105, y + 6.5, { align: "center" });
+      doc.text("PREC. UNIT", hMargin + 130, y + 6.5, { align: "center" });
+      doc.text("SUBTOTAL", hMargin + 155, y + 6.5, { align: "center" });
 
       y += 10;
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
 
       if (!Array.isArray(detalles) || detalles.length === 0) {
@@ -1354,7 +1351,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
           }
 
           if (index % 2 === 0) {
-            doc.setFillColor(248, 249, 250);
+            doc.setFillColor(255, 255, 255);
             doc.rect(hMargin, y, pageWidth - (hMargin * 2), 8, 'F');
           }
 
@@ -1372,15 +1369,15 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
           const catTruncada = categoria.length > 20 ? `${categoria.substring(0, 17)}...` : categoria;
 
           doc.setFontSize(8);
-          doc.text(nombreTruncado, hMargin + 2, y + 5.5);
-          doc.text(catTruncada || 'N/A', hMargin + 60, y + 5.5);
+          doc.text(nombreTruncado, hMargin + 30, y + 5.5, { align: "center" });
+          doc.text(catTruncada || 'N/A', hMargin + 75, y + 5.5, { align: "center" });
 
           doc.setFont("helvetica", "bold");
-          doc.text(String(cantidad), hMargin + 100, y + 5.5, { align: "right" });
+          doc.text(String(cantidad), hMargin + 105, y + 5.5, { align: "center" });
           doc.setFont("helvetica", "normal");
-          doc.text(`$${formatCurrency(precioUnitario)}`, hMargin + 125, y + 5.5, { align: "right" });
+          doc.text(`$${formatCurrency(precioUnitario)}`, hMargin + 130, y + 5.5, { align: "center" });
           doc.setFont("helvetica", "bold");
-          doc.text(`$${formatCurrency(subtotal)}`, hMargin + 160, y + 5.5, { align: "right" });
+          doc.text(`$${formatCurrency(subtotal)}`, hMargin + 155, y + 5.5, { align: "center" });
           doc.setFont("helvetica", "normal");
 
           y += 8;
@@ -1392,24 +1389,24 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
         doc.addPage();
         y = 20;
       }
-      doc.setFillColor(248, 249, 250);
+      doc.setFillColor(255, 255, 255);
       doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 22, 2, 2, 'F');
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
       doc.text(`TOTAL INSUMOS: ${totalItems} UNIDADES`, pageWidth / 2, y + 8, { align: "center" });
       doc.setFontSize(14);
-      doc.setTextColor(216, 176, 129);
+      doc.setTextColor(0, 0, 0);
       doc.text(`VALOR TOTAL: $ ${formatCurrency(totalNum)}`, pageWidth / 2, y + 17, { align: "center" });
 
       y = Math.max(275, y + 28);
-      doc.setDrawColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0);
       doc.line(hMargin, y, pageWidth - hMargin, y);
 
       y += 8;
       doc.setFont("helvetica", "italic");
       doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
+      doc.setTextColor(0, 0, 0);
       doc.text(`Documento generado automáticamente el ${new Date().toLocaleString('es-CO')}`, pageWidth / 2, y, { align: "center" });
       doc.text("MANITO BARBERSHOP - Sistema de Gestión de Insumos", pageWidth / 2, y + 4, { align: "center" });
       const filename = `Reporte_Compra_${(compra as any).numeroCompra || compra.id}_${new Date().toISOString().split('T')[0]}.pdf`;

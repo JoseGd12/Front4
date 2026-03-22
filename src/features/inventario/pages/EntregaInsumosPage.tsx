@@ -932,8 +932,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
       const hMargin = 20;
 
       // --- ENCABEZADO ---
-      doc.setFillColor(26, 26, 26);
-      doc.rect(0, 0, pageWidth, 65, 'F'); // Aumentado para el logo más grande
+       // Aumentado para el logo más grande
 
       // Agregar Logo
       try {
@@ -947,7 +946,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
       const negocioEmail = "Edwainsolano007@gmail.com";
       const negocioDireccion = "Calle 79 #52 12 Aranjuez, Medellín";
       const negocioTelefono = "301 4836189";
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.text(negocioNombre, pageWidth - hMargin, 12, { align: "right" });
@@ -957,19 +956,18 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
       doc.text(negocioDireccion, pageWidth - hMargin, 24, { align: "right" });
       doc.text(negocioTelefono, pageWidth - hMargin, 30, { align: "right" });
 
-      doc.setTextColor(216, 176, 129); // Dorado
+      doc.setTextColor(0, 0, 0); // Dorado
       doc.setFont("helvetica", "bold");
       doc.setFontSize(24);
       // Texto más alejado del logo (y=40)
       doc.text("MANITO BARBERSHOP", pageWidth / 2, 40, { align: "center" });
 
       doc.setFontSize(10);
-      doc.setTextColor(170, 170, 170);
+      doc.setTextColor(0, 0, 0);
       doc.text("Comprobante de Entrega de Insumos", pageWidth / 2, 48, { align: "center" });
 
       // Badge ID
-      doc.setFillColor(216, 176, 129);
-      doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, 'F');
+      doc.setDrawColor(0, 0, 0); doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, "S");
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
       const deliveryId = String((entregaFull as any).documento || entregaFull.id || 'N/A');
@@ -977,12 +975,12 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
 
       // --- INFORMACIÓN GENERAL ---
       let y = 80; // Bajado más para compensar el header más grande y el logo
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("INFORMACIÓN GENERAL", hMargin, y);
       
-      doc.setDrawColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(hMargin, y + 2, 85, y + 2);
       
@@ -1021,16 +1019,15 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
       // --- TABLA DE INSUMOS ---
       y += 15;
       doc.setFontSize(14);
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text("DETALLE DE INSUMOS", hMargin, y);
       doc.line(hMargin, y + 2, 80, y + 2);
 
       y += 12;
       // Headers Tabla: INSUMO, CATEGORÍA, CANT., Stock insumos, Total actual
-      doc.setFillColor(26, 26, 26);
-      doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, 'F');
-      doc.setTextColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0); doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, "S");
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
       const colInsumo = 45, colCat = 85, colCant = 108, colStockInsumos = 133, colTotal = 169;
       doc.text("INSUMO", colInsumo, y + 6.5, { align: "center" });
@@ -1040,7 +1037,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
       doc.text("TOTAL ACTUAL", colTotal, y + 6.5, { align: "center" });
 
       y += 10;
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
 
       if (detallesNormalized.length === 0) {
@@ -1054,7 +1051,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
           }
 
           if (index % 2 === 0) {
-            doc.setFillColor(248, 249, 250);
+            doc.setFillColor(255, 255, 255);
             doc.rect(hMargin, y, pageWidth - (hMargin * 2), 8, 'F');
           }
 
@@ -1095,7 +1092,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
         doc.addPage();
         y = 20;
       }
-      doc.setFillColor(248, 249, 250);
+      doc.setFillColor(255, 255, 255);
       doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 12, 2, 2, 'F');
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
@@ -1104,13 +1101,13 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
 
       // --- PIE DE PÁGINA ---
       y = Math.max(275, y + 18);
-      doc.setDrawColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0);
       doc.line(hMargin, y, pageWidth - hMargin, y);
       
       y += 8;
       doc.setFont("helvetica", "italic");
       doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
+      doc.setTextColor(0, 0, 0);
       doc.text(`Documento generado automáticamente el ${new Date().toLocaleString('es-CO')}`, pageWidth / 2, y, { align: "center" });
       doc.text("MANITO BARBERSHOP - Sistema de Gestión de Insumos", pageWidth / 2, y + 4, { align: "center" });
 

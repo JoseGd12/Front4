@@ -161,7 +161,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
-  const [isPdfPopoverOpen, setIsPdfPopoverOpen] = useState(false);
+
   const [showDevolucionFormErrors, setShowDevolucionFormErrors] = useState(false);
   const [devolucionValidationAttempt, setDevolucionValidationAttempt] = useState(0);
 
@@ -411,9 +411,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   };
 
   // Estados para rango de fechas en reporte Excel
-  const [customStartDate, setCustomStartDate] = useState("");
-  const [customEndDate, setCustomEndDate] = useState("");
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
 
   // Estado para nueva devolución
   const [nuevaDevolucion, setNuevaDevolucion] = useState({
@@ -1077,184 +1075,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
 
   // Función para generar reporte Excel real por rango de fechas
-  const generateExcelReport = async (_periodo: 'custom', startDate?: string, endDate?: string) => {
-    try {
-      // Validar que las fechas estén presentes
-      if (!startDate || !endDate) {
-        showErrorAlert("Fechas requeridas", "Por favor selecciona ambas fechas para generar el reporte.");
-        return;
-      }
 
-      setIsGeneratingReport(true);
-
-      const XLSX = await import('xlsx');
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      // Validar que la fecha de inicio sea anterior a la de fin
-      if (start > end) {
-        showErrorAlert("Fechas inválidas", "La fecha de inicio debe ser anterior a la fecha de fin.");
-        setIsGeneratingReport(false);
-        return;
-      }
-
-      // Filtrar devoluciones por rango de fechas
-      const filteredData = devoluciones.filter(d => {
-        const devDate = new Date(d.fecha.split('-').reverse().join('-'));
-        return devDate >= start && devDate <= end;
-      });
-
-      // Si no hay datos en el rango, mostrar mensaje
-      if (filteredData.length === 0) {
-        showWarningAlert("Sin resultados", "No se encontraron devoluciones en el rango de fechas seleccionado.");
-        setIsGeneratingReport(false);
-        return;
-      }
-
-      const periodoTexto = `${startDate}_a_${endDate}`;
-
-      const totalRegistros = filteredData.length;
-      const totalMonto = filteredData.reduce((sum, d) => sum + d.monto, 0);
-      const totalSaldos = filteredData.filter(d => d.estado === 'Completada').reduce((sum, d) => sum + d.saldoAFavor, 0);
-
-      // Preparar datos para Excel
-      const excelData = filteredData.map(dev => ({
-        'ID Devolución': dev.id,
-        'Cliente': dev.cliente,
-        'Producto': dev.producto,
-        'Cantidad': dev.cantidad,
-        'Precio Unitario': `${formatCurrency(dev.precioUnitario)}`,
-        'Monto Total': `${formatCurrency(dev.monto)}`,
-        'Motivo': dev.motivoDetalle,
-        'Estado': dev.estado,
-        'Fecha': dev.fecha,
-        'Hora': dev.hora,
-        'Responsable': dev.responsable,
-        'No. Venta': dev.numeroVenta,
-        'Saldo a Favor': `${formatCurrency(dev.saldoAFavor)}`,
-        'Observaciones': dev.observaciones || 'N/A'
-      }));
-
-      // Agregar resumen al final
-      excelData.push({
-        'ID Devolución': '',
-        'Cliente': '',
-        'Producto': '',
-        'Cantidad': 0,
-        'Precio Unitario': '',
-        'Monto Total': '',
-        'Motivo': '',
-        'Estado': 'Completada',
-        'Fecha': '',
-        'Hora': '',
-        'Responsable': '',
-        'No. Venta': '',
-        'Saldo a Favor': '',
-        'Observaciones': ''
-      } as any);
-      excelData.push({
-        'ID Devolución': 'RESUMEN',
-        'Cliente': '',
-        'Producto': '',
-        'Cantidad': 0,
-        'Precio Unitario': '',
-        'Monto Total': '',
-        'Motivo': '',
-        'Estado': 'Completada',
-        'Fecha': '',
-        'Hora': '',
-        'Responsable': '',
-        'No. Venta': '',
-        'Saldo a Favor': '',
-        'Observaciones': ''
-      } as any);
-      excelData.push({
-        'ID Devolución': 'Total Registros:',
-        'Cliente': totalRegistros.toString(),
-        'Producto': '',
-        'Cantidad': 0,
-        'Precio Unitario': '',
-        'Monto Total': '',
-        'Motivo': '',
-        'Estado': 'Completada',
-        'Fecha': '',
-        'Hora': '',
-        'Responsable': '',
-        'No. Venta': '',
-        'Saldo a Favor': '',
-        'Observaciones': ''
-      } as any);
-      excelData.push({
-        'ID Devolución': 'Total Monto:',
-        'Cliente': `${formatCurrency(totalMonto)}`,
-        'Producto': '',
-        'Cantidad': 0,
-        'Precio Unitario': '',
-        'Monto Total': '',
-        'Motivo': '',
-        'Estado': 'Completada',
-        'Fecha': '',
-        'Hora': '',
-        'Responsable': '',
-        'No. Venta': '',
-        'Saldo a Favor': '',
-        'Observaciones': ''
-      } as any);
-      excelData.push({
-        'ID Devolución': 'Total Saldos:',
-        'Cliente': `${formatCurrency(totalSaldos)}`,
-        'Producto': '',
-        'Cantidad': 0,
-        'Precio Unitario': '',
-        'Monto Total': '',
-        'Motivo': '',
-        'Estado': 'Completada',
-        'Fecha': '',
-        'Hora': '',
-        'Responsable': '',
-        'No. Venta': '',
-        'Saldo a Favor': '',
-        'Observaciones': ''
-      } as any);
-
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(excelData);
-
-      // Ajustar ancho de columnas
-      const colWidths = [
-        { wch: 15 }, // ID Devolución
-        { wch: 20 }, // Cliente
-        { wch: 25 }, // Producto
-        { wch: 10 }, // Cantidad
-        { wch: 15 }, // Precio Unitario
-        { wch: 15 }, // Monto Total
-        { wch: 25 }, // Motivo
-        { wch: 10 }, // Estado
-        { wch: 12 }, // Fecha
-        { wch: 8 },  // Hora
-        { wch: 20 }, // Responsable
-        { wch: 12 }, // No. Venta
-        { wch: 15 }, // Saldo a Favor
-        { wch: 30 }  // Observaciones
-      ];
-      ws['!cols'] = colWidths;
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Devoluciones');
-
-      // Generar nombre de archivo con fecha actual
-      const fechaActual = new Date().toISOString().split('T')[0];
-      const fileName = `Devoluciones_${periodoTexto}_${fechaActual}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-
-      created("Reporte Excel generado exitosamente", `El archivo se descargó correctamente (${totalRegistros} devoluciones exportadas).`);
-
-      setIsPdfPopoverOpen(false);
-      setIsGeneratingReport(false);
-    } catch (error) {
-      showErrorAlert("Error al generar el reporte Excel", "No se pudo generar el reporte. Intenta nuevamente.");
-      setIsGeneratingReport(false);
-    }
-  };
 
   // Función para generar PDF individual de devolución real
   const generateIndividualPdf = async (devolucion: Devolucion) => {
@@ -1264,8 +1085,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       const pageWidth = doc.internal.pageSize.getWidth();
       const hMargin = 20;
 
-      doc.setFillColor(26, 26, 26);
-      doc.rect(0, 0, pageWidth, 65, 'F');
+      
 
       try {
         doc.addImage(manitoLogo, 'JPEG', pageWidth / 2 - 12.5, 5, 25, 25);
@@ -1275,7 +1095,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       const negocioEmail = "Edwainsolano007@gmail.com";
       const negocioDireccion = "Calle 79 #52 12 Aranjuez, Medellín";
       const negocioTelefono = "301 4836189";
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.text(negocioNombre, pageWidth - hMargin, 12, { align: "right" });
@@ -1285,29 +1105,28 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       doc.text(negocioDireccion, pageWidth - hMargin, 24, { align: "right" });
       doc.text(negocioTelefono, pageWidth - hMargin, 30, { align: "right" });
 
-      doc.setTextColor(216, 176, 129);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(24);
       doc.text("MANITO BARBERSHOP", pageWidth / 2, 40, { align: "center" });
 
       doc.setFontSize(10);
-      doc.setTextColor(170, 170, 170);
+      doc.setTextColor(0, 0, 0);
       doc.text("Comprobante de Devolución", pageWidth / 2, 48, { align: "center" });
 
-      doc.setFillColor(216, 176, 129);
-      doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, 'F');
+      doc.setDrawColor(0, 0, 0); doc.roundedRect(pageWidth / 2 - 25, 52, 50, 7, 3.5, 3.5, "S");
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
       const devolucionId = String(devolucion.id || "N/A");
       doc.text(`DEVOLUCIÓN #${devolucionId}`, pageWidth / 2, 56.5, { align: "center" });
 
       let y = 80;
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("INFORMACIÓN GENERAL", hMargin, y);
 
-      doc.setDrawColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(hMargin, y + 2, 85, y + 2);
 
@@ -1356,15 +1175,14 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
       y += 15;
       doc.setFontSize(14);
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.text("DETALLE DE DEVOLUCIÓN", hMargin, y);
       doc.line(hMargin, y + 2, 88, y + 2);
 
       y += 12;
-      doc.setFillColor(26, 26, 26);
-      doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, 'F');
-      doc.setTextColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0); doc.rect(hMargin, y, pageWidth - (hMargin * 2), 10, "S");
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
       const col1 = 44, col2 = 83, col3 = 108, col4 = 133, col5 = 169;
       doc.text("ITEM", col1, y + 6.5, { align: "center" });
@@ -1374,7 +1192,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       doc.text("SUBTOTAL", col5, y + 6.5, { align: "center" });
 
       y += 10;
-      doc.setTextColor(40, 40, 40);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
 
       const nombreItem = String(devolucion.producto || "Producto");
@@ -1383,7 +1201,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       const precioUnitario = Number(devolucion.precioUnitario || 0);
       const subtotal = Number(devolucion.monto || cantidad * precioUnitario);
 
-      doc.setFillColor(248, 249, 250);
+      doc.setFillColor(255, 255, 255);
       doc.rect(hMargin, y, pageWidth - (hMargin * 2), 8, 'F');
       doc.setFontSize(8);
       const nombreTrunc = nombreItem.length > 42 ? `${nombreItem.substring(0, 39)}...` : nombreItem;
@@ -1415,24 +1233,24 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         doc.addPage();
         y = 20;
       }
-      doc.setFillColor(248, 249, 250);
+      doc.setFillColor(255, 255, 255);
       doc.roundedRect(hMargin, y, pageWidth - (hMargin * 2), 22, 2, 2, 'F');
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
       doc.text(`TOTAL DEVUELTO: $ ${formatCurrency(subtotal)}`, pageWidth / 2, y + 8, { align: "center" });
       doc.setFontSize(14);
-      doc.setTextColor(216, 176, 129);
+      doc.setTextColor(0, 0, 0);
       doc.text(`SALDO A FAVOR: $ ${formatCurrency(Number(devolucion.saldoAFavor || 0))}`, pageWidth / 2, y + 17, { align: "center" });
 
       y = Math.max(275, y + 28);
-      doc.setDrawColor(216, 176, 129);
+      doc.setDrawColor(0, 0, 0);
       doc.line(hMargin, y, pageWidth - hMargin, y);
 
       y += 8;
       doc.setFont("helvetica", "italic");
       doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
+      doc.setTextColor(0, 0, 0);
       doc.text(`Documento generado automáticamente el ${new Date().toLocaleString('es-CO')}`, pageWidth / 2, y, { align: "center" });
       doc.text("MANITO BARBERSHOP - Sistema de Gestión de Devoluciones", pageWidth / 2, y + 4, { align: "center" });
 
@@ -1504,56 +1322,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                 <Plus className="w-4 h-4" />
                 Nueva Devolución
               </button>
-              <Popover open={isPdfPopoverOpen} onOpenChange={setIsPdfPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    className="elegante-button-secondary gap-2 flex items-center"
-                    title="Generar reporte de devoluciones en Excel"
-                  >
-                    <Download className="w-4 h-4" />
-                    Reporte Excel
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 bg-gray-darkest border-gray-dark">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold text-white-primary mb-2">Generar Reporte de Devoluciones</h4>
-                      <p className="text-sm text-gray-lightest">Selecciona el rango de fechas para el reporte en Excel</p>
-                      <p className="text-xs text-orange-primary mt-1">Sin límite de rango de fechas</p>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-white-primary text-sm mb-2 block">Fecha Inicio</Label>
-                        <DatePicker
-                          value={customStartDate}
-                          onChange={(val) => setCustomStartDate(val)}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-white-primary text-sm mb-2 block">Fecha Fin</Label>
-                        <DatePicker
-                          value={customEndDate}
-                          onChange={(val) => setCustomEndDate(val)}
-                        />
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (customStartDate && customEndDate) {
-                            generateExcelReport('custom', customStartDate, customEndDate);
-                          } else {
-                            showErrorAlert("Fechas requeridas", "Por favor selecciona ambas fechas.");
-                          }
-                        }}
-                        disabled={isGeneratingReport}
-                        className="elegante-button-primary w-full p-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Download className={`w-4 h-4 ${isGeneratingReport ? 'animate-bounce' : ''}`} />
-                        {isGeneratingReport ? 'Generando...' : 'Generar Reporte'}
-                      </button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+
               </div>
             )}
             searchValue={searchTerm}
