@@ -1120,7 +1120,7 @@ export function UsersPage() {
                       return (
                       <tr key={user.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                         <td className="text-center py-4 px-4">
-                          <span className="text-gray-lighter">{user.documento || "—"}</span>
+                          <span className="text-gray-lighter">{(user as any).tipoDocumento ? `${(user as any).tipoDocumento} ${user.documento || ""}` : (user.documento || "—")}</span>
                         </td>
                         <td className="text-center py-4 px-4">
                           <div className="flex items-center justify-left gap-3">
