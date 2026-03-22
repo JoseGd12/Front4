@@ -28,7 +28,7 @@ export function ServiciosPage() {
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [pagedServicios, setPagedServicios] = useState<Servicio[]>([]);
   const [totalPagesApi, setTotalPagesApi] = useState(1);
   const [totalCountApi, setTotalCountApi] = useState(0);
@@ -488,7 +488,7 @@ export function ServiciosPage() {
                     />
                   ) : displayedServicios.length > 0 ? displayedServicios.map((servicio) => (
                     <tr key={servicio.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex justify-center">
                           <ImageRenderer
                             url={servicio.imagen}
@@ -519,7 +519,7 @@ export function ServiciosPage() {
                           {servicio.estado ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => toggleActivo(servicio.id)}

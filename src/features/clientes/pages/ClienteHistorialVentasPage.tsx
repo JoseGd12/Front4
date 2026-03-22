@@ -248,14 +248,14 @@ export function ClienteHistorialVentasPage() {
                 <table className="w-full">
                 <thead>
                     <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">N° Venta</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Total</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">N° Venta</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -264,10 +264,10 @@ export function ClienteHistorialVentasPage() {
                         <td className="py-4 px-4 font-mono text-xs text-orange-primary">
                         #{venta.numeroVenta}
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                         <span className="text-gray-lightest text-sm">{new Date(venta.fecha).toLocaleDateString()}</span>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                           <div className="flex flex-col gap-1.5">
                             {/* Prioridad: Mostrar servicios si existen */}
                             {venta.servicios && venta.servicios !== "Sin servicios" ? (
@@ -300,7 +300,7 @@ export function ClienteHistorialVentasPage() {
                             )}
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full bg-orange-primary/10 flex items-center justify-center border border-orange-primary/20">
                                 <User className="w-3.5 h-3.5 text-orange-primary" />
@@ -318,15 +318,15 @@ export function ClienteHistorialVentasPage() {
                               return formatCurrency(Math.max(0, (venta.total || 0) - montoDev));
                           })()}
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                         <span className={`text-xs font-medium ${getMetodoPagoColor(venta.metodoPago)}`}>{venta.metodoPago}</span>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getEstadoColor(venta.estado)}`}>
                             {venta.estado}
                         </span>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                         <button
                             onClick={() => handleViewDetails(venta)}
                             className="text-orange-primary hover:text-orange-secondary p-2 rounded-lg hover:bg-gray-darker transition-colors"

@@ -190,7 +190,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   // Valor especial para representar "todos los barberos" en el filtro
   const VALOR_TODOS_BARBEROS = "todos";
   // Valor especial para representar "sin barbero" en el formulario de nueva venta
@@ -551,7 +551,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   };
 
   const handleItemsPerPageChange = (value: string) => {
-    setItemsPerPage(5);
+    setItemsPerPage(10);
     setCurrentPage(1);
   };
 

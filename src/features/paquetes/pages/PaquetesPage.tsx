@@ -50,7 +50,7 @@ export function PaquetesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Servicios disponibles cargados desde la API
   const [serviciosDisponibles, setServiciosDisponibles] = useState<Servicio[]>([]);
@@ -589,8 +589,8 @@ export function PaquetesPage() {
               <table className="w-full">
                 <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
                     <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
@@ -606,10 +606,10 @@ export function PaquetesPage() {
                     />
                   ) : displayedPaquetes.length > 0 ? displayedPaquetes.map((paquete) => (
                         <tr key={paquete.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                          <td className="py-4 px-4">
+                          <td className="py-4 px-4 text-center">
                             <span className="text-gray-lighter">{paquete.nombre}</span>
                           </td>
-                          <td className="py-4 px-4">
+                          <td className="py-4 px-4 text-center">
                             <span className="text-gray-lighter text-sm">
                               {(() => {
                                 const nombres = serviciosPorPaqueteId.get(paquete.id) ?? [];
@@ -633,7 +633,7 @@ export function PaquetesPage() {
                               {paquete.activo ? 'Activo' : 'Inactivo'}
                             </span>
                           </td>
-                          <td className="py-4 px-4">
+                          <td className="py-4 px-4 text-center">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => handleToggleEstadoPaquete(paquete)}

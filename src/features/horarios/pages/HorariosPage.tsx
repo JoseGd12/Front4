@@ -111,7 +111,7 @@ export function HorariosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Estado para el formulario de nuevo horario
   const [nuevoHorario, setNuevoHorario] = useState<{
@@ -871,19 +871,19 @@ export function HorariosPage() {
             <table className="w-full">
                 <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Documento
                     </th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Barbero
                     </th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Días
                     </th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Horas
                     </th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Bloques
                     </th>
                     <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">
@@ -902,12 +902,12 @@ export function HorariosPage() {
                       key={horario.id}
                       className="border-b border-gray-dark hover:bg-gray-darker transition-colors"
                     >
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter">
                           {horario.tipoDocumento} {horario.documento || '—'}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
                             <UserIcon className="w-5 h-5 text-gray-lightest" />
@@ -917,12 +917,12 @@ export function HorariosPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter">
                           {getDiasResumen(horario.bloques)}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="text-gray-lighter text-sm">
                           {horario.bloques.length > 0 && (
                             <div className="text-gray-lighter">
@@ -931,12 +931,12 @@ export function HorariosPage() {
                           )}
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="px-2 py-1 rounded bg-gray-medium text-gray-lighter text-sm">
                           {horario.bloques.length} bloque{horario.bloques.length !== 1 ? "s" : ""}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => toggleEstadoHorario(horario)}

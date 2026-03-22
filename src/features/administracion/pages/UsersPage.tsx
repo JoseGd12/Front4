@@ -122,7 +122,7 @@ export function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [newUser, setNewUser] = useState({
     nombres: '',
     apellidos: '',
@@ -1084,11 +1084,11 @@ export function UsersPage() {
             <table className="w-full">
                 <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuario</th>
 
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Dirección</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                     <th className="text-center  py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
@@ -1119,7 +1119,7 @@ export function UsersPage() {
 
                       return (
                       <tr key={user.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                        <td className="text-left py-4 px-4">
+                        <td className="text-center py-4 px-4">
                           <span className="text-gray-lighter">{user.documento || "—"}</span>
                         </td>
                         <td className="text-center py-4 px-4">
@@ -1134,13 +1134,13 @@ export function UsersPage() {
                             <span className="text-gray-lighter">{user.nombres}</span>
                           </div>
                         </td>
-                        <td className="text-left py-4 px-4">
+                        <td className="text-center py-4 px-4">
                           <div className="flex flex-col">
                             <span className="text-gray-lighter text-sm">{user.correo || '—'}</span>
                             <span className="text-gray-lightest text-xs">{user.celular || '—'}</span>
                           </div>
                         </td>
-                        <td className="text-left py-4 px-4">
+                        <td className="text-center py-4 px-4">
                           <span className="text-gray-lighter">
                             {user.rol}
                           </span>

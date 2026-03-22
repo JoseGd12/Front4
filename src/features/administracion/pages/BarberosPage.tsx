@@ -58,7 +58,7 @@ export function BarberosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [newBarbero, setNewBarbero] = useState<CreateBarberoData>({
     nombre: '',
     apellido: '',
@@ -560,7 +560,7 @@ export function BarberosPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
-                <tr className="text-left border-b border-gray-dark">
+                <tr className="text-center border-b border-gray-dark">
                   <th className="py-4 px-4 text-white-primary font-bold">Documento</th>
                   <th className="py-4 px-4 text-white-primary font-bold">Barbero</th>
                   <th className="py-4 px-4 text-white-primary font-bold">Contacto</th>
@@ -588,7 +588,7 @@ export function BarberosPage() {
                       <td className="py-4 px-4 text-gray-lighter">
                         {barbero.tipoDocumento} {barbero.documento}
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center gap-3">
                           <ImageRenderer
                             url={barbero.fotoPerfil}
@@ -600,18 +600,18 @@ export function BarberosPage() {
                           <span className="text-gray-lighter">{barbero.nombre} {barbero.apellido}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex flex-col">
                           <span className="text-gray-lighter text-sm">{barbero.correo}</span>
                           <span className="text-gray-lightest text-xs">{barbero.telefono}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="px-2 py-1 rounded-full text-xs bg-gray-dark text-orange-primary border border-orange-primary/20">
                           {barbero.especialidad || 'General'}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs ${barbero.status === 'active'
                           ? 'bg-green-500/10 text-green-400 border border-green-500/20'
                           : 'bg-red-500/10 text-red-400 border border-red-500/20'

@@ -138,7 +138,7 @@ export function ProveedoresPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [formData, setFormData] = useState({
     nombre: "",
     tipoProveedor: "Juridico" as 'Juridico' | 'Natural',
@@ -1035,10 +1035,10 @@ export function ProveedoresPage() {
             <table className="w-full">
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">NIT/Documento</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Dirección</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">NIT/Documento</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Dirección</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
@@ -1077,10 +1077,10 @@ export function ProveedoresPage() {
                       key={proveedor.id}
                       className="border-b border-gray-dark hover:bg-gray-darker transition-colors"
                     >
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-sm text-gray-lighter">{proveedor.nit}</span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center">
                             {proveedor.tipoProveedor === 'Juridico' ? (
@@ -1092,13 +1092,13 @@ export function ProveedoresPage() {
                           <span className="text-sm text-gray-lighter">{proveedor.nombre}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex flex-col">
                           <span className="text-sm text-gray-lighter">{proveedor.correo || '-'}</span>
                           <span className="text-xs text-gray-lightest">{(proveedor as any).numero || (proveedor as any).telefono || ''}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-sm text-gray-lighter">{proveedor.direccion}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -1108,7 +1108,7 @@ export function ProveedoresPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                         <button
                             onClick={() => handleToggleStatus(proveedor)}

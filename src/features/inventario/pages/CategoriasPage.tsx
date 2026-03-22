@@ -51,7 +51,7 @@ export function CategoriasPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [productos, setProductos] = useState<ApiProducto[]>([]);
@@ -453,8 +453,8 @@ export function CategoriasPage() {
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
 
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
@@ -479,7 +479,7 @@ export function CategoriasPage() {
                       className="border-b border-gray-dark hover:bg-gray-darker transition-colors"
                     >
 
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center">
                             <Tags className="w-4 h-4 text-black-primary" />
@@ -487,7 +487,7 @@ export function CategoriasPage() {
                           <span className="text-medium text-gray-lightest">{categoria.nombre}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-sm text-gray-lightest">{categoria.descripcion || 'Sin descripción'}</span>
                       </td>
                       <td className="py-4 px-4 text-center ">
@@ -498,7 +498,7 @@ export function CategoriasPage() {
                           {categoria.estado ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                         <button
                             onClick={() => handleToggleStatus(categoria)}

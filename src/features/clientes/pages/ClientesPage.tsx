@@ -101,7 +101,7 @@ export function ClientesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [formError, setFormError] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
@@ -532,7 +532,7 @@ export function ClientesPage() {
   };
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(5);
+    setItemsPerPage(10);
     setCurrentPage(1); // Reset to first page when changing items per page
   };
 
@@ -1011,9 +1011,9 @@ export function ClientesPage() {
             <table className="w-full">
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="border-b border-gray-dark">
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Cliente</th>
-                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Cliente</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>

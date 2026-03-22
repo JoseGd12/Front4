@@ -73,7 +73,7 @@ export function RolesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState<'todos' | 'activo' | 'inactivo'>('todos');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [nuevoRol, setNuevoRol] = useState<CreateRoleData>({
     nombre: '',
     descripcion: '',
@@ -741,8 +741,8 @@ export function RolesPage() {
             <table className="w-full">
                 <thead className={loading && roles.length === 0 ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">ID</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuarios</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Módulos</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
@@ -757,10 +757,10 @@ export function RolesPage() {
                     />
                   ) : displayedRoles.map((rol) => (
                     <tr key={rol.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter text-sm">{rol.id}</span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <span className="text-gray-lighter">{rol.nombre}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -774,7 +774,7 @@ export function RolesPage() {
                           {rol.estado === true ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => toggleRoleStatus(rol.id)}

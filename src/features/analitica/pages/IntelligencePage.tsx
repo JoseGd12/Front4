@@ -220,8 +220,8 @@ export function IntelligencePage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-dark-color">
-                        <th className="text-left font-bold text-white-primary pb-3">Prompt Text</th>
-                        <th className="text-left font-bold text-white-primary pb-3">Top Brand</th>
+                        <th className="text-center font-bold text-white-primary pb-3">Prompt Text</th>
+                        <th className="text-center font-bold text-white-primary pb-3">Top Brand</th>
                         <th className="text-center font-bold text-white-primary pb-3">#1s</th>
                         <th className="text-center font-bold text-white-primary pb-3">Rate</th>
                       </tr>
@@ -263,7 +263,7 @@ export function IntelligencePage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-dark-color">
-                        <th className="text-left font-bold text-white-primary pb-3">Model</th>
+                        <th className="text-center font-bold text-white-primary pb-3">Model</th>
                         <th className="text-center font-bold text-white-primary pb-3">Your Mentions</th>
                         <th className="text-center font-bold text-white-primary pb-3">Their Mentions</th>
                         <th className="text-center font-bold text-white-primary pb-3">Your Rank</th>

@@ -213,7 +213,7 @@ export function NotasCreditoPage() {
   const [selectedNota, setSelectedNota] = useState<NotaCredito | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(10);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [isReportPopoverOpen, setIsReportPopoverOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange>(getDateRanges().monthly);
@@ -560,10 +560,10 @@ export function NotasCreditoPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-dark">
-                  <th className="text-left font-bold text-white-primary pb-4">ID</th>
-                  <th className="text-left font-bold text-white-primary pb-4">Cliente</th>
+                  <th className="text-center font-bold text-white-primary pb-4">ID</th>
+                  <th className="text-center font-bold text-white-primary pb-4">Cliente</th>
                   <th className="text-right font-bold text-white-primary pb-4">Monto</th>
-                  <th className="text-left font-bold text-white-primary pb-4">Motivo</th>
+                  <th className="text-center font-bold text-white-primary pb-4">Motivo</th>
                   <th className="text-center font-bold text-white-primary pb-4">Fecha</th>
                   <th className="text-center font-bold text-white-primary pb-4">Estado</th>
                   <th className="text-center font-bold text-white-primary pb-4">Vencimiento</th>
@@ -807,9 +807,9 @@ export function NotasCreditoPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-dark">
-                      <th className="text-left font-bold text-white-primary pb-4">ID Devolución</th>
-                      <th className="text-left font-bold text-white-primary pb-4">Cliente</th>
-                      <th className="text-left font-bold text-white-primary pb-4">Producto</th>
+                      <th className="text-center font-bold text-white-primary pb-4">ID Devolución</th>
+                      <th className="text-center font-bold text-white-primary pb-4">Cliente</th>
+                      <th className="text-center font-bold text-white-primary pb-4">Producto</th>
                       <th className="text-right font-bold text-white-primary pb-4">Monto</th>
                       <th className="text-center font-bold text-white-primary pb-4">Fecha</th>
                       <th className="text-center font-bold text-white-primary pb-4">Acción</th>

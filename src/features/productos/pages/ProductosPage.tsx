@@ -60,7 +60,7 @@ export function ProductosPage() {
   const [filterCategoria, setFilterCategoria] = useState("all");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [pagedProductos, setPagedProductos] = useState<ApiProducto[]>([]);
   const [totalPagesApi, setTotalPagesApi] = useState(1);
   const [totalCountApi, setTotalCountApi] = useState(0);
@@ -1394,7 +1394,7 @@ export function ProductosPage() {
                             {producto.activo ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => toggleProductoActivo(producto.id)}

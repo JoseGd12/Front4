@@ -119,14 +119,14 @@ export function ClienteHistorialDevolucionesPage() {
                 <table className="w-full">
                 <thead>
                     <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">ID</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Venta Ref.</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Producto/Motivo</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Monto</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Saldo Generado</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Venta Ref.</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Producto/Motivo</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo Generado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -137,7 +137,7 @@ export function ClienteHistorialDevolucionesPage() {
                         <td className="py-4 px-4 text-sm text-white-primary">
                             {new Date(dev.fecha).toLocaleDateString()}
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                             <div className="max-w-xs">
                                 <p className="text-sm font-medium text-white-primary truncate">{dev.productoNombre || 'Múltiples items'}</p>
                                 <p className="text-[10px] text-gray-lightest truncate italic">{dev.motivo}</p>
@@ -149,12 +149,12 @@ export function ClienteHistorialDevolucionesPage() {
                         <td className="py-4 px-4 text-sm font-bold text-green-500">
                              ${formatCurrency(dev.saldoAFavor)}
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getEstadoColor(dev.estado)}`}>
                                 {dev.estado}
                             </span>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 text-center">
                             <button
                                 onClick={() => handleViewDetails(dev)}
                                 className="text-orange-primary hover:text-orange-secondary p-2 rounded-lg hover:bg-gray-darker transition-colors"

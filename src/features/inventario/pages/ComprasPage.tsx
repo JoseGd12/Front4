@@ -182,7 +182,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "completada" | "anulada">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [loading, setLoading] = useState(!sessionStorage.getItem('compras_cache'));
 
