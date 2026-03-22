@@ -467,7 +467,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         onClick={() => {
           setActivePage(targetPage);
         }}
-        className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg transition-colors ${isActive ? "bg-orange-primary/10 text-orange-primary" : "text-gray-lighter hover:bg-white/5"
+        className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg transition-colors cursor-pointer ${isActive ? "bg-orange-primary/10 text-orange-primary" : "text-gray-lighter hover:bg-white/5"
           } ${sidebarCollapsed ? "justify-center px-0" : ""}`}
         title={item.label}
       >
@@ -614,8 +614,9 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible"
+                    className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible cursor-pointer"
                     style={{
                       boxShadow: 'none'
                     }}
@@ -676,7 +677,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="w-10 h-10 rounded-full overflow-hidden border border-orange-primary/30 hover:border-orange-primary/60 hover:scale-105 transition-all duration-200"
+                      className="w-10 h-10 rounded-full overflow-hidden border border-orange-primary/30 hover:border-orange-primary/60 hover:scale-105 transition-all duration-200 cursor-pointer"
                       title="Cuenta"
                       type="button"
                     >
@@ -772,8 +773,9 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                     return (
                       <div key={section.title} className="space-y-2">
                         <button
+                          type="button"
                           onClick={() => toggleSection(section.title)}
-                          className={`w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] px-3 py-2 rounded-md transition-colors ${!isCollapsed ? "text-orange-primary bg-orange-primary/5" : "text-gray-lightest/80 hover:bg-white/5"}`}
+                          className={`w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] px-3 py-2 rounded-md transition-colors cursor-pointer ${!isCollapsed ? "text-orange-primary bg-orange-primary/5" : "text-gray-lightest/80 hover:bg-white/5"}`}
                           aria-expanded={!isCollapsed}
                         >
                           <span>{section.title}</span>

@@ -367,6 +367,7 @@ html {
     font-weight: 500;
     transition: all 0.2s ease;
     color: var(--color-gray-lighter);
+    cursor: pointer;
   }
 
   .elegante-nav-item-active {

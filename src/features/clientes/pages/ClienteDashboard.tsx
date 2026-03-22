@@ -115,7 +115,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
       <button
         key={item.label}
         onClick={() => setActivePage(item.label)}
-        className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg transition-colors ${isActive ? "bg-orange-primary/10 text-orange-primary" : "text-gray-lighter hover:bg-white/5"
+        className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg transition-colors cursor-pointer ${isActive ? "bg-orange-primary/10 text-orange-primary" : "text-gray-lighter hover:bg-white/5"
           } ${sidebarCollapsed ? "justify-center px-0" : ""}`}
         title={item.label}
       >
@@ -181,8 +181,9 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible"
+                    className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible cursor-pointer"
                     style={{ boxShadow: 'none' }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.boxShadow = '0 8px 20px rgba(174, 120, 14, 0.81), 0 4px 8px rgba(0, 0, 0, 0.1)';
@@ -242,7 +243,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="w-10 h-10 rounded-full overflow-hidden border border-orange-primary/30 hover:border-orange-primary/60 hover:scale-105 transition-all duration-200"
+                  className="w-10 h-10 rounded-full overflow-hidden border border-orange-primary/30 hover:border-orange-primary/60 hover:scale-105 transition-all duration-200 cursor-pointer"
                   title="Cuenta"
                   type="button"
                 >

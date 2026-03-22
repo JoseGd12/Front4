@@ -9,6 +9,88 @@
   display: none;
 }
 
+/*
+ * Carrusel “Nuestro trabajo”: caja entre flechas (sin padding horizontal propio).
+ * Luz y viñeta usan left/right: 0 en este rectángulo = “paredes” junto a las flechas.
+ */
+.hero-gallery-carousel {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Sombra difusa solo negra desde cada pared hacia el centro (sin tono cálido) */
+.hero-gallery-wall-glow {
+  position: absolute;
+  pointer-events: none;
+  top: 0;
+  bottom: 0;
+  z-index: 8;
+  filter: blur(32px);
+  opacity: 0.9;
+  mix-blend-mode: normal;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.hero-gallery-wall-glow--left {
+  left: 0;
+  width: 50%;
+  max-width: 18rem;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.65) 0%,
+    rgba(0, 0, 0, 0.32) 38%,
+    rgba(0, 0, 0, 0.08) 62%,
+    transparent 100%
+  );
+}
+
+.hero-gallery-wall-glow--right {
+  right: 0;
+  width: 50%;
+  max-width: 18rem;
+  background: linear-gradient(
+    270deg,
+    rgba(0, 0, 0, 0.65) 0%,
+    rgba(0, 0, 0, 0.32) 38%,
+    rgba(0, 0, 0, 0.08) 62%,
+    transparent 100%
+  );
+}
+
+/* Fade oscuro hacia adentro: máximo en la pared (borde con la flecha), transparente al centro */
+.hero-gallery-fade-in {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hero-gallery-fade-in--left {
+  left: 0;
+  width: min(36%, 6.5rem);
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.5) 42%,
+    rgba(0, 0, 0, 0.12) 78%,
+    transparent 100%
+  );
+}
+
+.hero-gallery-fade-in--right {
+  right: 0;
+  width: min(36%, 6.5rem);
+  background: linear-gradient(
+    270deg,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.5) 42%,
+    rgba(0, 0, 0, 0.12) 78%,
+    transparent 100%
+  );
+}
+
 /* Nosotros gallery — slide transitions */
 @keyframes nosotrosSlideRight {
   from {
@@ -190,8 +272,11 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  isolation: isolate;
 }
 
+/* Sin filter en el <video>: filter + scroll compite con el compositor y suele ir a tirones.
+   El fallback (imagen) sí puede llevar filter porque es estático hasta que entra el vídeo. */
 .hero-video-fallback,
 .hero-bg-video {
   position: absolute;
@@ -201,13 +286,13 @@
   height: 100vh;
   min-width: 177.77vh; /* 16:9 aspect ratio cover */
   min-height: 56.25vw; /* 16:9 aspect ratio cover */
-  transform: translate(-50%, -50%);
+  transform: translate3d(-50%, -50%, 0);
   pointer-events: none;
   object-fit: cover;
-  filter: brightness(0.55) saturate(0.7);
 }
 
 .hero-video-fallback {
+  filter: brightness(0.55) saturate(0.7);
   opacity: 1;
   transition: opacity 0.35s ease;
 }
@@ -215,6 +300,7 @@
 .hero-bg-video {
   opacity: 0;
   transition: opacity 0.35s ease;
+  backface-visibility: hidden;
 }
 
 .hero-video-container.video-ready .hero-bg-video {
@@ -230,11 +316,12 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  /* Un poco más oscuro que antes para compensar quitar filter() del vídeo (misma lectura visual) */
   background:
     linear-gradient(to bottom,
-      rgba(0, 0, 0, 0.35) 0%,
-      rgba(10, 10, 10, 0.55) 40%,
-      rgba(0, 0, 0, 0.75) 85%,
+      rgba(0, 0, 0, 0.52) 0%,
+      rgba(10, 10, 10, 0.62) 40%,
+      rgba(0, 0, 0, 0.8) 85%,
       rgba(0, 0, 0, 0.95) 100%);
   pointer-events: none;
 }
@@ -256,18 +343,35 @@
   opacity: 0.7;
 }
 
-/* Capa 4: Contenido central */
+/* Capa 4: ancho completo del hero para el texto “BARBERSHOP” (muy ancho por letter-spacing) */
 .hero-video-content {
   position: relative;
   z-index: 3;
   text-align: center;
-  padding: 0 2rem;
-  max-width: 1000px;
+  padding: 0 clamp(1rem, 4vw, 2rem);
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow-x: visible;
+}
+
+/* Sin contain: paint — contain: content recortaba el texto decorativo ancho */
+.hero-video-copy {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  overflow-x: visible;
+  padding-inline: clamp(0.25rem, 2vw, 1rem);
+  box-sizing: border-box;
 }
 
 /* Título principal (ahora arriba — se lee primero) */
@@ -280,24 +384,32 @@
   line-height: 1;
   position: relative;
   z-index: 1;
-  margin-bottom: -0.65em;
+  /* Menos solapamiento que -0.65em: más aire entre MANITO y BARBERSHOP, pero siguen cruzándose */
+  margin-bottom: -0.38em;
   text-shadow: 0 4px 40px rgba(0, 0, 0, 0.5);
 }
 
-/* Texto de fondo grande semi-transparente (ahora debajo de MANITO) */
+/* Texto de fondo grande: escala fluida para caber en el viewport (letter-spacing amplía mucho el ancho) */
 .hero-bg-text {
   display: block;
-  font-size: clamp(3rem, 12vw, 10rem);
+  width: 100%;
+  max-width: 100%;
+  font-size: clamp(2rem, min(11vw, 18vh), 9rem);
   font-weight: 900;
-  letter-spacing: 0.25em;
+  letter-spacing: clamp(0.06em, 1.8vw, 0.22em);
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.06);
+  /* Gris un poco más oscuro y legible que el blanco casi transparente */
+  color: rgba(150, 150, 155, 0.38);
   line-height: 1;
   user-select: none;
   pointer-events: none;
   margin-bottom: 1.5rem;
   position: relative;
   z-index: 0;
+  white-space: nowrap;
+  overflow: visible;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 /* Lista de servicios */

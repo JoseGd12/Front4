@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import { useInstagramFeed } from '../../../hooks/useInstagramFeed';
@@ -203,7 +203,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const { isAuthenticated, logout } = useAuth();
   const { info, success } = useCustomAlert();
   const [scrolled, setScrolled] = useState(false);
-  const [heroOpacity, setHeroOpacity] = useState(1);
   const [heroVideoReady, setHeroVideoReady] = useState(false);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
@@ -308,13 +307,26 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
   const lenisRef = useRef<Lenis | null>(null);
   const heroGalleryRef = useRef<HTMLDivElement>(null);
+  const heroSectionRef = useRef<HTMLElement>(null);
+  const heroCopyRef = useRef<HTMLDivElement>(null);
+  /** Título + CTAs del hero: solo montados dentro de la primera sección (menos trabajo de render al bajar). */
+  const [heroCopyMounted, setHeroCopyMounted] = useState(true);
 
-  // Smooth scroll with Lenis
+  const applyHeroParallax = useCallback((y: number) => {
+    const el = heroCopyRef.current;
+    if (!el) return;
+    const opacity = Math.max(0, 1 - y / 600);
+    const ty = (1 - opacity) * 40;
+    el.style.opacity = String(opacity);
+    el.style.transform = `translate3d(0, ${ty}px, 0)`;
+  }, []);
+
+  // Smooth scroll with Lenis + hero parallax sin re-renders de React en cada frame
   useEffect(() => {
     const lenis = new Lenis({
       autoRaf: true,
       duration: 0.8,
-      lerp: 0.25,
+      lerp: 0.18,
       smoothWheel: true,
       wheelMultiplier: 1,
       touchMultiplier: 2,
@@ -322,25 +334,42 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
     lenisRef.current = lenis;
 
+    let lastScrolled = false;
+    let lastInHero = true;
+
+    const applyHeroFromScroll = (y: number) => {
+      const nextScrolled = y > 50;
+      if (nextScrolled !== lastScrolled) {
+        lastScrolled = nextScrolled;
+        setScrolled(nextScrolled);
+      }
+
+      const heroH = heroSectionRef.current?.offsetHeight ?? (typeof window !== 'undefined' ? window.innerHeight : 800);
+      const inHero = y < heroH;
+      if (inHero !== lastInHero) {
+        lastInHero = inHero;
+        setHeroCopyMounted(inHero);
+      }
+
+      if (inHero) applyHeroParallax(y);
+    };
+
+    const unsub = lenis.on('scroll', (l) => applyHeroFromScroll(l.scroll));
+    applyHeroFromScroll(lenis.scroll);
+
     return () => {
+      unsub();
       lenis.destroy();
       lenisRef.current = null;
     };
-  }, []);
+  }, [applyHeroParallax]);
 
-  // Hero video preload for faster start
-  useEffect(() => {
-    const preload = document.createElement('link');
-    preload.rel = 'preload';
-    preload.as = 'video';
-    preload.href = heroVideo;
-    preload.type = 'video/mp4';
-    document.head.appendChild(preload);
-
-    return () => {
-      document.head.removeChild(preload);
-    };
-  }, []);
+  // Al volver arriba el ref se crea de nuevo: aplicar parallax al scroll actual sin esperar otro evento
+  useLayoutEffect(() => {
+    if (!heroCopyMounted) return;
+    const y = lenisRef.current?.scroll ?? 0;
+    applyHeroParallax(y);
+  }, [heroCopyMounted, applyHeroParallax]);
 
   // Fetch data from API (Backend)
   useEffect(() => {
@@ -366,16 +395,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       }
     };
     fetchData();
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const y = window.scrollY;
-      setScrolled(y > 50);
-      setHeroOpacity(Math.max(0, 1 - y / 600));
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Reveal on scroll y Footer Visibility
@@ -547,7 +566,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       <div style={{ position: 'relative', zIndex: 2, backgroundColor: '#000' }}>
 
       {/* Hero Section — Video Background */}
-      <header id="inicio" className="hero-video-section">
+      <header id="inicio" ref={heroSectionRef} className="hero-video-section">
         {/* Capa 1: Local video background + fallback image */}
         <div className={`hero-video-container ${heroVideoReady ? 'video-ready' : ''}`}>
           <img src={imgTeam} alt="" className="hero-video-fallback" loading="eager" aria-hidden="true" />
@@ -557,7 +576,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             muted
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
             poster={imgTeam}
             disablePictureInPicture
             onLoadedData={() => setHeroVideoReady(true)}
@@ -574,32 +593,35 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Capa 3: Patrón diagonal (scanlines) — textura premium */}
         <div className="hero-video-pattern" />
 
-        {/* Capa 4: Contenido central */}
-        <div
-          className="hero-video-content reveal-item active"
-          style={{ opacity: heroOpacity, transform: `translateY(${(1 - heroOpacity) * 40}px)`, transition: 'none' }}
-        >
-          <h1 className="hero-main-title font-title text-gradient">MANITO</h1>
-          <span className="hero-bg-text font-title">BARBERSHOP</span>
-          <p className="hero-services-text">CORTE · BARBA · CEJAS · ESTILO MASCULINO</p>
-          <p className="hero-tagline">ESTILO, ELEGANCIA Y PROFESIONALISMO</p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-            <button
-              onClick={() => scrollToSection('servicios')}
-              className="hero-cta-button"
-            >
-              Lo que ofrecemos
-              <ChevronRight className="w-6 h-6" />
-            </button>
-            <button
-              onClick={() => scrollToSection('nosotros')}
-              className="hero-cta-button"
-              style={{ background: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(216, 176, 129, 0.5)' }}
-            >
-              Conócenos
-              <ChevronRight className="w-6 h-6" />
-            </button>
-          </div>
+        {/* Capa 4: Contenido central (sin reveal-item: visible al instante; se desmonta al salir del hero) */}
+        <div className="hero-video-content">
+          {heroCopyMounted ? (
+            <div ref={heroCopyRef} className="hero-video-copy">
+              <h1 className="hero-main-title font-title text-gradient">MANITO</h1>
+              <span className="hero-bg-text font-title">BARBERSHOP</span>
+              <p className="hero-services-text">CORTE · BARBA · CEJAS · ESTILO MASCULINO</p>
+              <p className="hero-tagline">ESTILO, ELEGANCIA Y PROFESIONALISMO</p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('servicios')}
+                  className="hero-cta-button"
+                >
+                  Lo que ofrecemos
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('nosotros')}
+                  className="hero-cta-button"
+                  style={{ background: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(216, 176, 129, 0.5)' }}
+                >
+                  Conócenos
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </header>
         {/* Black transition line */}
@@ -608,7 +630,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
 
         {/* Gallery Mosaic */}
-        <div className="bg-black" style={{ paddingBottom: '0' }}>
+        <div
+          className="bg-black px-8 sm:px-14 lg:px-24 xl:px-32 2xl:px-40"
+          style={{ paddingBottom: '0' }}
+        >
           {/* Título de sección */}
           <div className="text-center mb-10 reveal-item">
             <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '0.5rem', marginBottom: '1rem' }}>
@@ -686,76 +711,89 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             };
 
             return (
-              <div className="relative">
-                {/* Mosaic gallery row */}
-                <div
-                  ref={heroGalleryRef}
-                  className="flex gallery-scroll"
-                  style={{ height: '380px', gap: '3px', overflowX: 'auto', scrollBehavior: 'auto' }}
-                >
-                  {allSets.map((set, si) => (
-                    <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
-                      {/* Large Image Column */}
-                      <div
-                        className="shrink-0 overflow-hidden relative group"
-                        style={{ width: '300px', height: '100%' }}
-                      >
-                        <img
-                          src={set[0]}
-                          alt=""
-                          className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                          loading="lazy"
-                          draggable={false}
-                        />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                      </div>
-
-                      {/* Small Images Column (Stacked) */}
-                      <div className="flex flex-col shrink-0 h-full" style={{ width: '210px', gap: '3px' }}>
-                        <div className="flex-1 overflow-hidden relative group">
-                          <img
-                            src={set[1]}
-                            alt=""
-                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                            loading="lazy"
-                            draggable={false}
-                          />
-                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                        </div>
-                        <div className="flex-1 overflow-hidden relative group">
-                          <img
-                            src={set[2]}
-                            alt=""
-                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                            loading="lazy"
-                            draggable={false}
-                          />
-                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <div className="flex items-stretch gap-8 sm:gap-10 md:gap-14 lg:gap-16">
+                {/* Columna lateral: hueco + botón circular blanco (mismo tamaño que antes) */}
+                <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollGallery(-1)}
+                    aria-label="Ver imágenes anteriores"
+                    className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
                 </div>
 
-                {/* Edge fade gradients */}
-                <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black to-transparent pointer-events-none z-10" />
-                <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black to-transparent pointer-events-none z-10" />
+                <div className="hero-gallery-carousel relative flex-1 min-w-0">
+                  {/* Mosaic gallery row (capa base) */}
+                  <div
+                    ref={heroGalleryRef}
+                    className="relative z-[1] flex gallery-scroll"
+                    style={{ height: '380px', gap: '3px', overflowX: 'auto', scrollBehavior: 'auto' }}
+                  >
+                    {allSets.map((set, si) => (
+                      <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
+                        {/* Large Image Column */}
+                        <div
+                          className="shrink-0 overflow-hidden relative group"
+                          style={{ width: '300px', height: '100%' }}
+                        >
+                          <img
+                            src={set[0]}
+                            alt=""
+                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                            loading="lazy"
+                            draggable={false}
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                        </div>
 
-                {/* Flecha izquierda */}
-                <button
-                  onClick={() => scrollGallery(-1)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
+                        {/* Small Images Column (Stacked) */}
+                        <div className="flex flex-col shrink-0 h-full" style={{ width: '210px', gap: '3px' }}>
+                          <div className="flex-1 overflow-hidden relative group">
+                            <img
+                              src={set[1]}
+                              alt=""
+                              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                              loading="lazy"
+                              draggable={false}
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                          </div>
+                          <div className="flex-1 overflow-hidden relative group">
+                            <img
+                              src={set[2]}
+                              alt=""
+                              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+                              loading="lazy"
+                              draggable={false}
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-                {/* Flecha derecha */}
-                <button
-                  onClick={() => scrollGallery(1)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
+                  {/* Luz desde los bordes hacia el centro (recortada por .hero-gallery-carousel) */}
+                  <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
+                  <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
+
+                  {/* Fade hacia el centro; bordes = paredes junto a las flechas (sin padding en el carrusel) */}
+                  <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />
+                  <div className="hero-gallery-fade-in hero-gallery-fade-in--right" aria-hidden />
+                </div>
+
+                <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollGallery(1)}
+                    aria-label="Ver más imágenes"
+                    className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -769,7 +807,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
       {/* Nosotros — scrolls naturally; zIndex:1 lets following sections (zIndex:2) slide over it */}
       <div id="nosotros" style={{ position: 'relative', zIndex: 1 }}>
-        <section className="nosotros-section relative" style={{ paddingTop: '1rem', paddingBottom: '5rem' }}>
+        <section
+          className="nosotros-section relative"
+          style={{
+            paddingTop: '1rem',
+            /* Más aire bajo la CTA para que quede sobre el gradiente de Nosotros (el supertítulo siguiente tiene z-2 y marginTop negativo) */
+            paddingBottom: 'clamp(8rem, 13vw, 12rem)',
+          }}
+        >
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-20 right-[10%] w-72 h-72 rounded-full bg-[#d8b081]/5 blur-[100px] animate-float-slow" />
             <div className="absolute bottom-20 left-[5%] w-96 h-96 rounded-full bg-[#d8b081]/3 blur-[120px]" style={{ animationDelay: '3s' }} />
@@ -1070,85 +1115,114 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           </div>
         </div>
 
-        {/* Carousel de Servicios */}
-        <div className="relative overflow-hidden carousel-mask">
-          <div className="flex gap-6 w-full" style={loading ? {} : { display: 'none' }}>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                  <div
-                    key={i}
-                    className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
-                    style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms`, marginBottom: '2rem' }}
-                  >
-                    <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
-                      <div className="absolute inset-0 skeleton-shimmer-gold" />
-                      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
-                      <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
-                    </div>
-                    <div className="px-6 pt-5 pb-6 space-y-4">
-                      <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                      <div className="flex items-baseline justify-between">
-                        <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
-                        <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
-                        <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
-                      </div>
-                      <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
-                    </div>
-                  </div>
-                ))}
-          </div>
-          {!loading && (
-            <div ref={servTrackRef} className="flex gap-6" style={{ width: 'max-content', willChange: 'transform', marginBottom: '2rem' }}>
-              {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
-                <div key={`srv-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
-                  <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
-                    <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(servicio, 'servicio')}>
-                      <img loading="lazy" src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'} alt={servicio.nombre} className="w-full h-full object-cover carousel-card-img" />
-                      <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
-                    </div>
-                    <div className="px-6 pt-5 pb-6">
-                      <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">
-                        {servicio.type === 'paquete' ? 'Paquete' : 'Servicio'}
-                      </span>
-                      <div className="flex items-baseline justify-between mb-3">
-                        <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{servicio.nombre}</h3>
-                        <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(servicio.precio)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-400 mb-3">
-                        <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
-                        <span className="text-xs font-bold uppercase tracking-widest">{servicio.duracion} min</span>
-                      </div>
-                      <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
-                      <button
-                        onClick={() => {
-                          if (isAuthenticated) {
-                            onSelectReservation?.(servicio);
-                          } else {
-                            onRequestLogin?.();
-                          }
-                        }}
-                        className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
-                      >
-                        Agendar Ahora
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {!loading && (
-            <>
-              <button onClick={() => nudgeCarousel(servTargetRef, 800)} className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
+        {/* Carousel de Servicios — mismo layout que “Nuestro trabajo” (padding, flechas laterales, luz + fade) */}
+        <div className="px-8 sm:px-14 lg:px-24 xl:px-32 2xl:px-40">
+          <div className="flex items-stretch gap-8 sm:gap-10 md:gap-14 lg:gap-16">
+            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => nudgeCarousel(servTargetRef, 800)}
+                aria-label="Anterior servicios"
+                className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none disabled:hover:scale-100"
+              >
                 <ChevronLeft className="w-6 h-6" />
               </button>
-              <button onClick={() => nudgeCarousel(servTargetRef, -800)} className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
+            </div>
+
+            <div className="hero-gallery-carousel relative flex-1 min-w-0">
+              {loading ? (
+                <div className="flex gap-6 w-full overflow-hidden" style={{ marginBottom: '2rem' }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    <div
+                      key={i}
+                      className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                      style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
+                    >
+                      <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                        <div className="absolute inset-0 skeleton-shimmer-gold" />
+                        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+                        <div className="absolute top-4 right-4 w-20 h-8 rounded-xl bg-[#d8b081]/5 border border-[#d8b081]/10" />
+                      </div>
+                      <div className="px-6 pt-5 pb-6 space-y-4">
+                        <div className="w-16 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                        <div className="flex items-baseline justify-between">
+                          <div className="w-32 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                          <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                          <div className="w-3/4 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                        </div>
+                        <div className="w-full h-12 rounded-xl border-2 border-[#d8b081]/15 bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div
+                    ref={servTrackRef}
+                    className="relative z-[1] flex gap-6"
+                    style={{ width: 'max-content', willChange: 'transform', marginBottom: '2rem' }}
+                  >
+                    {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
+                      <div key={`srv-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
+                        <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
+                          <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(servicio, 'servicio')}>
+                            <img loading="lazy" src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'} alt={servicio.nombre} className="w-full h-full object-cover carousel-card-img" />
+                            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
+                          </div>
+                          <div className="px-6 pt-5 pb-6">
+                            <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">
+                              {servicio.type === 'paquete' ? 'Paquete' : 'Servicio'}
+                            </span>
+                            <div className="flex items-baseline justify-between mb-3">
+                              <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{servicio.nombre}</h3>
+                              <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(servicio.precio)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-400 mb-3">
+                              <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
+                              <span className="text-xs font-bold uppercase tracking-widest">{servicio.duracion} min</span>
+                            </div>
+                            <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
+                            <button
+                              onClick={() => {
+                                if (isAuthenticated) {
+                                  onSelectReservation?.(servicio);
+                                } else {
+                                  onRequestLogin?.();
+                                }
+                              }}
+                              className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
+                            >
+                              Agendar Ahora
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
+                  <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
+                  <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />
+                  <div className="hero-gallery-fade-in hero-gallery-fade-in--right" aria-hidden />
+                </>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => nudgeCarousel(servTargetRef, -800)}
+                aria-label="Siguiente servicios"
+                className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none disabled:hover:scale-100"
+              >
                 <ChevronRight className="w-6 h-6" />
               </button>
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1169,65 +1243,90 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           </div>
         </div>
 
-        {/* Carousel de Productos */}
-        <div className="relative overflow-hidden carousel-mask">
-          <div className="flex gap-6 w-full" style={loading ? {} : { display: 'none' }}>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div
-                key={i}
-                className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
-                style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
+        {/* Carousel de Productos — mismo layout que “Nuestro trabajo” */}
+        <div className="px-8 sm:px-14 lg:px-24 xl:px-32 2xl:px-40 pb-8">
+          <div className="flex items-stretch gap-8 sm:gap-10 md:gap-14 lg:gap-16 ">
+            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => nudgeCarousel(prodTargetRef, 800)}
+                aria-label="Anterior productos"
+                className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none disabled:hover:scale-100"
               >
-                <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
-                  <div className="absolute inset-0 skeleton-shimmer-gold" />
-                  <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
-                </div>
-                <div className="px-6 pt-5 pb-6 space-y-4">
-                  <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
-                  <div className="flex items-baseline justify-between">
-                    <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
-                    <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
-                    <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          {!loading && (
-            <div ref={prodTrackRef} className="flex gap-6" style={{ width: 'max-content', willChange: 'transform' }}>
-              {[...productos, ...productos].map((producto, idx) => (
-                <div key={`prod-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
-                  <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
-                    <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(producto, 'producto')}>
-                      <img loading="lazy" src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'} alt={producto.nombre} className="w-full h-full object-cover carousel-card-img" />
-                      <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
-                    </div>
-                    <div className="px-6 pt-5 pb-6">
-                      <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">{producto.categoria?.nombre || 'Producto'}</span>
-                      <div className="flex items-baseline justify-between mb-3">
-                        <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{producto.nombre}</h3>
-                        <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(producto.precio)}</span>
-                      </div>
-                      <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">{producto.descripcion}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {!loading && (
-            <>
-              <button onClick={() => nudgeCarousel(prodTargetRef, 800)} className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
                 <ChevronLeft className="w-6 h-6" />
               </button>
-              <button onClick={() => nudgeCarousel(prodTargetRef, -800)} className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 z-20">
+            </div>
+
+            <div className="hero-gallery-carousel relative flex-1 min-w-0">
+              {loading ? (
+                <div className="flex gap-6 w-full overflow-hidden">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    <div
+                      key={i}
+                      className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                      style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
+                    >
+                      <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
+                        <div className="absolute inset-0 skeleton-shimmer-gold" />
+                        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#141414] to-transparent" />
+                      </div>
+                      <div className="px-6 pt-5 pb-6 space-y-4">
+                        <div className="w-20 h-2.5 rounded-full bg-[#d8b081]/8 skeleton-shimmer-gold" />
+                        <div className="flex items-baseline justify-between">
+                          <div className="w-28 h-5 rounded-md bg-[#d8b081]/10 skeleton-shimmer-gold" />
+                          <div className="w-20 h-5 rounded-md bg-[#d8b081]/15 skeleton-shimmer-gold" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="w-full h-3 rounded-full bg-[#d8b081]/6 skeleton-shimmer-gold" />
+                          <div className="w-2/3 h-3 rounded-full bg-[#d8b081]/5 skeleton-shimmer-gold" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div ref={prodTrackRef} className="relative z-[1] flex gap-6" style={{ width: 'max-content', willChange: 'transform', marginBottom: '4rem' }}>
+                    {[...productos, ...productos].map((producto, idx) => (
+                      <div key={`prod-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
+                        <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
+                          <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(producto, 'producto')}>
+                            <img loading="lazy" src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'} alt={producto.nombre} className="w-full h-full object-cover carousel-card-img" />
+                            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
+                          </div>
+                          <div className="px-6 pt-5 pb-6">
+                            <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">{producto.categoria?.nombre || 'Producto'}</span>
+                            <div className="flex items-baseline justify-between mb-3">
+                              <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{producto.nombre}</h3>
+                              <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(producto.precio)}</span>
+                            </div>
+                            <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">{producto.descripcion}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
+                  <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
+                  <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />
+                  <div className="hero-gallery-fade-in hero-gallery-fade-in--right" aria-hidden />
+                </>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => nudgeCarousel(prodTargetRef, -800)}
+                aria-label="Siguiente productos"
+                className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none disabled:hover:scale-100"
+              >
                 <ChevronRight className="w-6 h-6" />
               </button>
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </section>
 

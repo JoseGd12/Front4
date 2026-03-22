@@ -32,7 +32,7 @@ export function ClienteDashboard() {
       <button
         key={item.label}
         onClick={() => setActiveTab(item.label)}
-        className={`elegante-nav-item w-full text-left ${isActive ? "elegante-nav-item-active" : ""
+        className={`elegante-nav-item w-full text-left cursor-pointer ${isActive ? "elegante-nav-item-active" : ""
           } ${sidebarCollapsed ? "justify-center px-2" : ""}`}
         title={sidebarCollapsed ? item.label : ""}
       >
@@ -98,8 +98,9 @@ export function ClienteDashboard() {
             <div className={`${sidebarCollapsed ? 'flex justify-center' : 'flex justify-between items-center'} pb-3 border-b border-gray-dark`}>
               {!sidebarCollapsed && <span className="text-sm font-semibold text-gray-lighter">Menú</span>}
               <button
+                type="button"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors shadow-md"
+                className="p-2 rounded-md bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors shadow-md cursor-pointer"
                 title={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
               >
                 <Menu className="w-4 h-4 text-orange-primary" />
@@ -127,7 +128,8 @@ export function ClienteDashboard() {
                     <p className="text-xs text-gray-lighter truncate">Cliente Premium</p>
                   </div>
                   <button
-                    className="p-2 rounded-lg bg-gray-medium hover:bg-gray-dark border border-gray-dark transition-colors"
+                    type="button"
+                    className="p-2 rounded-lg bg-gray-medium hover:bg-gray-dark border border-gray-dark transition-colors cursor-pointer"
                     title="Configuración"
                   >
                     <Settings className="w-4 h-4 text-orange-primary" />
@@ -135,15 +137,17 @@ export function ClienteDashboard() {
                 </>
               )}
               <button
+                type="button"
                 onClick={logout}
-                className="p-2 rounded-lg bg-gray-medium hover:bg-gray-dark border border-gray-dark transition-colors"
+                className="p-2 rounded-lg bg-gray-medium hover:bg-gray-dark border border-gray-dark transition-colors cursor-pointer"
                 title="Cerrar Sesión"
               >
                 <LogOut className="w-4 h-4 text-orange-primary" />
               </button>
               {sidebarCollapsed && (
                 <button
-                  className="p-2 rounded-lg bg-gray-medium hover:bg-gray-dark border border-gray-dark transition-colors"
+                  type="button"
+                  className="p-2 rounded-lg bg-gray-medium hover:bg-gray-dark border border-gray-dark transition-colors cursor-pointer"
                   title="Configuración"
                 >
                   <Settings className="w-4 h-4 text-orange-primary" />
