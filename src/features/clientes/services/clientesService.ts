@@ -84,7 +84,7 @@ class ClientesService {
       telefono: apiCliente.telefono || apiCliente.Telefono || '',
       direccion: apiCliente.direccion || apiCliente.Direccion || '',
       barrio: apiCliente.barrio || apiCliente.Barrio || '',
-      fechaNacimiento: apiCliente.fechaNacimiento || apiCliente.FechaNacimiento || '',
+      fechaNacimiento: (apiCliente.fechaNacimiento || apiCliente.FechaNacimiento) ? String(apiCliente.fechaNacimiento || apiCliente.FechaNacimiento).split('T')[0] : '',
       fechaRegistro: new Date().toLocaleDateString(),
       activo: apiCliente.estado === true || apiCliente.Estado === true,
       fotoPerfil: apiCliente.fotoPerfil || apiCliente.FotoPerfil || apiCliente.imagenUrl || '',
@@ -154,7 +154,7 @@ class ClientesService {
         telefono: item.telefono || item.Telefono,
         direccion: item.direccion || item.Direccion,
         barrio: item.barrio || item.Barrio,
-        fechaNacimiento: item.fechaNacimiento || item.FechaNacimiento,
+        fechaNacimiento: (item.fechaNacimiento || item.FechaNacimiento) ? String(item.fechaNacimiento || item.FechaNacimiento).split('T')[0] : '',
         fotoPerfil: item.fotoPerfil || item.FotoPerfil,
         estado: (item.estado === true || item.Estado === true) && (item.usuario || item.Usuario ? ((item.usuario || item.Usuario).estado === true || (item.usuario || item.Usuario).Estado === true) : true),
         usuario: item.usuario || item.Usuario

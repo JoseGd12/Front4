@@ -74,7 +74,7 @@ export function UsersPage() {
       celular: apiUser.telefono || "",
       direccion: apiUser.direccion || "",
       barrio: apiUser.barrio || "",
-      fechaNacimiento: apiUser.fechaNacimiento || "",
+      fechaNacimiento: apiUser.fechaNacimiento ? apiUser.fechaNacimiento.split('T')[0] : "",
       password: apiUser.contrasena || "",
       status: apiUser.estado,
       fechaCreacion: new Date().toLocaleDateString('es-ES'),
@@ -175,11 +175,15 @@ export function UsersPage() {
   const isDocDuplicateCreateUser = React.useMemo(() => {
     const docVal = String(newUser.documento || '').trim();
     if (!docVal) return false;
+    
+    // Si estamos editando y el documento es el original del usuario, no es duplicado
+    if (editingUser && String(editingUser.documento || '').trim() === docVal) return false;
+
     const existeEnUsuarios = users.some((u: any) => (editingUser && Number(u.id) === Number(editingUser.id)) ? false : String(u.documento || '').trim() === docVal);
     const existeEnClientes = clientesCatalogo.some((c: any) => String((c as any).documento || (c as any).numeroDocumento || '').trim() === docVal);
     const existeEnBarberos = barberosCatalogo.some((b: any) => String((b as any).documento || '').trim() === docVal);
     return existeEnUsuarios || existeEnClientes || existeEnBarberos;
-  }, [newUser.documento, users, clientesCatalogo, barberosCatalogo, editingUser?.id]);
+  }, [newUser.documento, users, clientesCatalogo, barberosCatalogo, editingUser?.id, editingUser?.documento]);
   const isEmailDuplicateCreateUser = React.useMemo(() => {
     const emailVal = String(newUser.correo || '').trim().toLowerCase();
     if (!emailVal) return false;
@@ -215,7 +219,7 @@ export function UsersPage() {
         celular: apiUser.telefono || "",
         direccion: apiUser.direccion || "",
         barrio: apiUser.barrio || "",
-        fechaNacimiento: apiUser.fechaNacimiento || "",
+        fechaNacimiento: apiUser.fechaNacimiento ? apiUser.fechaNacimiento.split('T')[0] : "",
         password: apiUser.contrasena || "",
         status: apiUser.estado,
         fechaCreacion: new Date().toLocaleDateString('es-ES'),

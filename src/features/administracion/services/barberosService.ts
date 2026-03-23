@@ -89,7 +89,9 @@ class BarberosService {
       telefono: api.telefono || api.Telefono || api.celular || api.Celular || usuario.telefono || usuario.Telefono || usuario.celular || usuario.Celular || "",
       direccion: api.direccion || api.Direccion || usuario.direccion || usuario.Direction || "",
       barrio: api.barrio || api.Barrio || usuario.barrio || usuario.Barrio || "",
-      fechaNacimiento: api.fechaNacimiento || api.FechaNacimiento || usuario.fechaNacimiento || usuario.FechaNacimiento || "No especificada",
+      fechaNacimiento: (api.fechaNacimiento || api.FechaNacimiento || usuario.fechaNacimiento || usuario.FechaNacimiento) 
+        ? String(api.fechaNacimiento || api.FechaNacimiento || usuario.fechaNacimiento || usuario.FechaNacimiento).split('T')[0] 
+        : "No especificada",
       rol: api.rol || api.Rol || (usuario.rol?.nombre) || (usuario.Rol?.Nombre) || 'Barbero',
       status: isActive ? 'active' : 'inactive',
       estado: isActive,

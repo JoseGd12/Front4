@@ -504,7 +504,7 @@ class ApiService {
         telefono: item.telefono || item.Telefono,
         direccion: item.direccion || item.Direccion,
         barrio: item.barrio || item.Barrio,
-        fechaNacimiento: item.fechaNacimiento || item.FechaNacimiento,
+        fechaNacimiento: (item.fechaNacimiento || item.FechaNacimiento) ? String(item.fechaNacimiento || item.FechaNacimiento).split('T')[0] : "",
         fotoPerfil: item.fotoPerfil || item.FotoPerfil,
         estado: item.estado === true || item.Estado === true || item.activo === true || item.Activo === true,
         rol: item.rol || item.Rol ? {
