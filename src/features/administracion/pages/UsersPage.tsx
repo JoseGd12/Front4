@@ -1095,7 +1095,7 @@ export function UsersPage() {
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Dirección</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center  py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1157,7 +1157,7 @@ export function UsersPage() {
                             {user.status ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
-                        <td className="text-right py-4 px-4">
+                        <td className="text-right py-4 px-4 text-center">
                           <div className="flex justify-end gap-1">
                             {showStatusAction && (
                               <button

@@ -261,7 +261,7 @@ export function ClienteHistorialVentasPage() {
                 <tbody>
                     {filteredVentas.map((venta) => (
                     <tr key={venta.id} className="border-b border-gray-dark hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-4 font-mono text-xs text-orange-primary">
+                        <td className="py-4 px-4 font-mono text-xs text-orange-primary text-center">
                         #{venta.numeroVenta}
                         </td>
                         <td className="py-4 px-4 text-center">
@@ -310,7 +310,7 @@ export function ClienteHistorialVentasPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="py-4 px-4 text-sm font-bold text-white-primary">
+                        <td className="py-4 px-4 text-sm font-bold text-white-primary text-center">
                           ${(() => {
                               const montoDev = devoluciones
                                   .filter(d => Number(d.ventaId) === Number(venta.id))

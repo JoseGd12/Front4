@@ -889,7 +889,7 @@ export function HorariosPage() {
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Bloques
                     </th>
-                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Acciones
                     </th>
                   </tr>

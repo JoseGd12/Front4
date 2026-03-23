@@ -561,12 +561,12 @@ export function BarberosPage() {
             <table className="w-full">
               <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                 <tr className="text-center border-b border-gray-dark">
-                  <th className="py-4 px-4 text-white-primary font-bold">Documento</th>
-                  <th className="py-4 px-4 text-white-primary font-bold">Barbero</th>
-                  <th className="py-4 px-4 text-white-primary font-bold">Contacto</th>
-                  <th className="py-4 px-4 text-white-primary font-bold">Especialidad</th>
-                  <th className="py-4 px-4 text-white-primary font-bold">Estado</th>
-                  <th className="py-4 px-4 text-white-primary font-bold text-right">Acciones</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Especialidad</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -585,7 +585,7 @@ export function BarberosPage() {
                 ) : (
                   displayedBarberos.map(barbero => (
                     <tr key={barbero.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4 text-gray-lighter">
+                      <td className="py-4 px-4 text-gray-lighter text-center">
                         {barbero.tipoDocumento} {barbero.documento}
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -619,7 +619,7 @@ export function BarberosPage() {
                           {barbero.status === 'active' ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-4 px-4 text-right text-center">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => toggleBarberoStatus(barbero.id)}

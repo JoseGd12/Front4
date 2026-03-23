@@ -220,21 +220,21 @@ export function IntelligencePage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-dark-color">
-                        <th className="text-center font-bold text-white-primary pb-3">Prompt Text</th>
-                        <th className="text-center font-bold text-white-primary pb-3">Top Brand</th>
-                        <th className="text-center font-bold text-white-primary pb-3">#1s</th>
-                        <th className="text-center font-bold text-white-primary pb-3">Rate</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Prompt Text</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Top Brand</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">#1s</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Rate</th>
                       </tr>
                     </thead>
                     <tbody>
                       {promptWinnersData.map((prompt, index) => (
                         <tr key={index} className="border-b border-dark-color hover:bg-dark-table-hover transition-colors">
-                          <td className="py-4 max-w-xs">
+                          <td className="py-4 max-w-xs text-center px-4">
                             <p className="text-sm font-medium text-dark-primary leading-relaxed truncate">
                               {prompt.prompt}
                             </p>
                           </td>
-                          <td className="py-4">
+                          <td className="py-4 text-center px-4">
                             <div className={`dark-tag ${prompt.topBrand === "AI8 Digital" ? "bg-dark-cta" : ""}`}>
                               {prompt.topBrand}
                             </div>
@@ -263,17 +263,17 @@ export function IntelligencePage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-dark-color">
-                        <th className="text-center font-bold text-white-primary pb-3">Model</th>
-                        <th className="text-center font-bold text-white-primary pb-3">Your Mentions</th>
-                        <th className="text-center font-bold text-white-primary pb-3">Their Mentions</th>
-                        <th className="text-center font-bold text-white-primary pb-3">Your Rank</th>
-                        <th className="text-center font-bold text-white-primary pb-3">Their Rank</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Model</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Your Mentions</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Their Mentions</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Your Rank</th>
+                        <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Their Rank</th>
                       </tr>
                     </thead>
                     <tbody>
                       {modelComparisonData.map((model, index) => (
                         <tr key={index} className="border-b border-dark-color hover:bg-dark-table-hover transition-colors">
-                          <td className="py-4 font-medium text-dark-primary">{model.model}</td>
+                          <td className="py-4 font-medium text-dark-primary text-center px-4">{model.model}</td>
                           <td className="py-4 text-center">
                             <div className="dark-tag bg-dark-cta">
                               {model.yourMentions}

@@ -1313,7 +1313,7 @@ export function ProductosPage() {
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock total</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Ventas</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm min-w-[8.5rem]">Uso</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Uso</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
 
 
@@ -1341,7 +1341,7 @@ export function ProductosPage() {
                     const soloVenta = esProductoSoloVenta(producto as any);
                     return (
                       <tr key={producto.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                        <td className="py-4 px-8  ">
+                        <td className="py-4 px-4   text-center">
                           <ImageRenderer
                             url={producto.imagenProduc}
                             alt={producto.nombre}

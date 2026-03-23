@@ -593,9 +593,9 @@ export function PaquetesPage() {
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
-                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-right py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -625,7 +625,7 @@ export function PaquetesPage() {
                           <td className="py-4 px-4 text-center">
                             <span className="text-gray-lighter">{paquete.duracion} min</span>
                           </td>
-                          <td className="py-4 px-4 text-right">
+                          <td className="py-4 px-4 text-right text-center">
                             <span className="text-gray-lighter">${(paquete.precio ?? 0).toLocaleString('es-CO')}</span>
                           </td>
                           <td className="py-4 px-4 text-center">

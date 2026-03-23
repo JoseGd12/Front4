@@ -132,9 +132,9 @@ export function ClienteHistorialDevolucionesPage() {
                 <tbody>
                     {filteredDevoluciones.map((dev) => (
                     <tr key={dev.id} className="border-b border-gray-dark hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-4 font-mono text-xs text-orange-primary">#{dev.id}</td>
-                        <td className="py-4 px-4 font-mono text-xs text-gray-lightest">#{dev.ventaId}</td>
-                        <td className="py-4 px-4 text-sm text-white-primary">
+                        <td className="py-4 px-4 font-mono text-xs text-orange-primary text-center">#{dev.id}</td>
+                        <td className="py-4 px-4 font-mono text-xs text-gray-lightest text-center">#{dev.ventaId}</td>
+                        <td className="py-4 px-4 text-sm text-white-primary text-center">
                             {new Date(dev.fecha).toLocaleDateString()}
                         </td>
                         <td className="py-4 px-4 text-center">
@@ -143,10 +143,10 @@ export function ClienteHistorialDevolucionesPage() {
                                 <p className="text-[10px] text-gray-lightest truncate italic">{dev.motivo}</p>
                             </div>
                         </td>
-                        <td className="py-4 px-4 text-sm font-bold text-white-primary">
+                        <td className="py-4 px-4 text-sm font-bold text-white-primary text-center">
                              ${formatCurrency(dev.monto)}
                         </td>
-                        <td className="py-4 px-4 text-sm font-bold text-green-500">
+                        <td className="py-4 px-4 text-sm font-bold text-green-500 text-center">
                              ${formatCurrency(dev.saldoAFavor)}
                         </td>
                         <td className="py-4 px-4 text-center">

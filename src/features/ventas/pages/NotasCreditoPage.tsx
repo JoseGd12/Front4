@@ -560,15 +560,15 @@ export function NotasCreditoPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-dark">
-                  <th className="text-center font-bold text-white-primary pb-4">ID</th>
-                  <th className="text-center font-bold text-white-primary pb-4">Cliente</th>
-                  <th className="text-right font-bold text-white-primary pb-4">Monto</th>
-                  <th className="text-center font-bold text-white-primary pb-4">Motivo</th>
-                  <th className="text-center font-bold text-white-primary pb-4">Fecha</th>
-                  <th className="text-center font-bold text-white-primary pb-4">Estado</th>
-                  <th className="text-center font-bold text-white-primary pb-4">Vencimiento</th>
-                  <th className="text-center font-bold text-white-primary pb-4">Asociación</th>
-                  <th className="text-center font-bold text-white-primary pb-4">Acciones</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Cliente</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Motivo</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Vencimiento</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Asociación</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -585,10 +585,10 @@ export function NotasCreditoPage() {
                   
                   return (
                     <tr key={nota.id} className="border-b border-gray-dark hover:bg-gray-darkest transition-colors">
-                      <td className="py-4">
+                      <td className="py-4 text-center px-4">
                         <span className="font-medium text-orange-primary">{nota.id}</span>
                       </td>
-                      <td className="py-4">
+                      <td className="py-4 text-center px-4">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 rounded-full bg-orange-primary flex items-center justify-center">
                             <User className="w-4 h-4 text-black-primary" />
@@ -604,7 +604,7 @@ export function NotasCreditoPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 text-right">
+                      <td className="py-4 text-right text-center px-4">
                         <div>
                           <span className="font-bold text-orange-primary">${formatCurrency(nota.monto)}</span>
                           {nota.montoUtilizado && (
@@ -614,7 +614,7 @@ export function NotasCreditoPage() {
                           )}
                         </div>
                       </td>
-                      <td className="py-4">
+                      <td className="py-4 text-center px-4">
                         <span className="text-gray-lightest text-sm">{nota.motivo}</span>
                       </td>
                       <td className="py-4 text-center">
@@ -807,12 +807,12 @@ export function NotasCreditoPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-dark">
-                      <th className="text-center font-bold text-white-primary pb-4">ID Devolución</th>
-                      <th className="text-center font-bold text-white-primary pb-4">Cliente</th>
-                      <th className="text-center font-bold text-white-primary pb-4">Producto</th>
-                      <th className="text-right font-bold text-white-primary pb-4">Monto</th>
-                      <th className="text-center font-bold text-white-primary pb-4">Fecha</th>
-                      <th className="text-center font-bold text-white-primary pb-4">Acción</th>
+                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID Devolución</th>
+                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Cliente</th>
+                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Producto</th>
+                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto</th>
+                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acción</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -825,16 +825,16 @@ export function NotasCreditoPage() {
                       />
                     ) : devolucionesPendientes.map((devolucion) => (
                         <tr key={devolucion.id} className="border-b border-gray-dark">
-                          <td className="py-4">
+                          <td className="py-4 text-center px-4">
                             <span className="font-medium text-orange-primary">{devolucion.id}</span>
                           </td>
-                          <td className="py-4">
+                          <td className="py-4 text-center px-4">
                             <span className="text-white-primary">{devolucion.cliente}</span>
                           </td>
-                          <td className="py-4">
+                          <td className="py-4 text-center px-4">
                             <span className="text-white-primary">{devolucion.producto}</span>
                           </td>
-                          <td className="py-4 text-right">
+                          <td className="py-4 text-right text-center px-4">
                             <span className="font-bold text-orange-primary">${formatCurrency(devolucion.monto)}</span>
                           </td>
                           <td className="py-4 text-center">

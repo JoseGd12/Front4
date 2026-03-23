@@ -1035,12 +1035,12 @@ export function ClientesPage() {
                 ) : (
                   displayedClientes.map((cliente) => (
                     <tr key={cliente.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4 text-left">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center">
                           <span className="text-gray-lighter">{(cliente as any).tipoDocumento ? `${(cliente as any).tipoDocumento} ${cliente.numeroDocumento}` : cliente.numeroDocumento}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-left">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center space-x-3">
                           <ImageRenderer
                             url={cliente.fotoPerfil}
@@ -1052,7 +1052,7 @@ export function ClientesPage() {
                           <span className="text-gray-lighter">{cliente.nombre} {cliente.apellido}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-left">
+                      <td className="py-4 px-4 text-center">
                         <div className="flex flex-col">
                           <span className="text-sm text-gray-lighter">{cliente.email || '-'}</span>
                           <span className="text-xs text-gray-lightest">{cliente.telefono || '-'}</span>
