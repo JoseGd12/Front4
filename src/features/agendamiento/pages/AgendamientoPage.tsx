@@ -1003,10 +1003,19 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setActiveTab('detalle');
   };
 
-  // Stats para el dashboard
-  const totalCitas = citas.length;
-  const citasActivas = citas.filter(c => c.estado !== 'Cancelada').length;
-  const citasHoy = citas.filter(c => c.fecha === new Date().toISOString().split('T')[0]).length;
+  // Stats para el dashboard (ajustadas para ignorar canceladas según solicitud)
+  const isCitaActiva = (estado: string) => {
+    const st = String(estado || "").toLowerCase();
+    return st !== "cancelada" && st !== "cancelado" && st !== "anulada";
+  };
+
+  const citasFiltradas = citas.filter(c => isCitaActiva(c.estado));
+  const totalCitas = citasFiltradas.length;
+  const citasActivas = totalCitas; // Ya filtradas arriba
+  const todayYMD = new Date().getFullYear() + "-" + 
+                   String(new Date().getMonth() + 1).padStart(2, '0') + "-" + 
+                   String(new Date().getDate()).padStart(2, '0');
+  const citasHoy = citasFiltradas.filter(c => c.fecha === todayYMD).length;
 
   return (
     <>

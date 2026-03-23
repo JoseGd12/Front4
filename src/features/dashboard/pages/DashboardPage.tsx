@@ -34,6 +34,8 @@ type Venta = {
   productosDetalle: VentaDetalle[];
   serviciosDetalle: VentaDetalle[];
   serviciosPaquetesDetalle?: VentaServicioPaqueteDetalle[];
+  totalProductos?: number;
+  totalServicios?: number;
 };
 
 type Agendamiento = {
@@ -70,12 +72,16 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   return fetch(url, { ...options, headers });
 };
 
-const getVentas = async (): Promise<Venta[]> => {
+const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: Agendamiento[], insumos: Insumo[] }> => {
   const dashRes = await fetchWithAuth("/api/Dashboard").catch(() => null);
   if (dashRes && dashRes.ok) {
     const jd = await dashRes.json();
-    const lista = Array.isArray(jd?.ventas) ? jd.ventas : [];
-    const ventasDash: Venta[] = lista.map((v: any) => {
+    
+    // Combinar ventas recientes con históricas para tener el set completo para gráficas
+    const listaRecientes = Array.isArray(jd?.ventas) ? jd.ventas : [];
+    const listaHistoricas = Array.isArray(jd?.ventasHistoricas) ? jd.ventasHistoricas : [];
+    
+    const mappedRecientes: Venta[] = listaRecientes.map((v: any) => {
       const productos = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
       const servicios = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
       const productosDetalle = productos.map((d: any) => ({
@@ -109,114 +115,53 @@ const getVentas = async (): Promise<Venta[]> => {
         serviciosPaquetesDetalle,
       } as Venta;
     });
-    return ventasDash;
-  }
-  const res = await fetchWithAuth("/api/Ventas").catch(() => null);
-  if (!res || !res.ok) return [];
-  const raw = await res.json();
-  const ventasBase: Venta[] = (Array.isArray(raw) ? raw : []).map((v: any) => ({
-    id: v.id ?? v.Id,
-    fecha: v.fecha ?? v.Fecha,
-    estado: v.estado ?? v.Estado,
-    total: Number((v.total ?? v.Total) ?? 0),
-    clienteId: (v.clienteId ?? v.ClienteId) ?? null,
-    cliente:
-      v.cliente?.usuario
-        ? `${v.cliente.usuario.nombre ?? ""} ${v.cliente.usuario.apellido ?? ""}`.trim()
-        : (v.Cliente?.Usuario
-          ? `${v.Cliente.Usuario.Nombre ?? ""} ${v.Cliente.Usuario.Apellido ?? ""}`.trim()
-          : null),
-    productosDetalle: [],
-    serviciosDetalle: [],
-    serviciosPaquetesDetalle: []
-  }));
-  const ids = ventasBase.slice(0, 50).map(v => v.id);
-  // Usar endpoint bulk para obtener todos los detalles en una sola petición
-  let mapa = new Map<number, any[]>();
-  try {
-    const bulkRes = await fetchWithAuth(`/api/DetallesVenta/por-ventas?ids=${ids.join(',')}`);
-    if (bulkRes && bulkRes.ok) {
-      const bulkData = await bulkRes.json();
-      if (bulkData && typeof bulkData === 'object') {
-        Object.entries(bulkData).forEach(([key, value]) => {
-          mapa.set(Number(key), Array.isArray(value) ? value : []);
-        });
-      }
-    }
-  } catch {
-    // Fallback: si el endpoint bulk no existe, usar peticiones individuales (legacy)
-    const detallesPorVenta = await Promise.all(ids.slice(0, 10).map(async id => {
-      const dr = await fetchWithAuth(`/api/DetallesVenta/venta/${id}`).catch(() => null);
-      if (!dr || !dr.ok) return { id, detalles: [] as any[] };
-      const dj = await dr.json();
-      return { id, detalles: Array.isArray(dj) ? dj : [] };
-    }));
-    mapa = new Map<number, any[]>(detallesPorVenta.map(d => [d.id, d.detalles]));
-  }
-  ventasBase.forEach(v => {
-    const dets = mapa.get(v.id) ?? [];
-    const productos = dets.filter((d: any) => d.producto || d.Producto).map((d: any) => ({
-      nombre: (d.producto?.nombre ?? d.Producto?.Nombre) ?? "Producto",
-      cantidad: Number((d.cantidad ?? d.Cantidad) ?? 1),
-      precio: Number((d.precioUnitario ?? d.PrecioUnitario) ?? 0)
-    }));
-    const servicios = dets.filter((d: any) => d.servicio || d.Servicio).map((d: any) => ({
-      nombre: (d.servicio?.nombre ?? d.Servicio?.Nombre) ?? "Servicio",
-      cantidad: Number((d.cantidad ?? d.Cantidad) ?? 1),
-      precio: Number((d.precioUnitario ?? d.PrecioUnitario) ?? 0)
-    }));
-    const paquetes = dets.filter((d: any) => d.paquete || d.Paquete).map((d: any) => ({
-      nombre: (d.paquete?.nombre ?? d.Paquete?.Nombre) ?? "Paquete",
-      cantidad: Number((d.cantidad ?? d.Cantidad) ?? 1),
-      precio: Number((d.precioUnitario ?? d.PrecioUnitario) ?? 0)
-    }));
-    v.productosDetalle = productos;
-    v.serviciosDetalle = [...servicios, ...paquetes];
-    v.serviciosPaquetesDetalle = [
-      ...servicios.map(s => ({ ...s, tipo: "Servicio" as const })),
-      ...paquetes.map(p => ({ ...p, tipo: "Paquete" as const })),
-    ];
-  });
-  return ventasBase;
-};
 
-const getAgendamientos = async (): Promise<Agendamiento[]> => {
-  const res = await fetchWithAuth("/api/Agendamientos");
-  if (!res.ok) return [];
-  const raw = await res.json();
-  const list = Array.isArray(raw) ? raw : [];
-  return list.map((a: any) => {
-    const fechaHoraRaw = a.fechaHora ?? a.FechaHora;
-    const dt = fechaHoraRaw ? new Date(fechaHoraRaw) : null;
-    const fecha = dt ? `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}` : "";
-    const hora = dt ? `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}` : "";
-    return {
-      id: a.id ?? a.Id,
-      clienteNombre: a.clienteNombre ?? a.ClienteNombre ?? "",
-      servicioNombre: a.servicioNombre ?? a.ServicioNombre ?? null,
-      paqueteNombre: a.paqueteNombre ?? a.PaqueteNombre ?? null,
-      precio: (a.precio ?? a.Precio) ?? null,
-      hora,
-      barberoNombre: a.barberoNombre ?? a.BarberoNombre ?? "",
-      estado: String((a.estado ?? a.Estado) ?? "").toLowerCase(),
-      fecha
-    } as Agendamiento;
-  });
-};
+    const mappedHistoricas: Venta[] = listaHistoricas.map((v: any) => ({
+      id: 0,
+      fecha: v.fecha ?? v.Fecha,
+      estado: v.estado ?? v.Estado,
+      total: Number((v.total ?? v.Total) ?? 0),
+      totalProductos: Number(v.totalProductos ?? 0),
+      totalServicios: Number(v.totalServicios ?? 0),
+      productosDetalle: [],
+      serviciosDetalle: [],
+      serviciosPaquetesDetalle: [],
+    }));
 
-const getInsumosBajos = async (): Promise<Insumo[]> => {
-  const res = await fetchWithAuth("/api/Productos/stock-bajo");
-  if (!res.ok) return [];
-  const raw = await res.json();
-  const list = Array.isArray(raw) ? raw : [];
-  return list.map((p: any) => ({
-    nombre: p.nombre ?? p.Nombre,
-    stockVentas: Number((p.stockVentas ?? p.StockVentas) ?? 0),
-    stockInsumos: Number((p.stockInsumos ?? p.StockInsumos) ?? 0),
-    stockTotal: Number((p.stockTotal ?? p.StockTotal) ?? 0),
-    minimo: 5,
-    categoria: (p.categoriaNombre ?? p.CategoriaNombre) ?? null
-  }));
+    const todasLasVentas = [...mappedRecientes, ...mappedHistoricas];
+
+    const agendamientos = (Array.isArray(jd?.agendamientos) ? jd.agendamientos : []).map((a: any) => {
+      const fechaHoraRaw = a.fechaHora ?? a.FechaHora;
+      const dt = fechaHoraRaw ? new Date(fechaHoraRaw) : null;
+      const fecha = dt ? `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}` : "";
+      const hora = dt ? `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}` : "";
+      return {
+        id: a.id ?? a.Id,
+        clienteNombre: a.clienteNombre ?? a.ClienteNombre ?? "",
+        servicioNombre: a.servicioNombre ?? a.ServicioNombre ?? null,
+        paqueteNombre: a.paqueteNombre ?? a.PaqueteNombre ?? null,
+        precio: (a.precio ?? a.Precio) ?? null,
+        hora,
+        barberoNombre: a.barberoNombre ?? a.BarberoNombre ?? "",
+        estado: String((a.estado ?? a.Estado) ?? "").toLowerCase(),
+        fecha
+      } as Agendamiento;
+    });
+
+    const insumos = (Array.isArray(jd?.inventarioBajo) ? jd.inventarioBajo : []).map((p: any) => ({
+      nombre: p.nombre ?? p.Nombre,
+      stockVentas: Number((p.stockVentas ?? p.StockVentas) ?? 0),
+      stockInsumos: Number((p.stockInsumos ?? p.StockInsumos) ?? 0),
+      stockTotal: Number((p.stockTotal ?? p.StockTotal) ?? 0),
+      minimo: Number(p.minimo ?? 50),
+      categoria: (p.categoriaNombre ?? p.CategoriaNombre) ?? (p.categoria ?? null)
+    }));
+
+    return { ventas: todasLasVentas, agendamientos, insumos };
+  }
+
+  // Fallback si falla el dashboard
+  return { ventas: [], agendamientos: [], insumos: [] };
 };
 
 const formatCurrencyValue = (amount: number) =>
@@ -272,15 +217,11 @@ export function DashboardPage() {
       setIsLoading(true);
       setErrorMsg("");
       try {
-        const [v, a, i] = await Promise.all([
-          getVentas().catch(() => []),
-          getAgendamientos().catch(() => []),
-          getInsumosBajos().catch(() => [])
-        ]);
+        const data = await fetchDashboardData();
         if (!isMounted) return;
-        setVentas(Array.isArray(v) ? v : []);
-        setAgendamientos(Array.isArray(a) ? a : []);
-        setInsumos(Array.isArray(i) ? i : []);
+        setVentas(data.ventas);
+        setAgendamientos(data.agendamientos);
+        setInsumos(data.insumos);
       } catch {
         if (!isMounted) return;
         setErrorMsg("No se pudo cargar la información del backend");
@@ -314,16 +255,20 @@ export function DashboardPage() {
 
   const ventasHoy = useMemo(() => {
     return ventas.filter(v => {
-      const dt = new Date(v.fecha);
-      return isSameDay(dt, today);
+      if (!v.fecha) return false;
+      return v.fecha.startsWith(todayYMD) && isVentaActiva(v.estado);
     });
-  }, [ventas]);
+  }, [ventas, todayYMD]);
 
   const citasHoy = useMemo(() => {
     const hoy = today;
     return agendamientos
       .filter(c => {
         if (!c.fecha) return false;
+        // Excluir canceladas del conteo y la vista del día
+        const st = String(c.estado || "").toLowerCase();
+        if (st === "cancelada" || st === "cancelado" || st === "anulada") return false;
+
         const [y, m, d] = c.fecha.split('-').map(Number);
         if (!y || !m || !d) return false;
         const dt = new Date(y, (m - 1), d);
@@ -356,7 +301,7 @@ export function DashboardPage() {
         categoria: p.categoria
       };
     })
-      .filter(item => typeof item.stockTotal === "number" && item.stockTotal >= 0)
+      .filter(item => typeof item.stockTotal === "number" && item.stockTotal >= 0 && item.stockTotal < 50)
       .sort((a, b) => a.stockTotal - b.stockTotal)
       .slice(0, 5);
     return items;
@@ -478,16 +423,20 @@ export function DashboardPage() {
         let productos = 0;
         let servicios = 0;
         b.ventas.forEach(v => {
-          const pd = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
-          const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
-          const pSum = pd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
-          const sSum = sd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
-          if (pSum === 0 && sSum === 0 && pd.length === 0 && sd.length === 0) {
-            // Fallback: si no hay detalles, usar el total de la venta
-            servicios += Number(v.total || 0);
+          if (v.totalProductos !== undefined && v.totalServicios !== undefined && (v.totalProductos > 0 || v.totalServicios > 0)) {
+            productos += v.totalProductos;
+            servicios += v.totalServicios;
           } else {
-            productos += pSum;
-            servicios += sSum;
+            const pd = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
+            const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
+            const pSum = pd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
+            const sSum = sd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
+            if (pSum === 0 && sSum === 0 && pd.length === 0 && sd.length === 0) {
+              servicios += Number(v.total || 0);
+            } else {
+              productos += pSum;
+              servicios += sSum;
+            }
           }
         });
         return { label: b.key, ingresos: productos + servicios, productos, servicios };
@@ -604,41 +553,35 @@ export function DashboardPage() {
           body {
             font-family: 'Inter', sans-serif;
             background: #ffffff;
-            color: #333;
+            color: #000000;
             line-height: 1.6;
-            margin: 0;
             padding: 20px;
           }
           
           .header {
-            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-            color: #d8b081;
-            padding: 30px;
             text-align: center;
+            border-bottom: 2px solid #000000;
+            padding-bottom: 20px;
             margin-bottom: 30px;
-            border-radius: 12px;
           }
           
           .logo {
             font-size: 28px;
             font-weight: bold;
+            color: #000000;
             margin-bottom: 8px;
           }
           
           .subtitle {
             font-size: 16px;
-            color: #aaaaaa;
-            margin-bottom: 15px;
+            color: #000000;
+            margin-bottom: 10px;
           }
           
           .date {
             font-size: 14px;
-            background: #d8b081;
-            color: #000000;
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: inline-block;
             font-weight: bold;
+            color: #000000;
           }
           
           .container {
@@ -655,30 +598,30 @@ export function DashboardPage() {
           }
           
           .metric-card {
-            background: #f8f9fa;
-            border: 2px solid #d8b081;
-            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid #000000;
+            border-radius: 8px;
             padding: 20px;
             text-align: center;
           }
           
           .metric-title {
             font-size: 14px;
-            color: #666;
+            color: #000000;
+            font-weight: bold;
             margin-bottom: 8px;
           }
           
           .metric-value {
             font-size: 28px;
             font-weight: bold;
-            color: #000;
+            color: #000000;
             margin-bottom: 5px;
           }
           
           .metric-change {
             font-size: 12px;
-            color: #28a745;
-            font-weight: bold;
+            color: #000000;
           }
           
           .section {
@@ -688,93 +631,70 @@ export function DashboardPage() {
           .section-title {
             font-size: 20px;
             font-weight: bold;
-            color: #000;
+            color: #000000;
             margin-bottom: 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #d8b081;
+            border-bottom: 1px solid #000000;
+            text-align: center;
           }
           
           .table {
             width: 100%;
             border-collapse: collapse;
-            background: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: #ffffff;
+            margin-bottom: 30px;
           }
           
           .table th {
-            background: #1a1a1a;
-            color: #d8b081;
+            background: #ffffff;
+            color: #000000;
             padding: 12px;
-            text-align: left;
+            text-align: center;
             font-weight: bold;
             font-size: 14px;
+            border-top: 2px solid #000000;
+            border-bottom: 2px solid #000000;
           }
           
           .table td {
             padding: 12px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #000000;
             font-size: 13px;
-          }
-          
-          .table tr:nth-child(even) {
-            background: #f8f9fa;
-          }
-          
-          .status-badge {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
-          }
-          
-          .status-confirmada {
-            background: #d8b081;
-            color: #000;
-          }
-          
-          .status-en-curso {
-            background: #28a745;
-            color: #fff;
-          }
-          
-          .status-pendiente {
-            background: #ffc107;
-            color: #000;
+            text-align: center;
+            color: #000000;
           }
           
           .inventory-alert {
-            background: #fff5f5;
-            border: 1px solid #fed7d7;
+            background: #ffffff;
+            border: 1px solid #000000;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
+            text-align: center;
           }
           
           .inventory-alert h4 {
-            color: #e53e3e;
+            color: #000000;
             margin-bottom: 8px;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: bold;
           }
           
           .inventory-details {
-            font-size: 12px;
-            color: #666;
+            font-size: 14px;
+            color: #000000;
           }
           
           .footer {
-            background: #1a1a1a;
-            color: #aaa;
             text-align: center;
             padding: 20px;
             margin-top: 40px;
             font-size: 12px;
+            color: #000000;
+            border-top: 1px solid #000000;
           }
           
           .highlight {
-            color: #d8b081;
             font-weight: bold;
           }
           
@@ -787,11 +707,7 @@ export function DashboardPage() {
           
           @media print {
             body {
-              background: #fff;
-            }
-            .header {
-              background: #000 !important;
-              -webkit-print-color-adjust: exact;
+              background: #ffffff;
             }
           }
         </style>
@@ -844,11 +760,9 @@ export function DashboardPage() {
                       <td>${cita.servicio}</td>
                       <td>${cita.hora}</td>
                       <td>${cita.barbero}</td>
-                      <td>
-                        <span class="status-badge status-${cita.estado}">
+                        <span>
                           ${getEstadoTexto(cita.estado)}
                         </span>
-                      </td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -899,11 +813,11 @@ export function DashboardPage() {
           <!-- Resumen del Día -->
           <div class="section">
             <h2 class="section-title">📋 Resumen del Día</h2>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #E3931C;">
-              <p><strong>Total de Citas:</strong> ${citasHoy.length} citas programadas</p>
-              <p><strong>Citas Completadas:</strong> ${citasHoy.filter(c => c.estado === 'en-curso').length} en curso</p>
-              <p><strong>Citas Pendientes:</strong> ${citasHoy.filter(c => c.estado === 'pendiente').length} por atender</p>
-              <p><strong>Productos con Stock Bajo:</strong> ${inventarioBajo.length} requieren restock</p>
+            <div style="background: #ffffff; padding: 20px; border: 1px solid #000000; border-radius: 8px; text-align: center;">
+              <p style="margin-bottom: 8px;"><strong>Total de Citas:</strong> ${citasHoy.length} citas programadas</p>
+              <p style="margin-bottom: 8px;"><strong>Citas Completadas:</strong> ${citasHoy.filter(c => c.estado === 'en-curso' || c.estado === 'completada').length} finalizadas</p>
+              <p style="margin-bottom: 8px;"><strong>Citas Pendientes:</strong> ${citasHoy.filter(c => c.estado === 'pendiente').length} por atender</p>
+              <p style="margin-bottom: 8px;"><strong>Productos con Stock Bajo:</strong> ${inventarioBajo.length} requieren restock</p>
               <p><strong>Ventas de Productos:</strong> ${ventasRecientesData.length} transacciones realizadas</p>
           </div>
         </div>
@@ -990,6 +904,7 @@ export function DashboardPage() {
     const wb = XLSX.utils.book_new();
     const wsDetalle = XLSX.utils.json_to_sheet(rows);
     XLSX.utils.book_append_sheet(wb, wsDetalle, "Detalle");
+    
     const totalProductos = rows.filter(r => r.Tipo === "Producto").reduce((s, r) => s + Number(r.Total || 0), 0);
     const totalServicios = rows.filter(r => r.Tipo === "Servicio").reduce((s, r) => s + Number(r.Total || 0), 0);
     const resumen = [
@@ -998,8 +913,10 @@ export function DashboardPage() {
       { Concepto: "Total General", Monto: totalProductos + totalServicios },
       { Concepto: "Ventas en rango", Monto: ventasRango.length }
     ];
+    
     const wsResumen = XLSX.utils.json_to_sheet(resumen);
     XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
+    
     XLSX.writeFile(wb, `Reporte_${start}_a_${end}.xlsx`);
   };
 
@@ -1040,18 +957,19 @@ export function DashboardPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Reporte por Fecha</title>
         <style>
-          body { font-family: Arial, sans-serif; color: #111; margin: 0; padding: 24px; }
-          .header { background: #0b0b0b; color: #d8b081; padding: 20px; border-radius: 12px; margin-bottom: 18px; text-align: center; }
-          .range { color: #fff; margin-top: 6px; font-size: 14px; }
-          .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
-          .card { border: 1px solid #d8b081; border-radius: 10px; padding: 12px; background: #fafafa; }
-          .title { font-size: 13px; color: #555; }
-          .value { font-size: 22px; font-weight: 700; color: #111; }
-          table { width: 100%; border-collapse: collapse; background: #fff; }
-          th { background: #1a1a1a; color: #d8b081; text-align: left; padding: 8px; font-size: 12px; }
-          td { padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; }
+          body { font-family: 'Inter', Arial, sans-serif; color: #000000; margin: 0; padding: 24px; background: #ffffff; }
+          .header { background: #ffffff; color: #000000; padding: 20px; border-bottom: 2px solid #000000; margin-bottom: 30px; text-align: center; }
+          .range { color: #000000; margin-top: 6px; font-size: 14px; font-weight: bold; }
+          .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 15px; margin-bottom: 30px; }
+          .card { border: 1px solid #000000; border-radius: 8px; padding: 15px; background: #ffffff; text-align: center; }
+          .title { font-size: 14px; color: #000000; font-weight: bold; }
+          .value { font-size: 24px; font-weight: 700; color: #000000; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; background: #ffffff; margin-bottom: 30px; }
+          th { background: #ffffff; color: #000000; text-align: center; padding: 12px; font-size: 14px; border-top: 2px solid #000000; border-bottom: 2px solid #000000; font-weight: bold; }
+          td { padding: 10px; border-bottom: 1px solid #000000; font-size: 13px; text-align: center; color: #000000; }
           .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-          .note { color: #666; font-size: 12px; margin-top: 8px; }
+          .note { color: #000000; font-size: 12px; margin-top: 20px; text-align: center; border-top: 1px solid #000; padding-top: 10px; }
+          h3 { text-align: center; }
         </style>
       </head>
       <body>
@@ -1244,28 +1162,32 @@ export function DashboardPage() {
       { periodo: "anual", days: 365 },
     ];
     const withinDaysLocal = (fechaStr: string, days: number) => {
-      const dt = new Date(fechaStr);
+      if (!fechaStr) return false;
+      const dateOnly = fechaStr.split('T')[0];
       const start = new Date(today);
       start.setDate(start.getDate() - (days - 1));
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(today);
-      end.setHours(23, 59, 59, 999);
-      return dt >= start && dt <= end;
+      const startStr = formatDateYMD(start);
+      return dateOnly >= startStr && dateOnly <= todayYMD;
     };
     return periodos.map(({ periodo, days }) => {
       const subset = ventas.filter(v => withinDaysLocal(v.fecha, days));
       let productos = 0;
       let servicios = 0;
       subset.forEach(v => {
-        const pd = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
-        const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
-        const pSum = pd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
-        const sSum = sd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
-        if (pSum === 0 && sSum === 0 && pd.length === 0 && sd.length === 0) {
-          servicios += Number(v.total || 0);
+        if (v.totalProductos !== undefined && v.totalServicios !== undefined && (v.totalProductos > 0 || v.totalServicios > 0)) {
+          productos += v.totalProductos;
+          servicios += v.totalServicios;
         } else {
-          productos += pSum;
-          servicios += sSum;
+          const pd = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
+          const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
+          const pSum = pd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
+          const sSum = sd.reduce((s, d) => s + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
+          if (pSum === 0 && sSum === 0 && pd.length === 0 && sd.length === 0) {
+            servicios += Number(v.total || 0);
+          } else {
+            productos += pSum;
+            servicios += sSum;
+          }
         }
       });
       return {
@@ -1338,14 +1260,10 @@ export function DashboardPage() {
               onClick={() => {
                 setIsLoading(true);
                 setErrorMsg("");
-                Promise.all([
-                  getVentas().catch(() => []),
-                  getAgendamientos().catch(() => []),
-                  getInsumosBajos().catch(() => [])
-                ]).then(([v, a, i]) => {
-                  setVentas(Array.isArray(v) ? v : []);
-                  setAgendamientos(Array.isArray(a) ? a : []);
-                  setInsumos(Array.isArray(i) ? i : []);
+                fetchDashboardData().then((data) => {
+                  setVentas(data.ventas);
+                  setAgendamientos(data.agendamientos);
+                  setInsumos(data.insumos);
                 }).catch(() => {
                   setErrorMsg("No se pudo cargar la información del backend");
                 }).finally(() => {
@@ -1453,14 +1371,10 @@ export function DashboardPage() {
                 onClick={() => {
                   setErrorMsg("");
                   setIsLoading(true);
-                  Promise.all([
-                    getVentas().catch(() => []),
-                    getAgendamientos().catch(() => []),
-                    getInsumosBajos().catch(() => [])
-                  ]).then(([v, a, i]) => {
-                    setVentas(Array.isArray(v) ? v : []);
-                    setAgendamientos(Array.isArray(a) ? a : []);
-                    setInsumos(Array.isArray(i) ? i : []);
+                  fetchDashboardData().then((data) => {
+                    setVentas(data.ventas);
+                    setAgendamientos(data.agendamientos);
+                    setInsumos(data.insumos);
                   }).catch(() => {
                     setErrorMsg("No se pudo cargar la información del backend");
                   }).finally(() => setIsLoading(false));
