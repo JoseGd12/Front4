@@ -786,7 +786,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
               className="space-y-2 py-2"
               headerRight={
                 <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" style={{ paddingRight: '20px' }}>
                     <span className="text-white-primary font-bold">
                       Nº Compra
                     </span>

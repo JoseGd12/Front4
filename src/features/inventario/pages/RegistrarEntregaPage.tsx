@@ -397,7 +397,7 @@ export function RegistrarEntregaPage({ onBack }: RegistrarEntregaPageProps) {
                 icon={<Receipt className="w-4 h-4" />}
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" style={{ paddingRight: '20px' }}>
                       <span className="text-white-primary font-bold">Nº Entrega:</span>
                       <span className="text-gray-lightest font-medium tabular-nums">
                         {numeroEntrega.toString().padStart(3, "0")}

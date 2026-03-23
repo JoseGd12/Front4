@@ -720,7 +720,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                 style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" style={{ paddingRight: '20px' }}>
                       <span className="text-white-primary font-bold">Nº Devolución:</span>
                       <span className="text-gray-lightest font-medium tabular-nums">
                         {numeroDevolucion.toString().padStart(3, "0")}

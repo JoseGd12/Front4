@@ -159,7 +159,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const [selectedDevolucion, setSelectedDevolucion] = useState<Devolucion | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
 
   const [showDevolucionFormErrors, setShowDevolucionFormErrors] = useState(false);

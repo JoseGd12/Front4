@@ -73,7 +73,7 @@ export function RolesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState<'todos' | 'activo' | 'inactivo'>('todos');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [nuevoRol, setNuevoRol] = useState<CreateRoleData>({
     nombre: '',
     descripcion: '',

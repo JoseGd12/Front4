@@ -1093,9 +1093,18 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <SearchField
-                    placeholder="Escribe para buscar un cliente..."
+                    placeholder="Escribe el nombre del cliente o búscalo..."
                     value={clientSearchTerm}
-                    onChange={(val) => setClientSearchTerm(val)}
+                    onChange={(val) => {
+                      setClientSearchTerm(val);
+                      setNuevaVenta((prev) => ({
+                        ...prev,
+                        clienteId: null,
+                        clienteDocumento: "",
+                        clienteNombreInvitado: val,
+                        tipoVenta: "Venta Invitado",
+                      }));
+                    }}
                     onClear={() => {
                       setClientSearchTerm("");
                       setNuevaVenta((prev) => ({
@@ -1157,41 +1166,17 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         }`
                       );
                     }}
-                    error={showVentaFormErrors && !nuevaVenta.clienteId && !nuevaVenta.clienteNombreInvitado.trim()}
-                    errorMessage="Selecciona un cliente o escribe el nombre del invitado."
+                    error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()}
+                    errorMessage="Selecciona un cliente o entra un nombre para el invitado."
                     shakeClass={shakeClass}
                     onFocus={clearValidationErrors}
                   />
-                  {!nuevaVenta.clienteId && (
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-px bg-gray-dark" />
-                        <span className="text-[10px] text-gray-lightest uppercase tracking-widest font-bold">o venta como invitado</span>
-                        <div className="flex-1 h-px bg-gray-dark" />
-                      </div>
-                      <Input
-                        placeholder="Nombre del invitado..."
-                        value={nuevaVenta.clienteNombreInvitado}
-                        onChange={(e) => {
-                          const nombre = e.target.value;
-                          setNuevaVenta((prev) => ({
-                            ...prev,
-                            clienteNombreInvitado: nombre,
-                            tipoVenta: "Venta Invitado",
-                          }));
-                        }}
-                        className={`elegante-input ${
-                          showVentaFormErrors && !nuevaVenta.clienteId && !nuevaVenta.clienteNombreInvitado.trim()
-                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                            : ""
-                        }`}
-                      />
-                      {nuevaVenta.clienteNombreInvitado.trim() && (
+                  {!nuevaVenta.clienteId && clientSearchTerm.trim() && (
+                    <div className="mt-2">
                         <p className="text-[10px] text-orange-primary flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-primary" />
-                          Se creará la venta a nombre de "{nuevaVenta.clienteNombreInvitado.trim()}" sin registro de cliente
+                          Se creará la venta a nombre de "{clientSearchTerm.trim()}" como invitado
                         </p>
-                      )}
                     </div>
                   )}
                 </div>

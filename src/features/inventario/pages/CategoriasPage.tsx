@@ -51,7 +51,7 @@ export function CategoriasPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const [productos, setProductos] = useState<ApiProducto[]>([]);

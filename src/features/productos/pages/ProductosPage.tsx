@@ -60,7 +60,7 @@ export function ProductosPage() {
   const [filterCategoria, setFilterCategoria] = useState("all");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [pagedProductos, setPagedProductos] = useState<ApiProducto[]>([]);
   const [totalPagesApi, setTotalPagesApi] = useState(1);
   const [totalCountApi, setTotalCountApi] = useState(0);

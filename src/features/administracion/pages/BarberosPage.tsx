@@ -58,7 +58,7 @@ export function BarberosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [newBarbero, setNewBarbero] = useState<CreateBarberoData>({
     nombre: '',
     apellido: '',

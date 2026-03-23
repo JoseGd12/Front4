@@ -50,7 +50,7 @@ export function PaquetesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Servicios disponibles cargados desde la API
   const [serviciosDisponibles, setServiciosDisponibles] = useState<Servicio[]>([]);

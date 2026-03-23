@@ -138,7 +138,7 @@ export function ProveedoresPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [formData, setFormData] = useState({
     nombre: "",
     tipoProveedor: "Juridico" as 'Juridico' | 'Natural',

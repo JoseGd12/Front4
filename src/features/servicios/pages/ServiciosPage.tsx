@@ -28,7 +28,7 @@ export function ServiciosPage() {
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [pagedServicios, setPagedServicios] = useState<Servicio[]>([]);
   const [totalPagesApi, setTotalPagesApi] = useState(1);
   const [totalCountApi, setTotalCountApi] = useState(0);

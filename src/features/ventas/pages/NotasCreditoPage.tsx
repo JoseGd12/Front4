@@ -213,7 +213,7 @@ export function NotasCreditoPage() {
   const [selectedNota, setSelectedNota] = useState<NotaCredito | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(5);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [isReportPopoverOpen, setIsReportPopoverOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange>(getDateRanges().monthly);
