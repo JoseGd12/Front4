@@ -80,6 +80,7 @@ interface HorarioSemanal {
   activo: boolean; // Estado derivado
   bloques: BloqueHorario[];
   notas?: string;
+  fotoPerfil?: string;
 }
 
 export function HorariosPage() {
@@ -156,7 +157,8 @@ export function HorariosPage() {
         apellido: (b as any).apellidos || b.apellido,
         documento: b.documento || (b as any).documento || '',
         tipoDocumento: b.tipoDocumento || (b as any).tipoDocumento || 'CC',
-        estado: b.estado
+        estado: b.estado,
+        fotoPerfil: b.fotoPerfil || ''
       }));
 
       setBarberos(barberosMapeados as any);
@@ -185,6 +187,7 @@ export function HorariosPage() {
             documento: b.documento || '',
             tipoDocumento: b.tipoDocumento || 'CC',
             activo: representsActivo,
+            fotoPerfil: b.fotoPerfil,
             bloques: bloquesBarbero.map(h => ({
               id: h.id,
               dia: h.dia,
@@ -909,8 +912,16 @@ export function HorariosPage() {
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
-                            <UserIcon className="w-5 h-5 text-gray-lightest" />
+                          <div className="w-10 h-10 rounded-full bg-gray-dark border-2 border-gray-medium overflow-hidden flex items-center justify-center shrink-0 shadow-sm shadow-black/20">
+                            {horario.fotoPerfil ? (
+                              <img 
+                                src={horario.fotoPerfil} 
+                                alt={horario.barbero} 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <UserIcon className="w-5 h-5 text-gray-lightest" />
+                            )}
                           </div>
                           <span className="text-gray-lighter">
                             {horario.barbero}
@@ -1526,8 +1537,16 @@ export function HorariosPage() {
               {/* Info Principal */}
               <div className="bg-gray-darker rounded-lg p-4 border border-gray-dark">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
-                    <UserIcon className="w-6 h-6 text-gray-lightest" />
+                  <div className="w-12 h-12 rounded-full bg-gray-dark border-2 border-gray-medium overflow-hidden flex items-center justify-center shrink-0 shadow-md">
+                    {selectedHorario.fotoPerfil ? (
+                      <img 
+                        src={selectedHorario.fotoPerfil} 
+                        alt={selectedHorario.barbero} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <UserIcon className="w-6 h-6 text-gray-lightest" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <h3 className="text-white-primary font-semibold text-lg">
