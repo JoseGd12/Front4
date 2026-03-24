@@ -1231,6 +1231,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                               </div>
                             )}
+                            dropUp
                           />
                         )}
                       </FormSection>
@@ -1272,6 +1273,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 </div>
                               );
                             }}
+                            dropUp
                           />
                           {/* Productos seleccionados con control de cantidad */}
                           {Object.keys(nuevaCita.productoCantidades).length > 0 && (
@@ -1781,7 +1783,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               {/* Overlay hover */}
                               {(!isPastSlot || citasEnSlot.length > 0) && (
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gray-darkest/60 backdrop-blur-[1px]">
-                                  <Plus className="w-8 h-8 text-gray-light opacity-70" />
+                                  <Plus className="w-4 h-4 text-gray-light opacity-70" />
                                 </div>
                               )}
 

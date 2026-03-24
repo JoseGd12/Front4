@@ -510,6 +510,7 @@ export function RegistrarEntregaPage({ onBack }: RegistrarEntregaPageProps) {
                         error={showInsumoSelectorError ? "Selecciona un producto." : undefined}
                         shakeClass={shakeClass}
                         onFocus={clearValidationErrors}
+                        dropUp
                       />
                     </div>
 

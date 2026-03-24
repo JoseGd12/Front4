@@ -1013,6 +1013,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                       shakeClass={shakeClass}
                       maxResults={20}
                       onFocus={clearValidationErrors}
+                      dropUp
                     />
                   </div>
                   <div className="space-y-1">

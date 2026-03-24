@@ -1409,6 +1409,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     shakeClass={shakeClass}
                     maxResults={20}
                     onFocus={clearValidationErrors}
+                    dropUp
                   />
                 </div>
                 <div className="space-y-1">
@@ -1552,6 +1553,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     errorMessage="El barbero es requerido cuando hay servicios."
                     shakeClass={shakeClass}
                     onFocus={clearValidationErrors}
+                    dropUp
                   />
                 </div>
 
@@ -1587,6 +1589,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     shakeClass={shakeClass}
                     maxResults={20}
                     onFocus={clearValidationErrors}
+                    dropUp
                   />
                 </div>
 
