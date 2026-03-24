@@ -404,7 +404,7 @@ export function ServiciosPage() {
 
   return (
     <>
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         {/* Tabla de Servicios */}
         <div className="elegante-card">
           {/* Controles y Filtros */}

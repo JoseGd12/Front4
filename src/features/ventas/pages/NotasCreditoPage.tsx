@@ -483,7 +483,7 @@ export function NotasCreditoPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         {/* Sección de Notas de Crédito */}
         <div className="elegante-card">
           {/* Barra de Controles */}

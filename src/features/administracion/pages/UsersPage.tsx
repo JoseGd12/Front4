@@ -746,7 +746,7 @@ export function UsersPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="elegante-card text-center">
             <Users className="w-8 h-8 text-orange-primary mx-auto mb-2" />
