@@ -538,7 +538,7 @@ export function PaquetesPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         {/* Vista Lista de Paquetes */}
         {viewMode === 'list' && (
           <div className="elegante-card">

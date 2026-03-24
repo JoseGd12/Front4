@@ -618,7 +618,7 @@ export function RolesPage() {
     <div className="w-full bg-black-primary text-white-primary h-full overflow-y-auto">
       <AlertContainer />
 
-      <div className="p-6">
+      <div>
         <div className="elegante-card">
 
           {/* Barra de Controles */}

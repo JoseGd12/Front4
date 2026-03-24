@@ -903,7 +903,7 @@ export function ClientesPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         {/* Stats Cards */}
         <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="elegante-card text-center">

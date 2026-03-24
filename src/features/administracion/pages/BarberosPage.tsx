@@ -518,7 +518,7 @@ export function BarberosPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-8 bg-black-primary">
+      <main className="flex-1 overflow-auto bg-black-primary">
         <div className="elegante-card">
           <TableHeaderSection
             leftContent={(
