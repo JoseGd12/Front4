@@ -561,23 +561,23 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     title: moduleInfo[activePage] ? moduleInfo[activePage].title : activePage,
     subtitle:
       isRegistrarCompraPage ||
-      isRegistrarVentaPage ||
-      isRegistrarDevolucionPage ||
-      isRegistrarEntregaPage
+        isRegistrarVentaPage ||
+        isRegistrarDevolucionPage ||
+        isRegistrarEntregaPage
         ? moduleInfo[activePage]?.description
         : undefined,
     onBack:
       isRegistrarCompraPage ? () => setActivePage("Compras") :
-      isRegistrarVentaPage ? () => setActivePage("Ventas") :
-      isRegistrarDevolucionPage ? () => setActivePage("Devoluciones") :
-      isRegistrarEntregaPage ? () => setActivePage("Entregas de Insumos") :
-      undefined,
+        isRegistrarVentaPage ? () => setActivePage("Ventas") :
+          isRegistrarDevolucionPage ? () => setActivePage("Devoluciones") :
+            isRegistrarEntregaPage ? () => setActivePage("Entregas de Insumos") :
+              undefined,
     backTitle:
       isRegistrarCompraPage ? "Volver a Compras" :
-      isRegistrarVentaPage ? "Volver a Ventas" :
-      isRegistrarDevolucionPage ? "Volver a Devoluciones" :
-      isRegistrarEntregaPage ? "Volver a Entregas de Insumos" :
-      undefined,
+        isRegistrarVentaPage ? "Volver a Ventas" :
+          isRegistrarDevolucionPage ? "Volver a Devoluciones" :
+            isRegistrarEntregaPage ? "Volver a Entregas de Insumos" :
+              undefined,
     icon: moduleInfo[activePage] && moduleInfo[activePage].icon
       ? React.createElement(moduleInfo[activePage].icon, { className: "w-5 h-5" })
       : undefined,
@@ -817,11 +817,10 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               iconContainerClassName={currentSubNav.iconContainerClassName}
             />
             <div
-              className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${
-                activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion" || activePage === "RegistrarEntrega"
+              className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion" || activePage === "RegistrarEntrega"
                   ? "overflow-hidden flex flex-col"
                   : "overflow-y-auto"
-              }`}
+                }`}
             >
               <Suspense fallback={
                 <div className="flex items-center justify-center h-64">

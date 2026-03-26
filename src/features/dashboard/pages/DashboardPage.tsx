@@ -76,11 +76,11 @@ const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: A
   const dashRes = await fetchWithAuth("/api/Dashboard").catch(() => null);
   if (dashRes && dashRes.ok) {
     const jd = await dashRes.json();
-    
+
     // Combinar ventas recientes con históricas para tener el set completo para gráficas
     const listaRecientes = Array.isArray(jd?.ventas) ? jd.ventas : [];
     const listaHistoricas = Array.isArray(jd?.ventasHistoricas) ? jd.ventasHistoricas : [];
-    
+
     const mappedRecientes: Venta[] = listaRecientes.map((v: any) => {
       const productos = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
       const servicios = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
@@ -252,6 +252,11 @@ export function DashboardPage() {
     return d;
   })();
   const todayYMD = formatDateYMD(today);
+
+  const isVentaActiva = (estado: string) => {
+    const st = String(estado || "").toLowerCase();
+    return st !== "anulada" && st !== "cancelada";
+  };
 
   const ventasHoy = useMemo(() => {
     return ventas.filter(v => {
@@ -904,7 +909,7 @@ export function DashboardPage() {
     const wb = XLSX.utils.book_new();
     const wsDetalle = XLSX.utils.json_to_sheet(rows);
     XLSX.utils.book_append_sheet(wb, wsDetalle, "Detalle");
-    
+
     const totalProductos = rows.filter(r => r.Tipo === "Producto").reduce((s, r) => s + Number(r.Total || 0), 0);
     const totalServicios = rows.filter(r => r.Tipo === "Servicio").reduce((s, r) => s + Number(r.Total || 0), 0);
     const resumen = [
@@ -913,10 +918,10 @@ export function DashboardPage() {
       { Concepto: "Total General", Monto: totalProductos + totalServicios },
       { Concepto: "Ventas en rango", Monto: ventasRango.length }
     ];
-    
+
     const wsResumen = XLSX.utils.json_to_sheet(resumen);
     XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
-    
+
     XLSX.writeFile(wb, `Reporte_${start}_a_${end}.xlsx`);
   };
 
@@ -1064,10 +1069,6 @@ export function DashboardPage() {
   const participacionProductos = totalGeneralIngresos ? (totalProductos / totalGeneralIngresos) * 100 : 0;
   const participacionServicios = totalGeneralIngresos ? (totalServicios / totalGeneralIngresos) * 100 : 0;
 
-  const isVentaActiva = (estado: string) => {
-    const st = String(estado || "").toLowerCase();
-    return st !== "anulada" && st !== "cancelada";
-  };
 
   const ventasPorProducto = useMemo(() => {
     const mapa = new Map<string, { producto: string; unidades: number; ingresos: number }>();
@@ -1312,33 +1313,33 @@ export function DashboardPage() {
                   <div className="grid grid-cols-1 gap-3">
                     <div className="space-y-2">
                       <Label className="text-white-primary flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-orange-primary" />
+                        <Calendar className="w-4 h-4 text-orange-primary" />
                         Desde
                       </Label>
-                  <DatePicker
-                    value={reportStart}
-                    max={todayYMD}
-                    onChange={(v) => {
-                      const capped = v > todayYMD ? todayYMD : v;
-                      setReportStart(capped);
-                      if (reportEnd < capped) setReportEnd(capped);
-                    }}
-                  />
+                      <DatePicker
+                        value={reportStart}
+                        max={todayYMD}
+                        onChange={(v) => {
+                          const capped = v > todayYMD ? todayYMD : v;
+                          setReportStart(capped);
+                          if (reportEnd < capped) setReportEnd(capped);
+                        }}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-white-primary flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-orange-primary" />
                         Hasta
                       </Label>
-                  <DatePicker
-                    value={reportEnd}
-                    max={todayYMD}
-                    onChange={(v) => {
-                      const capped = v > todayYMD ? todayYMD : v;
-                      setReportEnd(capped);
-                      if (capped < reportStart) setReportStart(capped);
-                    }}
-                  />
+                      <DatePicker
+                        value={reportEnd}
+                        max={todayYMD}
+                        onChange={(v) => {
+                          const capped = v > todayYMD ? todayYMD : v;
+                          setReportEnd(capped);
+                          if (capped < reportStart) setReportStart(capped);
+                        }}
+                      />
                     </div>
                     <div className="flex flex-col gap-2">
                       <button
