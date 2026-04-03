@@ -23,11 +23,10 @@ import {
   Menu,
   RotateCcw,
   LayoutGrid,
-  Eye,
+  Settings,
   AtSign,
   ArrowRight,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -60,6 +59,7 @@ const RegistrarDevolucionPage = React.lazy(() => import("../../ventas/pages/Regi
 const RegistrarEntregaPage = React.lazy(() => import("../../inventario/pages/RegistrarEntregaPage").then(m => ({ default: m.RegistrarEntregaPage })));
 const RolesPage = React.lazy(() => import("../../administracion/pages/RolesPage").then(m => ({ default: m.RolesPage })));
 const UsersPage = React.lazy(() => import("../../administracion/pages/UsersPage").then(m => ({ default: m.UsersPage })));
+const AdminPerfilPage = React.lazy(() => import("../pages/AdminPerfilPage").then(m => ({ default: m.AdminPerfilPage })));
 import manitoLogo from "../../../assets/Manito.jpeg";
 
 type ModuleSubNavOverride = {
@@ -197,6 +197,12 @@ const moduleInfo: Record<string, {
     description: "Configuración de roles por módulos",
     icon: Shield,
     color: "text-orange-400"
+  },
+  "MiCuenta": {
+    title: "Mi Cuenta",
+    description: "Información y ajustes del perfil",
+    icon: Settings,
+    color: "text-orange-primary"
   }
 };
 
@@ -251,7 +257,6 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   const { user, logout } = useAuth();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [subNavOverride, setSubNavOverride] = useState<ModuleSubNavOverride>(null);
 
@@ -280,6 +285,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (target === 'entregas-insumos/registrar') return 'RegistrarEntrega';
     if (target === 'usuarios') return 'Usuarios';
     if (target === 'roles') return 'Roles';
+    if (target === 'mi-cuenta') return 'MiCuenta';
     return 'Dashboard';
   };
 
@@ -304,6 +310,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (page === 'RegistrarEntrega') return 'entregas-insumos/registrar';
     if (page === 'Usuarios') return 'usuarios';
     if (page === 'Roles') return 'roles';
+    if (page === 'MiCuenta') return 'mi-cuenta';
     return '';
   };
 
@@ -312,6 +319,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   const isRegistrarVentaPage = activePage === "RegistrarVenta";
   const isRegistrarDevolucionPage = activePage === "RegistrarDevolucion";
   const isRegistrarEntregaPage = activePage === "RegistrarEntrega";
+  const isMiCuentaPage = activePage === "MiCuenta";
 
   useEffect(() => {
     if (activePage !== "Agendamientos") {
@@ -334,11 +342,6 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           : "Usuario";
 
   const displayGreetingName = String(user?.name || "Usuario").trim().split(" ")[0] || "Usuario";
-
-  const handleSwitchAccount = async () => {
-    sessionStorage.setItem("barbershop_post_logout_view", "login");
-    await logout();
-  };
 
   const handleLogout = async () => {
     sessionStorage.setItem("barbershop_post_logout_view", "landing");
@@ -540,6 +543,8 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         return <UsersPage />;
       case "Roles":
         return <RolesPage />;
+      case "MiCuenta":
+        return <AdminPerfilPage />;
       default:
         return <DashboardPage />;
     }
@@ -571,13 +576,15 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         isRegistrarVentaPage ? () => setActivePage("Ventas") :
           isRegistrarDevolucionPage ? () => setActivePage("Devoluciones") :
             isRegistrarEntregaPage ? () => setActivePage("Entregas de Insumos") :
-              undefined,
+              isMiCuentaPage ? () => setActivePage("Dashboard") :
+                undefined,
     backTitle:
       isRegistrarCompraPage ? "Volver a Compras" :
         isRegistrarVentaPage ? "Volver a Ventas" :
           isRegistrarDevolucionPage ? "Volver a Devoluciones" :
             isRegistrarEntregaPage ? "Volver a Entregas de Insumos" :
-              undefined,
+              isMiCuentaPage ? "Volver al Panel" :
+                undefined,
     icon: moduleInfo[activePage] && moduleInfo[activePage].icon
       ? React.createElement(moduleInfo[activePage].icon, { className: "w-5 h-5" })
       : undefined,
@@ -694,7 +701,16 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                     align="end"
                     className="w-80 bg-gray-darkest border-gray-dark text-white-primary p-0 rounded-xl shadow-2xl"
                   >
-                    <div className="px-4 pt-4 pb-3 text-center">
+                    <div className="px-4 pt-4 pb-3 text-center flex flex-col items-center">
+                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary/40 mb-3">
+                        <ImageRenderer
+                          url={user?.fotoPerfil}
+                          className="w-full h-full object-cover"
+                          alt={user?.name}
+                          showLabel={false}
+                          fallbackVariant="person"
+                        />
+                      </div>
                       <p className="text-lg font-semibold text-white-primary">¡Hola, {displayGreetingName}!</p>
                       <span className="inline-flex mt-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-primary text-black-primary">
                         {roleLabel}
@@ -709,18 +725,11 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                     <DropdownMenuSeparator className="bg-gray-dark -mx-0 my-0" />
                     <div className="p-2">
                       <DropdownMenuItem
-                        onSelect={() => setIsUserDetailOpen(true)}
+                        onSelect={() => setActivePage("MiCuenta")}
                         className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
                       >
-                        <Eye className="w-4 h-4 text-orange-primary" />
-                        Detalles de usuario
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => void handleSwitchAccount()}
-                        className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
-                      >
-                        <User className="w-4 h-4 text-orange-primary" />
-                        Cambiar de cuenta
+                        <Settings className="w-4 h-4 text-orange-primary" />
+                        Ajustes
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onSelect={() => void handleLogout()}
@@ -833,49 +842,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           </div>
         </div>
 
-        {/* Dialog de Detalles del Usuario */}
-        <Dialog open={isUserDetailOpen} onOpenChange={setIsUserDetailOpen}>
-          <DialogContent className="bg-gray-darkest border-gray-dark max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-white-primary">Detalles del Usuario</DialogTitle>
-              <DialogDescription className="text-gray-lightest">
-                Información del usuario actual
-              </DialogDescription>
-            </DialogHeader>
-            {user && (
-              <div className="space-y-4 py-4">
-                <div className="flex items-center gap-4 p-4 bg-gray-darker rounded-lg border border-gray-dark">
-                  <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark">
-                    <ImageRenderer
-                      url={user.fotoPerfil}
-                      className="w-full h-full object-cover"
-                      alt={user.name}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white-primary">{user.name}</h3>
-                    <p className="text-sm text-gray-lighter">{user.email || "No especificado"}</p>
-                    <span className="inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-primary text-black-primary">
-                      {user?.role === 'super_admin' ? 'Super Administrador' : user?.role === 'admin' ? 'Administrador' : user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Usuario'}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-gray-lighter mb-1">Nombre completo</p>
-                    <p className="text-sm text-white-primary">{user.name}</p>
-                  </div>
-                  {user.email && (
-                    <div>
-                      <p className="text-xs text-gray-lighter mb-1">Correo electrónico</p>
-                      <p className="text-sm text-white-primary">{user.email}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+
       </div>
     </TooltipProvider>
   );

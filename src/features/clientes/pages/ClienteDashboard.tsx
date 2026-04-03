@@ -7,7 +7,7 @@ import {
   RotateCcw,
   User,
   LogOut,
-  Eye,
+  Settings,
   Scissors,
   Package,
   AtSign,
@@ -15,7 +15,6 @@ import {
   X,
   ArrowRight
 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -50,7 +49,6 @@ const navItems = [
 export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLanding?: () => void; initialItem?: any }) {
   const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedProduct, setPreSelectedProduct] = useState<any>(null);
 
@@ -87,11 +85,6 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
 
   const roleLabel = "Cliente";
   const displayGreetingName = String(user?.name || "Usuario").trim().split(" ")[0] || "Usuario";
-
-  const handleSwitchAccount = async () => {
-    sessionStorage.setItem("barbershop_post_logout_view", "login");
-    await logout();
-  };
 
   const handleLogout = async () => {
     sessionStorage.setItem("barbershop_post_logout_view", "landing");
@@ -259,7 +252,15 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 align="end"
                 className="w-80 bg-gray-darkest border-gray-dark text-white-primary p-0 rounded-xl shadow-2xl"
               >
-                <div className="px-4 pt-4 pb-3 text-center">
+                <div className="px-4 pt-4 pb-3 text-center flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary/40 mb-3">
+                    <ImageRenderer
+                      url={user?.fotoPerfil}
+                      className="w-full h-full object-cover"
+                      showLabel={false}
+                      fallbackVariant="person"
+                    />
+                  </div>
                   <p className="text-lg font-semibold text-white-primary">¡Hola, {displayGreetingName}!</p>
                   <span className="inline-flex mt-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-primary text-black-primary">
                     {roleLabel}
@@ -274,18 +275,11 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 <DropdownMenuSeparator className="bg-gray-dark -mx-0 my-0" />
                 <div className="p-2">
                   <DropdownMenuItem
-                    onSelect={() => setIsUserDetailOpen(true)}
+                    onSelect={() => setActivePage("Cuenta")}
                     className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
                   >
-                    <Eye className="w-4 h-4 text-orange-primary" />
-                    Detalles de usuario
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => void handleSwitchAccount()}
-                    className="cursor-pointer text-gray-lightest focus:bg-gray-darker focus:text-white-primary rounded-lg"
-                  >
-                    <User className="w-4 h-4 text-orange-primary" />
-                    Cambiar de cuenta
+                    <Settings className="w-4 h-4 text-orange-primary" />
+                    Ajustes
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => void handleLogout()}
@@ -334,50 +328,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
           </div>
         </div>
 
-        {/* Dialog de Detalles del Usuario */}
-        <Dialog open={isUserDetailOpen} onOpenChange={setIsUserDetailOpen}>
-          <DialogContent className="bg-gray-darkest border-gray-dark max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-white-primary">Detalles del Usuario</DialogTitle>
-              <DialogDescription className="text-gray-lightest">
-                Información del usuario actual
-              </DialogDescription>
-            </DialogHeader>
-            {user && (
-              <div className="space-y-4 py-4">
-                <div className="flex items-center gap-4 p-4 bg-gray-darker rounded-lg border border-gray-dark">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary/30 flex items-center justify-center bg-orange-primary/10">
-                    <ImageRenderer 
-                      url={user.fotoPerfil} 
-                      className="w-full h-full object-cover"
-                      showLabel={false}
-                      fallbackVariant="person"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white-primary">{user.name}</h3>
-                    <p className="text-sm text-gray-lighter">{user.email || "No especificado"}</p>
-                    <span className="inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium bg-orange-primary text-black-primary">
-                      Cliente
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-gray-lighter mb-1">Nombre completo</p>
-                    <p className="text-sm text-white-primary">{user.name}</p>
-                  </div>
-                  {user.email && (
-                    <div>
-                      <p className="text-xs text-gray-lighter mb-1">Correo electrónico</p>
-                      <p className="text-sm text-white-primary">{user.email}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+
       </div>
     </TooltipProvider>
   );

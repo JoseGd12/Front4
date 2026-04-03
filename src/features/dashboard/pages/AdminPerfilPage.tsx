@@ -1,0 +1,392 @@
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../../../shared/contexts/AuthContext";
+import { User, Mail, Shield, UserCircle, Briefcase, Phone, Calendar, Edit, Camera, Save, X, Loader2, Upload, LogOut, KeyRound } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../../shared/components/ui/dialog";
+import { Input } from "../../../shared/components/ui/input";
+import { Label } from "../../../shared/components/ui/label";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import { firebaseAuthService } from "../../../shared/services/firebase";
+import { apiService } from "../../../shared/services/api";
+
+export function AdminPerfilPage() {
+  const { user, updateUser, logout } = useAuth();
+  const { success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [formData, setFormData] = useState({
+    nombre: "",
+    apellido: "",
+    email: "",
+    telefono: "",
+    fotoPerfil: ""
+  });
+
+  useEffect(() => {
+    if (user) {
+      const nameParts = (user.name || "").split(" ");
+      setFormData({
+        nombre: nameParts[0] || "",
+        apellido: nameParts.slice(1).join(" ") || "",
+        email: user.email || "",
+        telefono: user.telefono || "",
+        fotoPerfil: user.fotoPerfil || ""
+      });
+    }
+  }, [user, isEditDialogOpen]);
+
+  const roleLabel =
+    user?.role === "super_admin"
+      ? "Super Administrador"
+      : user?.role === "admin"
+        ? "Administrador"
+        : user?.role === "barbero"
+          ? "Barbero"
+          : user?.role
+            ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+            : "Usuario";
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      showErrorAlert("Formato no válido", "Solo se permiten imágenes (JPG, PNG, GIF, WebP).");
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      const imageUrl = await apiService.uploadImage(file);
+      setFormData(prev => ({ ...prev, fotoPerfil: imageUrl }));
+      success("Imagen subida", "La imagen se ha subido correctamente.");
+    } catch (err: any) {
+      console.error("Error uploading image:", err);
+      showErrorAlert("Error al subir", "No se pudo subir la imagen.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const emailChanged = formData.email.toLowerCase() !== user.email.toLowerCase();
+
+      if (emailChanged) {
+        const currentUser = firebaseAuthService.getCurrentUser();
+        if (currentUser) {
+          try {
+            const { verifyBeforeUpdateEmail } = await import("firebase/auth");
+            await verifyBeforeUpdateEmail(currentUser, formData.email);
+            showInfoAlert("Cambio de correo iniciado", "Revisa tu bandeja de entrada para verificar el nuevo correo. La sesión se cerrará en segundos por seguridad.");
+
+            setTimeout(() => {
+              logout();
+            }, 3000);
+            return;
+          } catch (firebaseErr: any) {
+            if (firebaseErr.code === 'auth/requires-recent-login') {
+              showErrorAlert("Sesión expirada", "Por seguridad, debes cerrar sesión y volver a entrar para cambiar tu correo.");
+              setIsSubmitting(false);
+              return;
+            }
+            throw firebaseErr;
+          }
+        }
+      }
+
+      const result = await updateUser(user.id, {
+        name: `${formData.nombre} ${formData.apellido}`.trim(),
+        email: formData.email,
+        telefono: formData.telefono,
+        fotoPerfil: formData.fotoPerfil
+      });
+
+      if (result.success) {
+        success("Perfil actualizado", "Tus cambios se han guardado correctamente.");
+        setIsEditDialogOpen(false);
+      } else {
+        showErrorAlert("Error al actualizar", result.error || "No se pudo actualizar el perfil.");
+      }
+    } catch (err: any) {
+      console.error("Error en handleUpdateProfile:", err);
+      showErrorAlert("Error crítico", err.message || "Ocurrió un error inesperado al guardar.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "No disponible";
+    try {
+      return new Date(dateStr).toLocaleDateString("es-CO", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <>
+      <div>
+        <div className="elegante-card space-y-6">
+
+          {/* Fila superior: Foto | Datos Personales */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Foto y perfil */}
+            <div className="lg:col-span-1 flex flex-col items-center text-center gap-6 border border-gray-dark rounded-2xl p-6">
+              <div className="relative group mt-2">
+                <div className="w-28 h-28 bg-gray-darker rounded-full flex items-center justify-center shadow-2xl shadow-orange-primary/20 overflow-hidden border-4 border-gray-darkest">
+                  <ImageRenderer
+                    url={user?.fotoPerfil}
+                    className="w-full h-full object-cover"
+                    showLabel={false}
+                    fallbackVariant="person"
+                  />
+                </div>
+                <button
+                  onClick={() => setIsEditDialogOpen(true)}
+                  className="absolute bottom-1 right-1 p-2 bg-gray-darker hover:bg-orange-primary rounded-full border border-gray-dark transition-all group-hover:scale-110"
+                >
+                  <Camera className="w-4 h-4 text-white-primary group-hover:text-black-primary" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <h1 className="text-2xl font-black text-white-primary tracking-tight">
+                  {user?.name || "Administrador"}
+                </h1>
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-primary/10 text-orange-primary border border-orange-primary/20 text-xs font-bold uppercase tracking-widest">
+                  <Shield className="w-3.5 h-3.5" />
+                  {roleLabel}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsEditDialogOpen(true)}
+                className="elegante-button-primary flex items-center gap-2 py-3 px-6 shadow-lg shadow-orange-primary/10 w-full justify-center"
+              >
+                <Edit className="w-4 h-4" />
+                Editar Perfil
+              </button>
+            </div>
+
+            {/* Datos Personales */}
+            <div className="lg:col-span-2 border border-gray-dark rounded-2xl p-6 space-y-4">
+              <h2 className="text-lg font-bold text-white-primary flex items-center gap-3">
+                <UserCircle className="w-5 h-5 text-orange-primary" />
+                Datos Personales
+              </h2>
+              <div className="space-y-3">
+                <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+                  <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Nombre Completo</p>
+                  <div className="flex items-center gap-3">
+                    <User className="w-4 h-4 text-orange-primary/70 shrink-0" />
+                    <p className="text-white-primary font-medium">{user?.name || "No disponible"}</p>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+                  <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Correo Electrónico</p>
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-orange-primary/70 shrink-0" />
+                    <p className="text-white-primary font-medium">{user?.email || "No disponible"}</p>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+                  <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Número de Teléfono</p>
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-orange-primary/70 shrink-0" />
+                    <p className="text-white-primary font-medium">{user?.telefono || "No especificado"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Fila inferior: Seguridad y Cuenta */}
+          <div className="border border-gray-dark rounded-2xl p-6 space-y-4">
+            <h2 className="text-lg font-bold text-white-primary flex items-center gap-3">
+              <Shield className="w-5 h-5 text-orange-primary" />
+              Seguridad y Cuenta
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+                <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Rol en el Sistema</p>
+                <div className="flex items-center gap-3">
+                  <Briefcase className="w-4 h-4 text-orange-primary/70" />
+                  <p className="text-white-primary font-medium">{roleLabel}</p>
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+                <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Estado de la Cuenta</p>
+                <div className="flex items-center gap-3 text-green-500">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <p className="font-bold">Activa</p>
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 hover:border-red-500/50 hover:bg-red-500/20 transition-colors flex items-center gap-3 group"
+              >
+                <LogOut className="w-4 h-4 text-red-400 group-hover:text-red-300" />
+                <span className="text-red-400 group-hover:text-red-300 font-medium">Cerrar Sesión</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Dialog para Editar Perfil */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-gray-darkest border-gray-dark text-white-primary max-w-2xl overflow-y-auto max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black tracking-tight text-white-primary flex items-center gap-3">
+              <Edit className="w-6 h-6 text-orange-primary" />
+              Actualizar Perfil
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest italic">
+              Modifica tu información personal y mantén tu cuenta al día.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-y border-gray-dark/50 my-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Nombre</Label>
+                <Input
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  className="elegante-input"
+                  placeholder="Tu nombre"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Apellido</Label>
+                <Input
+                  value={formData.apellido}
+                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                  className="elegante-input"
+                  placeholder="Tu apellido"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Teléfono</Label>
+                <Input
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  className="elegante-input"
+                  placeholder="Tu número celular"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Correo Electrónico</Label>
+                <Input
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="elegante-input"
+                  type="email"
+                  placeholder="nombre@ejemplo.com"
+                />
+                <p className="text-[10px] text-orange-primary/70 italic leading-tight">
+                  Nota: Cambiar el correo requerirá verificarlo nuevamente para poder iniciar sesión.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Foto de Perfil</Label>
+                <div className="flex flex-col gap-4">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingImage}
+                    className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-orange-primary/10 border border-dashed border-orange-primary/30 text-orange-primary hover:bg-orange-primary/20 transition-all text-xs font-black uppercase tracking-widest"
+                  >
+                    {isUploadingImage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Subiendo...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Subir Nueva Foto
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center gap-4 p-3 bg-black/30 rounded-xl border border-gray-dark">
+                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-dark border-2 border-orange-primary/20">
+                      <ImageRenderer url={formData.fotoPerfil} className="w-full h-full object-cover" showLabel={false} fallbackVariant="person" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] font-black text-white-primary uppercase tracking-tight">Vista Previa</p>
+                      <p className="text-[9px] text-gray-lighter italic leading-tight">Esta es la imagen que todos verán en tu perfil.</p>
+                    </div>
+                    {formData.fotoPerfil && (
+                      <button
+                        onClick={() => setFormData({ ...formData, fotoPerfil: "" })}
+                        className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors group"
+                        title="Eliminar foto"
+                      >
+                        <X className="w-4 h-4 text-gray-lighter group-hover:text-red-500" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-3 mt-4">
+            <button
+              onClick={() => setIsEditDialogOpen(false)}
+              className="elegante-button-secondary py-2.5 px-6 flex items-center gap-2"
+              disabled={isSubmitting}
+            >
+              <X className="w-4 h-4" />
+              Cancelar
+            </button>
+            <button
+              onClick={handleUpdateProfile}
+              className="elegante-button-primary py-2.5 px-8 flex items-center gap-2 shadow-lg shadow-orange-primary/10 min-w-[160px] justify-center"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Guardar Cambios
+                </>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertContainer />
+    </>
+  );
+}
