@@ -224,6 +224,10 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [pendingProduct, setPendingProduct] = useState<any>(null);
+  const [citaCarouselIndex, setCitaCarouselIndex] = useState(0);
+
+  // Resetear carrusel de citas al cambiar de semana
+  useEffect(() => { setCitaCarouselIndex(0); }, [currentWeek]);
 
   // Cuando llega un producto pre-seleccionado desde la página de productos,
   // abrir el formulario y guardar el producto pendiente para agregarlo al seleccionar servicio/paquete
@@ -1403,41 +1407,120 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         </div>
       ) : (
         <div className="overflow-auto flex-1 p-2">
-          <div className="max-w-7xl mx-auto space-y-8">
-
-            {/* Navegación Semanal */}
-            <div className="elegante-card">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentWeek(currentWeek - 1)}
-                  className="p-2 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-dark transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5 text-white-primary" />
-                </button>
-
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-white-primary">
-                    {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
-                  </h3>
-                  <p className="text-xs text-gray-lightest">{weekDays[0].fecha} - {weekDays[6].fecha}</p>
+          <div className="mx-auto px-2 sm:px-4 lg:px-6 flex flex-col gap-4">
+            {/* Card unificado — Navegación semanal + Citas de la semana */}
+            {(() => {
+              const weekFechas = new Set(weekDays.map(d => d.fechaCompleta));
+              const citasSemana = citas
+                .filter(c => c.fecha && weekFechas.has(c.fecha) && c.estado !== 'Cancelada')
+                .sort((a, b) => {
+                  const da = weekDays.findIndex(d => d.fechaCompleta === a.fecha);
+                  const db = weekDays.findIndex(d => d.fechaCompleta === b.fecha);
+                  if (da !== db) return da - db;
+                  return (a.hora || "").localeCompare(b.hora || "");
+                });
+              const ITEMS = 4;
+              const maxIdx = Math.max(0, citasSemana.length - ITEMS);
+              const safeIndex = Math.min(citaCarouselIndex, maxIdx);
+              const visibleCitas = citasSemana.slice(safeIndex, safeIndex + ITEMS);
+              const canPrev = safeIndex > 0;
+              const canNext = safeIndex < maxIdx;
+              return (
+                <div className="elegante-card p-0 overflow-hidden">
+                  {/* Fila 1: navegación semanal */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark/60">
+                    <button
+                      onClick={() => setCurrentWeek(currentWeek - 1)}
+                      className="p-2 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark transition-colors cursor-pointer"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-white-primary" />
+                    </button>
+                    <div className="text-center">
+                      <h3 className="text-base font-semibold text-white-primary">
+                        {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
+                      </h3>
+                      <p className="text-xs text-gray-lightest">{weekDays[0].fecha} - {weekDays[6].fecha}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        title="Nueva Cita"
+                        onClick={handleOpenCreate}
+                        className="p-2 rounded-lg bg-orange-primary/10 hover:bg-orange-primary/20 border border-orange-primary/30 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4 text-orange-primary" />
+                      </button>
+                      <button
+                        onClick={() => setCurrentWeek(0)}
+                        className="elegante-button-secondary text-xs py-1.5 cursor-pointer"
+                      >
+                        Hoy
+                      </button>
+                      <button
+                        onClick={() => setCurrentWeek(currentWeek + 1)}
+                        className="p-2 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark transition-colors cursor-pointer"
+                      >
+                        <ChevronRight className="w-5 h-5 text-white-primary" />
+                      </button>
+                    </div>
+                  </div>
+                  {/* Fila 2: carrusel de citas */}
+                  <div className="flex items-center gap-2 px-4 py-3">
+                    <CalendarDays className="w-4 h-4 text-orange-primary shrink-0" />
+                    <span className="text-[11px] font-black uppercase tracking-widest text-gray-lighter shrink-0">
+                      Citas
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCitaCarouselIndex(i => Math.max(0, i - 1))}
+                      disabled={!canPrev}
+                      className={`p-1 rounded-md border transition-colors shrink-0 ${canPrev ? 'border-gray-dark bg-gray-darker hover:bg-gray-dark text-white-primary cursor-pointer' : 'border-transparent text-gray-dark cursor-not-allowed'}`}
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {citasSemana.length === 0 ? (
+                        <p className="text-xs text-gray-lightest italic">Sin citas esta semana</p>
+                      ) : (
+                        visibleCitas.map((cita: any) => {
+                          const fechaObj = new Date(`${cita.fecha}T12:00:00`);
+                          const fechaStr = fechaObj.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
+                          const servicioStr = cita.servicioNombre || cita.paqueteNombre || "Servicio";
+                          const color = getCitaColor(cita.estado);
+                          return (
+                            <button
+                              key={cita.id}
+                              type="button"
+                              onClick={() => { setSelectedCita(cita); setIsDetailDialogOpen(true); }}
+                              className="shrink-0 flex items-center gap-2 bg-gray-darker hover:bg-gray-dark border border-gray-dark hover:border-orange-primary/40 rounded-lg px-3 py-2 transition-all duration-200 cursor-pointer text-left"
+                            >
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                              <div>
+                                <p className="text-white-primary text-xs font-semibold leading-none truncate max-w-[120px]">{servicioStr}</p>
+                                <p className="text-gray-lighter text-[10px] leading-none mt-1">{fechaStr} · {cita.hora}</p>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCitaCarouselIndex(i => Math.min(maxIdx, i + 1))}
+                      disabled={!canNext}
+                      className={`p-1 rounded-md border transition-colors shrink-0 ${canNext ? 'border-gray-dark bg-gray-darker hover:bg-gray-dark text-white-primary cursor-pointer' : 'border-transparent text-gray-dark cursor-not-allowed'}`}
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                    {citasSemana.length > ITEMS && (
+                      <span className="text-[10px] text-gray-lighter shrink-0 tabular-nums">
+                        {safeIndex + 1}–{Math.min(safeIndex + ITEMS, citasSemana.length)}/{citasSemana.length}
+                      </span>
+                    )}
+                  </div>
                 </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentWeek(0)}
-                    className="elegante-button-secondary text-xs py-2"
-                  >
-                    Hoy
-                  </button>
-                  <button
-                    onClick={() => setCurrentWeek(currentWeek + 1)}
-                    className="p-2 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-dark transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5 text-white-primary" />
-                  </button>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Grid Calendario */}
             <div className="elegante-card">

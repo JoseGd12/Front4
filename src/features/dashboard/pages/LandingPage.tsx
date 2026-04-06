@@ -22,7 +22,10 @@ import {
   Trophy,
   LogOut,
   Package,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle,
+  Eye,
+  User
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
@@ -1381,8 +1384,16 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 key={idx} 
                 className="relative flex flex-col bg-[#fdfdfd] rounded-2xl overflow-hidden shadow-2xl transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group"
                 style={{ flex: '1' }}
-                onMouseEnter={(e) => e.currentTarget.style.flex = '2'}
-                onMouseLeave={(e) => e.currentTarget.style.flex = '1'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.flex = '2';
+                  const btn = e.currentTarget.querySelector('button') as HTMLButtonElement | null;
+                  if (btn) { btn.style.backgroundColor = '#d8b081'; btn.style.color = '#000'; }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.flex = '1';
+                  const btn = e.currentTarget.querySelector('button') as HTMLButtonElement | null;
+                  if (btn) { btn.style.backgroundColor = ''; btn.style.color = ''; }
+                }}
               >
                 {/* Nombre arriba en negro con letra elegante */}
                 <div className="py-5 text-center px-2 flex flex-col justify-center items-center bg-[#fdfdfd] z-10">
@@ -1402,17 +1413,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </div>
 
                 {/* Botón de agendar directo sin contenedor */}
-                <button 
-                  className="relative z-10 w-full py-6 font-bold uppercase tracking-[0.2em] text-xs transition-colors duration-300 outline-none border-t border-black/5"
-                  style={{ backgroundColor: 'transparent', color: '#111111' }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#d8b081';
-                    e.currentTarget.style.color = '#000000';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#111111';
-                  }}
+                <button
+                  className="relative z-10 w-full py-6 font-bold uppercase tracking-[0.2em] text-xs transition-all duration-300 outline-none border-t border-black/5 bg-transparent text-[#111111] hover:bg-[#d8b081] hover:text-black cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (isAuthenticated) {
@@ -1555,20 +1557,25 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </div>
 
                 {/* Contenido */}
-                <div className="relative" style={{ marginTop: '-3rem', padding: '0 2.25rem 2.25rem' }}>
+                <div className="relative" style={{ marginTop: '-3rem', padding: '0 2rem 0' }}>
 
                   {/* Nombre */}
-                  <h3 className="font-black font-title uppercase tracking-tight text-white leading-tight mb-2" style={{ fontSize: 'clamp(1.4rem, 3vw, 1.8rem)' }}>
+                  <h3 className="font-black font-title uppercase tracking-tight text-white leading-tight mb-2" style={{ fontSize: 'clamp(1.3rem, 3vw, 1.7rem)' }}>
                     {selectedDetailItem.nombre}
                   </h3>
 
-                  {/* Precio + duración */}
-                  <div className="flex items-baseline gap-4 mb-5">
+                  {/* Precio + duración + ahorro */}
+                  <div className="flex items-center gap-4 mb-4 flex-wrap">
                     <span className="text-2xl font-black font-title" style={{ background: 'linear-gradient(135deg, #fff 0%, #d8b081 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                       ${formatCurrency(selectedDetailItem.precio)}
                     </span>
                     {selectedDetailItem.type === 'paquete' && Number(selectedDetailItem.precioOriginal) > Number(selectedDetailItem.precio) && (
-                      <span className="text-sm text-gray-500 line-through">${formatCurrency(selectedDetailItem.precioOriginal)}</span>
+                      <>
+                        <span className="text-sm text-gray-500 line-through">${formatCurrency(selectedDetailItem.precioOriginal)}</span>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.2)' }}>
+                          Ahorras ${formatCurrency(Number(selectedDetailItem.precioOriginal) - Number(selectedDetailItem.precio))}
+                        </span>
+                      </>
                     )}
                     {selectedDetailItem.type !== 'producto' && selectedDetailItem.duracion && (
                       <span className="flex items-center gap-1.5 text-sm text-gray-400">
@@ -1578,15 +1585,15 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     )}
                   </div>
 
-                  {/* Separador estilo login (tijeras) */}
-                  <div className="flex items-center gap-3 mb-5">
+                  {/* Separador */}
+                  <div className="flex items-center gap-3 mb-4">
                     <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(216,176,129,0.4))' }} />
                     <Scissors className="w-4 h-4" style={{ color: 'rgba(216,176,129,0.5)' }} />
                     <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(216,176,129,0.4))' }} />
                   </div>
 
                   {/* Descripción */}
-                  <p className="text-sm leading-relaxed text-gray-300 mb-6">
+                  <p className="text-sm leading-relaxed text-gray-300 mb-4">
                     {selectedDetailItem.descripcion || (
                       selectedDetailItem.type === 'producto'
                         ? 'Producto seleccionado para complementar tu estilo y rutina de cuidado personal.'
@@ -1594,8 +1601,88 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     )}
                   </p>
 
-                  {/* Botón de acción */}
-                  <div className="flex items-center gap-3">
+                  {/* ── BLOQUE PRODUCTO ── */}
+                  {selectedDetailItem.type === 'producto' && (
+                    <>
+                      <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-3" style={{ background: 'rgba(216,176,129,0.06)', border: '1px solid rgba(216,176,129,0.15)' }}>
+                        <MapPin className="w-4 h-4 shrink-0" style={{ color: '#d8b081' }} />
+                        <div>
+                          <p className="text-xs font-bold text-white">Solo disponible en tienda física</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">No realizamos envíos. Retira tu compra directamente en nuestra barbería.</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3.5 mb-6">
+                        {[
+                          { icon: <CheckCircle className="w-4 h-4" />, text: 'Producto original con calidad garantizada' },
+                          { icon: <User className="w-4 h-4" />, text: 'Recomendado por nuestros barberos especializados' },
+                          { icon: <Eye className="w-4 h-4" />, text: 'Puedes verlo y consultarlo en persona antes de comprar' },
+                        ].map((item, i) => (
+                          <div key={i} className="flex items-center gap-3 text-sm text-gray-300">
+                            <span className="shrink-0" style={{ color: '#d8b081' }}>{item.icon}</span>
+                            {item.text}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* ── BLOQUE SERVICIO ── */}
+                  {selectedDetailItem.type === 'servicio' && (
+                    <>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">¿Qué incluye?</p>
+                      <div className="grid grid-cols-1 gap-3.5 mb-4">
+                        {[
+                          { icon: <CheckCircle className="w-4 h-4" />, text: 'Atención personalizada por un barbero especialista' },
+                          { icon: <User className="w-4 h-4" />, text: 'Herramientas y productos profesionales incluidos' },
+                          { icon: <Scissors className="w-4 h-4" />, text: 'Espacio premium con ambiente cómodo y exclusivo' },
+                        ].map((item, i) => (
+                          <div key={i} className="flex items-center gap-3 text-sm text-gray-300">
+                            <span className="shrink-0" style={{ color: '#d8b081' }}>{item.icon}</span>
+                            {item.text}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-start gap-3 rounded-xl px-4 py-3 mb-4" style={{ background: 'rgba(216,176,129,0.06)', border: '1px solid rgba(216,176,129,0.12)' }}>
+                        <Clock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#d8b081' }} />
+                        <div>
+                          <p className="text-xs font-bold text-white">Llega 5 minutos antes</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">Si necesitas cancelar o reprogramar, avísanos con al menos 2 horas de anticipación.</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ── BLOQUE PAQUETE ── */}
+                  {selectedDetailItem.type === 'paquete' && (
+                    <>
+                      {selectedDetailItem.servicios && selectedDetailItem.servicios.length > 0 && (
+                        <div className="rounded-xl px-4 py-3 mb-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2.5">Servicios incluidos</p>
+                          <div className="space-y-2">
+                            {selectedDetailItem.servicios.map((s: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2.5 text-gray-300">
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#d8b081' }} />
+                                  {s.nombre || s}
+                                </div>
+                                {s.duracion && <span className="text-gray-500">{s.duracion} min</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-start gap-3 rounded-xl px-4 py-3 mb-4" style={{ background: 'rgba(216,176,129,0.06)', border: '1px solid rgba(216,176,129,0.12)' }}>
+                        <Clock className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#d8b081' }} />
+                        <div>
+                          <p className="text-xs font-bold text-white">Todo en una sola visita</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">Los servicios del paquete se realizan de forma seguida. Reserva el bloque completo al agendar.</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Botones */}
+                  <div className="flex items-center gap-3 pb-4">
                     {selectedDetailItem.type === 'producto' ? (
                       <button
                         type="button"
@@ -1608,34 +1695,36 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                         Seguir Explorando
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleDetailDialogChange(false);
-                          if (isAuthenticated) {
-                            onSelectReservation?.(selectedDetailItem);
-                          } else {
-                            onRequestLogin?.();
-                          }
-                        }}
-                        className="h-12 px-8 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
-                        style={{ background: '#d8b081', color: '#000' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = '#e8c091'; e.currentTarget.style.transform = 'scale(1.02)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = '#d8b081'; e.currentTarget.style.transform = 'scale(1)'; }}
-                      >
-                        Agendar Ahora
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDetailDialogChange(false);
+                            if (isAuthenticated) {
+                              onSelectReservation?.(selectedDetailItem);
+                            } else {
+                              onRequestLogin?.();
+                            }
+                          }}
+                          className="h-12 px-8 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
+                          style={{ background: '#d8b081', color: '#000' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = '#e8c091'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = '#d8b081'; e.currentTarget.style.transform = 'scale(1)'; }}
+                        >
+                          Agendar Ahora
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDetailDialogChange(false)}
+                          className="h-12 px-6 rounded-xl border text-sm font-semibold uppercase tracking-wider transition-all duration-300"
+                          style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#9ca3af' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#e5e7eb'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#9ca3af'; }}
+                        >
+                          Cerrar
+                        </button>
+                      </>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleDetailDialogChange(false)}
-                      className="h-12 px-6 rounded-xl border text-sm font-semibold uppercase tracking-wider transition-all duration-300"
-                      style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#9ca3af' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#e5e7eb'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#9ca3af'; }}
-                    >
-                      Cerrar
-                    </button>
                   </div>
 
                 </div>

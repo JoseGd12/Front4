@@ -7,7 +7,12 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(node -e \"console.log\\(process.execPath\\)\")",
       "Bash(find C:UsersJoseDesktopFront3-samuel -name vite.js -path */bin/*)",
-      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"barbershop appointment booking dark minimal dashboard\" --design-system -p \"Manito Barbershop\")",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"barbershop product service detail modal dark luxury\" --design-system -p \"Manito Barbershop Modal\")",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"physical store pickup only product detail\" --domain ux -n 5)"
     ]
   }
 }
