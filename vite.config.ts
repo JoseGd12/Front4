@@ -30,7 +30,7 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE_URL || 'https://manitobarbershop.up.railway.app',
+        target: process.env.VITE_API_BASE_URL || 'https://barberiaapi-em5q.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path,
@@ -47,7 +47,7 @@ export default defineConfig({
         },
       },
       '/assets': {
-        target: 'https://manitobarbershop.up.railway.app',
+        target: 'https://barberiaapi-em5q.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path,

@@ -1,5 +1,5 @@
 param(
-  [string]$BaseUrl = "https://manitobarbershop.up.railway.app",
+  [string]$BaseUrl = "https://barberiaapi-em5q.onrender.com",
   [int]$ProductoId = 13
 )
 
