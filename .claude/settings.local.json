@@ -12,7 +12,16 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"barbershop appointment booking dark minimal dashboard\" --design-system -p \"Manito Barbershop\")",
       "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"barbershop product service detail modal dark luxury\" --design-system -p \"Manito Barbershop Modal\")",
-      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"physical store pickup only product detail\" --domain ux -n 5)"
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"physical store pickup only product detail\" --domain ux -n 5)",
+      "WebFetch(domain:capricious-breath-652.notion.site)",
+      "Bash(find . -not -path */node_modules/* -not -path */.git/* -not -path */dist/* -not -path */build/* -type d)",
+      "Bash(find /c/Users/Jose/Desktop/Front3-samuel/Front4/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js -o -name *.css \\\\\\))",
+      "Bash(/tmp/file_manifest.txt:*)",
+      "Read(//tmp/**)",
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -E \"\\\\.js$|\\\\.mjs$|\\\\.ps1$\")",
+      "Bash(grep \"\\\\.md$\")",
+      "Bash(find /c/Users/Jose/Desktop/Front3-samuel/Front4/build -name *.png)"
     ]
   }
 }

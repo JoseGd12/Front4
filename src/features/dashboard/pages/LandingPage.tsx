@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContext';
-import { useInstagramFeed } from '../../../hooks/useInstagramFeed';
+import { useInstagramFeed } from '../../../shared/hooks/useInstagramFeed';
 import {
   Scissors,
   Star,

@@ -2,17 +2,13 @@
 
 ## Roles y Autenticación
 
-### Cuentas de Usuario
+### Tipos de Roles
 El sistema maneja dos tipos de roles con interfaces completamente diferentes:
 
 #### Administradores
-- **Email**: admin@edwinsbarberia.com, sofia@edwinsbarberia.com
-- **Contraseña**: admin123
 - **Acceso**: Panel completo de administración con gestión de ventas, inventario, citas, clientes, usuarios y configuración
 
-#### Clientes  
-- **Email**: juan.perez@email.com, maria.gomez@email.com
-- **Contraseña**: cliente123
+#### Clientes
 - **Acceso**: Portal del cliente con reserva de citas, visualización de servicios, productos y historial personal
 
 ### Diferencias por Rol

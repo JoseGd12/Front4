@@ -37,7 +37,6 @@ import {
 } from "../../../shared/components/ui/dropdown-menu";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
-import logo from "../assets/a51cd14e3664f3752eaa436dadb14492d91e40aa.png";
 // Lazy loading de páginas para mejorar rendimiento de carga inicial
 const DashboardPage = React.lazy(() => import("../pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const AgendamientoPage = React.lazy(() => import("../../agendamiento/pages/AgendamientoPage").then(m => ({ default: m.AgendamientoPage })));
