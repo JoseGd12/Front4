@@ -1624,7 +1624,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
       {/* Modal Detalle Cita */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark text-white-primary max-w-lg">
+        <DialogContent className="bg-gray-darkest border-gray-dark text-white-primary max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between border-b border-gray-dark pb-3">
               <DialogTitle className="text-xl">Detalle de tu Reservación</DialogTitle>
@@ -1640,7 +1640,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             </div>
           </DialogHeader>
           {selectedCita && (
-            <div className="space-y-8 py-6">
+            <div className="space-y-5 py-2">
               {/* Header con Servicio y Estado */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -1683,7 +1683,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               )}
 
               {/* Grid de información */}
-              <div className="grid grid-cols-2 gap-6 bg-black/20 p-5 rounded-2xl border border-gray-dark/50">
+              <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-gray-dark/50">
                 <div className="space-y-1">
                   <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Barbero Asignado</p>
                   <p className="font-bold flex items-center gap-2 text-white-primary">
@@ -1718,7 +1718,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               {selectedCita.notas && (
                 <div className="space-y-2">
                   <p className="text-gray-lightest text-[10px] font-bold uppercase ml-1">Observaciones / Preferencias</p>
-                  <div className="p-4 bg-gray-darker/50 rounded-xl text-sm border border-gray-dark italic text-gray-lighter leading-relaxed">
+                  <div className="p-3 bg-gray-darker/50 rounded-xl text-[13px] border border-gray-dark italic text-gray-lighter leading-relaxed">
                     "{selectedCita.notas}"
                   </div>
                 </div>

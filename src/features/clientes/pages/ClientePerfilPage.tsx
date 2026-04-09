@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../shared/contexts/AuthContext";
-import { User, Mail, Shield, UserCircle, Briefcase, Phone, MapPin, Calendar, Edit, Camera, Save, X, Loader2, Upload, LogOut } from "lucide-react";
+import { User, Mail, Shield, UserCircle, Briefcase, Phone, MapPin, Calendar, Edit, Camera, Save, X, Loader2, Upload, LogOut, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
@@ -8,6 +8,8 @@ import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { firebaseAuthService } from "../../../shared/services/firebase";
 import { apiService } from "../../../shared/services/api";
+import { devolucionService } from "../../ventas/services/devolucionService";
+import { clientesService } from "../services/clientesService";
 
 export function ClientePerfilPage() {
   const { user, updateUser, resendEmailVerification, logout } = useAuth();
@@ -39,6 +41,33 @@ export function ClientePerfilPage() {
       });
     }
   }, [user, isEditDialogOpen]);
+
+  const [saldoAFavor, setSaldoAFavor] = useState<number>(0);
+  const [isLoadingSaldo, setIsLoadingSaldo] = useState(true);
+
+  useEffect(() => {
+    if (user?.email) {
+      const fetchSaldo = async () => {
+        setIsLoadingSaldo(true);
+        try {
+          const allClientes = await clientesService.getClientes();
+          const cliente = allClientes.find(c => (c.correo || "").toLowerCase() === user.email.toLowerCase());
+          if (cliente) {
+            const devoluciones = await devolucionService.getDevolucionesByClienteId(Number(cliente.id));
+            const totalSaldo = devoluciones
+              .filter(d => d.estado === "Completada" || d.estado === "Procesada")
+              .reduce((sum, d) => sum + (d.saldoAFavor || 0), 0);
+            setSaldoAFavor(totalSaldo);
+          }
+        } catch (err) {
+          console.error("Error fetching saldo:", err);
+        } finally {
+          setIsLoadingSaldo(false);
+        }
+      };
+      fetchSaldo();
+    }
+  }, [user]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -202,7 +231,7 @@ export function ClientePerfilPage() {
             <Shield className="w-5 h-5 text-orange-primary" />
             Seguridad y Cuenta
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
               <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Rol en el Sistema</p>
               <div className="flex items-center gap-3">
@@ -210,6 +239,19 @@ export function ClientePerfilPage() {
                 <p className="text-white-primary font-medium">Cliente</p>
               </div>
             </div>
+            
+            <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-green-500/30 transition-colors">
+              <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Saldo a Favor</p>
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-4 h-4 text-green-500" />
+                {isLoadingSaldo ? (
+                  <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
+                ) : (
+                  <p className="font-bold text-green-500">${saldoAFavor.toLocaleString('es-CO')}</p>
+                )}
+              </div>
+            </div>
+
             <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
               <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Estado de la Cuenta</p>
               <div className="flex items-center gap-3 text-green-500">

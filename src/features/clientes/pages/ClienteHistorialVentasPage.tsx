@@ -171,12 +171,14 @@ export function ClienteHistorialVentasPage() {
   };
 
   const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case "Completada": return "bg-green-600 text-white";
-      case "Anulada": return "bg-red-600 text-white";
-      case "Pendiente": return "bg-orange-secondary text-white";
-      default: return "bg-gray-medium text-white";
+    const estadoNormalizado = (estado || '').toLowerCase().trim();
+    if (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado') {
+      return 'bg-red-500/10 text-red-400 border border-red-500/20';
     }
+    if (estadoNormalizado === 'completada' || estadoNormalizado === 'completado' || estadoNormalizado === 'activo') {
+      return 'bg-green-500/10 text-green-400 border border-green-500/20';
+    }
+    return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
   };
 
   const getMetodoPagoColor = (metodo: string) => {
@@ -322,7 +324,7 @@ export function ClienteHistorialVentasPage() {
                         <span className={`text-xs font-medium ${getMetodoPagoColor(venta.metodoPago)}`}>{venta.metodoPago}</span>
                         </td>
                         <td className="py-4 px-4 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getEstadoColor(venta.estado)}`}>
+                        <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[13px] font-medium ${getEstadoColor(venta.estado)}`}>
                             {venta.estado}
                         </span>
                         </td>

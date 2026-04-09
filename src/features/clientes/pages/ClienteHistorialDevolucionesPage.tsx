@@ -57,12 +57,14 @@ export function ClienteHistorialDevolucionesPage() {
   };
 
   const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case "Completada": case "Procesada": return "bg-green-600 text-white";
-      case "Anulada": case "Rechazada": return "bg-red-600 text-white";
-      case "Pendiente": return "bg-orange-secondary text-white";
-      default: return "bg-gray-medium text-white";
+    const estadoNormalizado = (estado || '').toLowerCase().trim();
+    if (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado' || estadoNormalizado === 'rechazada') {
+      return 'bg-red-500/10 text-red-400 border border-red-500/20';
     }
+    if (estadoNormalizado === 'completada' || estadoNormalizado === 'completado' || estadoNormalizado === 'procesada' || estadoNormalizado === 'activo') {
+      return 'bg-green-500/10 text-green-400 border border-green-500/20';
+    }
+    return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
   };
 
   const totalDevuelto = devoluciones
@@ -150,7 +152,7 @@ export function ClienteHistorialDevolucionesPage() {
                              ${formatCurrency(dev.saldoAFavor)}
                         </td>
                         <td className="py-4 px-4 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getEstadoColor(dev.estado)}`}>
+                            <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[13px] font-medium ${getEstadoColor(dev.estado)}`}>
                                 {dev.estado}
                             </span>
                         </td>
@@ -198,9 +200,9 @@ export function ClienteHistorialDevolucionesPage() {
                             <span className="text-gray-lightest">Venta de Referencia</span>
                             <span className="text-orange-primary font-mono">#V{selectedDevolucion.ventaId}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-sm items-center">
                             <span className="text-gray-lightest">Estado de Solicitud</span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEstadoColor(selectedDevolucion.estado)}`}>
+                            <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[12px] font-medium ${getEstadoColor(selectedDevolucion.estado)}`}>
                                 {selectedDevolucion.estado}
                             </span>
                         </div>
