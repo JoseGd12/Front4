@@ -361,18 +361,18 @@ class VentaService {
     // 3. Resolución de nombres con soporte para Pascal/camel y fallbacks
     const clienteNombre = cliente.nombre || cliente.Nombre
       ? `${cliente.nombre || cliente.Nombre} ${cliente.apellido || cliente.Apellido || ''}`.trim()
-      : (data.clienteNombre || data.ClienteNombre || (typeof data.cliente === 'string' ? data.cliente : '') || (typeof data.Cliente === 'string' ? data.Cliente : '') || (cliente.nombreCompleto || cliente.NombreCompleto) || 'Cliente');
+      : (data.clienteNombreCompleto || data.ClienteNombreCompleto || data.clienteNombre || data.ClienteNombre || (typeof data.cliente === 'string' ? data.cliente : '') || (typeof data.Cliente === 'string' ? data.Cliente : '') || (cliente.nombreCompleto || cliente.NombreCompleto) || 'Cliente');
 
     const barberoUsuario = (barberoObj as any).usuario || (barberoObj as any).Usuario || {};
     const barberoNombre = (barberoObj as any).nombre || (barberoObj as any).Nombre
       ? `${(barberoObj as any).nombre || (barberoObj as any).Nombre} ${(barberoObj as any).apellido || (barberoObj as any).Apellido || ''}`.trim()
       : (barberoUsuario?.nombre || barberoUsuario?.Nombre)
         ? `${barberoUsuario?.nombre || barberoUsuario?.Nombre} ${barberoUsuario?.apellido || barberoUsuario?.Apellido || ''}`.trim()
-        : (data.barberoNombre || data.BarberoNombre || data.nombreBarbero || data.NombreBarbero || (typeof data.barbero === 'string' ? data.barbero : '') || (typeof data.Barbero === 'string' ? data.Barbero : '') || 'Sin asignar');
+        : (data.barberoNombreCompleto || data.BarberoNombreCompleto || data.barberoNombre || data.BarberoNombre || data.nombreBarbero || data.NombreBarbero || (typeof data.barbero === 'string' ? data.barbero : '') || (typeof data.Barbero === 'string' ? data.Barbero : '') || 'Sin asignar');
 
     const responsableNombre = usuarioResponsable.nombre || usuarioResponsable.Nombre
       ? `${usuarioResponsable.nombre || usuarioResponsable.Nombre} ${usuarioResponsable.apellido || usuarioResponsable.Apellido || ''}`.trim()
-      : (data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre || 'Sin asignar');
+      : (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre || 'Sin asignar');
 
     // 4. Extracción segura de IDs numéricos para evitar NaN/Nombres en campos de ID
     const getNumericId = (val: any, fallbackId?: any) => {
@@ -394,10 +394,10 @@ class VentaService {
       clienteId: finalClienteId,
       clienteDocumento: String(cliente.documento || cliente.Documento || data.clienteDocumento || data.ClienteDocumento || ''),
       fecha: String(data.fecha || data.Fecha || ''),
-      servicios: data.servicios || data.Servicios || 
-                (serviciosDetalle.length > 0 ? serviciosDetalle.map(s => s.nombre).join(', ') : 'Sin servicios'),
-      productos: data.productos || data.Productos || 
-                (productosDetalle.length > 0 ? productosDetalle.map(p => `${p.nombre} (x${p.cantidad})`).join(', ') : 'Sin productos'),
+      servicios: data.servicios || data.Servicios ||
+        (serviciosDetalle.length > 0 ? serviciosDetalle.map(s => s.nombre).join(', ') : 'Sin servicios'),
+      productos: data.productos || data.Productos ||
+        (productosDetalle.length > 0 ? productosDetalle.map(p => `${p.nombre} (x${p.cantidad})`).join(', ') : 'Sin productos'),
       subtotal: Number(data.subtotal || data.Subtotal) || 0,
       iva: Number(data.iva || data.Iva) || 0,
       descuento: Number(data.descuento || data.Descuento) || 0,
@@ -424,9 +424,9 @@ class VentaService {
       const arr = this.extractArrayPayload(parsed);
       return await Promise.all(arr.map(item => this.normalizeVentaData(item)));
     } catch (error) {
-       console.warn('Error fetching ventas by clienteId, filtering local:', error);
-       const all = await this.getVentas();
-       return all.filter(v => Number(v.clienteId) === Number(clienteId));
+      console.warn('Error fetching ventas by clienteId, filtering local:', error);
+      const all = await this.getVentas();
+      return all.filter(v => Number(v.clienteId) === Number(clienteId));
     }
   }
 

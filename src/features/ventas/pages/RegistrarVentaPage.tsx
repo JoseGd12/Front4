@@ -40,6 +40,7 @@ import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { FormSection } from "../../../shared/components/ui/FormSection";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { DetailPanel } from "../components/DetailPanel";
+import { barberosService, Barbero as ApiBarbero } from "../../administracion/services/barberosService";
 
 
 // Utilities
@@ -94,7 +95,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [paquetes, setPaquetes] = useState<Paquete[]>([]);
   const [productosAPI, setProductosAPI] = useState<ApiProducto[]>([]);
   const [clientesAPI, setClientesAPI] = useState<ClienteAPI[]>([]);
-  const [barberosAPI, setBarberosAPI] = useState<ApiUser[]>([]);
+  const [barberosAPI, setBarberosAPI] = useState<ApiBarbero[]>([]);
   const [ventasCount, setVentasCount] = useState(0);
 
   const inicialNuevaVenta = {
@@ -231,23 +232,13 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       setPaquetes((paquetesData || []).filter((p) => p.activo === true));
       setProductosAPI((productosData || []).filter((p) => p.activo === true));
 
-      // Barberos
-      const barberos = usuariosData.filter(
-        (u: any) =>
-          u.rolId !== AppRole.CLIENTE &&
-          u.rolId !== AppRole.ADMIN &&
-          u.estado === true
-      );
-      if (barberos.length === 0) {
-        setBarberosAPI(
-          usuariosData.filter(
-            (u: any) =>
-              (u.rolId === AppRole.ADMIN || u.rolId === 1) && u.estado === true
-          )
-        );
-      } else {
-        setBarberosAPI(barberos);
-      }
+      // Barberos - Usar barberosService para obtener el BarberoId real
+      const barberosResponse = await barberosService.getBarberos().catch(() => []);
+      const barberos = Array.isArray(barberosResponse) 
+        ? barberosResponse.map(b => barberosService.mapApiToComponent(b))
+        : [];
+      
+      setBarberosAPI(barberos);
     } catch (err: any) {
       console.error("Error cargando datos:", err);
       showErrorAlert(
@@ -625,9 +616,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         servicioId = `SERV-${servicio.id}`;
         imagenServicio = String(
           (servicio as any)?.imagen ||
-            (servicio as any)?.imagenServicio ||
-            (servicio as any)?.imagenUrl ||
-            ""
+          (servicio as any)?.imagenServicio ||
+          (servicio as any)?.imagenUrl ||
+          ""
         );
       } else {
         const preciosFallback: { [key: string]: number } = {
@@ -846,10 +837,10 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
     const serviciosValidos = tieneServicios
       ? serviciosAgregados.filter(
-          (s) =>
-            typeof s.id === "string" &&
-            (s.id.startsWith("SERV-") || s.id.startsWith("PAQ-"))
-        )
+        (s) =>
+          typeof s.id === "string" &&
+          (s.id.startsWith("SERV-") || s.id.startsWith("PAQ-"))
+      )
       : [];
 
     if (productosActuales.length === 0 && serviciosValidos.length === 0) {
@@ -881,22 +872,22 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       const productosTexto =
         productosActuales.length > 0
           ? productosActuales
-              .map((p) => `${p.nombre} (x${p.cantidad})`)
-              .join(", ")
+            .map((p) => `${p.nombre} (x${p.cantidad})`)
+            .join(", ")
           : "Ninguno";
 
       const serviciosTexto = tieneServicios
         ? serviciosAgregados
-            .map((s) => `${s.nombre} (x${s.cantidad})`)
-            .join(", ")
+          .map((s) => `${s.nombre} (x${s.cantidad})`)
+          .join(", ")
         : "Ninguno";
 
       const metodoPagoFinal =
         nuevaVenta.metodoPago === "Saldo"
           ? "Saldo"
           : nuevaVenta.usarSaldoAFavor
-          ? `${nuevaVenta.metodoPago} (Saldo aplicado)`
-          : nuevaVenta.metodoPago;
+            ? `${nuevaVenta.metodoPago} (Saldo aplicado)`
+            : nuevaVenta.metodoPago;
 
       const barberoIdFinal = nuevaVenta.barberoId
         ? Number(nuevaVenta.barberoId)
@@ -925,13 +916,13 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         productosDetalle: productosActuales,
         serviciosDetalle: tieneServicios
           ? serviciosAgregados.map((s) => ({
-              id: s.id,
-              nombre: s.nombre.startsWith("[PAQUETE] ")
-                ? s.nombre.replace("[PAQUETE] ", "")
-                : s.nombre,
-              precio: s.precio,
-              cantidad: s.cantidad,
-            }))
+            id: s.id,
+            nombre: s.nombre.startsWith("[PAQUETE] ")
+              ? s.nombre.replace("[PAQUETE] ", "")
+              : s.nombre,
+            precio: s.precio,
+            cantidad: s.cantidad,
+          }))
           : [],
       };
 
@@ -960,8 +951,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             await devolucionService.createDevolucion({
               ventaId: Number(
                 nuevaVentaCreada.id ||
-                  nuevaVentaCreada.numeroVenta ||
-                  numeroVenta
+                nuevaVentaCreada.numeroVenta ||
+                numeroVenta
               ),
               productoId: productosActuales[0]?.id
                 ? Number(productosActuales[0].id)
@@ -970,9 +961,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               clienteId: Number(nuevaVenta.clienteId),
               cantidad: 0,
               motivoCategoria: "ConsumoSaldo",
-              motivoDetalle: `Consumo de saldo por venta ${
-                nuevaVentaCreada.numeroVenta || numeroVenta
-              }`,
+              motivoDetalle: `Consumo de saldo por venta ${nuevaVentaCreada.numeroVenta || numeroVenta
+                }`,
               montoDevuelto: 0,
               saldoAFavor: -Math.abs(montoUsado),
               usuarioId: Number(user.id),
@@ -990,13 +980,12 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
       const ventaIdCreada = Number(
         (nuevaVentaCreada as any)?.id ??
-          (nuevaVentaCreada as any)?.numeroVenta ??
-          0
+        (nuevaVentaCreada as any)?.numeroVenta ??
+        0
       );
       created(
         "Venta creada",
-        `La venta #${
-          ventaIdCreada > 0 ? ventaIdCreada : numeroVenta
+        `La venta #${ventaIdCreada > 0 ? ventaIdCreada : numeroVenta
         } ha sido registrada exitosamente por $${formatCurrency(total)}.`
       );
 
@@ -1060,552 +1049,537 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         <aside className="lg:min-h-0 lg:min-w-0">
           <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-5">
-            {/* Section 1: Basic Info */}
-            <FormSection
-              title="Información Básica"
-              icon={<Receipt className="w-4 h-4" />}
-              headerRight={
-                <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-                  <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
-                    <span className="text-white-primary font-bold">
-                      Nº Venta:
-                    </span>
-                    <span className="text-gray-lightest font-medium tabular-nums">
-                      {numeroVenta.toString().padStart(3, "0")}
-                    </span>
-                  </div>
-                  
-                  <div className="hidden sm:block w-px h-4 bg-gray-dark" />
-                  <div className="flex items-right gap-2">
-                    <span className="text-white-primary font-bold">
-                      Fecha:
-                    </span>
-                    <span className="text-gray-lightest font-medium">
-                      {formatDate(nuevaVenta.fechaCreacion)}
-                    </span>
-                  </div>
-                </div>
-              }
-            />
+              {/* Section 1: Basic Info */}
+              <FormSection
+                title="Información Básica"
+                icon={<Receipt className="w-4 h-4" />}
+                headerRight={
+                  <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
+                    <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
+                      <span className="text-white-primary font-bold">
+                        Nº Venta:
+                      </span>
+                      <span className="text-gray-lightest font-medium tabular-nums">
+                        {numeroVenta.toString().padStart(3, "0")}
+                      </span>
+                    </div>
 
-            {/* Section 2: Client */}
-            <FormSection title="Cliente" icon={<User className="w-4 h-4" />}>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <SearchField
-                    placeholder="Escribe el nombre del cliente o búscalo..."
-                    value={clientSearchTerm}
-                    onChange={(val) => {
-                      setClientSearchTerm(val);
-                      setNuevaVenta((prev) => ({
-                        ...prev,
-                        clienteId: null,
-                        clienteDocumento: "",
-                        clienteNombreInvitado: val,
-                        tipoVenta: "Venta Invitado",
-                      }));
-                    }}
-                    onClear={() => {
-                      setClientSearchTerm("");
-                      setNuevaVenta((prev) => ({
-                        ...prev,
-                        clienteId: null,
-                        clienteDocumento: "",
-                        clienteNombreInvitado: "",
-                        tipoVenta: "Venta Invitado",
-                      }));
-                    }}
-                    items={clientesDisponibles}
-                    filterFn={(c, query) => {
-                      const q = normalizeSearchText(query);
-                      const searchable = normalizeSearchText(
-                        [c.id, c.nombre, c.documento].join(" ")
-                      );
-                      return searchable.includes(q);
-                    }}
-                    renderItem={(cliente) => (
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
-                            {cliente.nombre}
-                          </p>
-                          <p className="text-[10px] text-gray-lightest">
-                            {cliente.documento || "Sin documento"}
-                          </p>
+                    <div className="hidden sm:block w-px h-4 bg-gray-dark" />
+                    <div className="flex items-right gap-2">
+                      <span className="text-white-primary font-bold">
+                        Fecha:
+                      </span>
+                      <span className="text-gray-lightest font-medium">
+                        {formatDate(nuevaVenta.fechaCreacion)}
+                      </span>
+                    </div>
+                  </div>
+                }
+              />
+
+              {/* Section 2: Client */}
+              <FormSection title="Cliente" icon={<User className="w-4 h-4" />}>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <SearchField
+                      placeholder="Escribe el nombre del cliente o búscalo..."
+                      value={clientSearchTerm}
+                      onChange={(val) => {
+                        setClientSearchTerm(val);
+                        setNuevaVenta((prev) => ({
+                          ...prev,
+                          clienteId: null,
+                          clienteDocumento: "",
+                          clienteNombreInvitado: val,
+                          tipoVenta: "Venta Invitado",
+                        }));
+                      }}
+                      onClear={() => {
+                        setClientSearchTerm("");
+                        setNuevaVenta((prev) => ({
+                          ...prev,
+                          clienteId: null,
+                          clienteDocumento: "",
+                          clienteNombreInvitado: "",
+                          tipoVenta: "Venta Invitado",
+                        }));
+                      }}
+                      items={clientesDisponibles}
+                      filterFn={(c, query) => {
+                        const q = normalizeSearchText(query);
+                        const searchable = normalizeSearchText(
+                          [c.id, c.nombre, c.documento].join(" ")
+                        );
+                        return searchable.includes(q);
+                      }}
+                      renderItem={(cliente) => (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                              {cliente.nombre}
+                            </p>
+                            <p className="text-[10px] text-gray-lightest">
+                              {cliente.documento || "Sin documento"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
+                              Saldo Disponible
+                            </p>
+                            <p
+                              className={`text-xs font-bold ${cliente.saldoAFavor > 0
+                                  ? "text-green-400"
+                                  : "text-gray-lightest"
+                                }`}
+                            >
+                              ${formatCurrency(cliente.saldoAFavor)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
-                            Saldo Disponible
-                          </p>
-                          <p
-                            className={`text-xs font-bold ${
-                              cliente.saldoAFavor > 0
-                                ? "text-green-400"
-                                : "text-gray-lightest"
-                            }`}
-                          >
-                            ${formatCurrency(cliente.saldoAFavor)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    onSelect={(cliente) => {
-                      const esInvitado = cliente.documento?.startsWith("PASO-");
-                      setNuevaVenta({
-                        ...nuevaVenta,
-                        clienteId: cliente.id,
-                        clienteDocumento: cliente.documento,
-                        clienteNombreInvitado: "",
-                        tipoVenta: esInvitado ? "Venta Invitado" : "Venta Cliente",
-                      });
-                      setClientSearchTerm(
-                        `${cliente.nombre}${
-                          cliente.documento
+                      )}
+                      onSelect={(cliente) => {
+                        const esInvitado = cliente.documento?.startsWith("PASO-");
+                        setNuevaVenta({
+                          ...nuevaVenta,
+                          clienteId: cliente.id,
+                          clienteDocumento: cliente.documento,
+                          clienteNombreInvitado: "",
+                          tipoVenta: esInvitado ? "Venta Invitado" : "Venta Cliente",
+                        });
+                        setClientSearchTerm(
+                          `${cliente.nombre}${cliente.documento
                             ? ` — ${cliente.documento}`
                             : ""
-                        }`
-                      );
-                    }}
-                    error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()}
-                    errorMessage="Selecciona un cliente o entra un nombre para el invitado."
-                    shakeClass={shakeClass}
-                    onFocus={clearValidationErrors}
-                  />
-                  {!nuevaVenta.clienteId && clientSearchTerm.trim() && (
-                    <div className="mt-2">
+                          }`
+                        );
+                      }}
+                      error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()}
+                      errorMessage="Selecciona un cliente o entra un nombre para el invitado."
+                      shakeClass={shakeClass}
+                      onFocus={clearValidationErrors}
+                    />
+                    {!nuevaVenta.clienteId && clientSearchTerm.trim() && (
+                      <div className="mt-2">
                         <p className="text-[10px] text-orange-primary flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-primary" />
                           Se creará la venta a nombre de "{clientSearchTerm.trim()}" como invitado
                         </p>
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Saldo a Favor */}
-                {nuevaVenta.clienteId && (
-                  <div className="bg-gray-darker p-3 rounded-lg border border-gray-dark flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`p-2 rounded-full ${
-                          clientesDisponibles.find(
+                  {/* Saldo a Favor */}
+                  {nuevaVenta.clienteId && (
+                    <div className="bg-gray-darker p-3 rounded-lg border border-gray-dark flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-full ${clientesDisponibles.find(
                             (c) => c.id === Number(nuevaVenta.clienteId)
                           )?.saldoAFavor
-                            ? "bg-orange-primary/10"
-                            : "bg-gray-dark"
-                        }`}
-                      >
-                        <DollarSign
-                          className={`w-5 h-5 ${
-                            clientesDisponibles.find(
+                              ? "bg-orange-primary/10"
+                              : "bg-gray-dark"
+                            }`}
+                        >
+                          <DollarSign
+                            className={`w-5 h-5 ${clientesDisponibles.find(
                               (c) => c.id === Number(nuevaVenta.clienteId)
                             )?.saldoAFavor
-                              ? "text-orange-primary"
-                              : "text-gray-lightest"
-                          }`}
-                        />
+                                ? "text-orange-primary"
+                                : "text-gray-lightest"
+                              }`}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white-primary">
+                            Saldo a Favor del Cliente
+                          </p>
+                          <p className="text-xs text-gray-lightest">
+                            Disponible:{" "}
+                            <span className="text-orange-primary font-bold">
+                              $
+                              {formatCurrency(
+                                clientesDisponibles.find(
+                                  (c) =>
+                                    c.id === Number(nuevaVenta.clienteId)
+                                )?.saldoAFavor || 0
+                              )}
+                            </span>
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-white-primary">
-                          Saldo a Favor del Cliente
-                        </p>
-                        <p className="text-xs text-gray-lightest">
-                          Disponible:{" "}
-                          <span className="text-orange-primary font-bold">
-                            $
-                            {formatCurrency(
-                              clientesDisponibles.find(
-                                (c) =>
-                                  c.id === Number(nuevaVenta.clienteId)
-                              )?.saldoAFavor || 0
-                            )}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
 
-                    {(clientesDisponibles.find(
-                      (c) => c.id === Number(nuevaVenta.clienteId)
-                    )?.saldoAFavor || 0) > 0 && (
-                      <div
-                        className={`flex items-center space-x-3 px-4 py-2 rounded-lg border transition-all cursor-pointer ${
-                          nuevaVenta.usarSaldoAFavor
-                            ? "bg-blue-500/10 border-blue-500/30"
-                            : "bg-gray-dark border-gray-medium/30 hover:bg-gray-dark/80"
-                        }`}
-                        onClick={() =>
-                          setNuevaVenta({
-                            ...nuevaVenta,
-                            usarSaldoAFavor: !nuevaVenta.usarSaldoAFavor,
-                          })
-                        }
+                      {(clientesDisponibles.find(
+                        (c) => c.id === Number(nuevaVenta.clienteId)
+                      )?.saldoAFavor || 0) > 0 && (
+                          <div
+                            className={`flex items-center space-x-3 px-4 py-2 rounded-lg border transition-all cursor-pointer ${nuevaVenta.usarSaldoAFavor
+                                ? "bg-blue-500/10 border-blue-500/30"
+                                : "bg-gray-dark border-gray-medium/30 hover:bg-gray-dark/80"
+                              }`}
+                            onClick={() =>
+                              setNuevaVenta({
+                                ...nuevaVenta,
+                                usarSaldoAFavor: !nuevaVenta.usarSaldoAFavor,
+                              })
+                            }
+                          >
+                            <Checkbox
+                              id="usar-saldo"
+                              checked={nuevaVenta.usarSaldoAFavor}
+                              onCheckedChange={(checked) => {
+                                setNuevaVenta({
+                                  ...nuevaVenta,
+                                  usarSaldoAFavor: checked === true,
+                                });
+                              }}
+                              className={`border-2 ${nuevaVenta.usarSaldoAFavor
+                                  ? "border-blue-400 bg-blue-500 text-white"
+                                  : "border-gray-400"
+                                }`}
+                              checkClassName="stroke-[3.5] w-3 h-3"
+                            />
+                            <label
+                              htmlFor="usar-saldo"
+                              className={`text-sm font-semibold leading-none cursor-pointer select-none ${nuevaVenta.usarSaldoAFavor
+                                  ? "text-blue-400"
+                                  : "text-gray-light"
+                                }`}
+                            >
+                              Usar saldo en esta venta
+                            </label>
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              </FormSection>
+
+              {/* Section 3: Sale Config */}
+              <section>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Tipo de Venta</Label>
+                    <div className={`elegante-input bg-gray-medium flex items-center gap-2 h-10 px-3 rounded-md text-sm ${nuevaVenta.tipoVenta === "Venta Cliente" ? "text-green-400" : "text-orange-primary"
+                      }`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${nuevaVenta.tipoVenta === "Venta Cliente" ? "bg-green-400" : "bg-orange-primary"
+                        }`} />
+                      {nuevaVenta.tipoVenta}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Método de Pago *</Label>
+                    <Select
+                      value={nuevaVenta.metodoPago}
+                      onValueChange={(val) => { handleMetodoPagoChange(val); clearValidationErrors(); }}
+                      onOpenChange={() => clearValidationErrors()}
+                    >
+                      <SelectTrigger
+                        className={`elegante-input ${showVentaFormErrors && !nuevaVenta.metodoPago
+                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                            : ""
+                          }`}
                       >
-                        <Checkbox
-                          id="usar-saldo"
-                          checked={nuevaVenta.usarSaldoAFavor}
-                          onCheckedChange={(checked) => {
-                            setNuevaVenta({
-                              ...nuevaVenta,
-                              usarSaldoAFavor: checked === true,
-                            });
-                          }}
-                          className={`border-2 ${
-                            nuevaVenta.usarSaldoAFavor
-                              ? "border-blue-400 bg-blue-500 text-white"
-                              : "border-gray-400"
-                          }`}
-                          checkClassName="stroke-[3.5] w-3 h-3"
-                        />
-                        <label
-                          htmlFor="usar-saldo"
-                          className={`text-sm font-semibold leading-none cursor-pointer select-none ${
-                            nuevaVenta.usarSaldoAFavor
-                              ? "text-blue-400"
-                              : "text-gray-light"
-                          }`}
-                        >
-                          Usar saldo en esta venta
-                        </label>
-                      </div>
+                        <SelectValue placeholder="Selecciona el método" />
+                      </SelectTrigger>
+                      <SelectContent className="elegante-card">
+                        <SelectItem value="Efectivo">Efectivo</SelectItem>
+                        <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                        <SelectItem value="Transferencia">
+                          Transferencia
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {showVentaFormErrors && !nuevaVenta.metodoPago && (
+                      <p className="text-xs text-red-400">
+                        Este campo es obligatorio.
+                      </p>
                     )}
                   </div>
-                )}
-              </div>
-            </FormSection>
-
-            {/* Section 3: Sale Config */}
-            <section>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Tipo de Venta</Label>
-                  <div className={`elegante-input bg-gray-medium flex items-center gap-2 h-10 px-3 rounded-md text-sm ${
-                    nuevaVenta.tipoVenta === "Venta Cliente" ? "text-green-400" : "text-orange-primary"
-                  }`}>
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${
-                      nuevaVenta.tipoVenta === "Venta Cliente" ? "bg-green-400" : "bg-orange-primary"
-                    }`} />
-                    {nuevaVenta.tipoVenta}
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Descuento (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={porcentajeDescuentoInput}
+                      onChange={(e) => {
+                        if (e.target.value.length <= 5) {
+                          handlePorcentajeDescuentoInputChange(e.target.value);
+                        }
+                      }}
+                      className="elegante-input"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Garantía</Label>
+                    <Input
+                      value="15 días (fijo)"
+                      disabled
+                      className="elegante-input bg-gray-medium cursor-not-allowed"
+                    />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Método de Pago *</Label>
-                  <Select
-                    value={nuevaVenta.metodoPago}
-                    onValueChange={(val) => { handleMetodoPagoChange(val); clearValidationErrors(); }}
-                    onOpenChange={() => clearValidationErrors()}
-                  >
-                    <SelectTrigger
-                      className={`elegante-input ${
-                        showVentaFormErrors && !nuevaVenta.metodoPago
+              </section>
+
+              {/* Section 4: Products */}
+              <FormSection title="Agregar Productos" icon={<ShoppingBag className="w-4 h-4" />}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Producto *</Label>
+                    <SearchField
+                      placeholder="Escribe el nombre..."
+                      value={productSearchTerm}
+                      onChange={(val) => setProductSearchTerm(val)}
+                      onClear={() => {
+                        setProductSearchTerm("");
+                        setProductoSeleccionado("");
+                      }}
+                      items={productosAPI.filter((p) => {
+                        const stock = Number(
+                          (p as any).stockVentas ?? (p as any).stock ?? 0
+                        );
+                        const precioNum = Number(
+                          (p as any).precio ?? (p as any).precioBase ?? 0
+                        );
+                        return stock > 0 && precioNum > 0;
+                      })}
+                      filterFn={(p, query) =>
+                        normalizeSearchText(p.nombre).includes(
+                          normalizeSearchText(query)
+                        )
+                      }
+                      renderItem={(producto) => (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                              {producto.nombre}
+                            </p>
+                            <p className="text-[10px] text-gray-lightest">
+                              $
+                              {formatCurrency(
+                                producto.precio || producto.precioBase
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
+                              Stock
+                            </p>
+                            <p
+                              className={`text-xs font-bold ${producto.stockVentas > 0
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                                }`}
+                            >
+                              {producto.stockVentas}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      onSelect={(producto) => {
+                        setProductoSeleccionado(producto.id.toString());
+                        setProductSearchTerm(producto.nombre);
+                        if (showAddProductoErrors)
+                          setShowAddProductoErrors(false);
+                      }}
+                      error={showProductoSelectorError}
+                      errorMessage="Selecciona un producto del buscador o agrega un servicio."
+                      shakeClass={shakeClass}
+                      maxResults={20}
+                      onFocus={clearValidationErrors}
+                      dropUp
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Cantidad</Label>
+                    <Input
+                      type="number"
+                      value={cantidadProductoInput}
+                      onFocus={clearValidationErrors}
+                      onChange={(e) => {
+                        if (e.target.value.length <= 10) {
+                          handleCantidadProductoInputChange(e.target.value);
+                        }
+                      }}
+                      className={`elegante-input no-spin ${showCantidadProductoError
                           ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
                           : ""
-                      }`}
-                    >
-                      <SelectValue placeholder="Selecciona el método" />
-                    </SelectTrigger>
-                    <SelectContent className="elegante-card">
-                      <SelectItem value="Efectivo">Efectivo</SelectItem>
-                      <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                      <SelectItem value="Transferencia">
-                        Transferencia
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {showVentaFormErrors && !nuevaVenta.metodoPago && (
-                    <p className="text-xs text-red-400">
-                      Este campo es obligatorio.
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Descuento (%)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={porcentajeDescuentoInput}
-                    onChange={(e) => {
-                      if (e.target.value.length <= 5) {
-                        handlePorcentajeDescuentoInputChange(e.target.value);
-                      }
-                    }}
-                    className="elegante-input"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Garantía</Label>
-                  <Input
-                    value="15 días (fijo)"
-                    disabled
-                    className="elegante-input bg-gray-medium cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Section 4: Products */}
-            <FormSection title="Agregar Productos" icon={<ShoppingBag className="w-4 h-4" />}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Producto *</Label>
-                  <SearchField
-                    placeholder="Escribe el nombre..."
-                    value={productSearchTerm}
-                    onChange={(val) => setProductSearchTerm(val)}
-                    onClear={() => {
-                      setProductSearchTerm("");
-                      setProductoSeleccionado("");
-                    }}
-                    items={productosAPI.filter((p) => {
-                      const stock = Number(
-                        (p as any).stockVentas ?? (p as any).stock ?? 0
-                      );
-                      const precioNum = Number(
-                        (p as any).precio ?? (p as any).precioBase ?? 0
-                      );
-                      return stock > 0 && precioNum > 0;
-                    })}
-                    filterFn={(p, query) =>
-                      normalizeSearchText(p.nombre).includes(
-                        normalizeSearchText(query)
-                      )
-                    }
-                    renderItem={(producto) => (
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
-                            {producto.nombre}
-                          </p>
-                          <p className="text-[10px] text-gray-lightest">
-                            $
-                            {formatCurrency(
-                              producto.precio || producto.precioBase
-                            )}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
-                            Stock
-                          </p>
-                          <p
-                            className={`text-xs font-bold ${
-                              producto.stockVentas > 0
-                                ? "text-green-400"
-                                : "text-red-400"
-                            }`}
-                          >
-                            {producto.stockVentas}
-                          </p>
-                        </div>
-                      </div>
+                        }`}
+                      min="1"
+                    />
+                    {showCantidadProductoError && !isStockExceeded && (
+                      <p className="text-xs text-red-400">
+                        Ingresa una cantidad válida.
+                      </p>
                     )}
-                    onSelect={(producto) => {
-                      setProductoSeleccionado(producto.id.toString());
-                      setProductSearchTerm(producto.nombre);
-                      if (showAddProductoErrors)
-                        setShowAddProductoErrors(false);
-                    }}
-                    error={showProductoSelectorError}
-                    errorMessage="Selecciona un producto del buscador o agrega un servicio."
-                    shakeClass={shakeClass}
-                    maxResults={20}
-                    onFocus={clearValidationErrors}
-                    dropUp
-                  />
+                    {isStockExceeded && (
+                      <p className="text-xs text-red-500 font-bold animate-pulse mt-1">
+                        Se ha excedido la cantidad de productos en el stock.
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">ㅤ</Label>
+                    <button
+                      onClick={agregarProducto}
+                      className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Agregar
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Cantidad</Label>
-                  <Input
-                    type="number"
-                    value={cantidadProductoInput}
-                    onFocus={clearValidationErrors}
-                    onChange={(e) => {
-                      if (e.target.value.length <= 10) {
-                        handleCantidadProductoInputChange(e.target.value);
+
+                {showVentaFormErrors && noItemsAgregados && (
+                  <p className="text-xs text-red-400 mt-2">
+                    Debes agregar al menos un producto o servicio.
+                  </p>
+                )}
+              </FormSection>
+
+              {/* Section 5: Services */}
+              <FormSection title="Agregar Servicios" icon={<Scissors className="w-4 h-4" />}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">
+                      Barbero{" "}
+                      {serviciosAgregados.length > 0 ? "*" : "(opcional)"}
+                    </Label>
+                    <SearchField
+                      placeholder={
+                        serviciosAgregados.length > 0
+                          ? "Escribe para buscar un barbero..."
+                          : "Escribe para asignar barbero (opcional)..."
                       }
-                    }}
-                    className={`elegante-input no-spin ${
-                      showCantidadProductoError
-                        ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                        : ""
-                    }`}
-                    min="1"
-                  />
-                  {showCantidadProductoError && !isStockExceeded && (
-                    <p className="text-xs text-red-400">
-                      Ingresa una cantidad válida.
-                    </p>
-                  )}
-                  {isStockExceeded && (
-                    <p className="text-xs text-red-500 font-bold animate-pulse mt-1">
-                      Se ha excedido la cantidad de productos en el stock.
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">ㅤ</Label>
-                  <button
-                    onClick={agregarProducto}
-                    className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar
-                  </button>
-                </div>
-              </div>
-
-              {showVentaFormErrors && noItemsAgregados && (
-                <p className="text-xs text-red-400 mt-2">
-                  Debes agregar al menos un producto o servicio.
-                </p>
-              )}
-            </FormSection>
-
-            {/* Section 5: Services */}
-            <FormSection title="Agregar Servicios" icon={<Scissors className="w-4 h-4" />}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">
-                    Barbero{" "}
-                    {serviciosAgregados.length > 0 ? "*" : "(opcional)"}
-                  </Label>
-                  <SearchField
-                    placeholder={
-                      serviciosAgregados.length > 0
-                        ? "Escribe para buscar un barbero..."
-                        : "Escribe para asignar barbero (opcional)..."
-                    }
-                    value={barberoSearchTerm}
-                    onChange={(val) => {
-                      setBarberoSearchTerm(val);
-                      if (nuevaVenta.barberoId) {
+                      value={barberoSearchTerm}
+                      onChange={(val) => {
+                        setBarberoSearchTerm(val);
+                        if (nuevaVenta.barberoId) {
+                          setNuevaVenta({
+                            ...nuevaVenta,
+                            barberoId: null,
+                            barberoNombre: "Sin asignar",
+                          });
+                        }
+                      }}
+                      onClear={() => {
+                        setBarberoSearchTerm("");
                         setNuevaVenta({
                           ...nuevaVenta,
                           barberoId: null,
                           barberoNombre: "Sin asignar",
                         });
-                      }
-                    }}
-                    onClear={() => {
-                      setBarberoSearchTerm("");
-                      setNuevaVenta({
-                        ...nuevaVenta,
-                        barberoId: null,
-                        barberoNombre: "Sin asignar",
-                      });
-                    }}
-                    items={barberosAPI}
-                    filterFn={(b: any, query) => {
-                      const searchable = normalizeSearchText(
-                        [b.id, b.nombre, b.apellido, b.documento].join(
-                          " "
-                        )
-                      );
-                      return searchable.includes(
-                        normalizeSearchText(query)
-                      );
-                    }}
-                    renderItem={(barbero: any) => {
-                      const nombreCompleto = `${barbero.nombre} ${
-                        barbero.apellido || ""
-                      }`.trim();
-                      return (
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
-                              {nombreCompleto}
-                            </p>
-                            <p className="text-[10px] text-gray-lightest">
-                              {barbero.documento || "Sin documento"}
-                            </p>
+                      }}
+                      items={barberosAPI}
+                      filterFn={(b: any, query) => {
+                        const searchable = normalizeSearchText(
+                          [b.id, b.nombre, b.apellido, b.documento].join(
+                            " "
+                          )
+                        );
+                        return searchable.includes(
+                          normalizeSearchText(query)
+                        );
+                      }}
+                      renderItem={(barbero: any) => {
+                        const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""
+                          }`.trim();
+                        return (
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                                {nombreCompleto}
+                              </p>
+                              <p className="text-[10px] text-gray-lightest">
+                                {barbero.documento || "Sin documento"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
+                                Rol
+                              </p>
+                              <p className="text-xs font-bold text-gray-lightest">
+                                {barbero.rol || "Barbero"}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
-                              Rol
-                            </p>
-                            <p className="text-xs font-bold text-gray-lightest">
-                              {barbero.rol || "Barbero"}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }}
-                    onSelect={(barbero: any) => {
-                      const nombreCompleto = `${barbero.nombre} ${
-                        barbero.apellido || ""
-                      }`.trim();
-                      setNuevaVenta({
-                        ...nuevaVenta,
-                        barberoId: Number(barbero.id),
-                        barberoNombre: nombreCompleto,
-                      });
-                      setBarberoSearchTerm(
-                        `${nombreCompleto}${
-                          barbero.documento
+                        );
+                      }}
+                      onSelect={(barbero: any) => {
+                        const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""
+                          }`.trim();
+                        setNuevaVenta({
+                          ...nuevaVenta,
+                          barberoId: Number(barbero.id),
+                          barberoNombre: nombreCompleto,
+                        });
+                        setBarberoSearchTerm(
+                          `${nombreCompleto}${barbero.documento
                             ? ` — CC ${barbero.documento}`
                             : ""
-                        }`
-                      );
-                    }}
-                    error={
-                      serviciosAgregados.length > 0 &&
-                      !nuevaVenta.barberoId
-                    }
-                    errorMessage="El barbero es requerido cuando hay servicios."
-                    shakeClass={shakeClass}
-                    onFocus={clearValidationErrors}
-                    dropUp
-                  />
+                          }`
+                        );
+                      }}
+                      error={
+                        serviciosAgregados.length > 0 &&
+                        !nuevaVenta.barberoId
+                      }
+                      errorMessage="El barbero es requerido cuando hay servicios."
+                      shakeClass={shakeClass}
+                      onFocus={clearValidationErrors}
+                      dropUp
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Servicio</Label>
+                    <SearchField
+                      placeholder="Escribe el nombre..."
+                      value={serviceSearchTerm}
+                      onChange={(val) => setServiceSearchTerm(val)}
+                      onClear={() => {
+                        setServiceSearchTerm("");
+                        setServicioSeleccionado("");
+                      }}
+                      items={serviciosDisponibles}
+                      filterFn={(s, query) =>
+                        normalizeSearchText(s).includes(
+                          normalizeSearchText(query)
+                        )
+                      }
+                      renderItem={(servicioNom) => (
+                        <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors text-center">
+                          {servicioNom}
+                        </p>
+                      )}
+                      onSelect={(servicioNom) => {
+                        setServicioSeleccionado(servicioNom);
+                        setServiceSearchTerm(servicioNom);
+                        if (showAddServicioErrors)
+                          setShowAddServicioErrors(false);
+                      }}
+                      error={showServicioSelectorError}
+                      errorMessage="Selecciona un servicio del buscador o agrega un producto."
+                      shakeClass={shakeClass}
+                      maxResults={20}
+                      onFocus={clearValidationErrors}
+                      dropUp
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">ㅤ</Label>
+                    <button
+                      onClick={agregarServicio}
+                      className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Agregar
+                    </button>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">Servicio</Label>
-                  <SearchField
-                    placeholder="Escribe el nombre..."
-                    value={serviceSearchTerm}
-                    onChange={(val) => setServiceSearchTerm(val)}
-                    onClear={() => {
-                      setServiceSearchTerm("");
-                      setServicioSeleccionado("");
-                    }}
-                    items={serviciosDisponibles}
-                    filterFn={(s, query) =>
-                      normalizeSearchText(s).includes(
-                        normalizeSearchText(query)
-                      )
-                    }
-                    renderItem={(servicioNom) => (
-                      <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors text-center">
-                        {servicioNom}
-                      </p>
-                    )}
-                    onSelect={(servicioNom) => {
-                      setServicioSeleccionado(servicioNom);
-                      setServiceSearchTerm(servicioNom);
-                      if (showAddServicioErrors)
-                        setShowAddServicioErrors(false);
-                    }}
-                    error={showServicioSelectorError}
-                    errorMessage="Selecciona un servicio del buscador o agrega un producto."
-                    shakeClass={shakeClass}
-                    maxResults={20}
-                    onFocus={clearValidationErrors}
-                    dropUp
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-gray-lightest text-xs">ㅤ</Label>
-                  <button
-                    onClick={agregarServicio}
-                    className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar
-                  </button>
-                </div>
-              </div>
-
-            </FormSection>
+              </FormSection>
             </div>
             {/* Action Buttons */}
             <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
@@ -1648,9 +1622,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             total={Math.max(
               0,
               calcularTotal() -
-                (nuevaVenta.usarSaldoAFavor
-                  ? calcularSaldoAFavorUsado()
-                  : 0)
+              (nuevaVenta.usarSaldoAFavor
+                ? calcularSaldoAFavorUsado()
+                : 0)
             )}
             onRemoveProducto={eliminarProducto}
             onRemoveServicio={eliminarServicio}
