@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { Search, Star, Clock, DollarSign, Scissors, Check, Calendar, Sparkles, Award } from "lucide-react";
+import { Search, Star, Clock, DollarSign, Scissors, Check, Calendar, Sparkles, Award, Loader2, Package, X } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
-import { Button } from "../../../shared/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
+import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { apiService, Servicio, Paquete } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
-import { Loader2, Package } from "lucide-react";
 
 // Función para formatear moneda colombiana
 const formatCurrency = (amount: number): string => {
@@ -32,8 +31,10 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategoria, setSelectedCategoria] = useState("Todos");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<(Servicio | Paquete) & { type?: 'servicio' | 'paquete' } | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const ITEMS_PER_PAGE = 12;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,13 +92,16 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Si es paquete, su categoría es 'Paquetes'
-    const itemCategoria = item.type === 'paquete' ? 'Paquetes' : getCategoria(item.nombre);
-
-    const matchesCategoria = selectedCategoria === "Todos" || itemCategoria === selectedCategoria;
+    const matchesCategoria =
+      selectedCategoria === "Todos" ||
+      (selectedCategoria === "Paquetes" && item.type === 'paquete') ||
+      (selectedCategoria === "Individuales" && item.type === 'servicio');
 
     return matchesSearch && matchesCategoria;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+  const displayedItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleViewDetails = async (item: Servicio | Paquete | any) => {
     setSelectedItem(item);
@@ -143,35 +147,47 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
     <>
       {/* Filtros */}
       <div className="elegante-card mb-6">
-        <div className="space-y-4">
-              {/* Búsqueda */}
-              <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-lightest w-4 h-4" />
-                <Input
-                  placeholder="Buscar servicios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="elegante-input pl-10"
-                />
-              </div>
-
-              {/* Filtro por categoría */}
-              <div className="flex flex-wrap gap-2">
-                {categorias.map((categoria) => (
-                  <button
-                    key={categoria}
-                    onClick={() => setSelectedCategoria(categoria)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategoria === categoria
-                        ? "bg-orange-primary text-black-primary"
-                        : "bg-gray-darker text-gray-lightest border border-gray-dark hover:bg-gray-dark"
-                      }`}
-                  >
-                    {categoria}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Búsqueda */}
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-lightest w-4 h-4" />
+            <Input
+              placeholder="Buscar servicios..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="elegante-input pl-10 pr-8"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
+
+          {/* Filtros de tipo */}
+          {[
+            { label: "Todos", value: "Todos" },
+            { label: "Individuales", value: "Individuales" },
+            { label: "Paquetes", value: "Paquetes" },
+          ].map(({ label, value }) => (
+            <button
+              key={value}
+              onClick={() => { setSelectedCategoria(value); setCurrentPage(1); }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                selectedCategoria === value
+                  ? "bg-orange-primary text-black-primary"
+                  : "bg-gray-darker text-gray-lightest border border-gray-dark hover:bg-gray-dark"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
@@ -179,106 +195,80 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
               <p className="text-gray-lightest animate-pulse">Cargando catálogo de servicios...</p>
             </div>
           ) : (
-          <div className="elegante-card">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-2">
-              {filteredItems.map((item) => (
-                <div key={`${item.type}-${item.id}`} className="elegante-card relative flex flex-col h-full overflow-hidden group max-w-[380px] mx-auto w-full transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)]">
+            <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {displayedItems.map((item) => (
+                <div key={`${item.type}-${item.id}`} className="elegante-card p-0 relative flex flex-col h-full overflow-hidden group w-full transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)] cursor-pointer" onClick={() => handleViewDetails(item)}>
                   {/* Imagen del item */}
-                  <div className="h-28 overflow-hidden bg-gray-darkest border-b border-gray-dark relative">
-                    <ImageRenderer
-                      url={(item as any).imagen}
-                      alt={item.nombre}
-                      showLabel={false}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    {!(item as any).imagen && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-full aspect-square border-b border-gray-dark bg-gray-darkest relative overflow-hidden flex items-center justify-center">
+                    {(item as any).imagen ? (
+                      <img
+                        src={(item as any).imagen}
+                        alt={item.nombre}
+                        className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center pointer-events-none">
                         {item.type === 'paquete' ? (
-                          <Package className="w-16 h-16 text-orange-primary opacity-30" />
+                          <Package className="w-10 h-10 text-orange-primary opacity-30" />
                         ) : (
-                          <Scissors className="w-16 h-16 text-gray-medium opacity-20" />
+                          <Scissors className="w-10 h-10 text-gray-medium opacity-20" />
                         )}
                       </div>
                     )}
                     {item.type === 'paquete' && (
-                      <div className="absolute top-4 right-4 bg-orange-primary text-black-primary px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest shadow-lg">
-                        Oferta Especial
+                      <div className="absolute top-2 right-2 bg-orange-primary text-black-primary px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-widest shadow-lg">
+                        Oferta
                       </div>
                     )}
                   </div>
 
-                  <div className="p-6 flex flex-col flex-1">
+                  <div className="p-3 flex flex-col flex-1">
                     {/* Badge de Categoría */}
-                    <div className="flex items-center justify-between mb-4">
-                      <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${item.type === 'paquete'
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${item.type === 'paquete'
                           ? 'bg-blue-600/20 text-blue-400'
                           : 'bg-orange-primary/10 text-orange-primary'
                         }`}>
                         {item.type === 'paquete' ? 'Paquete' : getCategoria(item.nombre)}
                       </span>
                       <div className="flex items-center gap-1 text-gray-lighter">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span className="text-xs font-medium">{item.duracion} min</span>
+                        <Clock className="w-3 h-3" />
+                        <span className="text-[10px] font-medium">{item.duracion} min</span>
                       </div>
                     </div>
 
-                    <h3 className="text-xl font-bold text-white-primary mb-2 group-hover:text-orange-primary transition-colors">
+                    <h3 className="text-sm font-bold text-white-primary mb-1 group-hover:text-orange-primary transition-colors line-clamp-1">
                       {item.nombre}
                     </h3>
 
-                    <p className="text-gray-lightest text-sm mb-6 line-clamp-3 leading-relaxed flex-1">
+                    <p className="text-gray-lightest text-[11px] mb-3 line-clamp-2 leading-relaxed flex-1">
                       {item.descripcion || "Sin descripción disponible."}
                     </p>
 
-                    {/* Beneficios/Servicios incluidos */}
-                    <div className="mb-6 space-y-2 p-3 bg-gray-darkers rounded-xl border border-gray-dark/30">
-                      {item.type === 'paquete' ? (
-                        (item as Paquete).servicios.length > 0 ? (
-                          (item as Paquete).servicios.slice(0, 4).map((s, idx) => (
-                            <div key={idx} className="flex items-center gap-2 text-xs">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                              <span className="text-white-primary font-medium line-clamp-1">{s}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-[10px] text-gray-medium animate-pulse py-1">Obteniendo servicios...</div>
-                        )
-                      ) : (
-                        BENEFICIOS_DEFAULT.slice(0, 3).map((beneficio, index) => (
-                          <div key={index} className="flex items-center gap-2 text-xs">
-                            <Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                            <span className="text-gray-lighter">{beneficio}</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
                     {/* Precio y Botones */}
-                    <div className="mt-auto space-y-4 pt-4 border-t border-gray-dark">
+                    <div className="mt-auto space-y-2 pt-2 border-t border-gray-dark">
                       <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-gray-lighter text-[10px] uppercase tracking-widest font-bold">Precio</span>
-                          <span className="text-orange-primary font-extrabold text-2xl">
-                            ${formatCurrency(item.precio)}
-                          </span>
-                        </div>
+                        <span className="text-orange-primary font-extrabold text-base">
+                          ${formatCurrency(item.precio)}
+                        </span>
                         {item.type === 'paquete' && (item as Paquete).descuento > 0 && (
-                          <div className="bg-green-600/20 text-green-400 px-2 py-1 rounded text-[10px] font-bold">
+                          <div className="bg-green-600/20 text-green-400 px-1.5 py-0.5 rounded text-[9px] font-bold">
                             -{Math.round((item as Paquete).descuento)}% OFF
                           </div>
                         )}
                       </div>
 
-                      <div className="flex gap-3">
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => handleViewDetails(item)}
-                          className="elegante-button-secondary flex-1 text-xs py-2.5 font-bold uppercase tracking-wider"
+                          onClick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
+                          className="elegante-button-secondary flex-1 text-[10px] py-1.5 font-bold uppercase tracking-wider"
                         >
-                          Ver Detalles
+                          Detalles
                         </button>
                         <button
-                          onClick={() => handleReservarItem(item)}
-                          className="elegante-button-primary flex-1 text-xs py-2.5 font-bold uppercase tracking-wider shadow-lg shadow-orange-primary/10"
+                          onClick={(e) => { e.stopPropagation(); handleReservarItem(item); }}
+                          className="elegante-button-primary flex-1 text-[10px] py-1.5 font-bold uppercase tracking-wider shadow-lg shadow-orange-primary/10"
                         >
                           Reservar
                         </button>
@@ -288,7 +278,22 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                 </div>
               ))}
             </div>
-            </div>
+
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+                <div className="text-sm text-gray-lightest">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <EllipsisPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => setCurrentPage(page)}
+                  className="mx-0 w-auto justify-end"
+                />
+              </div>
+            )}
+            </>
           )}
 
           {filteredItems.length === 0 && (

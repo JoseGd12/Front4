@@ -21,7 +21,18 @@
       "Bash(grep -v \"^$\")",
       "Bash(grep -E \"\\\\.js$|\\\\.mjs$|\\\\.ps1$\")",
       "Bash(grep \"\\\\.md$\")",
-      "Bash(find /c/Users/Jose/Desktop/Front3-samuel/Front4/build -name *.png)"
+      "Bash(find /c/Users/Jose/Desktop/Front3-samuel/Front4/build -name *.png)",
+      "Read(//c/Users/Jose/Downloads/**)",
+      "Bash(python3)",
+      "Read(//c/Users/Jose/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/f0f70145-28a3-4eff-822d-f5dc91a5f7d8/fb32df5b-25e9-4be2-a939-05bf88dc2be6/skills/docx/**)",
+      "Bash(python scripts/office/unpack.py \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\" \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_unpacked/\")",
+      "Bash(pip install:*)",
+      "Read(//c/Users/Jose/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/f0f70145-28a3-4eff-822d-f5dc91a5f7d8/fb32df5b-25e9-4be2-a939-05bf88dc2be6/skills/xlsx/**)",
+      "Bash(python -c ':*)",
+      "Bash(pandoc --track-changes=all \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\" -o \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_content.md\")",
+      "Bash(python scripts/office/pack.py \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_unpacked/\" \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Contrato_Edwins_Barberia.docx\" --original \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\")",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/office/pack.py \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_unpacked/\" \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Contrato_Edwins_Barberia.docx\" --original \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\" --validate false)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

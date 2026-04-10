@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
-import { Search, Eye, Calendar, DollarSign, RotateCcw, Package, Loader2 } from "lucide-react";
-import { Input } from "../../../shared/components/ui/input";
+import { Eye, RotateCcw, Hash } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { devolucionService, type Devolucion } from "../../ventas/services/devolucionService";
@@ -18,8 +21,11 @@ export function ClienteHistorialDevolucionesPage() {
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedDevolucion, setSelectedDevolucion] = useState<Devolucion | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     fetchDevoluciones();
@@ -44,12 +50,17 @@ export function ClienteHistorialDevolucionesPage() {
     }
   };
 
-  const filteredDevoluciones = devoluciones.filter(devolucion =>
-    devolucion.id.toString().includes(searchTerm) ||
-    devolucion.ventaId.toString().includes(searchTerm) ||
-    devolucion.motivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (devolucion.productoNombre || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDevoluciones = devoluciones.filter(devolucion => {
+    const matchesSearch = devolucion.id.toString().includes(searchTerm) ||
+      devolucion.ventaId.toString().includes(searchTerm) ||
+      devolucion.motivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (devolucion.productoNombre || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || devolucion.estado.toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredDevoluciones.length / ITEMS_PER_PAGE));
+  const displayedDevoluciones = filteredDevoluciones.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleViewDetails = (devolucion: Devolucion) => {
     setSelectedDevolucion(devolucion);
@@ -98,86 +109,121 @@ export function ClienteHistorialDevolucionesPage() {
 
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         <div className="elegante-card">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-white-primary">Mis Solicitudes</h2>
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-lightest w-4 h-4" />
-              <Input
-                placeholder="Buscar por número, venta o motivo..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="elegante-input pl-10"
-              />
-            </div>
-          </div>
+          <TableHeaderSection
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por cualquier campo de la tabla..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "completada", label: "Completadas" },
+                { value: "anulada", label: "Anuladas" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedDevoluciones.length} de ${filteredDevoluciones.length} devoluciones`}
+            recordsPlacement="left"
+          />
 
           <div className="overflow-x-auto">
-            {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="w-10 h-10 text-orange-primary animate-spin mb-4" />
-                    <p className="text-gray-lightest">Cargando devoluciones...</p>
-                </div>
-            ) : (
-                <table className="w-full">
-                <thead>
-                    <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Venta Ref.</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Producto/Motivo</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo Generado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredDevoluciones.map((dev) => (
-                    <tr key={dev.id} className="border-b border-gray-dark hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-4 font-mono text-xs text-orange-primary text-center">#{dev.id}</td>
-                        <td className="py-4 px-4 font-mono text-xs text-gray-lightest text-center">#{dev.ventaId}</td>
-                        <td className="py-4 px-4 text-sm text-white-primary text-center">
-                            {new Date(dev.fecha).toLocaleDateString()}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                            <div className="max-w-xs">
-                                <p className="text-sm font-medium text-white-primary truncate">{dev.productoNombre || 'Múltiples items'}</p>
-                                <p className="text-[10px] text-gray-lightest truncate italic">{dev.motivo}</p>
-                            </div>
-                        </td>
-                        <td className="py-4 px-4 text-sm font-bold text-white-primary text-center">
-                             ${formatCurrency(dev.monto)}
-                        </td>
-                        <td className="py-4 px-4 text-sm font-bold text-green-500 text-center">
-                             ${formatCurrency(dev.saldoAFavor)}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                            <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[13px] font-medium ${getEstadoColor(dev.estado)}`}>
-                                {dev.estado}
-                            </span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                            <button
-                                onClick={() => handleViewDetails(dev)}
-                                className="text-orange-primary hover:text-orange-secondary p-2 rounded-lg hover:bg-gray-darker transition-colors"
-                            >
-                                <Eye className="w-4 h-4" />
-                            </button>
-                        </td>
-                    </tr>
-                    ))}
-                </tbody>
-                </table>
-            )}
+            <table className="w-full">
+              <thead className={isLoading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+                <tr className="border-b border-gray-dark">
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Venta Ref.</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Producto/Motivo</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto Devolución</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <TableLoadingStateRow
+                    colSpan={8}
+                    title="Cargando devoluciones..."
+                  />
+                ) : displayedDevoluciones.length > 0 ? displayedDevoluciones.map((dev) => (
+                  <tr key={dev.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Hash className="w-4 h-4 text-orange-primary" />
+                        <span className="text-gray-lighter">{String(dev.id)}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Hash className="w-4 h-4 text-orange-primary" />
+                        <span className="text-gray-lighter">{String(dev.ventaId)}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter">{new Date(dev.fecha).toLocaleDateString()}</span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="max-w-xs">
+                        <p className="text-sm font-medium text-gray-lighter truncate">{dev.productoNombre || 'Múltiples items'}</p>
+                        <p className="text-[10px] text-gray-lightest truncate italic">{dev.motivo}</p>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter font-bold">${formatCurrency(dev.monto)}</span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter">${formatCurrency(dev.saldoAFavor)}</span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className={`px-3 py-1 rounded-full text-xs ${getEstadoColor(dev.estado)}`}>
+                        {dev.estado}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleViewDetails(dev)}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title="Ver detalles"
+                        >
+                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <TableEmptyStateRow
+                    colSpan={8}
+                    title="No se encontraron devoluciones"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={fetchDevoluciones}
+                  />
+                )}
+              </tbody>
+            </table>
           </div>
 
-          {!isLoading && filteredDevoluciones.length === 0 && (
-            <div className="text-center py-20 bg-gray-darker/30 rounded-xl mt-4 border border-dashed border-gray-dark">
-                <RotateCcw className="w-16 h-16 mx-auto mb-4 text-gray-dark" />
-                <h3 className="text-white-primary font-bold">Sin devoluciones</h3>
-                <p className="text-gray-lightest text-sm mt-1">No tienes solicitudes de devolución registradas.</p>
+          {/* Paginación */}
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
             </div>
-          )}
+            <EllipsisPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => setCurrentPage(page)}
+              className="mx-0 w-auto justify-end"
+            />
+          </div>
         </div>
 
         {/* Modal Detalles Devolución */}

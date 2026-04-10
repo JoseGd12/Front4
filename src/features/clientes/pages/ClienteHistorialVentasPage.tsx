@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
-import { Search, Eye, Calendar, DollarSign, User, Package, Scissors, Loader2, X } from "lucide-react";
-import { Input } from "../../../shared/components/ui/input";
+import { Eye, DollarSign, User, Package, Scissors, Hash, X, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { ventaService, type Venta } from "../../ventas/services/ventaService";
 import { clientesService } from "../services/clientesService";
@@ -20,9 +23,12 @@ export function ClienteHistorialVentasPage() {
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const initPage = async () => {
@@ -147,11 +153,16 @@ export function ClienteHistorialVentasPage() {
     }
   };
 
-  const filteredVentas = ventas.filter(venta =>
-    venta.numeroVenta.toString().includes(searchTerm) ||
-    venta.servicios.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    venta.barbero.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredVentas = ventas.filter(venta => {
+    const matchesSearch = venta.numeroVenta.toString().includes(searchTerm) ||
+      venta.servicios.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      venta.barbero.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || venta.estado.toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredVentas.length / ITEMS_PER_PAGE));
+  const displayedVentas = filteredVentas.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleViewDetails = async (venta: Venta) => {
     setSelectedVenta(venta);
@@ -227,130 +238,151 @@ export function ClienteHistorialVentasPage() {
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         {/* Search and Table */}
         <div className="elegante-card">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-white-primary">Mis Compras</h2>
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-lightest w-4 h-4" />
-              <Input
-                placeholder="Buscar por servicio, barbero o número..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="elegante-input pl-10"
-              />
-            </div>
-          </div>
+          <TableHeaderSection
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por cualquier campo de la tabla..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "completada", label: "Completadas" },
+                { value: "anulada", label: "Anuladas" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedVentas.length} de ${filteredVentas.length} compras`}
+            recordsPlacement="left"
+          />
 
           <div className="overflow-x-auto">
-            {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="w-10 h-10 text-orange-primary animate-spin mb-4" />
-                    <p className="text-gray-lightest">Cargando tu historial...</p>
-                </div>
-            ) : (
-                <table className="w-full">
-                <thead>
-                    <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">N° Venta</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredVentas.map((venta) => (
-                    <tr key={venta.id} className="border-b border-gray-dark hover:bg-white/5 transition-colors">
-                        <td className="py-4 px-4 font-mono text-xs text-orange-primary text-center">
-                        #{venta.numeroVenta}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lightest text-sm">{new Date(venta.fecha).toLocaleDateString()}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="flex flex-col gap-1.5">
-                            {/* Prioridad: Mostrar servicios si existen */}
-                            {venta.servicios && venta.servicios !== "Sin servicios" ? (
-                              <div className="flex items-start gap-2">
-                                <span className="p-1 bg-purple-500/10 rounded mt-0.5">
-                                  <Scissors className="w-3 h-3 text-purple-400" />
-                                </span>
-                                <span className="text-white-primary text-sm font-medium line-clamp-1">
-                                  {venta.servicios}
-                                </span>
-                              </div>
-                            ) : null}
-
-                            {/* Mostrar productos si existen (o si no hay servicios para indicar venta de productos) */}
-                            {(venta.productos && venta.productos !== "Sin productos") ? (
-                              <div className="flex items-start gap-2">
-                                <span className="p-1 bg-orange-500/10 rounded mt-0.5">
-                                  <Package className="w-3 h-3 text-orange-400" />
-                                </span>
-                                <span className="text-gray-lighter text-xs line-clamp-1 italic">
-                                  {venta.productos}
-                                </span>
-                              </div>
-                            ) : (
-                                // Si no tiene ni servicios ni productos detectados por string, 
-                                // pero total > 0, es probable que sea una venta sin detalles guardados como string
-                                (!venta.servicios || venta.servicios === "Sin servicios") && (
-                                    <span className="text-gray-lightest text-xs italic opacity-60">Venta de productos</span>
-                                )
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-orange-primary/10 flex items-center justify-center border border-orange-primary/20">
-                                <User className="w-3.5 h-3.5 text-orange-primary" />
-                            </div>
-                            <span className="text-gray-lightest text-sm font-medium">
-                                {venta.barbero || "Sin asignar"}
+            <table className="w-full">
+              <thead className={isLoading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+                <tr className="border-b border-gray-dark">
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <TableLoadingStateRow
+                    colSpan={8}
+                    title="Cargando tu historial..."
+                  />
+                ) : displayedVentas.length > 0 ? displayedVentas.map((venta) => (
+                  <tr key={venta.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Hash className="w-4 h-4 text-orange-primary" />
+                        <span className="text-gray-lighter">{String(venta.numeroVenta)}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter">{new Date(venta.fecha).toLocaleDateString()}</span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex flex-col gap-1.5">
+                        {venta.servicios && venta.servicios !== "Sin servicios" ? (
+                          <div className="flex items-start gap-2">
+                            <span className="p-1 bg-purple-500/10 rounded mt-0.5">
+                              <Scissors className="w-3 h-3 text-purple-400" />
+                            </span>
+                            <span className="text-gray-lighter text-sm font-medium line-clamp-1">
+                              {venta.servicios}
                             </span>
                           </div>
-                        </td>
-                        <td className="py-4 px-4 text-sm font-bold text-white-primary text-center">
-                          ${(() => {
-                              const montoDev = devoluciones
-                                  .filter(d => Number(d.ventaId) === Number(venta.id))
-                                  .reduce((acc, d) => acc + d.monto, 0);
-                              return formatCurrency(Math.max(0, (venta.total || 0) - montoDev));
-                          })()}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                        <span className={`text-xs font-medium ${getMetodoPagoColor(venta.metodoPago)}`}>{venta.metodoPago}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                        <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[13px] font-medium ${getEstadoColor(venta.estado)}`}>
-                            {venta.estado}
-                        </span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
+                        ) : null}
+                        {(venta.productos && venta.productos !== "Sin productos") ? (
+                          <div className="flex items-start gap-2">
+                            <span className="p-1 bg-orange-500/10 rounded mt-0.5">
+                              <Package className="w-3 h-3 text-orange-400" />
+                            </span>
+                            <span className="text-gray-lighter text-xs line-clamp-1 italic">
+                              {venta.productos}
+                            </span>
+                          </div>
+                        ) : (
+                          (!venta.servicios || venta.servicios === "Sin servicios") && (
+                            <span className="text-gray-lighter text-xs italic opacity-60">Venta de productos</span>
+                          )
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="text-gray-lighter">
+                          {venta.barbero || "Sin asignar"}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter font-bold">
+                        ${(() => {
+                            const montoDev = devoluciones
+                                .filter(d => Number(d.ventaId) === Number(venta.id))
+                                .reduce((acc, d) => acc + d.monto, 0);
+                            return formatCurrency(Math.max(0, (venta.total || 0) - montoDev));
+                        })()}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-lighter">{venta.metodoPago}</span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className={`px-3 py-1 rounded-full text-xs ${getEstadoColor(venta.estado)}`}>
+                        {venta.estado}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
                         <button
-                            onClick={() => handleViewDetails(venta)}
-                            className="text-orange-primary hover:text-orange-secondary p-2 rounded-lg hover:bg-gray-darker transition-colors"
-                            title="Ver detalles"
+                          onClick={() => handleViewDetails(venta)}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title="Ver detalles"
                         >
-                            <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                         </button>
-                        </td>
-                    </tr>
-                    ))}
-                </tbody>
-                </table>
-            )}
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <TableEmptyStateRow
+                    colSpan={8}
+                    title="No se encontraron compras"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={() => { setIsLoading(true); fetchVentas().finally(() => setIsLoading(false)); }}
+                  />
+                )}
+              </tbody>
+            </table>
           </div>
 
-          {!isLoading && filteredVentas.length === 0 && (
-            <div className="text-center py-20 bg-gray-darker/30 rounded-xl mt-4 border border-dashed border-gray-dark">
-                <Package className="w-16 h-16 mx-auto mb-4 text-gray-dark" />
-                <h3 className="text-white-primary font-bold">No hay compras registradas</h3>
-                <p className="text-gray-lightest text-sm mt-1">Cuando realices servicios o compres productos, aparecerán aquí.</p>
+          {/* Paginación */}
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
             </div>
-          )}
+            <EllipsisPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => setCurrentPage(page)}
+              className="mx-0 w-auto justify-end"
+            />
+          </div>
         </div>
 
         {/* Modal de Detalles */}

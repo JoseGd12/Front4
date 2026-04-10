@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Package, ShoppingBag, Check, Sparkles, Calendar } from "lucide-react";
+import { Package, ShoppingBag, Check, Sparkles, Calendar, Loader2, Search, X } from "lucide-react";
+import { Input } from "../../../shared/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { productoService, ApiProducto, ApiCategoria } from "../../productos/services/productos";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 
@@ -63,8 +64,10 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategoria, setSelectedCategoria] = useState("Todos");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedProducto, setSelectedProducto] = useState<ApiProducto | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const ITEMS_PER_PAGE = 12;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -96,16 +99,40 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
     return matchSearch && matchCat;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredProductos.length / ITEMS_PER_PAGE));
+  const displayedProductos = filteredProductos.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div className="space-y-6">
       {/* Filtros */}
       <div className="elegante-card">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Búsqueda */}
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-lightest w-4 h-4" />
+            <Input
+              placeholder="Buscar productos..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="elegante-input pl-10 pr-8"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Categorías */}
           {categoriasMenu.map((cat) => (
             <button
               key={cat}
-              onClick={() => setSelectedCategoria(cat)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              onClick={() => { setSelectedCategoria(cat); setCurrentPage(1); }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 selectedCategoria === cat
                   ? "bg-orange-primary text-black-primary"
                   : "bg-gray-darker text-gray-lightest border border-gray-dark hover:bg-gray-dark"
@@ -129,67 +156,80 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
           <p>No se encontraron productos que coincidan con tu búsqueda.</p>
         </div>
       ) : (
-        <div className="elegante-card">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-2">
-          {filteredProductos.map((producto) => (
-            <div
-              key={producto.id}
-              className="bg-gray-darkest border border-gray-dark rounded-xl overflow-hidden group flex flex-col transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)]"
-            >
-              <div className="h-28 overflow-hidden bg-gray-darker relative">
-                <ImageRenderer
-                  url={producto.imagenProduc}
-                  alt={producto.nombre}
-                  showLabel={false}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {!producto.imagenProduc && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Package className="w-16 h-16 text-gray-medium opacity-20" />
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 flex flex-col gap-3 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-orange-primary">
-                    {producto.categoria?.nombre || "Producto"}
-                  </span>
-                  <div className="flex items-center gap-1 text-gray-lighter text-xs">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>{producto.stockVentas} disponibles</span>
-                  </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {displayedProductos.map((producto) => (
+              <div
+                key={producto.id}
+                className="elegante-card p-0 overflow-hidden group flex flex-col transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)] cursor-pointer"
+                onClick={() => { setSelectedProducto(producto); setIsDetailOpen(true); }}
+              >
+                <div className="w-full aspect-square bg-gray-darker relative overflow-hidden flex items-center justify-center">
+                  {producto.imagenProduc ? (
+                    <img
+                      src={producto.imagenProduc}
+                      alt={producto.nombre}
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center pointer-events-none">
+                      <Package className="w-10 h-10 text-gray-medium opacity-20" />
+                    </div>
+                  )}
                 </div>
 
-                <h3 className="text-base font-bold text-white-primary group-hover:text-orange-primary transition-colors leading-tight">
-                  {producto.nombre}
-                </h3>
-
-                <div className="flex flex-col mt-auto">
-                  <span className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold">Precio</span>
+                <div className="p-3 flex flex-col gap-2 flex-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-orange-primary font-extrabold text-xl">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-orange-primary">
+                      {producto.categoria?.nombre || "Producto"}
+                    </span>
+                    <div className="flex items-center gap-1 text-gray-lighter text-[10px]">
+                      <ShoppingBag className="w-3 h-3" />
+                      <span>{producto.stockVentas}</span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-sm font-bold text-white-primary group-hover:text-orange-primary transition-colors leading-tight line-clamp-1">
+                    {producto.nombre}
+                  </h3>
+
+                  <div className="flex items-center justify-between mt-auto">
+                    <span className="text-orange-primary font-extrabold text-base">
                       ${formatCurrency(producto.precioVenta || producto.precio || 0)}
                     </span>
                     {producto.marca && (
-                      <span className="text-[10px] text-gray-lighter border border-gray-dark px-2 py-0.5 rounded">
+                      <span className="text-[9px] text-gray-lighter border border-gray-dark px-1.5 py-0.5 rounded">
                         {producto.marca}
                       </span>
                     )}
                   </div>
-                </div>
 
-                <button
-                  onClick={() => { setSelectedProducto(producto); setIsDetailOpen(true); }}
-                  className="w-full mt-1 py-2 rounded-lg border border-gray-dark text-gray-lightest text-xs font-bold uppercase tracking-wider hover:border-orange-primary hover:text-orange-primary transition-colors"
-                >
-                  Ver Detalles
-                </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedProducto(producto); setIsDetailOpen(true); }}
+                    className="w-full mt-1 py-1.5 rounded-lg border border-gray-dark text-gray-lightest text-[10px] font-bold uppercase tracking-wider hover:border-orange-primary hover:text-orange-primary transition-colors"
+                  >
+                    Ver Detalles
+                  </button>
+                </div>
               </div>
+            ))}
+          </div>
+
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+              <div className="text-sm text-gray-lightest">
+                Página {currentPage} de {totalPages}
+              </div>
+              <EllipsisPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={(page) => setCurrentPage(page)}
+                className="mx-0 w-auto justify-end"
+              />
             </div>
-          ))}
-        </div>
-        </div>
+          )}
+        </>
       )}
 
       {/* Modal */}
