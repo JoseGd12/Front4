@@ -1,7 +1,9 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContext';
-import { useInstagramFeed } from '../../../shared/hooks/useInstagramFeed';
+import { useInstagramFeed, type InstagramMedia } from '../../../shared/hooks/useInstagramFeed';
+import { InstagramPostModal, type GalleryItem } from '../components/InstagramPostModal';
+import { GalleryCell } from '../components/GalleryCell';
 import {
   Scissors,
   Star,
@@ -25,7 +27,8 @@ import {
   ShieldCheck,
   CheckCircle,
   Eye,
-  User
+  User,
+  Instagram
 } from 'lucide-react';
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
@@ -224,7 +227,27 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop';
 
   // Instagram feed for gallery
-  const { feed: instagramFeed } = useInstagramFeed(15);
+  const { feed: instagramFeed, error: instagramError } = useInstagramFeed(15);
+  if (instagramError) {
+    console.warn('[Gallery] Instagram feed no disponible:', instagramError);
+  }
+
+  // Modal state for gallery post preview
+  const [selectedGalleryPost, setSelectedGalleryPost] = useState<GalleryItem | null>(null);
+  const galleryItemsListRef = useRef<GalleryItem[]>([]);
+
+  // Drag-vs-click detection: prevent modal opening after dragging
+  const galleryDragStartX = useRef<number | null>(null);
+  const handleGalleryMouseDown = (e: React.MouseEvent) => {
+    galleryDragStartX.current = e.clientX;
+  };
+  const handleGalleryClick = (item: GalleryItem, e: React.MouseEvent) => {
+    // If user dragged more than 5px, treat as scroll — don't open modal
+    if (galleryDragStartX.current !== null && Math.abs(e.clientX - galleryDragStartX.current) > 5) {
+      return;
+    }
+    setSelectedGalleryPost(item);
+  };
 
   // Transform-based infinite carousels (no scrollLeft — seamless loop)
   const servTrackRef = useRef<HTMLDivElement>(null);
@@ -650,38 +673,49 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               'https://images.unsplash.com/photo-1596728325003-1f3e3c0f3e0a?w=600&h=400&fit=crop',
             ];
 
-            let galleryImages: string[] = [];
+            let galleryItems: GalleryItem[] = [];
 
             if (instagramFeed && instagramFeed.length > 0) {
-              // Uso del feed oficial de Instagram
-              galleryImages = instagramFeed.map(item => item.media_url);
+              // Feed oficial de Instagram — conservar metadatos completos
+              galleryItems = instagramFeed.map((item: InstagramMedia) => ({
+                url: item.media_url,
+                caption: item.caption,
+                permalink: item.permalink,
+                media_type: item.media_type,
+                id: item.id,
+                // Para videos, el hook ya normalizó media_url al thumbnail; video_url tiene el original
+                videoUrl: item.video_url,
+              }));
             } else {
-              // Fallback a imágenes de base de datos
+              // Fallback a imágenes de base de datos (sin metadatos de IG)
               paquetes.forEach((p: any) => {
                 const img = p.imagen || p.imagenUrl;
-                if (img && typeof img === 'string' && img.startsWith('http')) galleryImages.push(img);
+                if (img && typeof img === 'string' && img.startsWith('http')) galleryItems.push({ url: img });
               });
               servicios.forEach((s: any) => {
-                if (s.imagen && typeof s.imagen === 'string' && s.imagen.startsWith('http')) galleryImages.push(s.imagen);
+                if (s.imagen && typeof s.imagen === 'string' && s.imagen.startsWith('http')) galleryItems.push({ url: s.imagen });
               });
               productos.forEach((p: any) => {
-                if (p.imagenProduc && typeof p.imagenProduc === 'string' && p.imagenProduc.startsWith('http')) galleryImages.push(p.imagenProduc);
+                if (p.imagenProduc && typeof p.imagenProduc === 'string' && p.imagenProduc.startsWith('http')) galleryItems.push({ url: p.imagenProduc });
               });
             }
 
             // Asegurar un llenado mínimo para que el grid mosaico funcione idealmente
             const minDesiredCount = instagramFeed.length > 0 ? instagramFeed.length : 15;
-            while (galleryImages.length < minDesiredCount || galleryImages.length % 3 !== 0) {
-              galleryImages.push(fallbackImages[galleryImages.length % fallbackImages.length]);
+            while (galleryItems.length < minDesiredCount || galleryItems.length % 3 !== 0) {
+              galleryItems.push({ url: fallbackImages[galleryItems.length % fallbackImages.length] });
             }
 
             // Group into sets of 3: [Large, Small1, Small2]
-            const sets: string[][] = [];
-            for (let i = 0; i < galleryImages.length; i += 3) {
-              const set = galleryImages.slice(i, i + 3);
-              while (set.length < 3) set.push(fallbackImages[set.length % fallbackImages.length]);
+            const sets: GalleryItem[][] = [];
+            for (let i = 0; i < galleryItems.length; i += 3) {
+              const set = galleryItems.slice(i, i + 3);
+              while (set.length < 3) set.push({ url: fallbackImages[set.length % fallbackImages.length] });
               sets.push(set);
             }
+
+            // Guardar lista para navegación en modal (sin duplicados)
+            galleryItemsListRef.current = galleryItems;
 
             const allSets = [...sets, ...sets]; // Duplicate sets for loop
 
@@ -727,42 +761,27 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     {allSets.map((set, si) => (
                       <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
                         {/* Large Image Column */}
-                        <div
-                          className="shrink-0 overflow-hidden relative group"
-                          style={{ width: '300px', height: '100%' }}
-                        >
-                          <img
-                            src={set[0]}
-                            alt=""
-                            className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                            loading="lazy"
-                            draggable={false}
-                          />
-                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                        </div>
+                        <GalleryCell
+                          item={set[0]}
+                          style={{ width: '300px', height: '100%', flexShrink: 0 }}
+                          onMouseDown={handleGalleryMouseDown}
+                          onClick={(e) => handleGalleryClick(set[0], e)}
+                        />
 
                         {/* Small Images Column (Stacked) */}
                         <div className="flex flex-col shrink-0 h-full" style={{ width: '210px', gap: '3px' }}>
-                          <div className="flex-1 overflow-hidden relative group">
-                            <img
-                              src={set[1]}
-                              alt=""
-                              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                              loading="lazy"
-                              draggable={false}
-                            />
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                          </div>
-                          <div className="flex-1 overflow-hidden relative group">
-                            <img
-                              src={set[2]}
-                              alt=""
-                              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                              loading="lazy"
-                              draggable={false}
-                            />
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                          </div>
+                          <GalleryCell
+                            item={set[1]}
+                            style={{ flex: '1 1 0%' }}
+                            onMouseDown={handleGalleryMouseDown}
+                            onClick={(e) => handleGalleryClick(set[1], e)}
+                          />
+                          <GalleryCell
+                            item={set[2]}
+                            style={{ flex: '1 1 0%' }}
+                            onMouseDown={handleGalleryMouseDown}
+                            onClick={(e) => handleGalleryClick(set[2], e)}
+                          />
                         </div>
                       </div>
                     ))}
@@ -830,10 +849,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             {/* Columna izquierda: Galería collage con flechas */}
             <div className="reveal-item">
               {(() => {
-                const galleryImgs: string[] = [
-                  ...servicios.filter((s: any) => s.imagen?.startsWith('http')).map((s: any) => s.imagen),
-                  ...paquetes.filter((p: any) => (p.imagen || p.imagenUrl)?.startsWith('http')).map((p: any) => p.imagen || p.imagenUrl),
-                  ...productos.filter((p: any) => p.imagenProduc?.startsWith('http')).map((p: any) => p.imagenProduc),
+                const nosotrosItems: GalleryItem[] = [
+                  ...servicios.filter((s: any) => s.imagen?.startsWith('http')).map((s: any) => ({ url: s.imagen })),
+                  ...paquetes.filter((p: any) => (p.imagen || p.imagenUrl)?.startsWith('http')).map((p: any) => ({ url: p.imagen || p.imagenUrl })),
+                  ...productos.filter((p: any) => p.imagenProduc?.startsWith('http')).map((p: any) => ({ url: p.imagenProduc })),
                 ];
                 const fallbacks = [
                   'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=800&fit=crop',
@@ -846,18 +865,18 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   'https://images.unsplash.com/photo-1596728325003-1f3e3c0f3e0a?w=600&h=400&fit=crop',
                   'https://images.unsplash.com/photo-1521590832167-7228f5fa666e?w=600&h=400&fit=crop',
                 ];
-                while (galleryImgs.length < 9) {
-                  galleryImgs.push(fallbacks[galleryImgs.length % fallbacks.length]);
+                while (nosotrosItems.length < 9) {
+                  nosotrosItems.push({ url: fallbacks[nosotrosItems.length % fallbacks.length] });
                 }
 
-                const totalPages = Math.ceil(galleryImgs.length / 3);
+                const totalPages = Math.ceil(nosotrosItems.length / 3);
                 const pageIndex = nosotrosSlide % totalPages;
 
                 // Build all page sets
-                const pages: string[][] = [];
+                const pages: GalleryItem[][] = [];
                 for (let p = 0; p < totalPages; p++) {
-                  const set = galleryImgs.slice(p * 3, p * 3 + 3);
-                  while (set.length < 3) set.push(galleryImgs[set.length % galleryImgs.length]);
+                  const set = nosotrosItems.slice(p * 3, p * 3 + 3);
+                  while (set.length < 3) set.push(nosotrosItems[set.length % nosotrosItems.length]);
                   pages.push(set);
                 }
 
@@ -906,39 +925,21 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                                     gap: nosotrosMosaicGap,
                                   }}
                                 >
-                                  <div
-                                    className="min-h-0 overflow-hidden relative group"
-                                    style={{ gridRow: '1 / 3' }}
-                                  >
-                                    <img
-                                      src={set[0]}
-                                      alt=""
-                                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                                      loading="lazy"
-                                      draggable={false}
-                                    />
-                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                                  </div>
-                                  <div className="min-h-0 overflow-hidden relative group">
-                                    <img
-                                      src={set[1]}
-                                      alt=""
-                                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                                      loading="lazy"
-                                      draggable={false}
-                                    />
-                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                                  </div>
-                                  <div className="min-h-0 overflow-hidden relative group">
-                                    <img
-                                      src={set[2]}
-                                      alt=""
-                                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
-                                      loading="lazy"
-                                      draggable={false}
-                                    />
-                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
-                                  </div>
+                                  <GalleryCell
+                                    item={set[0]}
+                                    style={{ gridRow: '1 / 3', minHeight: 0 }}
+                                    onClick={() => setSelectedGalleryPost(set[0])}
+                                  />
+                                  <GalleryCell
+                                    item={set[1]}
+                                    style={{ minHeight: 0 }}
+                                    onClick={() => setSelectedGalleryPost(set[1])}
+                                  />
+                                  <GalleryCell
+                                    item={set[2]}
+                                    style={{ minHeight: 0 }}
+                                    onClick={() => setSelectedGalleryPost(set[2])}
+                                  />
                                 </div>
                               </div>
                             ))}
@@ -1859,6 +1860,13 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       </footer>
 
 
+      {/* Modal de publicación de Instagram / galería */}
+      <InstagramPostModal
+        item={selectedGalleryPost}
+        allItems={galleryItemsListRef.current}
+        onClose={() => setSelectedGalleryPost(null)}
+        onSelect={setSelectedGalleryPost}
+      />
     </div>
   );
 }

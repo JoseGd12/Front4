@@ -29,6 +29,9 @@ declare module '*.mp4' {
 }
 
 interface ImportMetaEnv {
+    readonly DEV: boolean
+    readonly PROD: boolean
+    readonly MODE: string
     readonly VITE_FIREBASE_API_KEY: string
     readonly VITE_FIREBASE_AUTH_DOMAIN: string
     readonly VITE_FIREBASE_PROJECT_ID: string
@@ -44,6 +47,8 @@ interface ImportMetaEnv {
     readonly VITE_EMAILJS_SERVICE_ID: string
     readonly VITE_EMAILJS_TEMPLATE_ID_CANCELACION: string
     readonly VITE_EMAILJS_PUBLIC_KEY: string
+    readonly VITE_INSTAGRAM_TOKEN: string
+    readonly VITE_FACEBOOK_PAGE_ID: string
 }
 
 interface ImportMeta {

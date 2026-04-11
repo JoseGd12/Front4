@@ -51,7 +51,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path,
-      }
+      },
+      '/instagram-api': {
+        target: 'https://graph.facebook.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/instagram-api/, ''),
+      },
     }
   },
 });
