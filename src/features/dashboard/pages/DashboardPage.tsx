@@ -8,6 +8,8 @@ import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { auth } from "../../../shared/services/firebase";
 import * as XLSX from "xlsx";
+import { barberosService, Barbero as BarberoEntity } from "../../administracion/services/barberosService";
+import { apiService } from "../../../shared/services/api";
 
 type PeriodoClave = "semanal" | "mensual" | "anual";
 
@@ -36,9 +38,12 @@ type Venta = {
   serviciosPaquetesDetalle?: VentaServicioPaqueteDetalle[];
   totalProductos?: number;
   totalServicios?: number;
+  barbero?: string | null;
+  barberoId?: number | null;
 };
 
 type Agendamiento = {
+
   id: number;
   clienteNombre: string;
   servicioNombre?: string | null;
@@ -110,6 +115,8 @@ const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: A
         total: Number((v.total ?? v.Total) ?? 0),
         clienteId: (v.clienteId ?? v.ClienteId) ?? null,
         cliente: v.cliente ?? null,
+        barbero: v.barbero ?? v.Barbero ?? v.barberoNombre ?? v.BarberoNombre ?? v.nombreBarbero ?? null,
+        barberoId: (v.barberoId ?? v.BarberoId) ?? null,
         productosDetalle,
         serviciosDetalle,
         serviciosPaquetesDetalle,
@@ -123,6 +130,8 @@ const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: A
       total: Number((v.total ?? v.Total) ?? 0),
       totalProductos: Number(v.totalProductos ?? 0),
       totalServicios: Number(v.totalServicios ?? 0),
+      barbero: v.barbero ?? v.Barbero ?? v.barberoNombre ?? v.BarberoNombre ?? v.nombreBarbero ?? null,
+      barberoId: (v.barberoId ?? v.BarberoId) ?? null,
       productosDetalle: [],
       serviciosDetalle: [],
       serviciosPaquetesDetalle: [],
@@ -193,6 +202,7 @@ export function DashboardPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [agendamientos, setAgendamientos] = useState<Agendamiento[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [barberosSistema, setBarberosSistema] = useState<BarberoEntity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showReport, setShowReport] = useState(false);
@@ -204,6 +214,22 @@ export function DashboardPage() {
   const [reportEnd, setReportEnd] = useState<string>(() => formatDateYMD(new Date()));
   const reportButtonRef = useRef<HTMLButtonElement | null>(null);
   const [reportWidth, setReportWidth] = useState<number>(0);
+
+  const [showBarberosDropdown, setShowBarberosDropdown] = useState(false);
+  const [filtroBarberosPeriodo, setFiltroBarberosPeriodo] = useState<"hoy" | "semanal" | "mensual" | "anual">("hoy");
+  const [selectedBarberoGanancia, setSelectedBarberoGanancia] = useState<string>("Todos");
+  const [barberoSearch, setBarberoSearch] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowBarberosDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (showReport && reportButtonRef.current) {
@@ -217,11 +243,38 @@ export function DashboardPage() {
       setIsLoading(true);
       setErrorMsg("");
       try {
-        const data = await fetchDashboardData();
+        const [data, usuariosData] = await Promise.all([
+          fetchDashboardData(),
+          apiService.getUsuarios().catch(() => [])
+        ]);
         if (!isMounted) return;
         setVentas(data.ventas);
         setAgendamientos(data.agendamientos);
         setInsumos(data.insumos);
+        
+        const soloBarberos = usuariosData.filter((u: any) => {
+          const rolNombre = (u.rol?.nombre || "").toLowerCase();
+          return u.rolId === 2 || rolNombre === "barbero";
+        });
+        
+        const mappedBarberos: BarberoEntity[] = soloBarberos.map((u: any) => ({
+             id: u.id,
+             nombre: u.nombre || "",
+             apellido: u.apellido || "",
+             status: (u.estado ?? true) ? "active" : "inactive",
+             estado: !!(u.estado ?? true),
+             tipoDocumento: u.tipoDocumento || "CC",
+             documento: u.documento || "",
+             correo: u.correo || "",
+             telefono: u.telefono || "",
+             direccion: u.direccion || "",
+             barrio: u.barrio || "",
+             fechaNacimiento: u.fechaNacimiento || "",
+             rol: "Barbero",
+             fotoPerfil: u.fotoPerfil || ""
+        }));
+        
+        setBarberosSistema(mappedBarberos);
       } catch {
         if (!isMounted) return;
         setErrorMsg("No se pudo cargar la información del backend");
@@ -313,34 +366,124 @@ export function DashboardPage() {
   }, [insumos]);
 
   const totalVentasHoy = useMemo(() => ventasHoy.reduce((acc, v) => acc + (Number(v.total) || 0), 0), [ventasHoy]);
-  const clientesAtendidosHoy = useMemo(() => {
-    const setIds = new Set<string | number>();
-    ventasHoy.forEach(v => {
-      const id = v.clienteId ?? v.cliente;
-      if (id !== undefined && id !== null && id !== '') setIds.add(id as any);
+  
+  const listaBarberosUnicos = useMemo(() => {
+    const list = new Set<string>();
+    ventas.forEach(v => {
+      if (v.barbero && v.barbero !== "Sin asignar" && v.barbero.trim() !== "") {
+        list.add(v.barbero.trim());
+      }
     });
-    return setIds.size;
-  }, [ventasHoy]);
-  const isCitaCompletada = (estado: string) => {
-    const e = String(estado || "").toLowerCase();
-    return e === "completada" || e === "completado";
-  };
-  const serviciosRealizadosSemana = useMemo(() => {
-    const inWeek = (c: { fecha: string }) => {
-      if (!c.fecha) return false;
-      const [y, m, d] = c.fecha.split("-").map(Number);
-      if (!y || !m || !d) return false;
-      const dt = new Date(y, m - 1, d);
-      return dt >= startOfWeek && dt <= endOfWeek;
+    agendamientos.forEach(a => {
+      if (a.barberoNombre && a.barberoNombre !== "Sin asignar" && a.barberoNombre.trim() !== "") {
+        list.add(a.barberoNombre.trim());
+      }
+    });
+    
+    barberosSistema.filter(b => b.status === "active" || b.estado === true).forEach(b => {
+      list.add(`${b.nombre} ${b.apellido}`.trim());
+    });
+
+    const inactiveProfiles = barberosSistema.filter(b => b.status === "inactive" || b.estado === false);
+    const activeList = Array.from(list).filter(name => {
+      const isInactive = inactiveProfiles.some(b => {
+         const fullName = `${b.nombre} ${b.apellido}`.trim().toLowerCase();
+         const onlyName = b.nombre.trim().toLowerCase();
+         const target = name.trim().toLowerCase();
+         return target === fullName || target === onlyName;
+      });
+      return !isInactive;
+    });
+
+    return activeList.sort();
+  }, [ventas, agendamientos, barberosSistema]);
+
+
+  const totalServiciosDinámico = useMemo(() => {
+    const days = filtroBarberosPeriodo === "hoy" ? 1 :
+                 filtroBarberosPeriodo === "semanal" ? 7 :
+                 filtroBarberosPeriodo === "mensual" ? 30 : 365;
+    
+    let startStr = todayYMD;
+    if (days > 1) {
+      const dt = new Date(today);
+      dt.setDate(dt.getDate() - (days - 1));
+      startStr = formatDateYMD(dt);
+    }
+    
+    const targetBarbero = barberosSistema.find(b => `${b.nombre} ${b.apellido}`.trim() === selectedBarberoGanancia);
+
+    const matchesVenta = (v: Venta) => {
+       if (selectedBarberoGanancia === "Todos") return true;
+       if (targetBarbero && v.barberoId && Number(v.barberoId) === Number(targetBarbero.id)) return true;
+       
+       const vName = (v.barbero || "").trim().toLowerCase();
+       const sName = selectedBarberoGanancia.trim().toLowerCase();
+       if (!vName) return false;
+       if (vName === sName) return true;
+       if (targetBarbero && vName === targetBarbero.nombre.trim().toLowerCase()) return true;
+       if (sName.includes(vName) || vName.includes(sName)) return true;
+       return false;
     };
-    return agendamientos
-      .filter(c => inWeek({ fecha: c.fecha }) && isCitaCompletada(c.estado))
-      .length;
-  }, [agendamientos]);
+
+    const matchesAgendamiento = (a: Agendamiento) => {
+       if (selectedBarberoGanancia === "Todos") return true;
+       const aName = (a.barberoNombre || "").trim().toLowerCase();
+       const sName = selectedBarberoGanancia.trim().toLowerCase();
+       if (!aName) return false;
+       if (aName === sName) return true;
+       if (targetBarbero && aName === targetBarbero.nombre.trim().toLowerCase()) return true;
+       if (sName.includes(aName) || aName.includes(sName)) return true;
+       return false;
+    };
+    
+    const vPeriodo = ventas.filter(v => {
+      if (!v.fecha || !isVentaActiva(v.estado)) return false;
+      const fOnly = v.fecha.substring(0, 10);
+      if (fOnly < startStr || fOnly > todayYMD) return false;
+      if (!matchesVenta(v)) return false;
+      return true;
+    });
+
+    const calcSumVentas = vPeriodo.reduce((acc, v) => {
+      let sumServicios = 0;
+      if (v.serviciosDetalle && v.serviciosDetalle.length > 0) {
+        sumServicios = v.serviciosDetalle.reduce((sum, d) => sum + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
+      } else if (v.totalServicios !== undefined && v.totalServicios > 0) {
+        sumServicios = v.totalServicios;
+      }
+      return acc + sumServicios;
+    }, 0);
+
+    let calcSum = calcSumVentas;
+
+    if (selectedBarberoGanancia !== "Todos") {
+      const aPeriodo = agendamientos.filter(a => {
+        const estadoCita = (a.estado || "").trim().toLowerCase();
+        if (!a.fecha || estadoCita !== "completada") return false;
+        const fOnly = a.fecha.substring(0, 10);
+        if (fOnly < startStr || fOnly > todayYMD) return false;
+        if (!matchesAgendamiento(a)) return false;
+        return true;
+      });
+      const calcSumAgendamientos = aPeriodo.reduce((acc, a) => acc + Number(a.precio || 0), 0);
+      calcSum = Math.max(calcSumVentas, calcSumAgendamientos);
+      
+      console.log(`[INDIVIDUAL] Ventas: $${calcSumVentas} | Agendamientos: $${calcSumAgendamientos} | BASE SERVICIOS: $${calcSum}`);
+    } else {
+      console.log(`[TODOS] BASE SERVICIOS: $${calcSumVentas}`);
+    }
+
+    return calcSum; // Retornamos el 100% de la base de servicios
+  }, [ventas, agendamientos, barberosSistema, filtroBarberosPeriodo, selectedBarberoGanancia, todayYMD, today]);
+
+  const gananciasBarberosDinámica = totalServiciosDinámico * 0.60;
+  const gananciasBarberiaDinámica = totalServiciosDinámico * 0.40;
 
   const metrics = useMemo(() => {
     return [
       {
+        id: "ventas-hoy",
         title: "Ventas Hoy",
         value: `$${formatCurrencyValue(totalVentasHoy)}`,
         change: "",
@@ -349,6 +492,7 @@ export function DashboardPage() {
         isPositive: true
       },
       {
+        id: "citas",
         title: "Citas Agendadas",
         value: `${citasHoy.length}`,
         change: "",
@@ -357,23 +501,25 @@ export function DashboardPage() {
         isPositive: true
       },
       {
-        title: "Clientes Atendidos",
-        value: `${clientesAtendidosHoy}`,
-        change: "",
-        icon: Users,
+        id: "ganancia-barberia",
+        title: "Ganancia Barbería (40%)",
+        value: `$${formatCurrencyValue(gananciasBarberiaDinámica)}`,
+        change: "Solo en servicios",
+        icon: DollarSign,
         iconColor: "text-primary-gold",
         isPositive: true
       },
       {
-        title: "Servicios Realizados",
-        value: `${serviciosRealizadosSemana}`,
-        change: "",
+        id: "ganancias-barberos",
+        title: "Ganancias Barberos (60%)",
+        value: `$${formatCurrencyValue(gananciasBarberosDinámica)}`,
+        change: selectedBarberoGanancia === "Todos" ? "Todos los barberos" : selectedBarberoGanancia,
         icon: Scissors,
         iconColor: "text-gray-lightest",
         isPositive: true
       }
     ];
-  }, [totalVentasHoy, citasHoy.length, clientesAtendidosHoy, serviciosRealizadosSemana]);
+  }, [totalVentasHoy, citasHoy.length, gananciasBarberiaDinámica, gananciasBarberosDinámica, selectedBarberoGanancia]);
 
   const ventasComparativasPorPeriodo = useMemo(() => {
     const withinDays = (v: Venta, days: number) => {
@@ -1398,6 +1544,76 @@ export function DashboardPage() {
               ))
               : metrics.map(metric => {
                 const Icon = metric.icon;
+                if (metric.id === "ganancias-barberos") {
+                  return (
+                    <div key={metric.title} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 flex items-center justify-between shadow-xl relative">
+                      <div>
+                        <p className="text-sm text-gray-lightest uppercase tracking-[0.2em]">{metric.title}</p>
+                        <p className="text-3xl font-bold text-white-primary mt-2">{metric.value}</p>
+                        <span className={`text-sm font-semibold ${metric.isPositive ? "text-green-400" : "text-red-400"}`}>
+                          {metric.change}
+                        </span>
+                      </div>
+                      <div className="relative" ref={dropdownRef}>
+                        <button 
+                          onClick={() => setShowBarberosDropdown(!showBarberosDropdown)}
+                          className="w-12 h-12 rounded-2xl bg-black/40 border border-gray-dark flex items-center justify-center hover:bg-black/60 transition-colors"
+                        >
+                          <Icon className={`w-6 h-6 ${metric.iconColor}`} />
+                        </button>
+                        
+                        {showBarberosDropdown && (
+                          <div className="absolute top-14 right-0 w-48 bg-gray-darkest border border-gray-dark rounded-lg shadow-2xl z-50 p-3">
+                            <p className="text-xs text-gray-500 uppercase font-bold mb-2">Periodo</p>
+                            <select 
+                              className="w-full bg-black-primary text-white-primary p-2 rounded mb-3 border border-gray-dark text-sm"
+                              value={filtroBarberosPeriodo}
+                              onChange={(e) => setFiltroBarberosPeriodo(e.target.value as any)}
+                            >
+                              <option value="hoy">Hoy</option>
+                              <option value="semanal">Semanal</option>
+                              <option value="mensual">Mensual</option>
+                              <option value="anual">Anual</option>
+                            </select>
+                            
+                            <p className="text-xs text-gray-500 uppercase font-bold mb-2">Barbero</p>
+                            <input 
+                              type="text" 
+                              placeholder="Buscar..." 
+                              value={barberoSearch} 
+                              onChange={(e) => setBarberoSearch(e.target.value)} 
+                              className="w-full bg-black-primary text-white-primary p-2 rounded border border-gray-dark text-sm outline-none placeholder:text-gray-500 mb-2"
+                            />
+                            <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                              <button 
+                                onClick={() => {
+                                  setSelectedBarberoGanancia("Todos");
+                                  setShowBarberosDropdown(false);
+                                }}
+                                className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${selectedBarberoGanancia === "Todos" ? 'bg-gray-dark text-primary-gold font-medium' : 'hover:bg-gray-dark text-gray-lightest'}`}
+                              >
+                                Todos
+                              </button>
+                              {listaBarberosUnicos.filter(b => b.toLowerCase().includes(barberoSearch.toLowerCase())).map(b => (
+                                <button 
+                                  key={b}
+                                  onClick={() => {
+                                    setSelectedBarberoGanancia(b);
+                                    setShowBarberosDropdown(false);
+                                  }}
+                                  className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${selectedBarberoGanancia === b ? 'bg-gray-dark text-primary-gold font-medium' : 'hover:bg-gray-dark text-gray-lightest'}`}
+                                >
+                                  {b}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={metric.title} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 flex items-center justify-between shadow-xl">
                     <div>
