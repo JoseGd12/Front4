@@ -651,10 +651,16 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           style={{ paddingBottom: '0' }}
         >
           {/* Título de sección */}
-          <div className="text-center mb-10 reveal-item">
-            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '0.5rem', marginBottom: '1rem' }}>
-              Nuestro trabajo
-            </h2>
+          <div className="text-center mb-10 reveal-item gallery-title-block">
+            <div className="gallery-section-heading">
+              <h2 className="section-title-fill section-title-fill--pair font-bold font-title tracking-tight leading-none text-gradient uppercase">
+                Nuestro trabajo
+              </h2>
+              <span className="gallery-heading-separator" aria-hidden="true" />
+              <span className="instagram-gallery-script text-gradient" translate="no">
+                Instagram
+              </span>
+            </div>
             <p className="text-gray-400 max-w-2xl mx-auto text-base leading-relaxed">
               El arte de la barbería reflejado en cada detalle
             </p>
@@ -1195,7 +1201,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       <div key={`srv-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
                         <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
                           <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(servicio, 'servicio')}>
-                            <img loading="lazy" src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'} alt={servicio.nombre} className="w-full h-full object-cover carousel-card-img" />
+                            <img
+                              loading="lazy"
+                              src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'}
+                              alt={servicio.nombre}
+                              className="w-full h-full object-cover carousel-card-img"
+                              draggable={false}
+                              onDragStart={(e) => e.preventDefault()}
+                            />
                             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                           </div>
                           <div className="px-6 pt-5 pb-6">
@@ -1321,7 +1334,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       <div key={`prod-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
                         <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
                           <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(producto, 'producto')}>
-                            <img loading="lazy" src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'} alt={producto.nombre} className="w-full h-full object-cover carousel-card-img" />
+                            <img
+                              loading="lazy"
+                              src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'}
+                              alt={producto.nombre}
+                              className="w-full h-full object-cover carousel-card-img"
+                              draggable={false}
+                              onDragStart={(e) => e.preventDefault()}
+                            />
                             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                           </div>
                           <div className="px-6 pt-5 pb-6">
@@ -1405,10 +1425,12 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
                 {/* Imagen rellenando el espacio medio */}
                 <div className="flex-1 w-full relative overflow-hidden bg-black">
-                  <img 
-                    src={barbero.foto} 
-                    alt={barbero.nombre} 
-                    className={`w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 ${barbero.imageClass}`} 
+                  <img
+                    src={barbero.foto}
+                    alt={barbero.nombre}
+                    className={`barber-card-img w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 ${barbero.imageClass}`}
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                   />
                   <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                 </div>

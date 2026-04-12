@@ -32,7 +32,8 @@
       "Bash(pandoc --track-changes=all \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\" -o \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_content.md\")",
       "Bash(python scripts/office/pack.py \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_unpacked/\" \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Contrato_Edwins_Barberia.docx\" --original \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\")",
       "Bash(PYTHONIOENCODING=utf-8 python scripts/office/pack.py \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_unpacked/\" \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Contrato_Edwins_Barberia.docx\" --original \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\" --validate false)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

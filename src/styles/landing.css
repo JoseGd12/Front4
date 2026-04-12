@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;300;400;600;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Outfit:wght@100;300;400;600;900&display=swap');
 
 /* Gallery horizontal scroll — hide scrollbar */
 .gallery-scroll {
@@ -745,6 +745,75 @@ body {
   margin-bottom: 2rem;
 }
 
+/* Título principal junto a un acompañante (p. ej. marca Instagram) */
+.section-title-fill--pair {
+  width: auto;
+  max-width: 100%;
+  display: inline-block;
+  padding-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+/*
+ * Script estilo wordmark de Instagram (Pacifico). Casi el mismo tamaño que .section-title-fill (un poco menor para jerarquía), alineado en flex con el h2.
+ */
+/* Contenedor del bloque de título galería: sin recorte vertical del script */
+.gallery-title-block {
+  overflow: visible;
+}
+
+.gallery-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  /* Espacio extra entre título, separador y script */
+  gap: clamp(0.85rem, 2.4vw, 1.65rem);
+  margin-bottom: clamp(1.35rem, 2.5vw, 2rem);
+  overflow: visible;
+  /* Aire inferior para descendentes del script (p. ej. la «g») sin recorte */
+  padding-bottom: clamp(0.2rem, 0.6vw, 0.45rem);
+}
+
+/* Separador vertical suave entre «Nuestro trabajo» e «Instagram» */
+.gallery-heading-separator {
+  flex-shrink: 0;
+  align-self: center;
+  width: 1px;
+  height: clamp(2.1rem, 5.2vw, 3.1rem);
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(216, 176, 129, 0.12) 18%,
+    rgba(216, 176, 129, 0.42) 50%,
+    rgba(216, 176, 129, 0.12) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 14px rgba(216, 176, 129, 0.12);
+  opacity: 0.95;
+}
+
+.instagram-gallery-script {
+  font-family: 'Pacifico', cursive;
+  /* ~88–92 % del título principal: clamp(1.8rem, 5vw, 4rem) */
+  font-size: clamp(1.55rem, 4.35vw, 3.45rem);
+  font-weight: 400;
+  /* Pacifico necesita altura de línea amplia: evita recorte de descendentes con text-gradient (background-clip) */
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  display: inline-block;
+  padding: 0.06em 0 0.28em;
+  margin: 0;
+  text-transform: none;
+  position: relative;
+  top: 0;
+  overflow: visible;
+  /* Evita que el recorte del degradado en texto corte la cola de la «g» */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .section-supertitle {
   font-size: clamp(2.2rem, 6vw, 5.5rem);
   width: 100%;
@@ -1039,6 +1108,15 @@ body {
 }
 .group:hover .barber-crop-christian {
   transform: scale(1.4);
+}
+
+/* Sin arrastre ni selección accidental en imágenes de carruseles y barberos */
+.carousel-card-img,
+.barber-card-img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }
 
 .carousel-card-img {
