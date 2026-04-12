@@ -107,6 +107,10 @@ export function HorariosPage() {
   const [isProcessingSpecialCancel, setIsProcessingSpecialCancel] = useState(false);
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [reprogramItems, setReprogramItems] = useState<Array<{ citaId: number; clienteId: number; barberoId: number; sugerencias: string[] }>>([]);
+  const [cancelTab, setCancelTab] = useState<'hora' | 'dia' | 'dias' | 'semanal'>('dias');
+  const [cancelHoraStart, setCancelHoraStart] = useState("");
+  const [cancelHoraEnd, setCancelHoraEnd] = useState("");
+  const [cancelFechaDia, setCancelFechaDia] = useState("");
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -569,11 +573,139 @@ export function HorariosPage() {
     setSelectedHorario(horario);
     setSelectedDates([]);
     setCancelMotive("Día desactivado por administración.");
+    setCancelTab('dias');
+    setCancelHoraStart("");
+    setCancelHoraEnd("");
+    // Pre-seleccionar hoy como fecha por defecto (usado en modo Hora y Día)
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    setCancelFechaDia(`${yyyy}-${mm}-${dd}`);
     setIsSpecialCancelDialogOpen(true);
   };
 
   const handleConfirmSpecialCancel = async () => {
-    if (!selectedHorario || selectedDates.length === 0) {
+    if (!selectedHorario) return;
+
+    // ── MODO HORA ──────────────────────────────────────────────────────────────
+    if (cancelTab === 'hora') {
+      if (!cancelFechaDia || !cancelHoraStart || !cancelHoraEnd) {
+        error("Datos incompletos", "Ingresa la fecha y el rango de horas.");
+        return;
+      }
+      try {
+        setIsProcessingSpecialCancel(true);
+        const [shH, shM] = cancelHoraStart.split(':').map(Number);
+        const [ehH, ehM] = cancelHoraEnd.split(':').map(Number);
+        const startMin = (shH || 0) * 60 + (shM || 0);
+        const endMin   = (ehH || 0) * 60 + (ehM || 0);
+
+        const todasCitas = await agendamientoService.getAgendamientos();
+        const afectadas = todasCitas.filter(c => {
+          if (c.fecha !== cancelFechaDia) return false;
+          if (Number(c.barberoId) !== Number(selectedHorario.barberoId)) return false;
+          const est = String(c.estado || '').toLowerCase();
+          if (est === 'cancelada' || est === 'completada') return false;
+          const [ch, cm] = String(c.hora || '').split(':').map(Number);
+          const citaMin = (ch || 0) * 60 + (cm || 0);
+          return citaMin >= startMin && citaMin < endMin;
+        });
+
+        let canceladas = 0;
+        for (const cita of afectadas) {
+          try {
+            await agendamientoService.updateAgendamientoStatus(cita.id, 'Cancelada');
+            canceladas++;
+            try {
+              const clienteData = await (await import('../../clientes/services/clientesService')).clientesService.getClienteById(Number(cita.clienteId));
+              if (clienteData?.correo) {
+                emailJsService.notificarCancelacion({
+                  cliente_nombre: cita.clienteNombre || 'Cliente',
+                  cliente_email: clienteData.correo,
+                  barbero_nombre: selectedHorario.barbero,
+                  fecha_original: `${cancelFechaDia}T${cita.hora}:00`,
+                  motivo_cancelacion: cancelMotive || 'Cancelación por cambio de horario.',
+                });
+              }
+            } catch { /* seguir aunque falle el email */ }
+          } catch { /* seguir aunque falle una cancelación */ }
+        }
+        setIsSpecialCancelDialogOpen(false);
+        await loadData(true);
+        success("Cancelación por hora completada", `Se cancelaron ${canceladas} cita(s) en el rango ${cancelHoraStart}–${cancelHoraEnd}.`);
+      } catch (err: any) {
+        error("Error", err?.message || "No se pudo procesar la cancelación por hora.");
+      } finally {
+        setIsProcessingSpecialCancel(false);
+      }
+      return;
+    }
+
+    // ── MODO DÍA (un solo día) ─────────────────────────────────────────────────
+    if (cancelTab === 'dia') {
+      if (!cancelFechaDia) {
+        error("Datos incompletos", "Por favor selecciona una fecha.");
+        return;
+      }
+      try {
+        setIsProcessingSpecialCancel(true);
+        const todasCitas = await agendamientoService.getAgendamientos();
+        const afectadas = todasCitas.filter(c => {
+          if (c.fecha !== cancelFechaDia) return false;
+          if (Number(c.barberoId) !== Number(selectedHorario.barberoId)) return false;
+          const est = String(c.estado || '').toLowerCase();
+          return est !== 'cancelada' && est !== 'completada';
+        });
+
+        let canceladas = 0;
+        for (const cita of afectadas) {
+          try {
+            await agendamientoService.updateAgendamientoStatus(cita.id, 'Cancelada');
+            canceladas++;
+            try {
+              const clienteData = await (await import('../../clientes/services/clientesService')).clientesService.getClienteById(Number(cita.clienteId));
+              if (clienteData?.correo) {
+                emailJsService.notificarCancelacion({
+                  cliente_nombre: cita.clienteNombre || 'Cliente',
+                  cliente_email: clienteData.correo,
+                  barbero_nombre: selectedHorario.barbero,
+                  fecha_original: `${cancelFechaDia}T${cita.hora}:00`,
+                  motivo_cancelacion: cancelMotive || 'Cancelación del día.',
+                });
+              }
+            } catch { /* seguir */ }
+          } catch { /* seguir */ }
+        }
+        setIsSpecialCancelDialogOpen(false);
+        await loadData(true);
+        success("Día cancelado", `Se cancelaron ${canceladas} cita(s) del ${cancelFechaDia}.`);
+      } catch (err: any) {
+        error("Error", err?.message || "No se pudo procesar la cancelación del día.");
+      } finally {
+        setIsProcessingSpecialCancel(false);
+      }
+      return;
+    }
+
+    // ── MODO SEMANAL ───────────────────────────────────────────────────────────
+    // Selecciona automáticamente todos los días de la semana elegida y cae al modo 'dias'
+    let datesToProcess = selectedDates;
+    if (cancelTab === 'semanal') {
+      const semanaFechas = diasSemana.map(dia => getDateForWeek(dia, weekOffset));
+      const todayStr = formatDateLocal(new Date());
+      datesToProcess = semanaFechas.filter(d => {
+        const ds = formatDateLocal(d);
+        return weekOffset > 0 || ds >= todayStr; // solo días desde hoy si es semana actual
+      });
+      if (datesToProcess.length === 0) {
+        error("Sin días disponibles", "No quedan días válidos en la semana seleccionada.");
+        return;
+      }
+    }
+
+    // ── MODO DÍAS (varios) y SEMANAL ──────────────────────────────────────────
+    if (datesToProcess.length === 0) {
       error("Datos incompletos", "Por favor selecciona al menos una fecha.");
       return;
     }
@@ -590,7 +722,7 @@ export function HorariosPage() {
       let totalCanceladas = 0;
       const fechasFallidas: string[] = [];
       const erroresApi: string[] = [];
-      const fechasUnicas = Array.from(new Set(selectedDates.map((d) => formatDateLocal(d))))
+      const fechasUnicas = Array.from(new Set(datesToProcess.map((d) => formatDateLocal(d))))
         .map((value) => new Date(`${value}T00:00:00`));
       const collectedReprogram: Array<{ 
         citaId: number; 
@@ -1283,96 +1415,187 @@ export function HorariosPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-              {/* Selección por días de la semana */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <Label className="text-gray-lightest text-sm block">Selecciona los días:</Label>
-                  <Select
-                    value={String(weekOffset)}
-                    onValueChange={(val) => setWeekOffset(Number(val))}
-                  >
-                    <SelectTrigger className="w-56 elegante-input">
+          <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+            {/* Tabs de modalidad */}
+            <div className="flex border-b border-gray-dark mb-6">
+              {([
+                { key: 'hora', label: '⏰ Por Hora' },
+                { key: 'dia', label: '📅 Un Día' },
+                { key: 'dias', label: '🗓 Varios Días' },
+                { key: 'semanal', label: '📆 Semana' },
+              ] as const).map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setCancelTab(tab.key)}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
+                    cancelTab === tab.key
+                      ? 'border-red-500 text-red-400 bg-red-500/5'
+                      : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* HORA */}
+            {cancelTab === 'hora' && (
+              <div className="space-y-5">
+                <p className="text-gray-lightest text-sm">Cancela todas las citas de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> que estén dentro de un rango de horas.</p>
+
+                {/* Fecha auto-seleccionada: hoy */}
+                <div className="flex items-center gap-3 bg-gray-dark/60 border border-gray-dark rounded-lg px-4 py-3">
+                  <span className="text-orange-primary text-lg">📅</span>
+                  <div>
+                    <p className="text-xs text-gray-lighter">Fecha seleccionada automáticamente</p>
+                    <p className="text-white-primary font-semibold">
+                      {new Date(cancelFechaDia + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-gray-lightest text-sm">Hora inicio *</Label>
+                    <Input type="time" value={cancelHoraStart} onChange={e => setCancelHoraStart(e.target.value)} className="elegante-input w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-lightest text-sm">Hora fin *</Label>
+                    <Input type="time" value={cancelHoraEnd} onChange={e => setCancelHoraEnd(e.target.value)} className="elegante-input w-full" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest text-sm">Motivo *</Label>
+                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[80px] text-sm" />
+                </div>
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-xs text-orange-200/80">
+                  ⚠️ Solo se cancelarán las citas activas de ese barbero cuya hora esté dentro del rango indicado.
+                </div>
+              </div>
+            )}
+
+            {/* DIA */}
+            {cancelTab === 'dia' && (
+              <div className="space-y-5">
+                <p className="text-gray-lightest text-sm">Cancela <strong>todas las citas</strong> de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> en una fecha específica.</p>
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest text-sm">Fecha *</Label>
+                  <Input type="date" value={cancelFechaDia} onChange={e => setCancelFechaDia(e.target.value)} className="elegante-input w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest text-sm">Motivo *</Label>
+                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[80px] text-sm" />
+                </div>
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-xs text-orange-200/80">
+                  ⚠️ Se cancelarán todas las citas activas del barbero en esa fecha.
+                </div>
+              </div>
+            )}
+
+            {/* DIAS (varios) */}
+            {cancelTab === 'dias' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-gray-lightest text-sm block">Selecciona los días:</Label>
+                    <Select
+                      value={String(weekOffset)}
+                      onValueChange={(val) => setWeekOffset(Number(val))}
+                    >
+                      <SelectTrigger className="w-48 elegante-input">
+                        <SelectValue placeholder="Semana" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-darkest border-gray-dark">
+                        <SelectItem value="0" className="text-white-primary">Semana actual</SelectItem>
+                        <SelectItem value="1" className="text-white-primary">Próxima semana</SelectItem>
+                        <SelectItem value="2" className="text-white-primary">En 2 semanas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {diasSemana.map((dia) => {
+                      const targetNum = ordenDias[dia] ?? 0;
+                      const todayNum = getTodayNumeric();
+                      const isDisabled = weekOffset === 0 && targetNum < todayNum;
+                      const targetDate = getDateForWeek(dia, weekOffset);
+                      const key = formatDateLocal(targetDate);
+                      const isSelected = selectedDates.some(d => formatDateLocal(d) === key);
+                      return (
+                        <button
+                          key={dia}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (isDisabled) return;
+                            if (isSelected) {
+                              setSelectedDates(selectedDates.filter(d => formatDateLocal(d) !== key));
+                            } else {
+                              setSelectedDates([...selectedDates, targetDate]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border flex items-center gap-1 ${
+                            isDisabled
+                              ? "bg-gray-dark text-gray-medium border-gray-medium cursor-not-allowed opacity-60"
+                              : isSelected
+                                ? "bg-red-500 text-white border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]"
+                                : "bg-gray-dark hover:bg-gray-medium text-gray-lightest border-gray-medium"
+                          }`}
+                        >
+                          {dia}
+                          {isSelected && <CheckCircle className="w-3 h-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="text-xs text-gray-lightest italic">
+                    Fechas seleccionadas: <span className="text-white-primary font-medium">{selectedDates.length}</span>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-gray-lightest text-sm">Motivo de la cancelación *</Label>
+                    <Textarea
+                      placeholder="Escribe el motivo aquí... (Este se enviará a los clientes)"
+                      value={cancelMotive}
+                      onChange={(e) => setCancelMotive(e.target.value)}
+                      className="elegante-input min-h-[120px] text-sm"
+                    />
+                  </div>
+                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+                    <div className="flex gap-3">
+                      <AlertTriangle className="w-5 h-5 text-orange-primary shrink-0" />
+                      <p className="text-xs text-orange-200/80">El sistema buscará citas activas para esos días y las cancelará automáticamente.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SEMANAL */}
+            {cancelTab === 'semanal' && (
+              <div className="space-y-5">
+                <p className="text-gray-lightest text-sm">Cancela <strong>todas las citas</strong> de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> durante una semana completa.</p>
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest text-sm">Semana a cancelar</Label>
+                  <Select value={String(weekOffset)} onValueChange={(val) => setWeekOffset(Number(val))}>
+                    <SelectTrigger className="w-full elegante-input">
                       <SelectValue placeholder="Semana" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-darkest border-gray-dark">
-                      <SelectItem value="0" className="text-white-primary">Semana actual</SelectItem>
+                      <SelectItem value="0" className="text-white-primary">Semana actual (desde hoy)</SelectItem>
                       <SelectItem value="1" className="text-white-primary">Próxima semana</SelectItem>
                       <SelectItem value="2" className="text-white-primary">En 2 semanas</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {diasSemana.map((dia) => {
-                    const targetNum = ordenDias[dia] ?? 0;
-                    const todayNum = getTodayNumeric();
-                    const isDisabled = weekOffset === 0 && targetNum < todayNum;
-                    const targetDate = getDateForWeek(dia, weekOffset);
-                    const key = formatDateLocal(targetDate);
-                    const isSelected = selectedDates.some(d => formatDateLocal(d) === key);
-                    return (
-                      <button
-                        key={dia}
-                        type="button"
-                        disabled={isDisabled}
-                        onClick={() => {
-                          if (isDisabled) return;
-                          if (isSelected) {
-                            setSelectedDates(selectedDates.filter(d => formatDateLocal(d) !== key));
-                          } else {
-                            setSelectedDates([...selectedDates, targetDate]);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border flex items-center gap-1 ${
-                          isDisabled
-                            ? "bg-gray-dark text-gray-medium border-gray-medium cursor-not-allowed opacity-60"
-                            : isSelected
-                              ? "bg-orange-primary text-black-primary border-orange-primary shadow-[0_0_10px_rgba(216,176,129,0.3)]"
-                              : "bg-gray-dark hover:bg-gray-medium text-gray-lightest border-gray-medium"
-                        }`}
-                        title={isDisabled ? "Este día ya pasó en esta semana" : ""}
-                      >
-                        {dia}
-                        {isSelected && <CheckCircle className="w-3 h-3" />}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 text-xs text-gray-lightest italic">
-                  * Semana: {weekOffset === 0 ? "actual" : weekOffset === 1 ? "próxima" : `en ${weekOffset} semanas`}. 
-                  {weekOffset === 0 ? " Solo se pueden seleccionar el día de hoy y días futuros." : " Puedes seleccionar cualquier día."}
-                </div>
-              </div>
-
-              {/* Formulario de Motivo */}
-              <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-gray-lightest text-sm">Motivo de la cancelación *</Label>
-                  <Textarea
-                    placeholder="Escribe el motivo aquí... (Este se enviará a los clientes)"
-                    value={cancelMotive}
-                    onChange={(e) => setCancelMotive(e.target.value)}
-                    className="elegante-input min-h-[120px] text-sm"
-                  />
+                  <Label className="text-gray-lightest text-sm">Motivo *</Label>
+                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[100px] text-sm" />
                 </div>
-
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
-                  <div className="flex gap-3">
-                    <AlertTriangle className="w-5 h-5 text-orange-primary shrink-0" />
-                    <div className="text-xs text-orange-200/80 leading-relaxed">
-                      <p className="font-semibold text-orange-primary mb-1">Nota importante:</p>
-                      Al confirmar, el sistema buscará los bloques de horario para los días de semana correspondientes a las fechas seleccionadas. 
-                      Si no hay horario activo para un día específico, esa fecha será omitida.
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-sm text-gray-lightest">
-                  Fechas seleccionadas: <span className="text-white-primary font-medium">{selectedDates.length}</span>
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-xs text-orange-200/80">
+                  ⚠️ Se cancelarán las citas de los 7 días de la semana seleccionada que tengan horario activo.
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           <DialogFooter className="px-6 py-4 border-t border-gray-dark gap-3">
@@ -1385,7 +1608,11 @@ export function HorariosPage() {
             </button>
             <button
               onClick={handleConfirmSpecialCancel}
-              disabled={isProcessingSpecialCancel || selectedDates.length === 0}
+              disabled={isProcessingSpecialCancel || (
+                cancelTab === 'dias' ? selectedDates.length === 0 :
+                cancelTab === 'semanal' ? false :
+                !cancelFechaDia
+              )}
               className="elegante-button-primary bg-red-600 hover:bg-red-700 border-red-800 text-white-primary px-8 py-2 flex items-center gap-2"
             >
               {isProcessingSpecialCancel ? (

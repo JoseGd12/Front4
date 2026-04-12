@@ -457,24 +457,30 @@ export function DashboardPage() {
 
     let calcSum = calcSumVentas;
 
+    // Agendamientos completados con servicio o paquete para el período (todos o filtrado por barbero)
+    const aPeriodo = agendamientos.filter(a => {
+      const estadoCita = (a.estado || "").trim().toLowerCase();
+      if (!a.fecha || estadoCita !== "completada") return false;
+      // Solo incluir si tiene un servicio o paquete (no solo productos)
+      if (!a.servicioNombre && !a.paqueteNombre) return false;
+      const fOnly = a.fecha.substring(0, 10);
+      if (fOnly < startStr || fOnly > todayYMD) return false;
+      if (!matchesAgendamiento(a)) return false;
+      return true;
+    });
+    const calcSumAgendamientos = aPeriodo.reduce((acc, a) => acc + Number(a.precio || 0), 0);
+
     if (selectedBarberoGanancia !== "Todos") {
-      const aPeriodo = agendamientos.filter(a => {
-        const estadoCita = (a.estado || "").trim().toLowerCase();
-        if (!a.fecha || estadoCita !== "completada") return false;
-        const fOnly = a.fecha.substring(0, 10);
-        if (fOnly < startStr || fOnly > todayYMD) return false;
-        if (!matchesAgendamiento(a)) return false;
-        return true;
-      });
-      const calcSumAgendamientos = aPeriodo.reduce((acc, a) => acc + Number(a.precio || 0), 0);
+      // Modo individual: tomamos el mayor entre ventas registradas y agendamientos completados
       calcSum = Math.max(calcSumVentas, calcSumAgendamientos);
-      
       console.log(`[INDIVIDUAL] Ventas: $${calcSumVentas} | Agendamientos: $${calcSumAgendamientos} | BASE SERVICIOS: $${calcSum}`);
     } else {
-      console.log(`[TODOS] BASE SERVICIOS: $${calcSumVentas}`);
+      // Modo todos: si hay ventas registradas las usamos; si no, usamos agendamientos completados como fallback
+      calcSum = calcSumVentas > 0 ? calcSumVentas : calcSumAgendamientos;
+      console.log(`[TODOS] BASE SERVICIOS: $${calcSum} (ventas: $${calcSumVentas} | agenda: $${calcSumAgendamientos})`);
     }
 
-    return calcSum; // Retornamos el 100% de la base de servicios
+    return calcSum; // 100% de la base de servicios/paquetes
   }, [ventas, agendamientos, barberosSistema, filtroBarberosPeriodo, selectedBarberoGanancia, todayYMD, today]);
 
   const gananciasBarberosDinámica = totalServiciosDinámico * 0.60;

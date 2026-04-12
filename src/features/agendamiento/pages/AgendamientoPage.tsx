@@ -34,6 +34,18 @@ const formatHora12 = (hora: number): string => {
   return `${h12}:${minutesStr} ${ampm}`;
 };
 
+// Convierte un string "HH:MM" o "HH:MM:SS" a formato 12 horas con AM/PM
+const formatHoraStr12 = (horaStr: string): string => {
+  if (!horaStr) return '';
+  const [hStr, mStr = '00'] = horaStr.split(':');
+  const h = parseInt(hStr || '0', 10);
+  const m = parseInt(mStr || '0', 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
 // Los datos se cargan dinámicamente desde la API
 
 const estados = [
@@ -145,6 +157,31 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [selectedCita, setSelectedCita] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'crear'>('calendar');
   const [ventasPorCita, setVentasPorCita] = useState<Record<number, number>>({});
+
+  // Estados para gestión de descuentos por día
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+  const [dayDiscounts, setDayDiscounts] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('dayDiscounts');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
+  const [pendingDiscountValue, setPendingDiscountValue] = useState("");
+  const [activeModalDiscountTab, setActiveModalDiscountTab] = useState<'descuento' | 'barberos' | 'citas'>('descuento');
+
+  // Estados para edición de horario de barbero desde modal
+  const [selectedBarberoForEdit, setSelectedBarberoForEdit] = useState<any>(null);
+  const [isEditHorarioModalOpen, setIsEditHorarioModalOpen] = useState(false);
+  const [editHorarioStart, setEditHorarioStart] = useState("");
+  const [editHorarioEnd, setEditHorarioEnd] = useState("");
+  const [isSavingHorario, setIsSavingHorario] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('dayDiscounts', JSON.stringify(dayDiscounts));
+  }, [dayDiscounts]);
 
   // Estados para formulario de nueva cita
   const [nuevaCita, setNuevaCita] = useState({
@@ -633,7 +670,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const applyServiciosSelection = (servicioIds: number[]) => {
     const selectedServicios = serviciosList.filter(s => servicioIds.includes(s.id));
     const servicioNombres = selectedServicios.map(s => s.nombre).filter(Boolean);
-    const precioServicios = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    const precioBaseServicios = selectedServicios.reduce((acc, s) => acc + Number(s.precio || 0), 0);
+    const descuento = dayDiscounts[nuevaCita.fecha] || 0;
+    const precioBaseConDescuento = precioBaseServicios * (1 - (descuento / 100));
+    
     const precioProductos = calcularPrecioProductos(nuevaCita.productoCantidades);
     const duracionTotal = selectedServicios.reduce((acc, s) => acc + Number(s.duracion || 60), 0);
     setNuevaCita(prev => ({
@@ -642,7 +682,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       servicioId: servicioIds.length > 0 ? servicioIds[0] : null,
       servicioIds,
       servicio: servicioNombres.join(", "),
-      precio: precioServicios + precioProductos,
+      precio: precioBaseConDescuento + precioProductos,
       duracion: servicioIds.length > 0 ? duracionTotal : 60
     }));
   };
@@ -687,10 +727,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         .filter(s => nuevaCita.servicioIds.includes(s.id))
         .reduce((acc, s) => acc + Number(s.precio || 0), 0);
     }
+    
+    const descuento = dayDiscounts[nuevaCita.fecha] || 0;
+    const precioBaseConDescuento = precioBase * (1 - (descuento / 100));
+
     setNuevaCita(prev => ({
       ...prev,
       productoCantidades: cantidades,
-      precio: precioBase + precioProductos
+      precio: precioBaseConDescuento + precioProductos
     }));
   };
 
@@ -710,13 +754,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     }
     const id = parseInt(value.replace("p-", ""));
     const paquete = paquetesList.find(p => p.id === id);
+    
+    const precioBase = paquete ? paquete.precio : 0;
+    const descuento = dayDiscounts[nuevaCita.fecha] || 0;
+    const precioBaseConDescuento = precioBase * (1 - (descuento / 100));
+
     setNuevaCita(prev => ({
       ...prev,
       paqueteId: id,
       servicioId: null,
       servicioIds: [],
       servicio: paquete ? paquete.nombre : "",
-      precio: (paquete ? paquete.precio : 0) + precioProductos,
+      precio: precioBaseConDescuento + precioProductos,
       duracion: paquete ? paquete.duracion : 60
     }));
   };
@@ -1016,6 +1065,131 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                    String(new Date().getMonth() + 1).padStart(2, '0') + "-" + 
                    String(new Date().getDate()).padStart(2, '0');
   const citasHoy = citasFiltradas.filter(c => c.fecha === todayYMD).length;
+
+  // Manejo de descuentos por día (apertura directa del modal)
+  const handleDateSelect = (fechaCompleta: string) => {
+    setSelectedDates(new Set([fechaCompleta]));
+    const currentDiscount = dayDiscounts[fechaCompleta];
+    setPendingDiscountValue(currentDiscount ? String(currentDiscount) : "");
+    setActiveModalDiscountTab('descuento');
+    setIsDiscountDialogOpen(true);
+  };
+
+  const handleSaveDiscount = () => {
+    const val = Number(pendingDiscountValue);
+    if (isNaN(val) || val < 0 || val > 100) {
+      error("Descuento inválido", "El descuento debe ser un número entre 0 y 100.");
+      return;
+    }
+    const nextDiscounts = { ...dayDiscounts };
+    Array.from(selectedDates).forEach(date => {
+      if (val === 0) {
+        delete nextDiscounts[date];
+      } else {
+        nextDiscounts[date] = val;
+      }
+    });
+    setDayDiscounts(nextDiscounts);
+    setIsDiscountDialogOpen(false);
+    setSelectedDates(new Set());
+    success("Descuento aplicado", `Se configuró un ${val}% de descuento para los días seleccionados.`);
+  };
+
+  const handleClearDiscounts = () => {
+    const nextDiscounts = { ...dayDiscounts };
+    Array.from(selectedDates).forEach(date => {
+      delete nextDiscounts[date];
+    });
+    setDayDiscounts(nextDiscounts);
+    setSelectedDates(new Set());
+    success("Descuento removido", "Se eliminaron los descuentos de los días seleccionados.");
+  };
+
+  const handleOpenEditHorario = (barbero: any, horario: any) => {
+    setSelectedBarberoForEdit({ barbero, horario });
+    setEditHorarioStart(horario.horaInicio || "");
+    setEditHorarioEnd(horario.horaFin || "");
+    setIsEditHorarioModalOpen(true);
+  };
+
+  const handleSaveEditHorario = async () => {
+    if (!selectedBarberoForEdit || !editHorarioStart || !editHorarioEnd) {
+      error("Datos incompletos", "Por favor ingrese la hora de inicio y fin.");
+      return;
+    }
+    setIsSavingHorario(true);
+    const { barbero, horario } = selectedBarberoForEdit;
+    const fechaSeleccionada = Array.from(selectedDates)[0] || "";
+
+    try {
+      // 1. Actualizar el horario en la API
+      await horariosService.updateHorario(horario.id, {
+        ...horario,
+        horaInicio: editHorarioStart,
+        horaFin: editHorarioEnd,
+      });
+
+      // 2. Detectar citas afectadas: misma fecha, mismo barbero, cuya hora quede fuera del nuevo horario
+      const [newStartH, newStartM] = editHorarioStart.split(':').map(Number);
+      const [newEndH, newEndM] = editHorarioEnd.split(':').map(Number);
+      const newStartMin = (newStartH || 0) * 60 + (newStartM || 0);
+      const newEndMin = (newEndH || 0) * 60 + (newEndM || 0);
+
+      const citasAfectadas = citas.filter(c => {
+        if (c.fecha !== fechaSeleccionada) return false;
+        if (Number(c.barberoId) !== Number(barbero.id)) return false;
+        const estado = String(c.estado || '').toLowerCase();
+        if (estado === 'cancelada' || estado === 'completada') return false;
+        const [ch, cm] = String(c.hora || '').split(':').map(Number);
+        const citaMinutos = (ch || 0) * 60 + (cm || 0);
+        // La cita queda "afectada" si su hora de inicio cae fuera del nuevo rango
+        return citaMinutos < newStartMin || citaMinutos >= newEndMin;
+      });
+
+      // 3. Cancelar citas afectadas y enviar correo
+      let emailsEnviados = 0;
+      for (const cita of citasAfectadas) {
+        try {
+          // Cancelar la cita usando el endpoint dedicado de estado (más confiable)
+          await agendamientoService.updateAgendamientoStatus(cita.id, 'Cancelada');
+          console.log(`✅ Cita ${cita.id} cancelada exitosamente`);
+        } catch (cancelErr) {
+          console.warn('No se pudo cancelar la cita', cita.id, cancelErr);
+        }
+
+        // Enviar correo al cliente notificando la cancelación
+        try {
+          const clienteData = await clientesService.getClienteById(Number(cita.clienteId));
+          const emailCliente = clienteData?.correo || '';
+          if (emailCliente) {
+            await emailJsService.notificarCancelacion({
+              cliente_nombre: cita.clienteNombre || 'Cliente',
+              cliente_email: emailCliente,
+              barbero_nombre: barbero.nombre || 'Barbero',
+              fecha_original: `${fechaSeleccionada}T${cita.hora}:00`,
+              motivo_cancelacion: `Su cita fue cancelada debido a un cambio de horario de su barbero. El nuevo horario es: ${formatHoraStr12(editHorarioStart)} – ${formatHoraStr12(editHorarioEnd)}. Por favor, comuníquese con nosotros para reprogramarla.`,
+            });
+            emailsEnviados++;
+          }
+        } catch (emailErr) {
+          console.warn('No se pudo enviar email para cita', cita.id, emailErr);
+        }
+      }
+
+      // 4. Recargar horarios
+      await fetchData();
+      setIsEditHorarioModalOpen(false);
+
+      const msg = citasAfectadas.length > 0
+        ? ` Se notificó por correo a ${emailsEnviados} cliente(s) afectado(s).`
+        : ' No hay citas afectadas por este cambio.';
+      success("Horario actualizado", `El horario de ${barbero.nombre} fue modificado exitosamente.${msg}`);
+    } catch (err: any) {
+      error("Error al actualizar", err?.message || "No se pudo actualizar el horario.");
+    } finally {
+      setIsSavingHorario(false);
+    }
+  };
 
   return (
     <>
@@ -1718,15 +1892,32 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   <div className="text-center">
                     <span className="text-sm font-semibold text-gray-light">Horas</span>
                   </div>
-                  {getCurrentWeekDays().map(({ dia, fecha }) => (
-                    <div key={dia} className="text-center">
-                      <h4 className="font-semibold text-white-primary">{dia}</h4>
-                      <p className="text-xs text-gray-lightest">{fecha}</p>
-                      <div className="text-xs text-orange-primary mt-1">
-                        {getCitasPorDia(dia).length} citas
+                  {getCurrentWeekDays().map(({ dia, fecha, fechaCompleta }) => {
+                    const isSelected = selectedDates.has(fechaCompleta);
+                    const discount = dayDiscounts[fechaCompleta];
+                    return (
+                      <div 
+                        key={dia} 
+                        className={`text-center cursor-pointer transition-all duration-200 rounded-lg p-2 border-2 ${
+                          isSelected ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent hover:bg-gray-darker'
+                        }`}
+                        onClick={() => handleDateSelect(fechaCompleta)}
+                      >
+                        <div className="flex justify-center items-center gap-1">
+                          <h4 className="font-semibold text-white-primary">{dia}</h4>
+                          {discount > 0 && (
+                            <span className="bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                              -{discount}%
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-lightest">{fecha}</p>
+                        <div className="text-xs text-orange-primary mt-1">
+                          {getCitasPorDia(dia).length} citas
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Grid de horarios */}
@@ -2175,6 +2366,258 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog para configurar descuentos de días */}
+      <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
+        <DialogContent className="bg-gray-darkest border-orange-primary max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-white-primary flex items-center gap-2 text-xl">
+              <Calendar className="w-6 h-6 text-orange-primary" />
+              Descuento Especial
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest pt-2">
+              <strong>Días afectados:</strong> {Array.from(selectedDates).join(", ")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-4 overflow-hidden flex-1 flex flex-col">
+            {/* Custom Tabs */}
+            <div className="flex border-b border-gray-dark shrink-0">
+              <button
+                className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'descuento' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
+                onClick={() => setActiveModalDiscountTab('descuento')}
+              >
+                Configurar Descuento
+              </button>
+              <button
+                className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'barberos' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
+                onClick={() => setActiveModalDiscountTab('barberos')}
+              >
+                Barberos
+              </button>
+              <button
+                className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'citas' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
+                onClick={() => setActiveModalDiscountTab('citas')}
+              >
+                Citas
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+              {activeModalDiscountTab === 'descuento' && (
+                <div className="space-y-4 pt-2">
+                  <div className="bg-gray-darker p-4 rounded-lg border border-gray-dark">
+                    <p className="text-sm text-gray-lightest mb-4">
+                      Aplica un porcentaje de descuento que se restará automáticamente del precio base de todos los servicios o paquetes agendados para este día.
+                    </p>
+                    <div className="space-y-2">
+                      <Label className="text-white-primary">Porcentaje de descuento (%)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="Ej. 15"
+                        className="elegante-input w-full text-lg h-12"
+                        value={pendingDiscountValue}
+                        onChange={(e) => setPendingDiscountValue(e.target.value)}
+                      />
+                      <p className="text-xs text-orange-primary/80 mt-1 flex items-center gap-1">
+                        <Trash2 className="w-3 h-3" /> Ingresa 0 para quitar el descuento existente.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeModalDiscountTab === 'barberos' && (
+                <div className="space-y-3 pt-2">
+                  {(() => {
+                    const diasSeleccionadosList = Array.from(selectedDates).map(d => {
+                      const date = new Date(d + 'T12:00:00'); // Evitar desfase horario
+                      const dayLabels = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+                      return dayLabels[date.getDay()];
+                    });
+
+                    const barberosEnDias = barberosList.filter(b => {
+                      return horariosList.some(h => 
+                        h.barberoId === b.id && h.estado && diasSeleccionadosList.includes(h.dia)
+                      );
+                    });
+
+                    if (barberosEnDias.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <User className="w-12 h-12 text-gray-dark mx-auto mb-2" />
+                          <p className="text-gray-lightest text-sm">No hay barberos con horario asignado para estos días.</p>
+                        </div>
+                      );
+                    }
+
+                    return barberosEnDias.map(barbero => (
+                      <div key={barbero.id} className="flex items-start gap-4 bg-gray-darkest border border-gray-dark p-3 rounded-lg">
+                        {/* Foto del barbero */}
+                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-dark shrink-0 border-2 border-orange-primary/40">
+                          {barbero.fotoPerfil ? (
+                            <ImageRenderer url={barbero.fotoPerfil} alt={barbero.nombre} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-dark">
+                              <User className="w-8 h-8 text-gray-medium" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                           <p className="text-white-primary font-semibold text-base truncate">{barbero.nombre}</p>
+                           <p className="text-xs text-gray-lighter mb-2">Haz clic en un horario para editarlo</p>
+                           <div className="mt-1 space-y-1.5">
+                             {horariosList.filter(h => h.barberoId === barbero.id && h.estado && diasSeleccionadosList.includes(h.dia)).map((h, i) => (
+                               <button
+                                 key={i}
+                                 onClick={() => handleOpenEditHorario(barbero, h)}
+                                 className="w-full flex items-center gap-2 bg-orange-primary/10 border border-orange-primary/20 hover:border-orange-primary hover:bg-orange-primary/20 px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                               >
+                                  <Clock className="w-3.5 h-3.5 text-orange-primary shrink-0" />
+                                  <span className="text-white-primary text-sm font-medium flex-1 text-left">
+                                    {formatHoraStr12(h.horaInicio)} &ndash; {formatHoraStr12(h.horaFin)}
+                                  </span>
+                                  <Edit className="w-3.5 h-3.5 text-orange-primary/60" />
+                               </button>
+                             ))}
+                           </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+
+              {activeModalDiscountTab === 'citas' && (
+                <div className="space-y-3 pt-2">
+                  {(() => {
+                    const fechaCitas = Array.from(selectedDates)[0];
+                    const citasDelDia = citas.filter(c => c.fecha === fechaCitas);
+
+                    if (citasDelDia.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <Clock className="w-12 h-12 text-gray-dark mx-auto mb-2" />
+                          <p className="text-gray-lightest text-sm">No hay citas agendadas para este día.</p>
+                        </div>
+                      );
+                    }
+
+                    // Ordenar citas por hora
+                    const citasOrdenadas = [...citasDelDia].sort((a, b) => {
+                      const timeA = new Date(`1970/01/01 ${a.hora}`).getTime();
+                      const timeB = new Date(`1970/01/01 ${b.hora}`).getTime();
+                      return timeA - timeB;
+                    });
+
+                    return citasOrdenadas.map(cita => (
+                      <div key={cita.id} className="flex justify-between items-center bg-gray-darkest border border-gray-dark p-3 rounded-lg">
+                        <div className="min-w-0 flex-1 pr-3">
+                          <p className="text-white-primary font-medium truncate">{cita.clienteNombre}</p>
+                          <p className="text-xs text-gray-lighter truncate mt-0.5">
+                            {cita.servicioNombre || cita.paqueteNombre || "Servicio"} <span className="text-gray-medium">•</span> {cita.barberoNombre}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-orange-primary font-bold text-sm bg-orange-primary/10 px-2 py-1 rounded-md">
+                            {formatHora12((parseInt((cita.hora || "0").split(":")[0] || "0") * 60 + parseInt((cita.hora || "0").split(":")[1] || "0")) / 60)}
+                          </span>
+                          <p className="text-[10px] text-gray-light mt-1 uppercase tracking-widest">{cita.estado}</p>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3 border-t border-gray-dark pt-4 mt-1 shrink-0">
+            <button
+              onClick={() => setIsDiscountDialogOpen(false)}
+              className="elegante-button-secondary px-4 py-2"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveDiscount}
+              className="elegante-button-primary px-4 py-2 font-bold"
+            >
+              Guardar Descuento
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para editar horario del barbero */}
+      <Dialog open={isEditHorarioModalOpen} onOpenChange={(open) => { if (!isSavingHorario) setIsEditHorarioModalOpen(open); }}>
+        <DialogContent className="bg-gray-darkest border-orange-primary max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <Clock className="w-5 h-5 text-orange-primary" />
+              Modificar Horario
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest">
+              {selectedBarberoForEdit && (
+                <span>
+                  <strong className="text-orange-primary">{selectedBarberoForEdit.barbero?.nombre}</strong> &mdash; {selectedBarberoForEdit.horario?.dia} {Array.from(selectedDates)[0] || ''}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-4">
+            <div className="space-y-2">
+              <Label className="text-white-primary text-sm">Hora de Inicio</Label>
+              <Input
+                type="time"
+                value={editHorarioStart}
+                onChange={e => setEditHorarioStart(e.target.value)}
+                className="elegante-input w-full"
+                disabled={isSavingHorario}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-white-primary text-sm">Hora de Fin</Label>
+              <Input
+                type="time"
+                value={editHorarioEnd}
+                onChange={e => setEditHorarioEnd(e.target.value)}
+                className="elegante-input w-full"
+                disabled={isSavingHorario}
+              />
+            </div>
+            <div className="bg-orange-primary/10 border border-orange-primary/30 rounded-lg p-3">
+              <p className="text-xs text-orange-primary">
+                ⚠️ Si hay citas programadas fuera de este nuevo horario, se enviará un correo de notificación a cada cliente afectado.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-gray-dark pt-4">
+            <button
+              onClick={() => setIsEditHorarioModalOpen(false)}
+              className="elegante-button-secondary px-4 py-2"
+              disabled={isSavingHorario}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveEditHorario}
+              className="elegante-button-primary px-4 py-2 font-bold flex items-center gap-2"
+              disabled={isSavingHorario}
+            >
+              {isSavingHorario ? (
+                <><span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span> Guardando...</>
+              ) : (
+                <>Guardar Cambios</>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertContainer />
     </>
