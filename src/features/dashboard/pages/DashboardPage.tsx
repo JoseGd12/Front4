@@ -399,92 +399,38 @@ export function DashboardPage() {
   }, [ventas, agendamientos, barberosSistema]);
 
 
-  const totalServiciosDinámico = useMemo(() => {
-    const days = filtroBarberosPeriodo === "hoy" ? 1 :
-                 filtroBarberosPeriodo === "semanal" ? 7 :
-                 filtroBarberosPeriodo === "mensual" ? 30 : 365;
-    
-    let startStr = todayYMD;
-    if (days > 1) {
-      const dt = new Date(today);
-      dt.setDate(dt.getDate() - (days - 1));
-      startStr = formatDateYMD(dt);
-    }
-    
-    const targetBarbero = barberosSistema.find(b => `${b.nombre} ${b.apellido}`.trim() === selectedBarberoGanancia);
+  const [gananciasDashboard, setGananciasDashboard] = useState({
+    totalServicios: 0,
+    gananciasBarberos: 0,
+    gananciasBarberia: 0,
+  });
 
-    const matchesVenta = (v: Venta) => {
-       if (selectedBarberoGanancia === "Todos") return true;
-       if (targetBarbero && v.barberoId && Number(v.barberoId) === Number(targetBarbero.id)) return true;
-       
-       const vName = (v.barbero || "").trim().toLowerCase();
-       const sName = selectedBarberoGanancia.trim().toLowerCase();
-       if (!vName) return false;
-       if (vName === sName) return true;
-       if (targetBarbero && vName === targetBarbero.nombre.trim().toLowerCase()) return true;
-       if (sName.includes(vName) || vName.includes(sName)) return true;
-       return false;
-    };
-
-    const matchesAgendamiento = (a: Agendamiento) => {
-       if (selectedBarberoGanancia === "Todos") return true;
-       const aName = (a.barberoNombre || "").trim().toLowerCase();
-       const sName = selectedBarberoGanancia.trim().toLowerCase();
-       if (!aName) return false;
-       if (aName === sName) return true;
-       if (targetBarbero && aName === targetBarbero.nombre.trim().toLowerCase()) return true;
-       if (sName.includes(aName) || aName.includes(sName)) return true;
-       return false;
-    };
-    
-    const vPeriodo = ventas.filter(v => {
-      if (!v.fecha || !isVentaActiva(v.estado)) return false;
-      const fOnly = v.fecha.substring(0, 10);
-      if (fOnly < startStr || fOnly > todayYMD) return false;
-      if (!matchesVenta(v)) return false;
-      return true;
-    });
-
-    const calcSumVentas = vPeriodo.reduce((acc, v) => {
-      let sumServicios = 0;
-      if (v.serviciosDetalle && v.serviciosDetalle.length > 0) {
-        sumServicios = v.serviciosDetalle.reduce((sum, d) => sum + (Number(d.precio || 0) * Number(d.cantidad || 1)), 0);
-      } else if (v.totalServicios !== undefined && v.totalServicios > 0) {
-        sumServicios = v.totalServicios;
+  useEffect(() => {
+    let isMounted = true;
+    const fetchGanancias = async () => {
+      try {
+        const url = `/api/Dashboard/ganancias?periodo=${filtroBarberosPeriodo}&barbero=${encodeURIComponent(selectedBarberoGanancia)}`;
+        const res = await fetchWithAuth(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setGananciasDashboard({
+              totalServicios: data.totalServicios || 0,
+              gananciasBarberos: data.gananciasBarberos || 0,
+              gananciasBarberia: data.gananciasBarberia || 0,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error al cargar ganancias dinámicas", error);
       }
-      return acc + sumServicios;
-    }, 0);
+    };
+    fetchGanancias();
+    return () => { isMounted = false; };
+  }, [filtroBarberosPeriodo, selectedBarberoGanancia]);
 
-    let calcSum = calcSumVentas;
-
-    // Agendamientos completados con servicio o paquete para el período (todos o filtrado por barbero)
-    const aPeriodo = agendamientos.filter(a => {
-      const estadoCita = (a.estado || "").trim().toLowerCase();
-      if (!a.fecha || estadoCita !== "completada") return false;
-      // Solo incluir si tiene un servicio o paquete (no solo productos)
-      if (!a.servicioNombre && !a.paqueteNombre) return false;
-      const fOnly = a.fecha.substring(0, 10);
-      if (fOnly < startStr || fOnly > todayYMD) return false;
-      if (!matchesAgendamiento(a)) return false;
-      return true;
-    });
-    const calcSumAgendamientos = aPeriodo.reduce((acc, a) => acc + Number(a.precio || 0), 0);
-
-    if (selectedBarberoGanancia !== "Todos") {
-      // Modo individual: tomamos el mayor entre ventas registradas y agendamientos completados
-      calcSum = Math.max(calcSumVentas, calcSumAgendamientos);
-      console.log(`[INDIVIDUAL] Ventas: $${calcSumVentas} | Agendamientos: $${calcSumAgendamientos} | BASE SERVICIOS: $${calcSum}`);
-    } else {
-      // Modo todos: si hay ventas registradas las usamos; si no, usamos agendamientos completados como fallback
-      calcSum = calcSumVentas > 0 ? calcSumVentas : calcSumAgendamientos;
-      console.log(`[TODOS] BASE SERVICIOS: $${calcSum} (ventas: $${calcSumVentas} | agenda: $${calcSumAgendamientos})`);
-    }
-
-    return calcSum; // 100% de la base de servicios/paquetes
-  }, [ventas, agendamientos, barberosSistema, filtroBarberosPeriodo, selectedBarberoGanancia, todayYMD, today]);
-
-  const gananciasBarberosDinámica = totalServiciosDinámico * 0.60;
-  const gananciasBarberiaDinámica = totalServiciosDinámico * 0.40;
+  const gananciasBarberosDinámica = gananciasDashboard.gananciasBarberos;
+  const gananciasBarberiaDinámica = gananciasDashboard.gananciasBarberia;
 
   const metrics = useMemo(() => {
     return [
