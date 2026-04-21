@@ -1,0 +1,21 @@
+{
+  "outputDirectory": "build",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://barberiaapi-em5q.onrender.com/api/:path*"
+    },
+    {
+      "source": "/assets/:path*",
+      "destination": "https://barberiaapi-em5q.onrender.com/assets/:path*"
+    },
+    {
+      "source": "/instagram-api/:path*",
+      "destination": "https://graph.facebook.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
