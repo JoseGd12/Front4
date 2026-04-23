@@ -162,18 +162,32 @@ class CompraService {
         // Attempt to get names for consistency in UI
         let proveedorNombre = 'Proveedor desconocido';
         let proveedorDocumento = '';
+        
+        // Prioridad 1: Propiedades planas (DTO optimizado)
+        if (data.proveedorNombre || data.ProveedorNombre) {
+            proveedorNombre = data.proveedorNombre || data.ProveedorNombre;
+        }
+        if (data.proveedorNIT || data.ProveedorNIT || data.nitProveedor || data.NitProveedor) {
+            proveedorDocumento = String(data.proveedorNIT || data.ProveedorNIT || data.nitProveedor || data.NitProveedor);
+        }
+
+        // Prioridad 2: Objeto anidado (Retrocompatibilidad)
         const prov = data.proveedor || data.Proveedor;
         if (prov) {
-            proveedorNombre = prov.nombre || prov.Nombre || proveedorNombre;
-            proveedorDocumento = String(
-                prov.nit ??
-                prov.Nit ??
-                prov.numeroIdentificacion ??
-                prov.NumeroIdentificacion ??
-                prov.documento ??
-                prov.Documento ??
-                ''
-            );
+            if (proveedorNombre === 'Proveedor desconocido') {
+                proveedorNombre = prov.nombre || prov.Nombre || proveedorNombre;
+            }
+            if (!proveedorDocumento) {
+                proveedorDocumento = String(
+                    prov.nit ??
+                    prov.Nit ??
+                    prov.numeroIdentificacion ??
+                    prov.NumeroIdentificacion ??
+                    prov.documento ??
+                    prov.Documento ??
+                    ''
+                );
+            }
         }
 
         const user = data.usuario || data.Usuario;
@@ -185,11 +199,11 @@ class CompraService {
         const detalles: DetalleCompra[] = detallesApi.map((d: any) => ({
             id: d.id || d.Id,
             productoId: d.productoId || d.ProductoId,
-            productoNombre: d.producto?.nombre || d.producto?.Nombre || d.Producto?.Nombre || d.Producto?.nombre || 'Producto',
-            productoImagen: d.producto?.imagenProduc || d.producto?.ImagenProduc || d.Producto?.ImagenProduc || d.Producto?.imagenProduc || '',
+            productoNombre: d.productoNombre || d.ProductoNombre || d.producto?.nombre || d.producto?.Nombre || d.Producto?.Nombre || d.Producto?.nombre || 'Producto',
+            productoImagen: d.productoImagen || d.ProductoImagen || d.producto?.imagenProduc || d.producto?.ImagenProduc || d.Producto?.ImagenProduc || d.Producto?.imagenProduc || '',
             cantidad: d.cantidad || d.Cantidad || 0,
             precioUnitario: d.precioUnitario || d.PrecioUnitario || d.precioCompra || d.PrecioCompra || 0,
-            subtotal: (d.cantidad || d.Cantidad || 0) * (d.precioUnitario || d.PrecioUnitario || 0),
+            subtotal: (Number(d.cantidad || d.Cantidad || 0)) * (Number(d.precioUnitario || d.PrecioUnitario || 0)),
             cantidadVentas: d.cantidadVentas || d.CantidadVentas || 0,
             cantidadInsumos: d.cantidadInsumos || d.CantidadInsumos || 0
         }));

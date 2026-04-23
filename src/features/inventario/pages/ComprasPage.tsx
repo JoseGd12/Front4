@@ -1286,6 +1286,12 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
 
       y += 8;
       doc.setFont("helvetica", "bold");
+      doc.text("NIT/Doc. Prov.:", hMargin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(String((compra as any).proveedorDocumento || "N/A"), hMargin + 40, y);
+
+      y += 8;
+      doc.setFont("helvetica", "bold");
       doc.text("Fecha y Hora:", hMargin, y);
       doc.setFont("helvetica", "normal");
       doc.text(fechaRegistro, hMargin + 40, y);
@@ -2550,14 +2556,13 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-white-primary flex items-center gap-2">
-                        <Calculator className="w-4 h-4 text-orange-primary" />
-                        Porcentaje Descuento (%)
+                        <FileText className="w-4 h-4 text-orange-primary" />
+                        Documento/NIT Prov.
                       </Label>
                       <Input
-                        type="number"
-                        value={selectedCompra.subtotal > 0 ? ((selectedCompra.descuento / selectedCompra.subtotal) * 100).toFixed(2) : '0'}
+                        value={(selectedCompra as any).proveedorDocumento || 'N/A'}
                         disabled
-                        className="elegante-input no-spin bg-gray-medium"
+                        className="elegante-input bg-gray-medium"
                       />
                     </div>
                   </div>
@@ -2583,6 +2588,18 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                           {selectedCompra.estado === 'Anulada' ? 'Anulada' : 'Completada'}
                         </span>
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white-primary flex items-center gap-2">
+                        <Calculator className="w-4 h-4 text-orange-primary" />
+                        Descuento (%)
+                      </Label>
+                      <Input
+                        type="number"
+                        value={selectedCompra.subtotal > 0 ? ((selectedCompra.descuento / selectedCompra.subtotal) * 100).toFixed(2) : '0'}
+                        disabled
+                        className="elegante-input no-spin bg-gray-medium"
+                      />
                     </div>
                   </div>
 
