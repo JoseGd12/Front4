@@ -5,6 +5,8 @@
   import "./index.css";
   import "./styles/globals.css";
   import { auth } from "./shared/services/firebase";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
   const originalFetch = window.fetch.bind(window);
 
@@ -45,6 +47,8 @@
   createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <App />
+      <Analytics />
+      <SpeedInsights />
     </BrowserRouter>
   );
   
