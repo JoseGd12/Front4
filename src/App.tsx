@@ -11,6 +11,7 @@ import { EmailVerificationPage } from "./features/auth/pages/EmailVerificationPa
 import { ForzarCambioPassword } from "./features/auth/components/ForzarCambioPassword";
 import { checkPasswordPolicy } from "./features/auth/services/authUtils";
 import { firebaseAuthService } from "./shared/services/firebase";
+import { Analytics } from "@vercel/analytics/react";
 
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
@@ -210,6 +211,7 @@ export default function App() {
               },
             }}
           />
+          <Analytics />
         </>
       </AlertProvider>
     </AuthProvider>
