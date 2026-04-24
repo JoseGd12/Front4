@@ -78,8 +78,14 @@ export class FirebaseAuthService {
   }
 
   private getPasswordResetActionCodeSettings(): ActionCodeSettings {
+    // URL de Vercel que puede abrir la app móvil (si está instalada) o la web
+    const isLocalhost = window.location.hostname === 'localhost';
+    const resetUrl = isLocalhost
+      ? `${window.location.origin}/reset-password`
+      : 'https://manitobarbershop.vercel.app/reset-password';
+
     return {
-      url: `${window.location.origin}/reset-password`,
+      url: resetUrl,
       handleCodeInApp: true
     };
   }
