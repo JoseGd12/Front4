@@ -79,13 +79,14 @@ export class FirebaseAuthService {
 
   private getPasswordResetActionCodeSettings(): ActionCodeSettings {
     // URL de Vercel que puede abrir la app móvil (si está instalada) o la web
+    // Usamos /login con mode=resetPassword para que App.tsx detecte el oobCode correctamente
     const isLocalhost = window.location.hostname === 'localhost';
-    const resetUrl = isLocalhost
-      ? `${window.location.origin}/reset-password`
-      : 'https://manitobarbershop.vercel.app/reset-password';
+    const baseUrl = isLocalhost
+      ? window.location.origin
+      : 'https://manitobarbershop.vercel.app';
 
     return {
-      url: resetUrl,
+      url: `${baseUrl}/login?mode=resetPassword`,
       handleCodeInApp: true
     };
   }
