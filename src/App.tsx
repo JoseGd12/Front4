@@ -31,20 +31,28 @@ function AppContent() {
     const mode = urlParams.get('mode');
     const oobCode = urlParams.get('oobCode');
     const isResetPage = window.location.pathname.includes('reset-password');
+    const isLoginPage = window.location.pathname.includes('login');
     const isVerifyPage = window.location.pathname.includes('verify-email');
     let handledSpecialLink = false;
 
-    if ((mode === 'resetPassword' || (isResetPage && mode !== 'verifyEmail')) && oobCode) {
-      console.log('🎯 Solución REAL: Detectado oobCode para reseteo, abriendo formulario personalizado');
+    // Detectar reset de contraseña (en /login o /reset-password)
+    if ((mode === 'resetPassword' || isResetPage) && oobCode) {
+      console.log('🎯 Detectado oobCode para reseteo:', oobCode);
       handledSpecialLink = true;
       setResetData({ email: '', token: oobCode });
-      navigate('/login', { replace: true });
-    } 
-    else if ((mode === 'verifyEmail' || (isVerifyPage && mode !== 'resetPassword')) && oobCode) {
+      // Si ya estamos en /reset-password o /login, no redirigir
+      if (!isResetPage && !isLoginPage) {
+        navigate('/login', { replace: true });
+      }
+    }
+    // Detectar verificación de email (en /verify-email)
+    else if ((mode === 'verifyEmail' || isVerifyPage) && oobCode) {
       console.log('📧 Detectado oobCode para verificación de email');
       handledSpecialLink = true;
       setVerifyCode(oobCode);
-      navigate('/verify-email', { replace: true });
+      if (!isVerifyPage) {
+        navigate('/verify-email', { replace: true });
+      }
     }
 
     if (!isAuthenticated && !handledSpecialLink) {
@@ -55,7 +63,7 @@ function AppContent() {
         sessionStorage.removeItem("barbershop_post_logout_view");
       }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, location.pathname]);
 
   useEffect(() => {
     let isMounted = true;
@@ -147,6 +155,17 @@ function AppContent() {
             navigate('/login');
           }}
         />
+      } />
+
+      <Route path="/reset-password" element={
+        isAuthenticated ? <Navigate to="/dashboard" /> : (
+          <LoginPage
+            onRequestRegister={() => navigate('/register')}
+            onBackToLanding={() => navigate('/')}
+            initialResetData={resetData}
+            onResetComplete={() => setResetData(null)}
+          />
+        )
       } />
 
       <Route path="/dashboard/*" element={
