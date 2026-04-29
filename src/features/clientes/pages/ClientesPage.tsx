@@ -548,6 +548,10 @@ export function ClientesPage() {
   };
 
   const handleEditCliente = (cliente: Cliente) => {
+    if (!cliente.activo) {
+      error('Registro inactivo', 'Este cliente está inactivo y se maneja solo como historial.');
+      return;
+    }
     setSelectedCliente(cliente);
     setEditForm({
       tipoDocumento: cliente.tipoDocumento,
@@ -718,6 +722,7 @@ export function ClientesPage() {
       // Preparar datos para la API
       const updateData: any = {
         id: parseInt(selectedCliente.id),
+        usuarioId: selectedCliente.usuarioId,
         nombre: editForm.nombre,
         apellido: editForm.apellido,
         documento: editForm.numeroDocumento,
@@ -755,6 +760,10 @@ export function ClientesPage() {
 
   // Función para eliminar cliente
   const handleDeleteCliente = (cliente: Cliente) => {
+    if (!cliente.activo) {
+      error('Registro inactivo', 'Este cliente está inactivo y no permite acciones.');
+      return;
+    }
     // Validar permisos: solo administrador o superior
     if (!isAdmin()) {
       error('Acceso denegado', 'Solo los administradores pueden eliminar clientes del sistema.');
@@ -928,7 +937,7 @@ export function ClientesPage() {
           <div className="elegante-card text-center">
             <Wallet className="w-8 h-8 text-orange-secondary mx-auto mb-2" />
             <h4 className="text-2xl font-bold text-white-primary mb-1">{totalClientesConSaldo}</h4>
-            <p className="text-gray-lightest text-sm">Con Saldo a Favor</p>
+            <p className="text-gray-lightest text-sm">Con Saldo</p>
           </div>
           <div className="elegante-card text-center">
             <TrendingUp className="w-8 h-8 text-orange-primary mx-auto mb-2" />
@@ -1014,7 +1023,7 @@ export function ClientesPage() {
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Cliente</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
@@ -1088,15 +1097,17 @@ export function ClientesPage() {
                           </button>
                           <button
                             onClick={() => handleEditCliente(cliente)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar cliente"
+                            disabled={!cliente.activo}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={cliente.activo ? "Editar cliente" : "Cliente inactivo (solo historial)"}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
                           <button
                             onClick={() => handleDeleteCliente(cliente)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar cliente"
+                            disabled={!cliente.activo}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={cliente.activo ? "Eliminar cliente" : "Cliente inactivo (solo historial)"}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>
@@ -1235,7 +1246,7 @@ export function ClientesPage() {
               {/* Resumen del Cliente */}
               <div className="bg-gray-darker p-4 rounded-lg space-y-2">
                 <div className="flex justify-between text-gray-lightest">
-                  <span>Saldo a Favor:</span>
+                  <span>Saldo:</span>
                   <span>${formatCurrency(selectedCliente.saldoAFavor)}</span>
                 </div>
                 <div className="flex justify-between text-gray-lightest">

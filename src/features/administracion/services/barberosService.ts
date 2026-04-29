@@ -114,7 +114,8 @@ class BarberosService {
       fechaNacimiento: data.fechaNacimiento,
       especialidad: data.especialidad,
       status: data.status,
-      fotoPerfil: data.fotoPerfil
+      fotoPerfil: data.fotoPerfil,
+      usuarioId: data.usuarioId
     };
   }
 
@@ -198,23 +199,43 @@ class BarberosService {
   async updateBarbero(id: number, data: any): Promise<any> {
     const apiData = {
       Id: id,
+      id: id,
+      UsuarioId: data.usuarioId,
+      usuarioId: data.usuarioId,
       Nombre: data.nombre,
+      nombre: data.nombre,
       Apellido: data.apellido,
+      apellido: data.apellido,
       Documento: data.documento,
+      documento: data.documento,
       Correo: data.correo,
+      correo: data.correo,
       Telefono: data.telefono,
+      telefono: data.telefono,
       Direccion: data.direccion,
+      direccion: data.direccion,
       Barrio: data.barrio,
+      barrio: data.barrio,
       FechaNacimiento: data.fechaNacimiento,
+      fechaNacimiento: data.fechaNacimiento,
       Especialidad: data.especialidad,
+      especialidad: data.especialidad,
       Estado: data.status === 'active' || data.estado === true,
-      FotoPerfil: data.fotoPerfil || ''
+      estado: data.status === 'active' || data.estado === true,
+      FotoPerfil: data.fotoPerfil || '',
+      fotoPerfil: data.fotoPerfil || ''
     };
 
     const response = await this.request(`${BARBEROS_URL}/${id}`, {
       method: 'PUT',
       body: JSON.stringify(apiData)
     });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error al actualizar barbero: ${response.status} ${errorText}`);
+    }
+    
     return response.status === 204 ? apiData : await response.json();
   }
 

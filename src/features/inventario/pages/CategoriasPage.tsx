@@ -523,16 +523,18 @@ export function CategoriasPage() {
                           </button>
                           <button
                             onClick={() => handleEditClick(categoria)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar"
+                            disabled={!categoria.estado}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={categoria.estado ? "Editar" : "Categoría inactiva (solo historial)"}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
                           
                           <button
                             onClick={() => handleDeleteClick(categoria)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar"
+                            disabled={!categoria.estado}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={categoria.estado ? "Eliminar" : "Categoría inactiva (solo historial)"}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>

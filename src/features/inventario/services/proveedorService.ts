@@ -158,7 +158,7 @@ class ProveedorService {
     const rawTipo = (apiData.tipoProveedor ?? apiData.TipoProveedor ?? 'Juridico');
     const tipo = String(rawTipo).toLowerCase() === 'natural' ? 'Natural' : 'Juridico';
     // Para personas naturales, si nit está vacío usamos el número de identificación
-    const nitValue = apiData.nit || apiData.numeroIdentificacion || "";
+    const nitValue = apiData.nit || apiData.Nit || apiData.NIT || apiData.numeroIdentificacion || apiData.NumeroIdentificacion || "";
 
     // Lógica de estado más robusta: Por defecto true si no viene campo de estado
     const rawEstado = apiData.estado ?? apiData.Estado ?? apiData.activo ?? apiData.Activo ?? apiData.active ?? apiData.Active;
@@ -176,11 +176,11 @@ class ProveedorService {
     }
 
     return {
-      id: apiData.id || apiData.Id || 0,
+      id: Number(apiData.id || apiData.Id || 0),
       nombre: apiData.nombre || apiData.Nombre || "",
       nit: nitValue,
       correo: apiData.correo || apiData.Correo || "",
-      telefono: apiData.telefono || apiData.Telefono || "",
+      telefono: apiData.telefono || apiData.Telefono || apiData.numero || apiData.Numero || "",
       direccion: apiData.direccion || apiData.Direccion || "",
       estado: isEstadoTrue,
       tipoProveedor: tipo,
@@ -190,8 +190,8 @@ class ProveedorService {
       cargoRepLegal: apiData.cargoRepLegal || apiData.CargoRepLegal || "",
       ciudad: apiData.ciudad || apiData.Ciudad || "",
       departamento: apiData.departamento || apiData.Departamento || "",
-      contacto: apiData.contacto || apiData.Contacto || "",
-      numeroIdentificacion: apiData.numeroIdentificacion || apiData.NumeroIdentificacion || "",
+      contacto: apiData.contacto || apiData.Contacto || apiData.personaContacto || apiData.PersonaContacto || "",
+      numeroIdentificacion: apiData.numeroIdentificacion || apiData.NumeroIdentificacion || nitValue,
       tipoIdentificacion: apiData.tipoIdentificacion || apiData.TipoIdentificacion || "",
       compras: apiData.compras || apiData.Compras || [],
       // Alias para compatibilidad
@@ -211,8 +211,8 @@ class ProveedorService {
       // Contacto adicional (Natural)
       tipoDocumentoContactoAdicional: apiData.tipoDocumentoContactoAdicional || apiData.TipoDocumentoContactoAdicional || "",
       documentoContactoAdicional: apiData.documentoContactoAdicional || apiData.DocumentoContactoAdicional || "",
-      telefonoContactoAdicional: apiData.telefonoContactoAdicional || apiData.TelefonoContacto || apiData.telefonoContacto || "",
-      correoContactoAdicional: apiData.correoContactoAdicional || apiData.CorreoContacto || apiData.correoContacto || ""
+      telefonoContactoAdicional: apiData.telefonoContactoAdicional || apiData.TelefonoContacto || apiData.telefonoContacto || apiData.telefonoContactoAdicional || "",
+      correoContactoAdicional: apiData.correoContactoAdicional || apiData.CorreoContacto || apiData.correoContacto || apiData.correoContactoAdicional || ""
     };
   }
 

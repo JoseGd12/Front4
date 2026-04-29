@@ -1153,8 +1153,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                           }`
                         );
                       }}
-                      error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()}
-                      errorMessage="Selecciona un cliente o entra un nombre para el invitado."
+                      error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()
+                        ? "Selecciona un cliente o entra un nombre para el invitado."
+                        : undefined}
                       shakeClass={shakeClass}
                       onFocus={clearValidationErrors}
                     />
@@ -1382,8 +1383,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         if (showAddProductoErrors)
                           setShowAddProductoErrors(false);
                       }}
-                      error={showProductoSelectorError}
-                      errorMessage="Selecciona un producto del buscador o agrega un servicio."
+                      error={showProductoSelectorError
+                        ? "Selecciona un producto del buscador o agrega un servicio."
+                        : undefined}
                       shakeClass={shakeClass}
                       maxResults={20}
                       onFocus={clearValidationErrors}
@@ -1520,11 +1522,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                           }`
                         );
                       }}
-                      error={
-                        serviciosAgregados.length > 0 &&
-                        !nuevaVenta.barberoId
-                      }
-                      errorMessage="El barbero es requerido cuando hay servicios."
+                      error={serviciosAgregados.length > 0 && !nuevaVenta.barberoId
+                        ? "El barbero es requerido cuando hay servicios."
+                        : undefined}
                       shakeClass={shakeClass}
                       onFocus={clearValidationErrors}
                       dropUp
@@ -1558,8 +1558,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         if (showAddServicioErrors)
                           setShowAddServicioErrors(false);
                       }}
-                      error={showServicioSelectorError}
-                      errorMessage="Selecciona un servicio del buscador o agrega un producto."
+                      error={showServicioSelectorError
+                        ? "Selecciona un servicio del buscador o agrega un producto."
+                        : undefined}
                       shakeClass={shakeClass}
                       maxResults={20}
                       onFocus={clearValidationErrors}

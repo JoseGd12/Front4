@@ -827,9 +827,9 @@ export function RolesPage() {
                               setEditingRole(rolParaEditar);
                               setIsEditDialogOpen(true);
                             }}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar"
-                            disabled={isCreating || isEditing || isDeleting}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={!rol.estado ? "Rol inactivo (solo historial)" : "Editar"}
+                            disabled={!rol.estado || isCreating || isEditing || isDeleting}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
@@ -842,9 +842,9 @@ export function RolesPage() {
                               setRoleToDelete(rol);
                               setIsDeleteDialogOpen(true);
                             }}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar"
-                            disabled={isCreating || isEditing || isDeleting}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={!rol.estado ? "Rol inactivo (solo historial)" : "Eliminar"}
+                            disabled={!rol.estado || isCreating || isEditing || isDeleting}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>

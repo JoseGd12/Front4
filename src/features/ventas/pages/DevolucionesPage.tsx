@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { Input } from "../../../shared/components/ui/input";
 import {
   Plus,
   Search,
   Eye,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   RotateCcw,
@@ -99,6 +100,353 @@ const getRemainingWarrantyDays = (fechaISO: string, _garantiaMeses: number): num
   }
 };
 
+// ─── Design Tokens (Front4 palette) ──────────────────────────────────────────
+const T = {
+  orangePrimary:  "#d8b081",
+  orangeDarker:   "#c4a06d",
+  blackPrimary:   "#212020",
+  blackSecondary: "#111111",
+  grayDarkest:    "#1a1919",
+  grayDarker:     "#2a2a2a",
+  grayDark:       "#3a3a3a",
+  grayMedium:     "#333131",
+  grayLightest:   "#d0d0d0",
+  whitePrimary:   "#ffffff",
+  whiteSecondary: "#f5f5f5",
+  green:          "#4ade80",
+  red:            "#DC2626",
+};
+
+// ─── CSS ─────────────────────────────────────────────────────────────────────
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+  
+  .dev-root {
+    min-height: 100vh;
+    background: ${T.blackPrimary};
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    color: ${T.whitePrimary};
+    padding: 0px;
+  }
+
+  /* ── Card ── */
+  .dev-card {
+    background: ${T.grayDarkest};
+    border: 1px solid ${T.grayDarker};
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  /* ── Toolbar ── */
+  .dev-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid ${T.grayDarker};
+    flex-wrap: wrap;
+  }
+
+  .btn-primary-custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: ${T.orangePrimary};
+    color: ${T.blackPrimary};
+    border: none;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background .15s;
+  }
+  .btn-primary-custom:hover { background: ${T.orangeDarker}; }
+
+  /* ── Search ── */
+  .dev-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 380px;
+  }
+  .dev-search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: ${T.grayDark};
+    pointer-events: none;
+    display: flex;
+  }
+  .dev-search {
+    width: 100%;
+    padding: 9px 14px 9px 36px;
+    background: ${T.blackSecondary};
+    border: 1px solid ${T.grayDarker};
+    border-radius: 8px;
+    color: ${T.whitePrimary};
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color .15s;
+  }
+  .dev-search::placeholder { color: ${T.grayDark}; }
+  .dev-search:focus { border-color: ${T.orangePrimary}; }
+
+  /* ── Select ── */
+  .dev-select {
+    background: ${T.blackSecondary};
+    border: 1px solid ${T.grayDarker};
+    border-radius: 8px;
+    padding: 9px 14px;
+    color: ${T.whitePrimary};
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .dev-select:focus { border-color: ${T.orangePrimary}; }
+
+  .dev-count {
+    margin-left: auto;
+    font-size: 13px;
+    color: ${T.grayLightest};
+    white-space: nowrap;
+  }
+
+  /* ── Table ── */
+  .dev-table { width: 100%; border-collapse: collapse; }
+
+  .dev-thead th {
+    padding: 13px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: ${T.grayLightest};
+    text-align: center;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid ${T.grayDarker};
+    white-space: nowrap;
+    background: ${T.grayDarkest};
+  }
+  .dev-thead th:first-child { text-align: left; padding-left: 20px; }
+
+  /* ── Group row ── */
+  .dev-group-row {
+    background: ${T.grayMedium};
+    border-bottom: 1px solid ${T.grayDarker};
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .dev-group-row:hover { background: ${T.grayDark}; }
+
+  .dev-group-cell { padding: 14px 16px; }
+  .dev-group-cell:first-child { padding-left: 20px; }
+
+  .dev-group-inner { display: flex; align-items: center; gap: 12px; }
+
+  .dev-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: ${T.blackPrimary};
+    flex-shrink: 0;
+    background: ${T.orangePrimary};
+  }
+
+  .dev-client-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: ${T.whitePrimary};
+    line-height: 1.3;
+  }
+  .dev-client-doc {
+    font-size: 12px;
+    color: ${T.grayLightest};
+    margin-top: 1px;
+  }
+
+  /* ── Expand button ── */
+  .dev-expand-btn {
+    background: rgba(216,176,129,0.08);
+    border: 1px solid rgba(216,176,129,0.2);
+    border-radius: 7px;
+    padding: 6px 13px;
+    color: ${T.grayLightest};
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .dev-expand-btn:hover {
+    background: rgba(216,176,129,0.15);
+    border-color: ${T.orangePrimary};
+    color: ${T.orangePrimary};
+  }
+
+  /* ── Item rows ── */
+  .dev-item-row {
+    border-bottom: 1px solid rgba(42,42,42,0.8);
+    background: ${T.blackSecondary};
+    transition: background .12s;
+  }
+  .dev-item-row:hover { background: ${T.grayDarkest}; }
+
+  .dev-td {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: ${T.grayLightest};
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  /* ── Number accent ── */
+  .dev-num {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+    color: ${T.orangePrimary};
+  }
+
+  /* ── Estado badges ── */
+  .badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-completada {
+    background: rgba(74,222,128,0.1);
+    color: ${T.green};
+    border: 1px solid rgba(74,222,128,0.2);
+  }
+  .badge-anulada {
+    background: rgba(220,38,38,0.1);
+    color: #f87171;
+    border: 1px solid rgba(220,38,38,0.2);
+  }
+  .badge-pendiente {
+    background: rgba(234,179,8,0.1);
+    color: #facc15;
+    border: 1px solid rgba(250,204,21,0.2);
+  }
+
+  /* ── Icon action buttons ── */
+  .dev-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: ${T.grayDark};
+    padding: 6px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    transition: background .12s, color .12s;
+  }
+  .dev-icon-btn:hover         { background: ${T.grayDarker}; }
+  .dev-icon-btn:disabled      { opacity: .3; cursor: not-allowed; }
+  .dev-icon-btn.ban:hover     { color: #f87171; }
+  .dev-icon-btn.eye:hover     { color: ${T.orangePrimary}; }
+  .dev-icon-btn.pdf:hover     { color: #60a5fa; }
+
+  /* ── Sub-table ── */
+  .dev-sub-label {
+    padding: 10px 20px 8px 20px;
+    font-size: 12px;
+    color: ${T.grayLightest};
+    border-bottom: 1px solid ${T.grayDarker};
+    background: rgba(26,25,25,0.6);
+  }
+
+  .dev-sub-header th {
+    padding: 9px 16px;
+    font-size: 10px;
+    font-weight: 700;
+    color: ${T.grayDark};
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: rgba(17,17,17,0.5);
+    border-bottom: 1px solid ${T.grayDarker};
+    white-space: nowrap;
+  }
+  .dev-sub-header th:first-child { text-align: left; padding-left: 52px; }
+
+  /* ── Pagination ── */
+  .dev-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid ${T.grayDarker};
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .dev-pag-info { font-size: 13px; color: ${T.grayLightest}; }
+  .dev-pag-btns { display: flex; gap: 5px; }
+
+  .pag-btn-custom {
+    background: ${T.grayDarker};
+    border: 1px solid ${T.grayDark};
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: ${T.grayLightest};
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 34px;
+    transition: background .12s, border-color .12s;
+  }
+  .pag-btn-custom:hover:not(:disabled) {
+    background: ${T.grayDark};
+    border-color: ${T.orangePrimary};
+    color: ${T.orangePrimary};
+  }
+  .pag-btn-custom:disabled { opacity: .35; cursor: not-allowed; }
+  .pag-btn-custom.active {
+    background: ${T.orangePrimary};
+    border-color: ${T.orangePrimary};
+    color: ${T.blackPrimary};
+    font-weight: 700;
+    cursor: default;
+  }
+
+  /* ── Empty / chevron ── */
+  .dev-empty {
+    padding: 48px;
+    text-align: center;
+    color: ${T.grayDark};
+    font-size: 14px;
+  }
+  .chev-custom { display: inline-flex; transition: transform .2s; }
+  .chev-custom.open { transform: rotate(180deg); }
+
+  /* ── Expanded border accent ── */
+  .dev-exp-cell {
+    padding: 0;
+    background: ${T.blackSecondary};
+    border-bottom: 2px solid rgba(216,176,129,0.18);
+    border-left: 3px solid ${T.orangePrimary};
+  }
+`;
+
 // Tipos de datos actualizados
 interface Devolucion {
   id: string;
@@ -161,6 +509,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const [showDevolucionFormErrors, setShowDevolucionFormErrors] = useState(false);
   const [devolucionValidationAttempt, setDevolucionValidationAttempt] = useState(0);
@@ -440,6 +789,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const showMotivoError = showDevolucionFormErrors && !nuevaDevolucion.motivoCategoria && !selectedBarbero;
   const showCantidadError = false;
 
+  const inits = (s: string) => s.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+
   // Filtros y paginación - Actualizado para eliminar búsqueda por producto
   const filteredDevoluciones = useMemo(() => devoluciones.filter(devolucion => {
     const motivoDet = String((devolucion as any).motivoDetalle || '').toLowerCase();
@@ -468,9 +819,75 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
     return matchesSearch && matchesEstado;
   }), [devoluciones, searchTerm, filtroEstado]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredDevoluciones.length / itemsPerPage));
+  const groupedDevoluciones = useMemo(() => {
+    const map = new Map<string, { 
+      cliente: string; 
+      documento: string; 
+      tipoDocumento: string;
+      saldoTotal: number; 
+      totalDevoluciones: number;
+      ultimaDevolucion: string;
+      items: Devolucion[] 
+    }>();
+
+    filteredDevoluciones.forEach((devolucion) => {
+      const clienteKey = String(devolucion.clienteId || devolucion.cliente || 'sin-cliente');
+      const existing = map.get(clienteKey);
+      const saldo = Number(devolucion.saldoAFavor || 0);
+
+      if (existing) {
+        existing.items.push(devolucion);
+        if (String(devolucion.estado).toLowerCase() === 'completada') {
+          existing.saldoTotal += saldo;
+        }
+        existing.totalDevoluciones += 1;
+        return;
+      }
+
+      const docRaw = devolucion.clienteDocumento || '';
+      const docParts = docRaw.split(' ');
+      const tipoDoc = docParts.length > 1 ? docParts[0] : 'CC';
+      const numDoc = docParts.length > 1 ? docParts.slice(1).join(' ') : docRaw;
+
+      map.set(clienteKey, {
+        cliente: devolucion.cliente || 'Cliente',
+        documento: numDoc || '—',
+        tipoDocumento: tipoDoc,
+        saldoTotal: String(devolucion.estado).toLowerCase() === 'completada' ? saldo : 0,
+        totalDevoluciones: 1,
+        ultimaDevolucion: devolucion.fecha,
+        items: [devolucion]
+      });
+    });
+
+    return Array.from(map.entries()).map(([key, value]) => {
+      const sortedItems = value.items.sort((a, b) => {
+        const idA = Number(a.apiId || a.id);
+        const idB = Number(b.apiId || b.id);
+        return idB - idA;
+      });
+
+      return {
+        key,
+        ...value,
+        items: sortedItems,
+        ultimaDevolucion: sortedItems[0]?.fecha || '—'
+      };
+    }).sort((a, b) => b.saldoTotal - a.saldoTotal);
+  }, [filteredDevoluciones]);
+
+  const totalPages = Math.max(1, Math.ceil(groupedDevoluciones.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedDevoluciones = filteredDevoluciones.slice(startIndex, startIndex + itemsPerPage);
+  const displayedGrupos = groupedDevoluciones.slice(startIndex, startIndex + itemsPerPage);
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
+      return s;
+    });
+  };
 
   // Funciones auxiliares
   const getEstadoColor = (estado: string) => {
@@ -485,6 +902,13 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const getMotivoLabel = (motivoCategoria: string) => {
     const motivo = MOTIVOS_DEVOLUCION.find(m => m.value === motivoCategoria);
     return motivo ? motivo.label : motivoCategoria;
+  };
+
+  const badgeClass = (estado: string) => {
+    const e = (estado || '').toLowerCase().trim();
+    if (e === "completada" || e === "completado" || e === "activo") return "badge badge-completada";
+    if (e === "anulada" || e === "anulado") return "badge badge-anulada";
+    return "badge badge-pendiente";
   };
 
   const normalizeEstadoVenta = (estado: string) => {
@@ -1273,219 +1697,333 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
   return (
     <>
-      <main className="flex-1 overflow-auto bg-black-primary">
-        {/* Stats Cards */}
-        <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="elegante-card text-center">
-            <RotateCcw className="w-8 h-8 text-orange-primary mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">{devolucionesHoy}</h4>
-            <p className="text-gray-lightest text-sm">Devoluciones Hoy</p>
-          </div>
-          <div className="elegante-card text-center">
-            <TrendingDown className="w-8 h-8 text-red-400 mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">${formatCurrency(totalMontoDevoluciones)}</h4>
-            <p className="text-gray-lightest text-sm">Monto Total</p>
-          </div>
-          <div className="elegante-card text-center">
-            <Check className="w-8 h-8 text-green-400 mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">{devolucionesActivas}</h4>
-            <p className="text-gray-lightest text-sm">Devoluciones Activas</p>
-          </div>
-          <div className="elegante-card text-center">
-            <X className="w-8 h-8 text-red-400 mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">{devolucionesAnuladas}</h4>
-            <p className="text-gray-lightest text-sm">Devoluciones Anuladas</p>
-          </div>
-          <div className="elegante-card text-center">
-            <Wallet className="w-8 h-8 text-orange-secondary mx-auto mb-2" />
-            <h4 className="text-2xl font-bold text-white-primary mb-1">${formatCurrency(totalSaldosAFavor)}</h4>
-            <p className="text-gray-lightest text-sm">Saldos a Favor</p>
-          </div>
-        </div>
+      <style>{css}</style>
 
-        {/* Sección Principal */}
-        <div className="elegante-card">
-          <TableHeaderSection
-            leftContent={(
-              <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  if (onNavigate) {
-                    onNavigate("RegistrarDevolucion");
-                  } else {
-                    setShowDevolucionFormErrors(false);
-                    setIsDialogOpen(true);
-                  }
+      <main className="dev-root">
+        <div className="dev-card">
+
+          {/* ── Toolbar ── */}
+          <div className="dev-toolbar">
+            <button 
+              className="btn-primary-custom"
+              onClick={() => {
+                if (onNavigate) {
+                  onNavigate("RegistrarDevolucion");
+                } else {
+                  setShowDevolucionFormErrors(false);
+                  setIsDialogOpen(true);
+                }
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Nueva Devolución
+            </button>
+
+            <div className="dev-search-wrap">
+              <span className="dev-search-icon"><Search className="w-4 h-4" /></span>
+              <input
+                className="dev-search"
+                placeholder="Buscar por cliente o documento..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
                 }}
-                className="elegante-button-primary gap-2 flex items-center"
+              />
+            </div>
+
+            <select
+              className="dev-select"
+              value={filtroEstado}
+              onChange={(e) => {
+                setFiltroEstado(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="Todos">Todos</option>
+              <option value="Completada">Completadas</option>
+              <option value="Anulada">Anuladas</option>
+            </select>
+
+            <span className="dev-count">
+              Mostrando {groupedDevoluciones.length} clientes
+            </span>
+          </div>
+
+          {/* ── Table ── */}
+          <div style={{ overflowX: "auto" }}>
+            <table className="dev-table">
+              <thead className="dev-thead">
+                <tr>
+                  <th>Cliente</th>
+                  <th>Documento</th>
+                  <th>Total Devoluciones</th>
+                  <th>Saldo a Favor Total</th>
+                  <th>Última Devolución</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="dev-empty">
+                      Cargando devoluciones...
+                    </td>
+                  </tr>
+                ) : displayedGrupos.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="dev-empty">
+                      No se encontraron clientes con los filtros aplicados.
+                    </td>
+                  </tr>
+                ) : (
+                  displayedGrupos.map((grupo) => {
+                    const open = expandedIds.has(grupo.key);
+                    const devsFiltradas = grupo.items;
+
+                    return (
+                      <Fragment key={`frag-${grupo.key}`}>
+                        {/* ── Group header row ── */}
+                        <tr
+                          className="dev-group-row"
+                          onClick={() => toggleExpand(grupo.key)}
+                        >
+                          {/* Cliente */}
+                          <td className="dev-group-cell">
+                            <div className="dev-group-inner">
+                              <div className="dev-avatar">
+                                {inits(grupo.cliente)}
+                              </div>
+                              <div>
+                                <div className="dev-client-name">{grupo.cliente}</div>
+                                <div className="dev-client-doc">
+                                  {grupo.tipoDocumento} {grupo.documento}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Documento */}
+                          <td className="dev-td">
+                            {grupo.documento}
+                          </td>
+
+                          {/* Total devoluciones */}
+                          <td className="dev-td" style={{ fontWeight: 600, color: T.whitePrimary }}>
+                            {grupo.totalDevoluciones}
+                          </td>
+
+                          {/* Saldo a favor total */}
+                          <td className="dev-td">
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                fontSize: "14px",
+                                color: grupo.saldoTotal > 0 ? T.green : T.grayDark,
+                              }}
+                            >
+                              ${formatCurrency(grupo.saldoTotal)}
+                            </span>
+                          </td>
+
+                          {/* Última devolución */}
+                          <td className="dev-td">{grupo.ultimaDevolucion}</td>
+
+                          {/* Acciones */}
+                          <td className="dev-td">
+                            <button
+                              className="dev-expand-btn"
+                              onClick={(e) => { e.stopPropagation(); toggleExpand(grupo.key); }}
+                            >
+                              <Eye className="w-4 h-4" />
+                              Ver devoluciones
+                              <span className={`chev-custom${open ? " open" : ""}`}>
+                                <ChevronDown className="w-4 h-4" />
+                              </span>
+                            </button>
+                          </td>
+                        </tr>
+
+                        {/* ── Expanded sub-table ── */}
+                        {open && (
+                          <tr key={`exp-${grupo.key}`}>
+                            <td colSpan={6} className="dev-exp-cell">
+
+                              {/* Sub-label */}
+                              <div className="dev-sub-label">
+                                Todas las devoluciones de{" "}
+                                <span style={{ color: T.orangePrimary, fontWeight: 600 }}>
+                                  {grupo.cliente}
+                                </span>
+                              </div>
+
+                              {/* Inner table */}
+                              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                  <tr className="dev-sub-header">
+                                    <th>Número</th>
+                                    <th>Tipo</th>
+                                    <th>Monto Devolución</th>
+                                    <th>Saldo a Favor</th>
+                                    <th>Fecha de Registro</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {devsFiltradas.length === 0 ? (
+                                    <tr>
+                                      <td
+                                        colSpan={7}
+                                        style={{
+                                          padding: "20px",
+                                          textAlign: "center",
+                                          color: T.grayDark,
+                                          fontSize: "13px",
+                                        }}
+                                      >
+                                        Sin devoluciones para este filtro.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    devsFiltradas.map((dev) => (
+                                      <tr key={dev.id} className="dev-item-row">
+
+                                        {/* Número */}
+                                        <td
+                                          className="dev-td"
+                                          style={{ paddingLeft: "52px", textAlign: "left" }}
+                                        >
+                                          <span className="dev-num">
+                                            <Hash className="w-3 h-3" />
+                                            {dev.id}
+                                          </span>
+                                        </td>
+
+                                        {/* Tipo */}
+                                        <td className="dev-td">
+                                          {dev.ventaId ? 'Venta' : (dev.entregaId ? 'Insumos' : '—')}
+                                        </td>
+
+                                        {/* Monto */}
+                                        <td
+                                          className="dev-td"
+                                          style={{ fontWeight: 600, color: T.whitePrimary }}
+                                        >
+                                          ${formatCurrency(dev.monto)}
+                                        </td>
+
+                                        {/* Saldo a Favor */}
+                                        <td className="dev-td">
+                                          <span
+                                            style={{
+                                              color: dev.saldoAFavor > 0 ? T.green : T.grayDark,
+                                              fontWeight: dev.saldoAFavor > 0 ? 600 : 400,
+                                            }}
+                                          >
+                                            ${formatCurrency(dev.saldoAFavor)}
+                                          </span>
+                                        </td>
+
+                                        {/* Fecha */}
+                                        <td className="dev-td">{dev.fecha}</td>
+
+                                        {/* Estado */}
+                                        <td className="dev-td">
+                                          <span className={badgeClass(dev.estado)}>
+                                            {dev.estado}
+                                          </span>
+                                        </td>
+
+                                        {/* Acciones */}
+                                        <td className="dev-td">
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
+                                              gap: "4px",
+                                            }}
+                                          >
+                                            <button
+                                              className="dev-icon-btn ban"
+                                              title="Anular devolución"
+                                              disabled={dev.estado !== "Completada"}
+                                              onClick={() => handleToggleEstado(dev)}
+                                            >
+                                              <Ban className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                              className="dev-icon-btn eye"
+                                              title="Ver detalle"
+                                              onClick={() => {
+                                                setSelectedDevolucion(dev);
+                                                setIsDetailDialogOpen(true);
+                                              }}
+                                            >
+                                              <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                              className="dev-icon-btn pdf"
+                                              title="Descargar PDF"
+                                              onClick={() => generateIndividualPdf(dev)}
+                                            >
+                                              <FileDown className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Pagination ── */}
+          <div className="dev-pagination">
+            <span className="dev-pag-info">
+              Página {currentPage} de {totalPages}
+            </span>
+
+            <div className="dev-pag-btns">
+              <button
+                className="pag-btn-custom"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
               >
-                <Plus className="w-4 h-4" />
-                Nueva Devolución
+                ‹
               </button>
 
-              </div>
-            )}
-            searchValue={searchTerm}
-            onSearchChange={(value) => {
-              setSearchTerm(value);
-              setCurrentPage(1);
-            }}
-            searchPlaceholder="Buscar por cualquier campo de la tabla..."
-            statusFilter={{
-              value: filtroEstado,
-              onChange: (value) => {
-                setFiltroEstado(value);
-                setCurrentPage(1);
-              },
-              options: [
-                { value: "Todos", label: "Todos" },
-                { value: "Completada", label: "Completadas" },
-                { value: "Anulada", label: "Anuladas" },
-              ],
-            }}
-            recordsText={`Mostrando ${displayedDevoluciones.length} de ${filteredDevoluciones.length} devoluciones`}
-            recordsPlacement="left"
-          />
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  className={`pag-btn-custom${p === currentPage ? " active" : ""}`}
+                  onClick={() => setCurrentPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
 
-          {/* Tabla de Devoluciones - MODIFICADA PARA ELIMINAR COLUMNAS */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-                <thead className={isLoading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
-                  <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuario</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Tipo</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto Devolución</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha de Registro</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <TableLoadingStateRow
-                      colSpan={9}
-                      title="Cargando devoluciones..."
-                    />
-                  ) : displayedDevoluciones.length > 0 ? (
-                  displayedDevoluciones.map((devolucion) => (
-                    <tr key={devolucion.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Hash className="w-4 h-4 text-orange-primary" />
-                          <span className="text-gray-lighter">{String(devolucion.id)}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">
-                          {devolucion.ventaId
-                            ? (devolucion.clienteDocumento || devolucion.clienteId || '—')
-                            : (() => {
-                              const b = barberosDisponibles.find((x: any) => Number(x.id) === Number(devolucion.barberoId));
-                              return b ? `${b.tipoDocumento} ${b.documento}` : (devolucion.clienteDocumento || devolucion.clienteId || '—');
-                            })()
-                          }
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-3">
-                          <div className="text-gray-lighter">
-                            {(devolucion.ventaId ? (devolucion.cliente || '') : (devolucion.barbero || devolucion.cliente || '')) || 'Usuario'}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">{devolucion.ventaId ? 'Venta' : (devolucion.entregaId ? 'Insumos' : '—')}</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter font-bold">${formatCurrency(devolucion.monto)}</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">${formatCurrency(devolucion.saldoAFavor)}</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="text-gray-lighter">{devolucion.fecha}</div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`px-3 py-1 rounded-full text-xs ${getEstadoColor(devolucion.estado)}`}>
-                          {devolucion.estado}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => devolucion.estado === 'Completada' && handleToggleEstado(devolucion)}
-                            disabled={devolucion.estado !== 'Completada'}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={devolucion.estado === 'Completada' ? 'Anular devolución' : 'No se puede reactivar una devolución anulada'}
-                          >
-                            <Ban className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedDevolucion(devolucion);
-                              setIsDetailDialogOpen(true);
-                            }}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Ver detalles"
-                          >
-                            <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                          </button>
-                          <button
-                            onClick={() => generateIndividualPdf(devolucion)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Descargar PDF"
-                          >
-                            <FileDown className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <TableEmptyStateRow
-                    colSpan={9}
-                    title="No se encontraron devoluciones"
-                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                    onReload={loadData}
-                    extraAction={(
-                      <button
-                        onClick={() => {
-                          if (onNavigate) {
-                            onNavigate("RegistrarDevolucion");
-                          } else {
-                            setShowDevolucionFormErrors(false);
-                            setIsDialogOpen(true);
-                          }
-                        }}
-                        className="elegante-button-primary gap-2 flex items-center"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Nueva devolución
-                      </button>
-                    )}
-                  />
-                  )}
-                </tbody>
-              </table>
-          </div>
-
-          {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+              <button
+                className="pag-btn-custom"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+              >
+                ›
+              </button>
             </div>
-            <EllipsisPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
-            />
           </div>
+
         </div>
       </main>
 

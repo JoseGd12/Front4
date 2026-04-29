@@ -544,15 +544,17 @@ export function ServiciosPage() {
                           </button>
                           <button
                             onClick={() => handleEditServicio(servicio)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar"
+                            disabled={!servicio.estado}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={servicio.estado ? "Editar" : "Servicio inactivo (solo historial)"}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
                           <button
                             onClick={() => handleDeleteServicio(servicio)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar"
+                            disabled={!servicio.estado}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={servicio.estado ? "Eliminar" : "Servicio inactivo (solo historial)"}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>

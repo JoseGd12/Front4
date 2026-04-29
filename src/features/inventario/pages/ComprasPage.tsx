@@ -87,6 +87,17 @@ const normalizeSearchText = (value: unknown): string => {
     .trim();
 };
 
+const sortComprasByRecency = <T extends { id?: number; fecha?: string }>(items: T[]): T[] => {
+  return [...items].sort((a, b) => {
+    const timeA = a?.fecha ? new Date(a.fecha).getTime() : 0;
+    const timeB = b?.fecha ? new Date(b.fecha).getTime() : 0;
+    if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+      return timeB - timeA;
+    }
+    return Number(b?.id || 0) - Number(a?.id || 0);
+  });
+};
+
 import { useAuth } from "../../../shared/contexts/AuthContext";
 
 // Lazy load components incorrectly was causing a crash. 
@@ -333,7 +344,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          setCompras(parsed);
+          setCompras(sortComprasByRecency(parsed));
           // Si tenemos cache, ya no necesitamos mostrar el spinner principal
           // aunque sigamos cargando datos frescos en background
           setLoading(false);
@@ -345,8 +356,9 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
 
     try {
       const comprasData = await compraService.getCompras();
-      setCompras(comprasData);
-      sessionStorage.setItem('compras_cache', JSON.stringify(comprasData));
+      const ordered = sortComprasByRecency(comprasData);
+      setCompras(ordered);
+      sessionStorage.setItem('compras_cache', JSON.stringify(ordered));
     } catch (error) {
       showErrorAlert("Error al cargar compras", "No se pudieron obtener las compras.");
       console.error(error);

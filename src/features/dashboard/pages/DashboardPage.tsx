@@ -311,6 +311,11 @@ export function DashboardPage() {
     return st !== "anulada" && st !== "cancelada";
   };
 
+  const isCitaCompletada = (estado: string) => {
+    const st = String(estado || "").toLowerCase();
+    return st === "completada" || st === "en-curso";
+  };
+
   const ventasHoy = useMemo(() => {
     return ventas.filter(v => {
       if (!v.fecha) return false;

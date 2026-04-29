@@ -1419,15 +1419,17 @@ export function ProductosPage() {
                             </button>
                             <button
                               onClick={() => handleEditProducto(producto)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Editar"
+                              disabled={!producto.activo}
+                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              title={producto.activo ? "Editar" : "Producto inactivo (solo historial)"}
                             >
                               <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                             </button>
                             <button
                               onClick={() => handleDeleteProducto(producto.id)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Eliminar"
+                              disabled={!producto.activo}
+                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              title={producto.activo ? "Eliminar" : "Producto inactivo (solo historial)"}
                             >
                               <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                             </button>

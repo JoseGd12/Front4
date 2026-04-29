@@ -1189,16 +1189,18 @@ export function UsersPage() {
                             {canEditUser && (
                               <button
                                 onClick={() => handleEditUser(user)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title="Editar usuario"
+                                disabled={!user.status}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                title={user.status ? "Editar usuario" : "Usuario inactivo (solo historial)"}
                               >
                                 <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                               </button>
                             )}
                             <button
                               onClick={() => handleSendPasswordSetup(user.correo)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Enviar enlace de contraseña"
+                              disabled={!user.status}
+                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              title={user.status ? "Enviar enlace de contraseña" : "Usuario inactivo (solo historial)"}
                             >
                               <KeyRound className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                             </button>
@@ -1209,9 +1211,9 @@ export function UsersPage() {
                                    setUserToDelete(user);
                                    setIsDeleteDialogOpen(true);
                                  }}
-                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-30 disabled:cursor-not-allowed"
-                                 title={isSelfUser ? "No puedes eliminar tu propio usuario" : "Eliminar usuario"}
-                                 disabled={isSelfUser || isDeleteBlockedByRole}
+                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                 title={!user.status ? "Usuario inactivo (solo historial)" : isSelfUser ? "No puedes eliminar tu propio usuario" : "Eliminar usuario"}
+                                 disabled={!user.status || isSelfUser || isDeleteBlockedByRole}
                                >
                                  <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                                </button>

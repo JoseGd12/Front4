@@ -113,24 +113,30 @@ class AgendamientoService {
 
         // Intento robusto de obtener nombres de cliente, barbero y servicio
         const clienteNom = api.clienteNombre || api.ClienteNombre ||
-            (api.cliente ? `${api.cliente.nombre || api.cliente.nombres || ''} ${api.cliente.apellido || api.cliente.apellidos || ''}`.trim() : '') ||
+            api.clienteNombreCompleto || api.ClienteNombreCompleto ||
+            (api.cliente ? `${api.cliente.nombre || api.cliente.nombres || api.cliente.Nombre || ''} ${api.cliente.apellido || api.cliente.apellidos || api.cliente.Apellido || ''}`.trim() : '') ||
             'Cliente Desconocido';
 
         const barberoNom = api.barberoNombre || api.BarberoNombre ||
-            (api.barbero ? `${api.barbero.nombre || api.barbero.nombres || ''} ${api.barbero.apellido || api.barbero.apellidos || ''}`.trim() : '') ||
+            api.barberoNombreCompleto || api.BarberoNombreCompleto ||
+            (api.barbero ? `${api.barbero.nombre || api.barbero.nombres || api.barbero.Nombre || ''} ${api.barbero.apellido || api.barbero.apellidos || api.barbero.Apellido || ''}`.trim() : '') ||
             'Barbero Desconocido';
 
         const servicioNom = api.servicioNombre || api.ServicioNombre ||
+            api.nombreServicio || api.NombreServicio ||
             api.servicio?.nombre || api.Servicio?.Nombre ||
             (api.paqueteNombre || api.PaqueteNombre) || 'Servicio';
+            
         const rawServicioIds = api.servicioIds || api.ServicioIds || [];
         const servicioIds = Array.isArray(rawServicioIds)
             ? rawServicioIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
             : [];
+            
         const serviciosNombresRaw = api.serviciosNombres || api.ServiciosNombres || [];
         const serviciosNombres = Array.isArray(serviciosNombresRaw)
             ? serviciosNombresRaw.map((nombre: any) => String(nombre)).filter((nombre: string) => nombre.trim().length > 0)
             : [];
+            
         if (servicioIds.length === 0 && (api.servicioId || api.ServicioId)) {
             servicioIds.push(Number(api.servicioId || api.ServicioId));
         }
@@ -152,7 +158,7 @@ class AgendamientoService {
             id: Number(api.id || api.Id || 0),
             clienteId: Number(api.clienteId || api.ClienteId || 0),
             clienteNombre: clienteNom,
-            clienteTelefono: api.cliente?.telefono || api.Cliente?.Telefono || '',
+            clienteTelefono: api.clienteTelefono || api.ClienteTelefono || api.cliente?.telefono || api.Cliente?.Telefono || '',
             barberoId: Number(api.barberoId || api.BarberoId || 0),
             barberoNombre: barberoNom,
             servicioId: api.servicioId || api.ServicioId ? Number(api.servicioId || api.ServicioId) : null,

@@ -489,6 +489,30 @@ export function HorariosPage() {
     return target;
   };
 
+  const getStartOfWeek = (baseDate: Date): Date => {
+    const date = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+    const day = date.getDay() || 7; // domingo=7
+    date.setDate(date.getDate() - (day - 1));
+    return date;
+  };
+
+  const formatDateShort = (date: Date): string => {
+    return new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "2-digit" }).format(date);
+  };
+
+  const getWeekLabel = (offset: number): string => {
+    if (offset === 0) return "Semana actual";
+    if (offset === 1) return "Próxima semana";
+    return `Semana +${offset}`;
+  };
+
+  const getWeekRangeLabel = (offset: number): string => {
+    const monday = getStartOfWeek(new Date());
+    const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + offset * 7);
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+    return `${getWeekLabel(offset)} (${formatDateShort(start)} - ${formatDateShort(end)})`;
+  };
+
   const toggleEstadoHorario = async (horario: HorarioSemanal) => {
     try {
       setTogglingId(horario.id);
@@ -1022,6 +1046,9 @@ export function HorariosPage() {
                       Bloques
                     </th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
+                      Semana
+                    </th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Acciones
                     </th>
                   </tr>
@@ -1029,7 +1056,7 @@ export function HorariosPage() {
                 <tbody>
                   {loading ? (
                     <TableLoadingStateRow
-                      colSpan={6}
+                      colSpan={7}
                       title="Cargando horarios..."
                     />
                   ) : displayedHorarios.length > 0 ? displayedHorarios.map((horario) => (
@@ -1080,6 +1107,11 @@ export function HorariosPage() {
                         </span>
                       </td>
                       <td className="py-4 px-4 text-center">
+                        <span className="text-xs text-gray-lightest">
+                          {getWeekRangeLabel(weekOffset)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => toggleEstadoHorario(horario)}
@@ -1097,8 +1129,9 @@ export function HorariosPage() {
                           </button>
                           <button
                             onClick={() => handleOpenSpecialCancel(horario)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Cancelación Especial (Días/Citas)"
+                            disabled={!horario.activo}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={horario.activo ? "Cancelación Especial (Días/Citas)" : "Horario inactivo (solo historial)"}
                           >
                             <CalendarX className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
                           </button>
@@ -1111,15 +1144,17 @@ export function HorariosPage() {
                           </button>
                           <button
                             onClick={() => handleEditHorario(horario)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar"
+                            disabled={!horario.activo}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={horario.activo ? "Editar" : "Horario inactivo (solo historial)"}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                           </button>
                           <button
                             onClick={() => handleDeleteHorario(horario)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar"
+                            disabled={!horario.activo}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={horario.activo ? "Eliminar" : "Horario inactivo (solo historial)"}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>
@@ -1128,7 +1163,7 @@ export function HorariosPage() {
                     </tr>
                   )) : (
                     <TableEmptyStateRow
-                      colSpan={6}
+                      colSpan={7}
                       title="No se encontraron horarios"
                       description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                       onReload={loadData}
@@ -1238,10 +1273,15 @@ export function HorariosPage() {
 
                 {/* Agregar Bloque */}
                 <div className="bg-gray-darker rounded-lg p-4 border border-gray-dark">
-                  <h3 className="text-white-primary font-medium mb-3 flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-orange-primary" />
-                    Agregar Bloque de Horario
-                  </h3>
+                  <div className="mb-3">
+                    <h3 className="text-white-primary font-medium flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-orange-primary" />
+                      Agregar Bloque de Horario
+                    </h3>
+                    <p className="text-[10px] text-gray-lighter ml-6 mt-0.5 italic">
+                      {getWeekRangeLabel(0)}
+                    </p>
+                  </div>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label className="text-gray-lightest text-sm">Días *</Label>
@@ -1249,6 +1289,7 @@ export function HorariosPage() {
                         {diasSemana.map((dia) => {
                           const isSelected = diasSeleccionados.includes(dia);
                           const isAlreadyAdded = nuevoHorario.bloques.some(b => b.dia === dia);
+                          
                           return (
                             <button
                               key={dia}
@@ -1540,14 +1581,14 @@ export function HorariosPage() {
                                 : "bg-gray-dark hover:bg-gray-medium text-gray-lightest border-gray-medium"
                           }`}
                         >
-                          {dia}
+                          {dia} ({formatDateShort(targetDate)})
                           {isSelected && <CheckCircle className="w-3 h-3" />}
                         </button>
                       );
                     })}
                   </div>
                   <div className="text-xs text-gray-lightest italic">
-                    Fechas seleccionadas: <span className="text-white-primary font-medium">{selectedDates.length}</span>
+                    {getWeekRangeLabel(weekOffset)}. Fechas seleccionadas: <span className="text-white-primary font-medium">{selectedDates.length}</span>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -1586,6 +1627,9 @@ export function HorariosPage() {
                       <SelectItem value="2" className="text-white-primary">En 2 semanas</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="text-xs text-gray-lightest italic">
+                  Referencia seleccionada: <span className="text-white-primary">{getWeekRangeLabel(weekOffset)}</span>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-gray-lightest text-sm">Motivo *</Label>

@@ -326,6 +326,10 @@ export function PaquetesPage() {
   };
 
   const handleEditPaquete = async (paquete: Paquete) => {
+    if (!paquete.activo) {
+      showErrorAlert("Registro inactivo", "Este paquete está inactivo y se maneja solo como historial.");
+      return;
+    }
     setEditingPaquete(paquete);
     // Cargar detalles reales para obtener IDs y nombres exactos
     let serviciosArray: string[] = Array.isArray(paquete.servicios) ? paquete.servicios : [];
@@ -471,6 +475,10 @@ export function PaquetesPage() {
   };
 
   const handleEliminarPaquete = (paquete: Paquete) => {
+    if (!paquete.activo) {
+      showErrorAlert("Registro inactivo", "Este paquete está inactivo y no permite acciones.");
+      return;
+    }
     const nombrePaquete = paquete.nombre;
     (async () => {
       try {
@@ -659,15 +667,17 @@ export function PaquetesPage() {
                               </button>
                               <button
                                 onClick={() => handleEditPaquete(paquete)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title="Editar"
+                                disabled={!paquete.activo}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                title={paquete.activo ? "Editar" : "Paquete inactivo (solo historial)"}
                               >
                                 <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                               </button>
                               <button
                                 onClick={() => handleEliminarPaquete(paquete)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title="Eliminar"
+                                disabled={!paquete.activo}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                title={paquete.activo ? "Eliminar" : "Paquete inactivo (solo historial)"}
                               >
                                 <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                               </button>
@@ -743,62 +753,6 @@ export function PaquetesPage() {
                     onChange={(e) => setNuevoPaquete({ ...nuevoPaquete, nombre: e.target.value })}
                     placeholder="Ej: Paquete Premium Completo"
                     className="elegante-input"
-                  />
-                </div>
-              </div>
-
-              {/* Precio y Descuento */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-orange-primary" />
-                    Precio ($) *
-                  </Label>
-                  <Input
-                    type="number"
-                    value={precioInput}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val.length <= 15) {
-                        setPrecioInput(val);
-                        const nRaw = val.trim() === '' ? 0 : Number(val);
-                        const n = Number.isFinite(nRaw) ? Math.max(0, nRaw) : 0;
-                        setNuevoPaquete({ ...nuevoPaquete, precio: n });
-                      }
-                    }}
-                    className="elegante-input no-spin"
-                    min="0"
-                    step="100"
-                    placeholder=""
-                    readOnly={viewMode !== 'edit'}
-                    disabled={viewMode !== 'edit'}
-                  />
-                  <div className="flex justify-start mt-1">
-                    <span className="text-xs text-gray-500 font-medium">
-                      {precioInput.length}/15 caracteres
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
-                    <Calculator className="w-4 h-4 text-orange-primary" />
-                    Porcentaje Descuento (%)
-                  </Label>
-                  <Input
-                    type="number"
-                    value={porcentajeInput}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPorcentajeInput(val);
-                      const nRaw = val.trim() === '' ? 0 : Number(val);
-                      const n = Number.isFinite(nRaw) ? Math.max(0, Math.min(100, nRaw)) : 0;
-                      setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: n });
-                    }}
-                    className="elegante-input no-spin"
-                    min="0"
-                    max="100"
-                    step="1"
-                    placeholder="0"
                   />
                 </div>
               </div>
@@ -943,6 +897,62 @@ export function PaquetesPage() {
                     <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total</p>
                     <p className="text-orange-primary font-bold text-lg">{(nuevoPaquete.duracion || 0)} min</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Precio y Descuento (reposicionados) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-orange-primary" />
+                    Precio ($) *
+                  </Label>
+                  <Input
+                    type="number"
+                    value={precioInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.length <= 15) {
+                        setPrecioInput(val);
+                        const nRaw = val.trim() === '' ? 0 : Number(val);
+                        const n = Number.isFinite(nRaw) ? Math.max(0, nRaw) : 0;
+                        setNuevoPaquete({ ...nuevoPaquete, precio: n });
+                      }
+                    }}
+                    className="elegante-input no-spin"
+                    min="0"
+                    step="100"
+                    placeholder=""
+                    readOnly={viewMode !== 'edit'}
+                    disabled={viewMode !== 'edit'}
+                  />
+                  <div className="flex justify-start mt-1">
+                    <span className="text-xs text-gray-500 font-medium">
+                      {precioInput.length}/15 caracteres
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-orange-primary" />
+                    Porcentaje Descuento (%)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={porcentajeInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPorcentajeInput(val);
+                      const nRaw = val.trim() === '' ? 0 : Number(val);
+                      const n = Number.isFinite(nRaw) ? Math.max(0, Math.min(100, nRaw)) : 0;
+                      setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: n });
+                    }}
+                    className="elegante-input no-spin"
+                    min="0"
+                    max="100"
+                    step="1"
+                    placeholder="0"
+                  />
                 </div>
               </div>
 
