@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { clientesService, Cliente, CreateClienteData } from "../services/clientesService";
-import { devolucionService, Devolucion as ApiDevolucion } from "../../ventas/services/devolucionService";
+import { devolucionService } from "../../ventas/services/devolucionService";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import {
   Users,
@@ -10,13 +10,10 @@ import {
   Edit,
   Search,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   Calendar,
   UserCheck,
   UserPlus,
   MapPin,
-  IdCard,
   Wallet,
   TrendingUp,
   Camera,
@@ -29,7 +26,7 @@ import {
   Hash,
   Filter
 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -39,11 +36,9 @@ import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
-import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
-import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { notifyEntityCreated } from "../../../shared/services/notificationService";
-import { AppRole } from "../../auth/services/authSyncService";
 import { firebaseAuthService } from "../../../shared/services/firebase";
 import { apiService } from "../../../shared/services/api";
 import { barberosService } from "../../administracion/services/barberosService";
@@ -947,12 +942,13 @@ export function ClientesPage() {
         </div>
 
         {/* Sección Principal */}
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <button
                 onClick={handleCreateClick}
-                className="elegante-button-primary gap-2 flex items-center"
+                className="btn-std-primary"
               >
                 <UserPlus className="w-4 h-4" />
                 Añadir Cliente
@@ -976,162 +972,129 @@ export function ClientesPage() {
                 { value: "inactive", label: "Inactivos" },
               ],
             }}
-            rightContent={(
-              <div className="flex items-center space-x-2">
-                {searchTerm && (
-                  <div className="flex items-center space-x-2 px-3 py-1 bg-orange-primary/20 border border-orange-primary rounded-full">
-                    <Search className="w-3 h-3 text-orange-primary" />
-                    <span className="text-xs text-orange-primary font-medium">
-                      "{searchTerm}"
-                    </span>
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="text-orange-primary hover:text-orange-secondary"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-                {statusFilter !== 'all' && (
-                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${statusFilter === 'active'
-                    ? 'bg-green-600/20 border-green-600 text-green-400'
-                    : 'bg-red-600/20 border-red-600 text-red-400'
-                    }`}>
-                    {statusFilter === 'active' ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
-                    <span className="text-xs font-medium">
-                      {statusFilter === 'active' ? 'Activos' : 'Inactivos'}
-                    </span>
-                    <button
-                      onClick={() => setStatusFilter('all')}
-                      className="hover:opacity-70"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
             recordsText={`Mostrando ${displayedClientes.length} de ${filteredClientes.length} clientes`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
           {/* Tabla de Clientes */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
-                <tr className="border-b border-gray-dark">
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Cliente</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <TableLoadingStateRow
-                    colSpan={6}
-                    title="Cargando clientes..."
+          {(() => {
+            const clienteColumns: ColumnDef<Cliente>[] = [
+              {
+                key: "numeroDocumento",
+                header: "Documento",
+                primary: true,
+                render: (_v, row) => (
+                  <span>{(row as any).tipoDocumento ? `${(row as any).tipoDocumento} ${row.numeroDocumento}` : row.numeroDocumento}</span>
+                ),
+              },
+              {
+                key: "nombre",
+                header: "Cliente",
+                align: "left",
+                render: (_v, row) => (
+                  <div className="flex items-center space-x-3">
+                    <ImageRenderer
+                      url={row.fotoPerfil}
+                      alt={`Foto de ${row.nombre}`}
+                      className="w-10 h-10 rounded-full border-2 border-orange-primary"
+                      fallbackVariant="person"
+                      showLabel={false}
+                    />
+                    <span>{row.nombre} {row.apellido}</span>
+                  </div>
+                ),
+              },
+              {
+                key: "email",
+                header: "Contacto",
+                render: (_v, row) => (
+                  <div className="flex flex-col">
+                    <span className="text-sm">{row.email || '-'}</span>
+                    <span className="text-xs opacity-70">{row.telefono || '-'}</span>
+                  </div>
+                ),
+              },
+              {
+                key: "saldoAFavor",
+                header: "Saldo",
+                render: (_v, row) => <span>${formatCurrency(row.saldoAFavor ?? 0)}</span>,
+              },
+              {
+                key: "activo",
+                header: "Estado",
+                render: (_v, row) => (
+                  <StandardTable.StatusBadge
+                    variant={resolveStatusVariant(row.activo ? 'Activo' : 'Inactivo')}
+                    label={row.activo ? 'Activo' : 'Inactivo'}
                   />
-                ) : displayedClientes.length === 0 ? (
-                  <TableEmptyStateRow
-                    colSpan={6}
-                    title="No se encontraron clientes"
-                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                    onReload={loadClientes}
-                  />
-                ) : (
-                  displayedClientes.map((cliente) => (
-                    <tr key={cliente.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center">
-                          <span className="text-gray-lighter">{(cliente as any).tipoDocumento ? `${(cliente as any).tipoDocumento} ${cliente.numeroDocumento}` : cliente.numeroDocumento}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center space-x-3">
-                          <ImageRenderer
-                            url={cliente.fotoPerfil}
-                            alt={`Foto de ${cliente.nombre}`}
-                            className="w-10 h-10 rounded-full border-2 border-orange-primary"
-                            fallbackVariant="person"
-                            showLabel={false}
-                          />
-                          <span className="text-gray-lighter">{cliente.nombre} {cliente.apellido}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-gray-lighter">{cliente.email || '-'}</span>
-                          <span className="text-xs text-gray-lightest">{cliente.telefono || '-'}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">${formatCurrency(cliente.saldoAFavor ?? 0)}</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`px-2 py-1 rounded-full text-xs ${cliente.activo ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                          {cliente.activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => toggleClienteStatus(cliente.id)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title={cliente.activo ? "Desactivar cliente" : "Activar cliente"}
-                          >
-                            {cliente.activo ? (
-                              <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
-                            ) : (
-                              <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleViewCliente(cliente)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Ver detalles"
-                          >
-                            <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                          </button>
-                          <button
-                            onClick={() => handleEditCliente(cliente)}
-                            disabled={!cliente.activo}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={cliente.activo ? "Editar cliente" : "Cliente inactivo (solo historial)"}
-                          >
-                            <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCliente(cliente)}
-                            disabled={!cliente.activo}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={cliente.activo ? "Eliminar cliente" : "Cliente inactivo (solo historial)"}
-                          >
-                            <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ),
+              },
+              {
+                key: "id",
+                header: "Acciones",
+                render: (_v, row) => (
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => toggleClienteStatus(row.id)}
+                      className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                      title={row.activo ? "Desactivar cliente" : "Activar cliente"}
+                    >
+                      {row.activo ? (
+                        <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                      ) : (
+                        <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleViewCliente(row)}
+                      className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                      title="Ver detalles"
+                    >
+                      <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                    </button>
+                    <button
+                      onClick={() => handleEditCliente(row)}
+                      disabled={!row.activo}
+                      className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      title={row.activo ? "Editar cliente" : "Cliente inactivo (solo historial)"}
+                    >
+                      <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCliente(row)}
+                      disabled={!row.activo}
+                      className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      title={row.activo ? "Eliminar cliente" : "Cliente inactivo (solo historial)"}
+                    >
+                      <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                    </button>
+                  </div>
+                ),
+              },
+            ];
+
+            return (
+              <StandardTable
+                columns={clienteColumns}
+                data={displayedClientes as unknown as Cliente[]}
+                loading={loading}
+                emptyTitle="No se encontraron clientes"
+                emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                onReload={loadClientes}
+                rowKey="id"
+              />
+            );
+          })()}
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
 

@@ -11,12 +11,13 @@ import {
   Search, UserCheck, UserX, Eye, User as UserIcon, ChevronLeft,
   ChevronRight, MapPin, CreditCard, Home, Camera,
   ToggleRight, ToggleLeft, X, Loader2, IdCard, KeyRound,
-  Users2, Filter
+  Users2
 } from "lucide-react";
 import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { apiService, ApiUser } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { clientesService } from "../../clientes/services/clientesService";
@@ -777,14 +778,14 @@ export function UsersPage() {
         </div>
 
         {/* Sección Principal */}
-        <div className="elegante-card">
-          {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+        <div className="std-card">
+          <TableHeaderSection
+            variant="dark"
+            leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="elegante-button-primary gap-2 flex items-center"
+                    className="btn-std-primary"
                     onClick={() => {
                       setEditingUser(null);
                       resetForm();
@@ -947,7 +948,6 @@ export function UsersPage() {
                             {availableRoles
                               .filter(r => r.estado)
                               .filter(r => {
-                                // Regla: Solo un Super Administrador puede asignar el rol de Super Administrador
                                 if (currentUser?.role !== 'super_admin' && r.nombre?.toLowerCase() === 'super administrador') {
                                   return false;
                                 }
@@ -1015,8 +1015,6 @@ export function UsersPage() {
                       </div>
                     </div>
 
-
-
                     <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
                       <button
                         onClick={() => {
@@ -1039,54 +1037,31 @@ export function UsersPage() {
                   </div>
                 </DialogContent>
               </Dialog>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar usuarios..."
+            statusFilter={{
+              value: filterStatus,
+              onChange: (value) => {
+                setFilterStatus(value);
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "true", label: "Activos" },
+                { value: "false", label: "Inactivos" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedUsers.length} de ${filteredUsers.length} usuarios`}
+          />
 
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-lighter w-4 h-4 pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar usuarios..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="elegante-input pl-11 w-80"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <Filter className="w-4 h-4 text-gray-lightest" />
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-48 elegante-input">
-                    <SelectValue placeholder="Estado" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-darkest border-gray-dark">
-                    <SelectItem value="all" className="text-white-primary">Todos</SelectItem>
-                    <SelectItem value="true" className="text-white-primary">Activos</SelectItem>
-                    <SelectItem value="false" className="text-white-primary">Inactivos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="text-sm text-gray-lightest whitespace-nowrap">
-                Mostrando {displayedUsers.length} de {filteredUsers.length} usuarios
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+                <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuario</th>
@@ -1098,7 +1073,7 @@ export function UsersPage() {
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="std-tbody">
                   {loading ? (
                     <TableLoadingStateRow
                       colSpan={7}
@@ -1153,7 +1128,7 @@ export function UsersPage() {
                           <span className="text-gray-lighter">{user.direccion || "—"}</span>
                         </td>
                         <td className="text-center py-4 px-4">
-                          <span className={`px-2 text-xs py-1 rounded-full text-[2px]   ${user.status ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                          <span className={`std-badge ${user.status ? 'std-badge-positive' : 'std-badge-negative'}`}>
                             {user.status ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
@@ -1228,17 +1203,14 @@ export function UsersPage() {
           </div>
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>
@@ -1413,7 +1385,7 @@ export function UsersPage() {
                         Estado
                       </Label>
                       <div className="flex items-center h-10 px-3 py-1 rounded-md bg-gray-dark border border-gray-medium cursor-not-allowed">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${selectedUser.status ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                        <span className={`std-badge ${selectedUser.status ? 'std-badge-positive' : 'std-badge-negative'}`}>
                           {selectedUser.status ? 'Activo' : 'Inactivo'}
                         </span>
                       </div>

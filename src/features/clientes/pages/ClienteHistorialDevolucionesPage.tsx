@@ -70,12 +70,12 @@ export function ClienteHistorialDevolucionesPage() {
   const getEstadoColor = (estado: string) => {
     const estadoNormalizado = (estado || '').toLowerCase().trim();
     if (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado' || estadoNormalizado === 'rechazada') {
-      return 'bg-red-500/10 text-red-400 border border-red-500/20';
+      return 'std-badge-negative';
     }
     if (estadoNormalizado === 'completada' || estadoNormalizado === 'completado' || estadoNormalizado === 'procesada' || estadoNormalizado === 'activo') {
-      return 'bg-green-500/10 text-green-400 border border-green-500/20';
+      return 'std-badge-positive';
     }
-    return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
+    return 'std-badge-neutral';
   };
 
   const totalDevuelto = devoluciones
@@ -108,8 +108,9 @@ export function ClienteHistorialDevolucionesPage() {
       </header>
 
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             searchValue={searchTerm}
             onSearchChange={(value) => {
               setSearchTerm(value);
@@ -129,12 +130,12 @@ export function ClienteHistorialDevolucionesPage() {
               ],
             }}
             recordsText={`Mostrando ${displayedDevoluciones.length} de ${filteredDevoluciones.length} devoluciones`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={isLoading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+              <thead className={isLoading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Venta Ref.</th>
@@ -146,7 +147,7 @@ export function ClienteHistorialDevolucionesPage() {
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="std-tbody">
                 {isLoading ? (
                   <TableLoadingStateRow
                     colSpan={8}
@@ -182,7 +183,7 @@ export function ClienteHistorialDevolucionesPage() {
                       <span className="text-gray-lighter">${formatCurrency(dev.saldoAFavor)}</span>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs ${getEstadoColor(dev.estado)}`}>
+                      <span className={`std-badge ${getEstadoColor(dev.estado)}`}>
                         {dev.estado}
                       </span>
                     </td>
@@ -211,17 +212,14 @@ export function ClienteHistorialDevolucionesPage() {
           </div>
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>
@@ -248,7 +246,7 @@ export function ClienteHistorialDevolucionesPage() {
                         </div>
                         <div className="flex justify-between text-sm items-center">
                             <span className="text-gray-lightest">Estado de Solicitud</span>
-                            <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[12px] font-medium ${getEstadoColor(selectedDevolucion.estado)}`}>
+                            <span className={`std-badge inline-flex items-center justify-center ${getEstadoColor(selectedDevolucion.estado)}`}>
                                 {selectedDevolucion.estado}
                             </span>
                         </div>

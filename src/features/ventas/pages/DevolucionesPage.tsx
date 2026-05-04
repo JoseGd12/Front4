@@ -113,18 +113,15 @@ const T = {
   grayLightest:   "#d0d0d0",
   whitePrimary:   "#ffffff",
   whiteSecondary: "#f5f5f5",
-  green:          "#4ade80",
-  red:            "#DC2626",
+  green:          "#7aab8a",
+  red:            "#b07070",
 };
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-  
   .dev-root {
     min-height: 100vh;
     background: ${T.blackPrimary};
-    font-family: 'DM Sans', 'Segoe UI', sans-serif;
     color: ${T.whitePrimary};
     padding: 0px;
   }
@@ -146,24 +143,6 @@ const css = `
     border-bottom: 1px solid ${T.grayDarker};
     flex-wrap: wrap;
   }
-
-  .btn-primary-custom {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: ${T.orangePrimary};
-    color: ${T.blackPrimary};
-    border: none;
-    border-radius: 8px;
-    padding: 9px 18px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    font-family: inherit;
-    transition: background .15s;
-  }
-  .btn-primary-custom:hover { background: ${T.orangeDarker}; }
 
   /* ── Search ── */
   .dev-search-wrap {
@@ -237,7 +216,7 @@ const css = `
 
   /* ── Group row ── */
   .dev-group-row {
-    background: ${T.grayMedium};
+    background: ${T.grayDarkest};
     border-bottom: 1px solid ${T.grayDarker};
     cursor: pointer;
     transition: background .15s;
@@ -333,19 +312,19 @@ const css = `
     white-space: nowrap;
   }
   .badge-completada {
-    background: rgba(74,222,128,0.1);
+    background: rgba(122,171,138,0.1);
     color: ${T.green};
-    border: 1px solid rgba(74,222,128,0.2);
+    border: 1px solid rgba(122,171,138,0.2);
   }
   .badge-anulada {
-    background: rgba(220,38,38,0.1);
-    color: #f87171;
-    border: 1px solid rgba(220,38,38,0.2);
+    background: rgba(176,112,112,0.1);
+    color: #b07070;
+    border: 1px solid rgba(176,112,112,0.2);
   }
   .badge-pendiente {
-    background: rgba(234,179,8,0.1);
-    color: #facc15;
-    border: 1px solid rgba(250,204,21,0.2);
+    background: rgba(168,144,96,0.1);
+    color: #a89060;
+    border: 1px solid rgba(168,144,96,0.2);
   }
 
   /* ── Icon action buttons ── */
@@ -362,7 +341,7 @@ const css = `
   }
   .dev-icon-btn:hover         { background: ${T.grayDarker}; }
   .dev-icon-btn:disabled      { opacity: .3; cursor: not-allowed; }
-  .dev-icon-btn.ban:hover     { color: #f87171; }
+  .dev-icon-btn.ban:hover     { color: #b07070; }
   .dev-icon-btn.eye:hover     { color: ${T.orangePrimary}; }
   .dev-icon-btn.pdf:hover     { color: #60a5fa; }
 
@@ -389,45 +368,6 @@ const css = `
   }
   .dev-sub-header th:first-child { text-align: left; padding-left: 52px; }
 
-  /* ── Pagination ── */
-  .dev-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 20px;
-    border-top: 1px solid ${T.grayDarker};
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .dev-pag-info { font-size: 13px; color: ${T.grayLightest}; }
-  .dev-pag-btns { display: flex; gap: 5px; }
-
-  .pag-btn-custom {
-    background: ${T.grayDarker};
-    border: 1px solid ${T.grayDark};
-    border-radius: 6px;
-    padding: 6px 12px;
-    color: ${T.grayLightest};
-    cursor: pointer;
-    font-size: 13px;
-    font-family: inherit;
-    min-width: 34px;
-    transition: background .12s, border-color .12s;
-  }
-  .pag-btn-custom:hover:not(:disabled) {
-    background: ${T.grayDark};
-    border-color: ${T.orangePrimary};
-    color: ${T.orangePrimary};
-  }
-  .pag-btn-custom:disabled { opacity: .35; cursor: not-allowed; }
-  .pag-btn-custom.active {
-    background: ${T.orangePrimary};
-    border-color: ${T.orangePrimary};
-    color: ${T.blackPrimary};
-    font-weight: 700;
-    cursor: default;
-  }
-
   /* ── Empty / chevron ── */
   .dev-empty {
     padding: 48px;
@@ -442,8 +382,24 @@ const css = `
   .dev-exp-cell {
     padding: 0;
     background: ${T.blackSecondary};
+  }
+  .dev-exp-cell:has(.dev-accordion-wrap.open) {
     border-bottom: 2px solid rgba(216,176,129,0.18);
     border-left: 3px solid ${T.orangePrimary};
+  }
+
+  /* ── Accordion animation ── */
+  .dev-accordion-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+  .dev-accordion-wrap.open {
+    grid-template-rows: 1fr;
+  }
+  .dev-accordion-inner {
+    overflow: hidden;
   }
 `;
 
@@ -509,7 +465,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [showDevolucionFormErrors, setShowDevolucionFormErrors] = useState(false);
   const [devolucionValidationAttempt, setDevolucionValidationAttempt] = useState(0);
@@ -881,12 +837,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const displayedGrupos = groupedDevoluciones.slice(startIndex, startIndex + itemsPerPage);
 
   const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => {
-      const s = new Set(prev);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      return s;
-    });
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
   // Funciones auxiliares
@@ -1705,7 +1656,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           {/* ── Toolbar ── */}
           <div className="dev-toolbar">
             <button 
-              className="btn-primary-custom"
+              className="btn-std-primary"
               onClick={() => {
                 if (onNavigate) {
                   onNavigate("RegistrarDevolucion");
@@ -1746,7 +1697,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
             </select>
 
             <span className="dev-count">
-              Mostrando {groupedDevoluciones.length} clientes
+              Mostrando {displayedGrupos.length} de {groupedDevoluciones.length} clientes
             </span>
           </div>
 
@@ -1779,7 +1730,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   </tr>
                 ) : (
                   displayedGrupos.map((grupo) => {
-                    const open = expandedIds.has(grupo.key);
+                    const open = expandedId === grupo.key;
                     const devsFiltradas = grupo.items;
 
                     return (
@@ -1846,9 +1797,10 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                         </tr>
 
                         {/* ── Expanded sub-table ── */}
-                        {open && (
-                          <tr key={`exp-${grupo.key}`}>
-                            <td colSpan={6} className="dev-exp-cell">
+                        <tr key={`exp-${grupo.key}`}>
+                          <td colSpan={6} className="dev-exp-cell">
+                            <div className={`dev-accordion-wrap${open ? " open" : ""}`}>
+                              <div className="dev-accordion-inner">
 
                               {/* Sub-label */}
                               <div className="dev-sub-label">
@@ -1978,9 +1930,11 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                                   )}
                                 </tbody>
                               </table>
-                            </td>
-                          </tr>
-                        )}
+
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                       </Fragment>
                     );
                   })
@@ -1990,38 +1944,16 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           </div>
 
           {/* ── Pagination ── */}
-          <div className="dev-pagination">
-            <span className="dev-pag-info">
+          <div className="std-pagination">
+            <span className="std-pag-info">
               Página {currentPage} de {totalPages}
             </span>
 
-            <div className="dev-pag-btns">
-              <button
-                className="pag-btn-custom"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                ‹
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  className={`pag-btn-custom${p === currentPage ? " active" : ""}`}
-                  onClick={() => setCurrentPage(p)}
-                >
-                  {p}
-                </button>
-              ))}
-
-              <button
-                className="pag-btn-custom"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                ›
-              </button>
-            </div>
+            <EllipsisPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
 
         </div>

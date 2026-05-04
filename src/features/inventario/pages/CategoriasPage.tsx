@@ -303,13 +303,14 @@ export function CategoriasPage() {
 
       <main className="flex-1 overflow-auto bg-black-primary">
         {/* Sección Principal */}
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="elegante-button-primary gap-2 flex items-center"
+                    className="btn-std-primary"
                     onClick={() => {
                       setNuevaCategoria({
                         nombre: '',
@@ -444,22 +445,21 @@ export function CategoriasPage() {
               ],
             }}
             recordsText={`Mostrando ${displayedCategorias.length} de ${filteredCategorias.length} categorías`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
           {/* Tabla de Categorías */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
-                <tr className="border-b border-gray-dark">
-
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+              <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Descripción</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="std-tbody">
                 {loading ? (
                   <TableLoadingStateRow
                     colSpan={4}
@@ -474,35 +474,28 @@ export function CategoriasPage() {
                   />
                 ) : (
                   displayedCategorias.map((categoria) => (
-                    <tr
-                      key={categoria.id}
-                      className="border-b border-gray-dark hover:bg-gray-darker transition-colors"
-                    >
-
-                      <td className="py-4 px-4 text-center">
+                    <tr key={categoria.id}>
+                      <td className="std-td-primary">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center">
                             <Tags className="w-4 h-4 text-black-primary" />
                           </div>
-                          <span className="text-medium text-gray-lightest">{categoria.nombre}</span>
+                          <span className="font-medium text-white-primary">{categoria.nombre}</span>
                         </div>
                       </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-sm text-gray-lightest">{categoria.descripcion || 'Sin descripción'}</span>
+                      <td className="std-td">
+                        <span className="text-sm">{categoria.descripcion || 'Sin descripción'}</span>
                       </td>
-                      <td className="py-4 px-4 text-center ">
-                        <span className={`px-2 py-1 rounded-full text-xs ${categoria.estado
-                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          }`}>
+                      <td className="std-td">
+                        <span className={`std-badge ${categoria.estado ? 'std-badge-positive' : 'std-badge-neutral'}`}>
                           {categoria.estado ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-center">
+                      <td className="std-td">
                         <div className="flex items-center justify-center gap-2">
                         <button
                             onClick={() => handleToggleStatus(categoria)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            className="p-2 hover:bg-gray-dark rounded-lg transition-colors group"
                             title={categoria.estado ? "Desactivar" : "Activar"}
                           >
                             {categoria.estado ? (
@@ -516,7 +509,7 @@ export function CategoriasPage() {
                               setSelectedCategoria(categoria);
                               setIsDetailDialogOpen(true);
                             }}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            className="p-2 hover:bg-gray-dark rounded-lg transition-colors group"
                             title="Ver detalle"
                           >
                             <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
@@ -524,7 +517,7 @@ export function CategoriasPage() {
                           <button
                             onClick={() => handleEditClick(categoria)}
                             disabled={!categoria.estado}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            className="p-2 hover:bg-gray-dark rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             title={categoria.estado ? "Editar" : "Categoría inactiva (solo historial)"}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
@@ -533,7 +526,7 @@ export function CategoriasPage() {
                           <button
                             onClick={() => handleDeleteClick(categoria)}
                             disabled={!categoria.estado}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            className="p-2 hover:bg-gray-dark rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                             title={categoria.estado ? "Eliminar" : "Categoría inactiva (solo historial)"}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
@@ -545,20 +538,17 @@ export function CategoriasPage() {
                 )}
               </tbody>
             </table>
-            {/* Paginación */}
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-lightest">
-                  Página {currentPage} de {totalPages}
-                </div>
-              </div>
-              <EllipsisPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={(page) => setCurrentPage(page)}
-                className="mx-0 w-auto justify-end"
-              />
+          </div>
+          {/* Paginación */}
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
+            <EllipsisPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
           </div>
 
           {/* Tabla antigua - OLD */}

@@ -16,7 +16,6 @@ import {
   ToggleRight,
   ToggleLeft,
   Loader2,
-  Filter,
   CalendarX,
 } from "lucide-react";
 import {
@@ -46,6 +45,7 @@ import {
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
 import { horariosService, HorarioBarbero } from "../../agendamiento/services/horariosService";
 import { agendamientoService } from "../../agendamiento/services/agendamientoService";
@@ -304,8 +304,14 @@ export function HorariosPage() {
       return;
     }
 
-    if (horarios.some(h => h.barberoId.toString() === nuevoHorario.barberoId)) {
-      error("Duplicado", "Este barbero ya tiene horarios asignados. Edítalos en su lugar.");
+    const existingHorario = horarios.find(h => h.barberoId.toString() === nuevoHorario.barberoId);
+    if (existingHorario) {
+      error("Duplicado", "Este barbero ya tiene horarios asignados. Edítalos en su lugar.", {
+        action: {
+          label: "Ver horario asignado",
+          onClick: () => handleViewDetail(existingHorario)
+        }
+      });
       return;
     }
 
@@ -953,14 +959,14 @@ export function HorariosPage() {
 
       <main className="flex-1 overflow-auto bg-black-primary">
         {/* Sección Principal */}
-        <div className="elegante-card">
-          {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-dark">
-            <div className="flex flex-wrap items-center gap-4">
+        <div className="std-card">
+          <TableHeaderSection
+            variant="dark"
+            leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="elegante-button-primary gap-2 flex items-center"
+                    className="btn-std-primary"
                     onClick={() => {
                       setEditingHorario(null);
                       resetFormulario();
@@ -971,64 +977,32 @@ export function HorariosPage() {
                   </button>
                 </DialogTrigger>
               </Dialog>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-                <Input
-                  placeholder="Buscar por documento, barbero, días, horas..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="elegante-input pl-11 w-80"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    title="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <Filter className="w-4 h-4 text-gray-lightest" />
-                  <Select
-                    value={statusFilter}
-                    onValueChange={(value) => {
-                      setStatusFilter(value as "all" | "active" | "inactive");
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-48 elegante-input">
-                      <SelectValue placeholder="Estado" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-darkest border-gray-dark">
-                      <SelectItem value="all" className="text-white-primary">Todos</SelectItem>
-                      <SelectItem value="active" className="text-white-primary">Activos</SelectItem>
-                      <SelectItem value="inactive" className="text-white-primary">Inactivos</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="text-sm text-gray-lightest">
-                  Mostrando {displayedHorarios.length} de {filteredHorarios.length} registros
-                </div>
-              </div>
-            </div>
-          </div>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Buscar por documento, barbero, dias, horas..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: (value) => {
+                setStatusFilter(value as "all" | "active" | "inactive");
+                setCurrentPage(1);
+              },
+              options: [
+                { value: "all", label: "Todos" },
+                { value: "active", label: "Activos" },
+                { value: "inactive", label: "Inactivos" },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedHorarios.length} de ${filteredHorarios.length} registros`}
+          />
 
           {/* Tabla */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+                <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
                       Documento
@@ -1053,7 +1027,7 @@ export function HorariosPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="std-tbody">
                   {loading ? (
                     <TableLoadingStateRow
                       colSpan={7}
@@ -1174,17 +1148,14 @@ export function HorariosPage() {
           </div>
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>
@@ -1823,14 +1794,20 @@ export function HorariosPage() {
                     <h3 className="text-white-primary font-semibold text-lg">
                       {selectedHorario.barbero}
                     </h3>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${selectedHorario.activo
-                        ? "bg-green-600/20 text-green-400"
-                        : "bg-red-600/20 text-red-400"
-                        }`}
-                    >
-                      {selectedHorario.activo ? "Activo" : "Inactivo"}
-                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${selectedHorario.activo
+                          ? "bg-green-600/20 text-green-400"
+                          : "bg-red-600/20 text-red-400"
+                          }`}
+                      >
+                        {selectedHorario.activo ? "Activo" : "Inactivo"}
+                      </span>
+                      <span className="text-gray-lightest text-xs flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {getWeekRangeLabel(0)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1846,12 +1823,24 @@ export function HorariosPage() {
                     (bloque: BloqueHorario, index: number) => (
                       <div
                         key={index}
-                        className="p-3 rounded-lg bg-gray-darkest border border-gray-dark"
+                        className="p-3 rounded-lg bg-gray-darkest border border-gray-dark flex justify-between items-center"
                       >
-                        <p className="text-white-primary font-medium">{bloque.dia}</p>
-                        <p className="text-orange-primary text-sm">
-                          {bloque.horaInicio} - {bloque.horaFin}
-                        </p>
+                        <div>
+                          <p className="text-white-primary font-medium flex items-center gap-2">
+                            {bloque.dia}
+                            <span className="text-[10px] text-gray-lightest font-normal bg-gray-dark px-1.5 py-0.5 rounded">
+                              {formatDateShort(getDateForThisWeek(bloque.dia))}
+                            </span>
+                          </p>
+                          <p className="text-orange-primary text-sm font-semibold">
+                            {bloque.horaInicio} - {bloque.horaFin}
+                          </p>
+                        </div>
+                        {bloque.estado === false && (
+                          <span className="text-[10px] bg-red-900/20 text-red-400 px-2 py-1 rounded-full border border-red-900/30">
+                            Inactivo
+                          </span>
+                        )}
                       </div>
                     )
                   )

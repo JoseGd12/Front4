@@ -147,57 +147,42 @@ function EllipsisPagination({
   const handleNext = () => onPageChange(Math.min(totalPages, currentPage + 1));
 
   return (
-    <Pagination className={className}>
-      <PaginationContent>
-        <PaginationItem>
-          <Button
+    <div className={cn("std-pag-btns", className)}>
+      <button
+        type="button"
+        className="pag-btn-custom"
+        disabled={currentPage === 1}
+        onClick={handlePrevious}
+      >
+        <ChevronLeftIcon className="size-4" />
+      </button>
+
+      {items.map((item, index) =>
+        item === "ellipsis" ? (
+          <span key={`ellipsis-${index}`} className="flex size-8 items-center justify-center text-gray-lightest">
+            <MoreHorizontalIcon className="size-4" />
+          </span>
+        ) : (
+          <button
+            key={item}
             type="button"
-            variant="outline"
-            size="icon"
-            onClick={handlePrevious}
-            disabled={currentPage === 1}
-            className="border-gray-dark bg-gray-darker text-gray-lightest hover:bg-gray-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn("pag-btn-custom", item === currentPage && "active")}
+            onClick={() => onPageChange(item)}
           >
-            <ChevronLeftIcon className="size-4" />
-          </Button>
-        </PaginationItem>
-        {items.map((item, index) =>
-          item === "ellipsis" ? (
-            <PaginationItem key={`ellipsis-${index}`}>
-              <PaginationEllipsis className="text-gray-lightest" />
-            </PaginationItem>
-          ) : (
-            <PaginationItem key={item}>
-              <Button
-                type="button"
-                variant={item === currentPage ? "default" : "outline"}
-                size="icon"
-                onClick={() => onPageChange(item)}
-                className={
-                  item === currentPage
-                    ? "bg-orange-primary text-black-primary hover:bg-orange-primary/90"
-                    : "border-gray-dark bg-transparent text-gray-lightest hover:bg-gray-darker"
-                }
-              >
-                {item}
-              </Button>
-            </PaginationItem>
-          ),
-        )}
-        <PaginationItem>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleNext}
-            disabled={currentPage === totalPages}
-            className="border-gray-dark bg-gray-darker text-gray-lightest hover:bg-gray-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ChevronRightIcon className="size-4" />
-          </Button>
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
+            {item}
+          </button>
+        ),
+      )}
+
+      <button
+        type="button"
+        className="pag-btn-custom"
+        disabled={currentPage === totalPages}
+        onClick={handleNext}
+      >
+        <ChevronRightIcon className="size-4" />
+      </button>
+    </div>
   );
 }
 

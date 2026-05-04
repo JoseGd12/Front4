@@ -382,12 +382,12 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
   }
   function getEstadoColor(estado: string) {
     if (isAnuladaEstado(estado)) {
-      return 'bg-red-500/10 text-red-400 border border-red-500/20';
+      return 'std-badge-negative';
     }
     if (isCompletadaEstado(estado)) {
-      return 'bg-green-500/10 text-green-400 border border-green-500/20';
+      return 'std-badge-positive';
     }
-    return 'bg-gray-medium text-gray-lighter';
+    return 'std-badge-neutral';
   }
 
   // Filtros y paginación
@@ -1129,14 +1129,15 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
     <>
       <main className="flex-1 overflow-auto bg-black-primary">
         {/* Sección Principal */}
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <>
               {onNavigate ? (
                 <button
                   onClick={() => onNavigate("RegistrarEntrega")}
-                  className="elegante-button-primary gap-2 flex items-center"
+                  className="btn-std-primary"
                 >
                   <Plus className="w-4 h-4" />
                   Nueva Entrega
@@ -1166,7 +1167,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
                 }}
               >
                 <DialogTrigger asChild>
-                  <button className="elegante-button-primary gap-2 flex items-center">
+                  <button className="btn-std-primary">
                     <Plus className="w-4 h-4" />
                     Nueva Entrega
                   </button>
@@ -1691,13 +1692,13 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
               ],
             }}
             recordsText={`Mostrando ${displayedEntregas.length} de ${filteredEntregas.length} entregas`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
           {/* Tabla de entregas */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+              <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
@@ -1708,7 +1709,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="std-tbody">
                 {loading ? (
                   <TableLoadingStateRow
                     colSpan={7}
@@ -1748,7 +1749,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
                       <span className="text-sm text-gray-lighter">{formatDate(entrega.fecha || generateCurrentDate())}</span>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs ${getEstadoColor(entrega.estado || '')}`}>
+                      <span className={`std-badge ${getEstadoColor(entrega.estado || '')}`}>
                         {getEstadoDisplay(entrega.estado || '')}
                       </span>
                     </td>
@@ -1786,17 +1787,14 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
           </div>
 
           {/* Paginación */}
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-lightest">
-                  Página {currentPage} de {totalPages}
-                </div>
+            <div className="std-pagination">
+              <div className="std-pag-info">
+                Página {currentPage} de {totalPages}
               </div>
               <EllipsisPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={(page) => setCurrentPage(page)}
-                className="mx-0 w-auto justify-end"
               />
             </div>
         </div>
@@ -1874,7 +1872,7 @@ export function EntregaInsumosPage({ onNavigate }: EntregaInsumosPageProps = {})
                       Estado
                     </Label>
                     <div className="h-10 flex items-center">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getEstadoColor((selectedEntrega as any).estado || '')}`}>
+                      <span className={`std-badge ${getEstadoColor((selectedEntrega as any).estado || '')}`}>
                         {getEstadoDisplay((selectedEntrega as any).estado || '')}
                       </span>
                     </div>

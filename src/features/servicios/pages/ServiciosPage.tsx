@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "../../../shared/components/ui/input";
-import { Scissors, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ToggleRight, ToggleLeft, Image as ImageIcon, Upload, X, Loader2, Camera, Info, FileText } from "lucide-react";
+import { Scissors, Plus, Edit, Trash2, Eye, ToggleRight, ToggleLeft, Image as ImageIcon, X, Loader2, Camera, Info, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
@@ -10,10 +10,9 @@ import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
-import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
-import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { apiService, Servicio } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
 
 export function ServiciosPage() {
   const { created, edited, deleted, error: showErrorAlert, AlertContainer } = useCustomAlert();
@@ -406,14 +405,15 @@ export function ServiciosPage() {
     <>
       <main className="flex-1 overflow-auto bg-black-primary">
         {/* Tabla de Servicios */}
-        <div className="elegante-card">
+        <div className="std-card">
           {/* Controles y Filtros */}
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="elegante-button-primary gap-2 flex items-center"
+                    className="btn-std-primary"
                     onClick={() => {
                       setEditingServicio(null);
                       setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true, imagen: '' });
@@ -450,143 +450,145 @@ export function ServiciosPage() {
               ],
             }}
             recordsText={`Mostrando ${displayedServicios.length} de ${totalCountApi} servicios`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
-          <div className="overflow-x-auto">
-            {error ? (
-              <div className="text-center py-8">
-                <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-4">
-                  <h3 className="text-lg font-semibold text-red-400 mb-2">Error al cargar los servicios</h3>
-                  <p className="text-red-300 mb-4">{error}</p>
-                  <button
-                    onClick={() => loadServicios()}
-                    className="px-4 py-2 bg-orange-primary text-white rounded-lg hover:bg-orange-primary/80 transition-colors"
-                  >
-                    Reintentar
-                  </button>
-                </div>
+          {error ? (
+            <div className="text-center py-8">
+              <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-4">
+                <h3 className="text-lg font-semibold text-red-400 mb-2">Error al cargar los servicios</h3>
+                <p className="text-red-300 mb-4">{error}</p>
+                <button
+                  onClick={() => loadServicios()}
+                  className="px-4 py-2 bg-orange-primary text-white rounded-lg hover:bg-orange-primary/80 transition-colors"
+                >
+                  Reintentar
+                </button>
               </div>
-            ) : (
-              <table className="w-full">
-                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
-                  <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre del servicio</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <TableLoadingStateRow
-                      colSpan={7}
-                      title="Cargando servicios..."
-                    />
-                  ) : displayedServicios.length > 0 ? displayedServicios.map((servicio) => (
-                    <tr key={servicio.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex justify-center">
-                          <ImageRenderer
-                            url={servicio.imagen}
-                            alt={servicio.nombre}
-                            className="w-12 h-12 object-cover rounded-lg"
-                            fallbackVariant="product"
-                            showLabel={false}
-                          />
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">{servicio.nombre}</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">{servicio.descripcion}</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">{servicio.duracion} min</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">${(servicio.precio ?? 0).toLocaleString('es-CO')}</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`px-3 py-1 rounded-full text-xs ${servicio.estado
-                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          }`}>
-                          {servicio.estado ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => toggleActivo(servicio.id)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Cambiar estado"
-                          >
-                            {servicio.estado ? (
-                              <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
-                            ) : (
-                              <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedServicio(servicio);
-                              setIsDetailDialogOpen(true);
-                            }}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Ver detalles"
-                          >
-                            <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                          </button>
-                          <button
-                            onClick={() => handleEditServicio(servicio)}
-                            disabled={!servicio.estado}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={servicio.estado ? "Editar" : "Servicio inactivo (solo historial)"}
-                          >
-                            <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteServicio(servicio)}
-                            disabled={!servicio.estado}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={servicio.estado ? "Eliminar" : "Servicio inactivo (solo historial)"}
-                          >
-                            <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <TableEmptyStateRow
-                      colSpan={7}
-                      title="No se encontraron servicios"
-                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                      onReload={loadServicios}
-                      reloadLabel="Recargar tabla"
-                    />
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
+            </div>
+          ) : (
+            <StandardTable<Record<string, unknown>>
+              columns={[
+                {
+                  key: "imagen",
+                  header: "Imagen",
+                  primary: true,
+                  render: (_v, row) => {
+                    const s = row as unknown as Servicio;
+                    return (
+                      <div className="flex justify-start">
+                        <ImageRenderer
+                          url={s.imagen}
+                          alt={s.nombre}
+                          className="w-12 h-12 object-cover rounded-lg"
+                          fallbackVariant="product"
+                          showLabel={false}
+                        />
+                      </div>
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "nombre",
+                  header: "Nombre del servicio",
+                  render: (_v, row) => (row as unknown as Servicio).nombre,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "descripcion",
+                  header: "Descripción",
+                  render: (_v, row) => (row as unknown as Servicio).descripcion,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "duracion",
+                  header: "Duración",
+                  render: (_v, row) => `${(row as unknown as Servicio).duracion} min`,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "precio",
+                  header: "Precio",
+                  render: (_v, row) => `$${((row as unknown as Servicio).precio ?? 0).toLocaleString('es-CO')}`,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "estado",
+                  header: "Estado",
+                  render: (_v, row) => {
+                    const s = row as unknown as Servicio;
+                    const label = s.estado ? "Activo" : "Inactivo";
+                    return (
+                      <StandardTable.StatusBadge
+                        variant={resolveStatusVariant(label)}
+                        label={label}
+                      />
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "acciones",
+                  header: "Acciones",
+                  render: (_v, row) => {
+                    const servicio = row as unknown as Servicio;
+                    return (
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => toggleActivo(servicio.id)}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title="Cambiar estado"
+                        >
+                          {servicio.estado ? (
+                            <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                          ) : (
+                            <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedServicio(servicio);
+                            setIsDetailDialogOpen(true);
+                          }}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title="Ver detalles"
+                        >
+                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                        </button>
+                        <button
+                          onClick={() => handleEditServicio(servicio)}
+                          disabled={!servicio.estado}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          title={servicio.estado ? "Editar" : "Servicio inactivo (solo historial)"}
+                        >
+                          <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteServicio(servicio)}
+                          disabled={!servicio.estado}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          title={servicio.estado ? "Eliminar" : "Servicio inactivo (solo historial)"}
+                        >
+                          <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                        </button>
+                      </div>
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+              ]}
+              data={displayedServicios as unknown as Record<string, unknown>[]}
+              loading={loading}
+              emptyTitle="No se encontraron servicios"
+              emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+              onReload={loadServicios}
+              rowKey={(row) => String((row as unknown as Servicio).id)}
+            />
+          )}
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>

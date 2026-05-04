@@ -661,13 +661,14 @@ export function ProveedoresPage() {
 
       <main className="flex-1 overflow-auto bg-black-primary">
         {/* Sección Principal */}
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="elegante-button-primary gap-2 flex items-center"
+                    className="btn-std-primary"
                     onClick={() => {
                       resetForm();
                       setIsEditDialogOpen(false);
@@ -997,13 +998,13 @@ export function ProveedoresPage() {
             }}
             searchPlaceholder="Buscar por nombre, NIT, correo o tipo..."
             recordsText={`Mostrando ${currentProveedores.length} de ${filteredProveedores.length} proveedores`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
           {/* Tabla de Proveedores */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+              <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">NIT/Documento</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
@@ -1012,7 +1013,7 @@ export function ProveedoresPage() {
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="std-tbody">
                 {loading ? (
                   <TableLoadingStateRow
                     colSpan={5}
@@ -1118,7 +1119,7 @@ export function ProveedoresPage() {
 
           {/* Paginación */}
           {!pageError && (
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+            <div className="std-full-divider flex items-center justify-between pt-6 mt-0">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-lightest">
                   Página {currentPage} de {totalPages}
@@ -1254,15 +1255,14 @@ export function ProveedoresPage() {
           )}
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="text-sm text-gray-lightest">
+          <div className="std-pagination">
+            <div className="std-pag-info">
               Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>
