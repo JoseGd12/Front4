@@ -469,7 +469,10 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         onClick={() => {
           setActivePage(targetPage);
         }}
-        className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg transition-colors cursor-pointer ${isActive ? "bg-orange-primary/10 text-orange-primary" : "text-gray-lighter hover:bg-white/5"
+        className={`flex items-center gap-3 w-full text-left px-6 py-2 transition-colors cursor-pointer ${
+          isActive
+            ? "bg-orange-primary/10 text-orange-primary border-r-2 border-orange-primary"
+            : "text-gray-lighter hover:bg-white/5"
           } ${sidebarCollapsed ? "justify-center px-0" : ""}`}
         title={item.label}
       >
@@ -753,7 +756,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
-            <div className={`px-4 py-5 ${sidebarCollapsed ? "flex justify-center" : "flex items-center gap-3"}`}>
+            <div className={`px-6 py-5 ${sidebarCollapsed ? "flex justify-center" : "flex items-center gap-3"}`}>
               {!sidebarCollapsed && (
                 <div>
                   <p className="text-white-primary font-semibold text-lg mt-5 leading-tight">Panel Principal</p>
@@ -761,7 +764,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                 </div>
               )}
             </div>
-            <nav className={`flex-1 overflow-y-auto px-3 mt-5 pb-6 ${sidebarCollapsed ? "space-y-2" : "space-y-6"}`}>
+            <nav className={`flex-1 overflow-y-auto mt-5 pb-6 ${sidebarCollapsed ? "space-y-2" : "space-y-6"}`}>
               {sidebarCollapsed ? (
                 <div className="space-y-1">
                   {/* Dashboard independiente */}
@@ -783,7 +786,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                         <button
                           type="button"
                           onClick={() => toggleSection(section.title)}
-                          className={`w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] px-3 py-2 rounded-md transition-colors cursor-pointer ${!isCollapsed ? "text-orange-primary bg-orange-primary/5" : "text-gray-lightest/80 hover:bg-white/5"}`}
+                          className={`w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] px-6 py-2 transition-colors cursor-pointer ${!isCollapsed ? "text-orange-primary bg-orange-primary/5" : "text-gray-lightest/80 hover:bg-white/5"}`}
                           aria-expanded={!isCollapsed}
                         >
                           <span>{section.title}</span>
@@ -798,7 +801,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                           </span>
                         </button>
                         <div
-                          className={`overflow-hidden space-y-1 pl-1`}
+                          className={`overflow-hidden space-y-1`}
                           style={{
                             maxHeight: isCollapsed ? 0 : `${section.items.length * 44}px`,
                             opacity: isCollapsed ? 0 : 1,

@@ -11,7 +11,6 @@ import {
   Scissors,
   Package,
   ChevronLeft,
-  ChevronRight,
   X,
   Trash2,
   Calculator,
@@ -26,11 +25,9 @@ import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
-import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
-import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { apiService, Paquete } from "../../../shared/services/api";
-
 import { servicioService, Servicio } from "../../servicios/services/servicioService";
+import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
 
 const categorias = ["Premium", "Clásico", "Moderno", "Especial"];
 
@@ -326,6 +323,10 @@ export function PaquetesPage() {
   };
 
   const handleEditPaquete = async (paquete: Paquete) => {
+    if (!paquete.activo) {
+      showErrorAlert("Registro inactivo", "Este paquete está inactivo y se maneja solo como historial.");
+      return;
+    }
     setEditingPaquete(paquete);
     // Cargar detalles reales para obtener IDs y nombres exactos
     let serviciosArray: string[] = Array.isArray(paquete.servicios) ? paquete.servicios : [];
@@ -471,6 +472,10 @@ export function PaquetesPage() {
   };
 
   const handleEliminarPaquete = (paquete: Paquete) => {
+    if (!paquete.activo) {
+      showErrorAlert("Registro inactivo", "Este paquete está inactivo y no permite acciones.");
+      return;
+    }
     const nombrePaquete = paquete.nombre;
     (async () => {
       try {
@@ -541,12 +546,13 @@ export function PaquetesPage() {
       <main className="flex-1 overflow-auto bg-black-primary">
         {/* Vista Lista de Paquetes */}
         {viewMode === 'list' && (
-          <div className="elegante-card">
+          <div className="std-card">
             {/* Barra de Controles */}
             <TableHeaderSection
+              variant="dark"
               leftContent={(
                 <button
-                  className="elegante-button-primary gap-2 flex items-center"
+                  className="btn-std-primary"
                   onClick={() => {
                     setEditingPaquete(null);
                     setNuevoPaquete({ ...estadoInicialPaquete });
@@ -582,122 +588,124 @@ export function PaquetesPage() {
                 ],
               }}
               recordsText={`Mostrando ${displayedPaquetes.length} de ${filteredPaquetes.length} paquetes`}
-              recordsPlacement="left"
+              recordsPlacement="right"
             />
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
-                  <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Descripción</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Duración</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <TableLoadingStateRow
-                      colSpan={7}
-                      title="Cargando paquetes..."
-                    />
-                  ) : displayedPaquetes.length > 0 ? displayedPaquetes.map((paquete) => (
-                        <tr key={paquete.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                          <td className="py-4 px-4 text-center">
-                            <span className="text-gray-lighter">{paquete.nombre}</span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="text-gray-lighter text-sm">
-                              {(() => {
-                                const nombres = serviciosPorPaqueteId.get(paquete.id) ?? [];
-                                return nombres.length > 0
-                                  ? nombres.join(', ')
-                                  : <span className="text-gray-dark italic">Sin servicios</span>;
-                              })()}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="text-gray-lighter">{paquete.servicios.length} servicios</span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="text-gray-lighter">{paquete.duracion} min</span>
-                          </td>
-                          <td className="py-4 px-4 text-right text-center">
-                            <span className="text-gray-lighter">${(paquete.precio ?? 0).toLocaleString('es-CO')}</span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${paquete.activo ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-medium/20 text-gray-lighter border-gray-dark'}`}>
-                              {paquete.activo ? 'Activo' : 'Inactivo'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => handleToggleEstadoPaquete(paquete)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title={paquete.activo ? "Desactivar paquete" : "Activar paquete"}
-                              >
-                                {paquete.activo ? (
-                                  <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
-                                ) : (
-                                  <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                                )}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedPaquete(paquete);
-                                  setIsDetailDialogOpen(true);
-                                  loadDetallePaquete(paquete.id); // Cargar detalles del paquete
-                                }}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title="Ver Detalle"
-                              >
-                                <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                              </button>
-                              <button
-                                onClick={() => handleEditPaquete(paquete)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title="Editar"
-                              >
-                                <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                              </button>
-                              <button
-                                onClick={() => handleEliminarPaquete(paquete)}
-                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                  )) : (
-                    <TableEmptyStateRow
-                      colSpan={7}
-                      title="No se encontraron paquetes"
-                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                      onReload={loadPaquetes}
-                    />
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <StandardTable<Record<string, unknown>>
+              columns={[
+                {
+                  key: "nombre",
+                  header: "Nombre",
+                  primary: true,
+                  render: (_v, row) => (row as unknown as Paquete).nombre,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "descripcion",
+                  header: "Descripción",
+                  render: (_v, row) => {
+                    const paquete = row as unknown as Paquete;
+                    const nombres = serviciosPorPaqueteId.get(paquete.id) ?? [];
+                    return nombres.length > 0
+                      ? nombres.join(', ')
+                      : <span className="text-gray-dark italic">Sin servicios</span>;
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "servicios",
+                  header: "Servicios",
+                  render: (_v, row) => `${(row as unknown as Paquete).servicios.length} servicios`,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "duracion",
+                  header: "Duración",
+                  render: (_v, row) => `${(row as unknown as Paquete).duracion} min`,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "precio",
+                  header: "Precio",
+                  render: (_v, row) => `$${((row as unknown as Paquete).precio ?? 0).toLocaleString('es-CO')}`,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "activo",
+                  header: "Estado",
+                  render: (_v, row) => {
+                    const paquete = row as unknown as Paquete;
+                    const label = paquete.activo ? "Activo" : "Inactivo";
+                    return (
+                      <StandardTable.StatusBadge
+                        variant={resolveStatusVariant(label)}
+                        label={label}
+                      />
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "acciones",
+                  header: "Acciones",
+                  render: (_v, row) => {
+                    const paquete = row as unknown as Paquete;
+                    return (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleToggleEstadoPaquete(paquete)}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title={paquete.activo ? "Desactivar paquete" : "Activar paquete"}
+                        >
+                          {paquete.activo ? (
+                            <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                          ) : (
+                            <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedPaquete(paquete);
+                            setIsDetailDialogOpen(true);
+                            loadDetallePaquete(paquete.id);
+                          }}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title="Ver Detalle"
+                        >
+                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                        </button>
+                        <button
+                          onClick={() => handleEditPaquete(paquete)}
+                          disabled={!paquete.activo}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          title={paquete.activo ? "Editar" : "Paquete inactivo (solo historial)"}
+                        >
+                          <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                        </button>
+                        <button
+                          onClick={() => handleEliminarPaquete(paquete)}
+                          disabled={!paquete.activo}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          title={paquete.activo ? "Eliminar" : "Paquete inactivo (solo historial)"}
+                        >
+                          <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                        </button>
+                      </div>
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+              ]}
+              data={displayedPaquetes as unknown as Record<string, unknown>[]}
+              loading={loading}
+              emptyTitle="No se encontraron paquetes"
+              emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+              onReload={loadPaquetes}
+              rowKey={(row) => String((row as unknown as Paquete).id)}
+            />
 
             {/* Paginación */}
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-lightest">
-                  Página {currentPage} de {totalPages}
-                </div>
+            <div className="std-pagination">
+              <div className="std-pag-info">
+                Página {currentPage} de {totalPages}
               </div>
               <EllipsisPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={(page) => setCurrentPage(page)}
-                className="mx-0 w-auto justify-end"
               />
             </div>
           </div>
@@ -743,62 +751,6 @@ export function PaquetesPage() {
                     onChange={(e) => setNuevoPaquete({ ...nuevoPaquete, nombre: e.target.value })}
                     placeholder="Ej: Paquete Premium Completo"
                     className="elegante-input"
-                  />
-                </div>
-              </div>
-
-              {/* Precio y Descuento */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-orange-primary" />
-                    Precio ($) *
-                  </Label>
-                  <Input
-                    type="number"
-                    value={precioInput}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val.length <= 15) {
-                        setPrecioInput(val);
-                        const nRaw = val.trim() === '' ? 0 : Number(val);
-                        const n = Number.isFinite(nRaw) ? Math.max(0, nRaw) : 0;
-                        setNuevoPaquete({ ...nuevoPaquete, precio: n });
-                      }
-                    }}
-                    className="elegante-input no-spin"
-                    min="0"
-                    step="100"
-                    placeholder=""
-                    readOnly={viewMode !== 'edit'}
-                    disabled={viewMode !== 'edit'}
-                  />
-                  <div className="flex justify-start mt-1">
-                    <span className="text-xs text-gray-500 font-medium">
-                      {precioInput.length}/15 caracteres
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
-                    <Calculator className="w-4 h-4 text-orange-primary" />
-                    Porcentaje Descuento (%)
-                  </Label>
-                  <Input
-                    type="number"
-                    value={porcentajeInput}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPorcentajeInput(val);
-                      const nRaw = val.trim() === '' ? 0 : Number(val);
-                      const n = Number.isFinite(nRaw) ? Math.max(0, Math.min(100, nRaw)) : 0;
-                      setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: n });
-                    }}
-                    className="elegante-input no-spin"
-                    min="0"
-                    max="100"
-                    step="1"
-                    placeholder="0"
                   />
                 </div>
               </div>
@@ -943,6 +895,62 @@ export function PaquetesPage() {
                     <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total</p>
                     <p className="text-orange-primary font-bold text-lg">{(nuevoPaquete.duracion || 0)} min</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Precio y Descuento (reposicionados) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-orange-primary" />
+                    Precio ($) *
+                  </Label>
+                  <Input
+                    type="number"
+                    value={precioInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.length <= 15) {
+                        setPrecioInput(val);
+                        const nRaw = val.trim() === '' ? 0 : Number(val);
+                        const n = Number.isFinite(nRaw) ? Math.max(0, nRaw) : 0;
+                        setNuevoPaquete({ ...nuevoPaquete, precio: n });
+                      }
+                    }}
+                    className="elegante-input no-spin"
+                    min="0"
+                    step="100"
+                    placeholder=""
+                    readOnly={viewMode !== 'edit'}
+                    disabled={viewMode !== 'edit'}
+                  />
+                  <div className="flex justify-start mt-1">
+                    <span className="text-xs text-gray-500 font-medium">
+                      {precioInput.length}/15 caracteres
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-orange-primary" />
+                    Porcentaje Descuento (%)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={porcentajeInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPorcentajeInput(val);
+                      const nRaw = val.trim() === '' ? 0 : Number(val);
+                      const n = Number.isFinite(nRaw) ? Math.max(0, Math.min(100, nRaw)) : 0;
+                      setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: n });
+                    }}
+                    className="elegante-input no-spin"
+                    min="0"
+                    max="100"
+                    step="1"
+                    placeholder="0"
+                  />
                 </div>
               </div>
 

@@ -194,9 +194,9 @@ class ProductoService {
     }
 
     return {
-      id: data.Id || data.id,
-      nombre: data.Nombre || data.nombre,
-      descripcion: data.Descripcion || data.descripcion,
+      id: Number(data.id || data.Id || 0),
+      nombre: data.Nombre || data.nombre || '',
+      descripcion: data.Descripcion || data.descripcion || '',
       categoria: categoriaNormalizada,
       tipo: data.Tipo || data.tipo || '',
       precioBase: Number(data.PrecioBase || data.precioBase || data.precioVenta || data.precioCompra || 0),

@@ -33,14 +33,14 @@ export interface Venta {
 }
 
 export interface ProductoDetalle {
-  id: number;
+  id: number | string;
   nombre: string;
   cantidad: number;
   precio: number;
 }
 
 export interface ServicioDetalle {
-  id: number;
+  id: number | string;
   nombre: string;
   cantidad?: number;
   precio: number;
@@ -276,8 +276,8 @@ class VentaService {
     const cliente = data.cliente || data.Cliente || {};
     const barberoObj = data.barbero || data.Barbero || {};
     const usuarioResponsable = data.usuario || data.Usuario || {};
-    const detallesApi = data.detalleVenta || data.detalleVentas || data.detalles ||
-      data.DetalleVenta || data.DetalleVentas || data.Detalles || [];
+    const detallesApi = data.detalles || data.Detalles || data.detalleVenta || data.detalleVentas ||
+      data.DetalleVenta || data.DetalleVentas || [];
 
     // 2. Procesar detalles de productos y servicios
     const productosDetalle: ProductoDetalle[] = [];
@@ -297,7 +297,7 @@ class VentaService {
       if (p) {
         productosDetalle.push({
           id: String(p.id || p.Id || d.productoId || d.ProductoId),
-          nombre: p.nombre || p.Nombre || 'Producto',
+          nombre: p.nombre || p.Nombre || d.productoNombre || d.ProductoNombre || 'Producto',
           cantidad,
           precio: precioUnit
         });
@@ -311,7 +311,7 @@ class VentaService {
       } else if (s) {
         serviciosDetalle.push({
           id: `SERV-${String(s.id || s.Id || servicioIdPlano).replace(/^SERV-/, '')}`,
-          nombre: s.nombre || s.Nombre || 'Servicio',
+          nombre: s.nombre || s.Nombre || d.servicioNombre || d.ServicioNombre || 'Servicio',
           cantidad,
           precio: precioUnit
         });
@@ -323,9 +323,10 @@ class VentaService {
           precio: precioUnit
         });
       } else if (paq || paqueteIdPlano) {
+        const paqId = paqueteIdPlano || paq?.id || paq?.Id;
         serviciosDetalle.push({
-          id: `PAQ-${paqueteIdPlano || paq?.id || paq?.Id}`,
-          nombre: paq?.nombre || paq?.Nombre || 'Paquete',
+          id: `PAQ-${paqId}`,
+          nombre: paq?.nombre || paq?.Nombre || d.paqueteNombre || d.PaqueteNombre || 'Paquete',
           cantidad,
           precio: precioUnit
         });
@@ -359,20 +360,26 @@ class VentaService {
     }
 
     // 3. Resolución de nombres con soporte para Pascal/camel y fallbacks
-    const clienteNombre = cliente.nombre || cliente.Nombre
-      ? `${cliente.nombre || cliente.Nombre} ${cliente.apellido || cliente.Apellido || ''}`.trim()
-      : (data.clienteNombreCompleto || data.ClienteNombreCompleto || data.clienteNombre || data.ClienteNombre || (typeof data.cliente === 'string' ? data.cliente : '') || (typeof data.Cliente === 'string' ? data.Cliente : '') || (cliente.nombreCompleto || cliente.NombreCompleto) || 'Cliente');
+    const clienteNombre = (data.clienteNombreCompleto || data.ClienteNombreCompleto || data.clienteNombre || data.ClienteNombre)
+      ? (data.clienteNombreCompleto || data.ClienteNombreCompleto || data.clienteNombre || data.ClienteNombre)
+      : (cliente.nombre || cliente.Nombre)
+        ? `${cliente.nombre || cliente.Nombre} ${cliente.apellido || cliente.Apellido || ''}`.trim()
+        : (data.nombreCliente || data.NombreCliente || (typeof data.cliente === 'string' ? data.cliente : '') || (typeof data.Cliente === 'string' ? data.Cliente : '') || (cliente.nombreCompleto || cliente.NombreCompleto) || 'Cliente');
 
     const barberoUsuario = (barberoObj as any).usuario || (barberoObj as any).Usuario || {};
-    const barberoNombre = (barberoObj as any).nombre || (barberoObj as any).Nombre
-      ? `${(barberoObj as any).nombre || (barberoObj as any).Nombre} ${(barberoObj as any).apellido || (barberoObj as any).Apellido || ''}`.trim()
-      : (barberoUsuario?.nombre || barberoUsuario?.Nombre)
-        ? `${barberoUsuario?.nombre || barberoUsuario?.Nombre} ${barberoUsuario?.apellido || barberoUsuario?.Apellido || ''}`.trim()
-        : (data.barberoNombreCompleto || data.BarberoNombreCompleto || data.barberoNombre || data.BarberoNombre || data.nombreBarbero || data.NombreBarbero || (typeof data.barbero === 'string' ? data.barbero : '') || (typeof data.Barbero === 'string' ? data.Barbero : '') || 'Sin asignar');
+    const barberoNombre = (data.barberoNombreCompleto || data.BarberoNombreCompleto || data.barberoNombre || data.BarberoNombre)
+      ? (data.barberoNombreCompleto || data.BarberoNombreCompleto || data.barberoNombre || data.BarberoNombre)
+      : (barberoObj.nombre || barberoObj.Nombre)
+        ? `${barberoObj.nombre || barberoObj.Nombre} ${barberoObj.apellido || barberoObj.Apellido || ''}`.trim()
+        : (barberoUsuario?.nombre || barberoUsuario?.Nombre)
+          ? `${barberoUsuario?.nombre || barberoUsuario?.Nombre} ${barberoUsuario?.apellido || barberoUsuario?.Apellido || ''}`.trim()
+          : (data.nombreBarbero || data.NombreBarbero || (typeof data.barbero === 'string' ? data.barbero : '') || (typeof data.Barbero === 'string' ? data.Barbero : '') || 'Sin asignar');
 
-    const responsableNombre = usuarioResponsable.nombre || usuarioResponsable.Nombre
-      ? `${usuarioResponsable.nombre || usuarioResponsable.Nombre} ${usuarioResponsable.apellido || usuarioResponsable.Apellido || ''}`.trim()
-      : (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre || 'Sin asignar');
+    const responsableNombre = (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre)
+      ? (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre)
+      : (usuarioResponsable.nombre || usuarioResponsable.Nombre)
+        ? `${usuarioResponsable.nombre || usuarioResponsable.Nombre} ${usuarioResponsable.apellido || usuarioResponsable.Apellido || ''}`.trim()
+        : 'Sin asignar';
 
     // 4. Extracción segura de IDs numéricos para evitar NaN/Nombres en campos de ID
     const getNumericId = (val: any, fallbackId?: any) => {
@@ -399,7 +406,7 @@ class VentaService {
       productos: data.productos || data.Productos ||
         (productosDetalle.length > 0 ? productosDetalle.map(p => `${p.nombre} (x${p.cantidad})`).join(', ') : 'Sin productos'),
       subtotal: Number(data.subtotal || data.Subtotal) || 0,
-      iva: Number(data.iva || data.Iva) || 0,
+      iva: Number(data.iva || data.Iva || data.IVA || 0),
       descuento: Number(data.descuento || data.Descuento) || 0,
       total: Number(data.total || data.Total) || 0,
       saldoAFavorUsado: Number(data.saldoAFavorUsado || data.SaldoAFavorUsado || 0),

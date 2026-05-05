@@ -108,7 +108,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
       <button
         key={item.label}
         onClick={() => setActivePage(item.label)}
-        className={`flex items-center gap-3 w-full text-left px-3 py-2 rounded-lg transition-colors cursor-pointer ${isActive ? "bg-orange-primary/10 text-orange-primary" : "text-gray-lighter hover:bg-white/5"
+        className={`flex items-center gap-3 w-full text-left px-6 py-2 transition-colors cursor-pointer ${isActive ? "bg-orange-primary/10 text-orange-primary border-r-2 border-orange-primary" : "text-gray-lighter hover:bg-white/5"
           } ${sidebarCollapsed ? "justify-center px-0" : ""}`}
         title={item.label}
       >
@@ -306,7 +306,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
             }}
           >
             {/* Navigation */}
-            <nav className="flex-1 px-3 py-6 overflow-y-auto space-y-1">
+            <nav className="flex-1 py-6 overflow-y-auto space-y-1">
               {navItems.map((item) => renderNavItem(item, activePage === item.label))}
             </nav>
           </aside>

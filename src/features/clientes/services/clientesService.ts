@@ -18,6 +18,7 @@ export interface ClienteAPI {
 // Interface para el componente Cliente
 export interface Cliente {
   id: string;
+  usuarioId?: number;
   tipoDocumento: string;
   numeroDocumento: string;
   nombre: string;
@@ -76,6 +77,7 @@ class ClientesService {
 
     return {
       id: (apiCliente.id || apiCliente.Id || 0).toString(),
+      usuarioId: apiCliente.usuarioId || apiCliente.UsuarioId || (apiCliente.usuario?.id || apiCliente.usuario?.Id || 0),
       tipoDocumento: tipoDocumento || 'CC',
       numeroDocumento: numeroDocumento,
       nombre: apiCliente.nombre || apiCliente.Nombre || '',
@@ -96,15 +98,27 @@ class ClientesService {
   private mapToApiFormat(data: any): any {
     return {
       Nombre: data.nombre,
+      nombre: data.nombre,
       Apellido: data.apellido,
+      apellido: data.apellido,
       Documento: data.documento,
+      documento: data.documento,
       Correo: data.correo,
+      correo: data.correo,
       Telefono: data.telefono,
+      telefono: data.telefono,
       Direccion: data.direccion,
+      direccion: data.direccion,
       Barrio: data.barrio,
+      barrio: data.barrio,
       FechaNacimiento: data.fechaNacimiento,
+      fechaNacimiento: data.fechaNacimiento,
       FotoPerfil: data.fotoPerfil || '',
-      Estado: true
+      fotoPerfil: data.fotoPerfil || '',
+      Estado: data.estado !== undefined ? data.estado : true,
+      estado: data.estado !== undefined ? data.estado : true,
+      UsuarioId: data.usuarioId,
+      usuarioId: data.usuarioId
     };
   }
 
@@ -330,19 +344,23 @@ class ClientesService {
   async updateCliente(id: number, clienteData: any): Promise<any> {
     const apiData = {
       Id: id,
-      ...this.mapToApiFormat(clienteData),
-      Estado: clienteData.estado !== undefined ? clienteData.estado : true
+      id: id,
+      ...this.mapToApiFormat(clienteData)
     };
-
+    
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(apiData),
+      body: JSON.stringify(apiData)
     });
-
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return response.status === 204 ? clienteData : await response.json();
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error al actualizar cliente: ${response.status} ${errorText}`);
+    }
+    
+    return response.status === 204 ? apiData : await response.json();
   }
 
   async deleteCliente(id: number, info?: { correo?: string; documento?: string; tipoDocumento?: string }): Promise<void> {

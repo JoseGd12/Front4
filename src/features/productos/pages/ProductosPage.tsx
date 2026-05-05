@@ -6,11 +6,7 @@ import {
   Plus,
   Edit,
   Trash2,
-  Search,
-  DollarSign,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   X,
   ToggleLeft,
   ToggleRight,
@@ -32,13 +28,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
-import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
-import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { productoService, ApiProducto } from "../services/productos";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { apiService } from "../../../shared/services/api";
 import { isSaleOnly } from "../../../shared/utils/usagePolicy";
 import { getStoredUsage, saveStoredUsage, removeStoredUsage } from "../utils/usagePersistence";
+import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
 
 const formatCurrency = (amount: number): string => {
   return (amount ?? 0).toLocaleString('es-CO');
@@ -804,25 +799,26 @@ export function ProductosPage() {
     <>
       <main className="flex-1 overflow-auto bg-black-primary">
           {/* Sección Principal */}
-          <div className="elegante-card">
+          <div className="std-card">
             <TableHeaderSection
+              variant="dark"
               leftContent={(
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <button
-                      className="elegante-button-primary gap-2 flex items-center"
+                      className="btn-std-primary"
                       onClick={() => {
                         setEditingProducto(null);
                         setNuevoProducto({
                           nombre: '',
                           descripcion: '',
                           categoria: '',
-                          precioBase: 0, // Se inicializa automáticamente en 0
+                          precioBase: 0,
                           precioVenta: 0,
                           precioCompra: 0,
                           stockVentas: 0,
                           stockInsumos: 0,
-                          minCantidad: 0, // Se inicializa automáticamente en 0
+                          minCantidad: 0,
                           marca: '',
                           imagenProduc: '',
                           activo: true,
@@ -1298,161 +1294,163 @@ export function ProductosPage() {
                 </div>
               )}
               recordsText={`Mostrando ${displayedProductos.length} de ${totalCountApi} productos`}
-              recordsPlacement="left"
+              recordsPlacement="right"
             />
 
             {/* Tabla de Productos */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
-                  <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio venta</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio compra</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock total</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Ventas</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Uso</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-
-
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <TableLoadingStateRow
-                      colSpan={10}
-                      title="Cargando productos..."
-                    />
-                  ) : displayedProductos.length === 0 ? (
-                    <TableEmptyStateRow
-                      colSpan={10}
-                      title="No se encontraron productos"
-                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                      onReload={() => window.location.reload()}
-                    />
-                  ) : displayedProductos.map((producto) => {
-                    const stockTotal = getStockTotal(producto);
-                    const stockVentas = producto.stockVentas ?? 0;
-                    const stockInsumos = producto.stockInsumos ?? 0;
-                    const totalVentasProducto = stockVentas * (producto.precioBase || 0);
+            <StandardTable<Record<string, unknown>>
+              columns={[
+                {
+                  key: "imagen",
+                  header: "Imagen",
+                  primary: true,
+                  render: (_v, row) => {
+                    const producto = row as unknown as ApiProducto;
+                    return (
+                      <ImageRenderer
+                        url={producto.imagenProduc}
+                        alt={producto.nombre}
+                        className="w-10 h-10 object-cover rounded-lg"
+                        fallbackVariant="product"
+                        showLabel={false}
+                      />
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "nombre",
+                  header: "Nombre",
+                  render: (_v, row) => (row as unknown as ApiProducto).nombre,
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "precioVenta",
+                  header: "Precio venta",
+                  render: (_v, row) => {
+                    const producto = row as unknown as ApiProducto;
+                    return formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0);
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "precioCompra",
+                  header: "Precio compra",
+                  render: (_v, row) => formatearPrecio((row as any).precioCompra ?? 0),
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "stockTotal",
+                  header: "Stock total",
+                  render: (_v, row) => String(getStockTotal(row as unknown as ApiProducto)),
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "stockVentas",
+                  header: "Stock Ventas",
+                  render: (_v, row) => String((row as unknown as ApiProducto).stockVentas ?? 0),
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "stockInsumos",
+                  header: "Stock Insumos",
+                  render: (_v, row) => {
+                    const producto = row as unknown as ApiProducto;
+                    const soloVenta = esProductoSoloVenta(producto as any);
+                    return String(soloVenta ? 0 : (producto.stockInsumos ?? 0));
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "uso",
+                  header: "Uso",
+                  render: (_v, row) => {
+                    const producto = row as unknown as ApiProducto;
                     const soloVenta = esProductoSoloVenta(producto as any);
                     return (
-                      <tr key={producto.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                        <td className="py-4 px-4   text-center">
-                          <ImageRenderer
-                            url={producto.imagenProduc}
-                            alt={producto.nombre}
-                            className="w-10 h-10 object-cover rounded-lg"
-                            fallbackVariant="product"
-                            showLabel={false}
-                          />
-                        </td>
-
-                        <td className="py-4 text-center px-4">
-                          <span className="text-gray-lighter">{producto.nombre}</span>
-                        </td>
-                        
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0)}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{formatearPrecio((producto as any).precioCompra ?? 0)}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{stockTotal}</span>
-                        </td>
-
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{stockVentas}</span>
-                        </td>
-
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter" >
-                            {soloVenta ? 0 : stockInsumos}
-                          </span>
-                        </td>
-                        
-                        
-                        <td className="py-4 px-4 text-center min-w-[8.5rem] overflow-visible">
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs border whitespace-nowrap ${soloVenta
-                            ? 'bg-gray-500/10 text-gray-300 border-gray-600/50'
-                            : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                          }`}>
-                            {soloVenta ? 'Solo venta' : 'Venta e insumo'}
-                          </span>
-                        </td>
-
-
-                        <td className="py-4 px-4 text-center ">
-                          <span className={`px-2  py-1 rounded-full text-xs ${producto.activo
-                            ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                            } `}>
-                            {producto.activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => toggleProductoActivo(producto.id)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title={producto.activo ? "Desactivar producto" : "Activar producto"}
-                            >
-                            {producto.activo ? (
-                              <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400 transition-colors" />
-                            ) : (
-                              <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400 transition-colors" />
-                            )}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedProducto(producto);
-                                setIsDetailDialogOpen(true);
-                              }}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Ver detalles"
-                            >
-                              <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                            </button>
-                            <button
-                              onClick={() => handleEditProducto(producto)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Editar"
-                            >
-                              <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProducto(producto.id)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs border whitespace-nowrap ${soloVenta
+                        ? 'bg-gray-500/10 text-gray-300 border-gray-600/50'
+                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                      }`}>
+                        {soloVenta ? 'Solo venta' : 'Venta e insumo'}
+                      </span>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "activo",
+                  header: "Estado",
+                  render: (_v, row) => {
+                    const producto = row as unknown as ApiProducto;
+                    const label = producto.activo ? "Activo" : "Inactivo";
+                    return (
+                      <StandardTable.StatusBadge
+                        variant={resolveStatusVariant(label)}
+                        label={label}
+                      />
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+                {
+                  key: "acciones",
+                  header: "Acciones",
+                  render: (_v, row) => {
+                    const producto = row as unknown as ApiProducto;
+                    return (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => toggleProductoActivo(producto.id)}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title={producto.activo ? "Desactivar producto" : "Activar producto"}
+                        >
+                          {producto.activo ? (
+                            <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400 transition-colors" />
+                          ) : (
+                            <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400 transition-colors" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedProducto(producto);
+                            setIsDetailDialogOpen(true);
+                          }}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                          title="Ver detalles"
+                        >
+                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                        </button>
+                        <button
+                          onClick={() => handleEditProducto(producto)}
+                          disabled={!producto.activo}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          title={producto.activo ? "Editar" : "Producto inactivo (solo historial)"}
+                        >
+                          <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProducto(producto.id)}
+                          disabled={!producto.activo}
+                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          title={producto.activo ? "Eliminar" : "Producto inactivo (solo historial)"}
+                        >
+                          <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                        </button>
+                      </div>
+                    );
+                  },
+                } as ColumnDef<Record<string, unknown>>,
+              ]}
+              data={displayedProductos as unknown as Record<string, unknown>[]}
+              loading={loading}
+              emptyTitle="No se encontraron productos"
+              emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+              onReload={() => window.location.reload()}
+              rowKey={(row) => String((row as unknown as ApiProducto).id)}
+            />
 
             {/* Paginación */}
             {/* Paginación */}
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-lightest">
-                  Página {currentPage} de {totalPages}
-                </div>
+            <div className="std-pagination">
+              <div className="std-pag-info">
+                Página {currentPage} de {totalPages}
               </div>
               <EllipsisPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={(page) => setCurrentPage(page)}
-                className="mx-0 w-auto justify-end"
               />
             </div>
           </div>

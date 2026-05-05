@@ -12,6 +12,10 @@ interface CustomAlertProps {
   message?: string;
   autoClose?: boolean;
   autoCloseDelay?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 type AlertItem = {
@@ -21,6 +25,10 @@ type AlertItem = {
   message?: string;
   autoClose?: boolean;
   autoCloseDelay?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 };
 
 type AlertContextValue = {
@@ -103,7 +111,8 @@ export function CustomAlert({
   title,
   message,
   autoClose = true,
-  autoCloseDelay = 8000
+  autoCloseDelay = 8000,
+  action
 }: CustomAlertProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -165,6 +174,20 @@ export function CustomAlert({
                 {message}
               </p>
             )}
+            {action && (
+              <div className="mt-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                    handleClose();
+                  }}
+                  className="bg-orange-primary text-black-primary px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-secondary transition-colors shadow-lg"
+                >
+                  {action.label}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -184,6 +207,10 @@ export function useCustomAlert() {
     options?: {
       autoClose?: boolean;
       autoCloseDelay?: number;
+      action?: {
+        label: string;
+        onClick: () => void;
+      };
     }
   ) => {
     const id = Date.now().toString();
@@ -196,8 +223,8 @@ export function useCustomAlert() {
       message: normalizedMessage,
       autoClose: options?.autoClose ?? true,
       autoCloseDelay: options?.autoCloseDelay ?? 8000,
+      action: options?.action,
     };
-
     if (ctx) {
       ctx.add(alert);
     } else {
@@ -212,25 +239,25 @@ export function useCustomAlert() {
     else setAlerts(prev => prev.filter(alert => alert.id !== id));
   };
 
-  const success = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number }) =>
+  const success = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('success', title, message, options);
 
-  const error = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number }) =>
+  const error = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('error', title, message, options);
 
-  const warning = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number }) =>
+  const warning = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('warning', title, message, options);
 
-  const info = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number }) =>
+  const info = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('info', title, message, options);
 
-  const created = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number }) =>
+  const created = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('created', title, message, options);
 
-  const edited = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number }) =>
+  const edited = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('edited', title, message, options);
 
-  const deleted = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number }) =>
+  const deleted = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('deleted', title, message, options);
 
   const AlertContainer = () => {
@@ -258,6 +285,7 @@ export function useCustomAlert() {
               message={alert.message}
               autoClose={alert.autoClose}
               autoCloseDelay={Math.max(8000, alert.autoCloseDelay ?? 8000)}
+              action={alert.action}
             />
           </div>
         ))}
@@ -302,6 +330,7 @@ export function GlobalAlertContainer() {
             message={alert.message}
             autoClose={alert.autoClose}
             autoCloseDelay={Math.max(8000, alert.autoCloseDelay ?? 8000)}
+            action={alert.action}
           />
         </div>
       ))}

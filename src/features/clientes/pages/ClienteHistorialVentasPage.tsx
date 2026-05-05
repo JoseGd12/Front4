@@ -184,12 +184,12 @@ export function ClienteHistorialVentasPage() {
   const getEstadoColor = (estado: string) => {
     const estadoNormalizado = (estado || '').toLowerCase().trim();
     if (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado') {
-      return 'bg-red-500/10 text-red-400 border border-red-500/20';
+      return 'std-badge-negative';
     }
     if (estadoNormalizado === 'completada' || estadoNormalizado === 'completado' || estadoNormalizado === 'activo') {
-      return 'bg-green-500/10 text-green-400 border border-green-500/20';
+      return 'std-badge-positive';
     }
-    return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
+    return 'std-badge-neutral';
   };
 
   const getMetodoPagoColor = (metodo: string) => {
@@ -237,8 +237,9 @@ export function ClienteHistorialVentasPage() {
 
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         {/* Search and Table */}
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             searchValue={searchTerm}
             onSearchChange={(value) => {
               setSearchTerm(value);
@@ -258,12 +259,12 @@ export function ClienteHistorialVentasPage() {
               ],
             }}
             recordsText={`Mostrando ${displayedVentas.length} de ${filteredVentas.length} compras`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={isLoading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+              <thead className={isLoading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
@@ -275,7 +276,7 @@ export function ClienteHistorialVentasPage() {
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="std-tbody">
                 {isLoading ? (
                   <TableLoadingStateRow
                     colSpan={8}
@@ -341,7 +342,7 @@ export function ClienteHistorialVentasPage() {
                       <span className="text-gray-lighter">{venta.metodoPago}</span>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs ${getEstadoColor(venta.estado)}`}>
+                      <span className={`std-badge ${getEstadoColor(venta.estado)}`}>
                         {venta.estado}
                       </span>
                     </td>
@@ -370,17 +371,14 @@ export function ClienteHistorialVentasPage() {
           </div>
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>

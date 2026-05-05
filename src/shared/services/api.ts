@@ -338,13 +338,19 @@ class ApiService {
 
     const mapped: any = {};
 
-    if (data.id !== undefined) mapped.Id = data.id;
+    if (data.id !== undefined) {
+      mapped.Id = data.id;
+      mapped.id = data.id;
+    }
     if (data.nombre !== undefined || data.name !== undefined) {
       const nameValue = data.nombre || data.name;
       mapped.Nombre = nameValue;
       mapped.nombre = nameValue;
     }
-    if (data.apellido !== undefined) mapped.Apellido = data.apellido;
+    if (data.apellido !== undefined) {
+      mapped.Apellido = data.apellido;
+      mapped.apellido = data.apellido;
+    }
     if (data.correo !== undefined || data.email !== undefined) {
       const emailValue = data.correo || data.email;
       mapped.Correo = emailValue;
@@ -352,15 +358,48 @@ class ApiService {
       mapped.Email = emailValue;
       mapped.email = emailValue;
     }
-    if (data.contrasena !== undefined) mapped.Contrasena = data.contrasena;
-    if (data.rolId !== undefined) mapped.RolId = data.rolId === null ? null : Number(data.rolId);
-    if (data.tipoDocumento !== undefined) mapped.TipoDocumento = data.tipoDocumento;
-    if (data.documento !== undefined) mapped.Documento = data.documento;
-    if (data.telefono !== undefined) mapped.Telefono = data.telefono;
-    if (data.direccion !== undefined) mapped.Direccion = data.direccion;
-    if (data.barrio !== undefined) mapped.Barrio = data.barrio;
-    if (data.fechaNacimiento !== undefined) mapped.FechaNacimiento = data.fechaNacimiento;
-    if (data.fotoPerfil !== undefined) mapped.FotoPerfil = data.fotoPerfil;
+    if (data.contrasena !== undefined) {
+      mapped.Contrasena = data.contrasena;
+      mapped.contrasena = data.contrasena;
+    }
+    if (data.rolId !== undefined) {
+      const rId = data.rolId === null ? null : Number(data.rolId);
+      mapped.RolId = rId;
+      mapped.rolId = rId;
+    }
+    if (data.tipoDocumento !== undefined) {
+      mapped.TipoDocumento = data.tipoDocumento;
+      mapped.tipoDocumento = data.tipoDocumento;
+    }
+    if (data.documento !== undefined) {
+      mapped.Documento = data.documento;
+      mapped.documento = data.documento;
+    }
+    if (data.telefono !== undefined) {
+      mapped.Telefono = data.telefono;
+      mapped.telefono = data.telefono;
+    }
+    if (data.direccion !== undefined) {
+      mapped.Direccion = data.direccion;
+      mapped.direccion = data.direccion;
+    }
+    if (data.barrio !== undefined) {
+      mapped.Barrio = data.barrio;
+      mapped.barrio = data.barrio;
+    }
+    if (data.fechaNacimiento !== undefined) {
+      mapped.FechaNacimiento = data.fechaNacimiento;
+      mapped.fechaNacimiento = data.fechaNacimiento;
+    }
+    if (data.fotoPerfil !== undefined) {
+      mapped.FotoPerfil = data.fotoPerfil;
+      mapped.fotoPerfil = data.fotoPerfil;
+    }
+    if (data.usuarioId !== undefined) {
+      const uId = Number(data.usuarioId);
+      mapped.UsuarioId = uId;
+      mapped.usuarioId = uId;
+    }
 
     // Estado/Activo (Resiliencia total)
     if (data.estado !== undefined) {
@@ -423,7 +462,7 @@ class ApiService {
         data.duracionMinutes || data.DuracionMinutes ||
         data.duracion || data.Duracion || 0
       ),
-      precio: Number(data.precio || data.Precio) || 0,
+      precio: Number(data.precio || data.Precio || 0),
       estado: Boolean(
         data.estado === true ||
         data.estado === 'true' ||
@@ -445,10 +484,12 @@ class ApiService {
 
     if (Array.isArray(rawDetalles) && rawDetalles.length > 0) {
       serviciosStrings = rawDetalles.map((dp: any) =>
-        (dp.servicio?.Nombre || dp.servicio?.nombre || dp.NombreServicio || dp.nombreServicio || dp.Nombre || dp.nombre || 'Servicio')
+        (dp.servicioNombre || dp.ServicioNombre || dp.nombreServicio || dp.NombreServicio || dp.servicio?.nombre || dp.servicio?.Nombre || dp.Nombre || dp.nombre || 'Servicio')
       );
     } else if (Array.isArray(data.servicios || data.Servicios)) {
       serviciosStrings = data.servicios || data.Servicios;
+    } else if (Array.isArray(data.serviciosNombres || data.ServiciosNombres)) {
+      serviciosStrings = data.serviciosNombres || data.ServiciosNombres;
     }
 
     return {
@@ -461,9 +502,9 @@ class ApiService {
         data.duracionMinutes || data.DuracionMinutes ||
         data.duracion || data.Duracion || 0
       ),
-      precio: Number(data.precio || data.Precio) || 0,
+      precio: Number(data.precio || data.Precio || 0),
       descuento: Number(data.descuento || data.Descuento || 0),
-      precioOriginal: Number(data.precioOriginal || data.PrecioOriginal) || Number(data.precio || data.Precio) || 0,
+      precioOriginal: Number(data.precioOriginal || data.PrecioOriginal) || Number(data.precio || data.Precio || 0) || 0,
       clientesAtendidos: Number(data.clientesAtendidos || data.ClientesAtendidos || 0),
       categoria: String(data.categoria || data.Categoria || 'General'),
       activo: Boolean(
@@ -479,10 +520,10 @@ class ApiService {
       id: Number(data.id || data.Id) || 0,
       paqueteId: Number(data.paqueteId || data.PaqueteId) || 0,
       servicioId: Number(data.servicioId || data.ServicioId || servicio?.id || servicio?.Id) || 0,
-      nombreServicio: String(servicio?.nombre || servicio?.Nombre || data.nombreServicio || data.NombreServicio || 'Servicio'),
-      precioServicio: Number(servicio?.precio || servicio?.Precio || data.precioServicio || data.PrecioServicio || data.precio || data.Precio || 0),
+      nombreServicio: String(data.servicioNombre || data.ServicioNombre || data.nombreServicio || data.NombreServicio || servicio?.nombre || servicio?.Nombre || 'Servicio'),
+      precioServicio: Number(data.servicioPrecio || data.ServicioPrecio || data.precioServicio || data.PrecioServicio || servicio?.precio || servicio?.Precio || data.precio || data.Precio || 0),
       cantidad: Number(data.cantidad || data.Cantidad) || 1,
-      subtotal: Number(data.subtotal || data.Subtotal) || (Number(servicio?.precio || servicio?.Precio || 0) * (Number(data.cantidad || data.Cantidad) || 1))
+      subtotal: Number(data.subtotal || data.Subtotal) || (Number(data.servicioPrecio || data.ServicioPrecio || data.precioServicio || data.PrecioServicio || servicio?.precio || servicio?.Precio || 0) * (Number(data.cantidad || data.Cantidad) || 1))
     };
   }
 

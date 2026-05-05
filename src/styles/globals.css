@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -63,6 +64,10 @@
   --sidebar-border: var(--gray-dark);
   --sidebar-ring: var(--orange-primary);
   --search-filter-bg: #333232;
+
+  /* Tokens de estado para tablas estandarizadas */
+  --status-green: #7aab8a;
+  --status-red: #b07070;
 }
 
 @theme inline {
@@ -120,6 +125,10 @@
   --color-orange-darker: var(--orange-darker);
   --color-white-primary: var(--white-primary);
   --color-white-secondary: var(--white-secondary);
+
+  /* Tokens de estado para tablas estandarizadas */
+  --color-status-green: var(--status-green);
+  --color-status-red: var(--status-red);
 }
 
 @layer base {
@@ -129,7 +138,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'DM Sans', 'Inter', system-ui, -apple-system, sans-serif;
     font-weight: 400;
     background-color: var(--black-primary);
     color: var(--white-primary);
@@ -325,6 +334,23 @@ html {
     margin-bottom: 1.5rem;
     background-color: var(--color-gray-darkest);
     box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 12px;
+  }
+
+  /*
+   * std-card: contenedor estándar para tablas estandarizadas.
+   * Replica exactamente el .dev-card de DevolucionesPage:
+   * - border: 1px solid grayDarker (#2a2a2a) — borde sutil
+   * - border-radius: 14px
+   * - overflow: hidden (para que los separadores de ancho completo no desborden)
+   * - Sin box-shadow (devoluciones no tiene sombra)
+   */
+  .std-card {
+    background-color: var(--gray-darkest);
+    border: 1px solid var(--gray-darker);
+    border-radius: 14px;
+    overflow: clip;
+    padding: 1.5rem 1.5rem 0 1.5rem;
+    margin-bottom: 1.5rem;
   }
 
   .elegante-button-primary {
@@ -659,5 +685,287 @@ html {
      ya que el título del módulo vive ahora en la barra superior */
   .module-content>header:first-of-type {
     display: none;
+  }
+
+  /* ─── Input dark para buscador/filtro de tablas estandarizadas ─── */
+  /*
+   * Replica exactamente .dev-search de DevolucionesPage:
+   * - padding: 9px 14px (base), 9px 14px 9px 36px (con icono izquierdo)
+   * - background: #111111, border: 1px solid #2a2a2a, border-radius: 8px
+   * - font-size: 13px, font-family: DM Sans
+   * - focus: solo border-color cambia, sin box-shadow (igual que devoluciones)
+   * - outline: none siempre
+   */
+  .elegante-input-dark {
+    background-color: var(--black-secondary);
+    border: 1px solid var(--gray-darker);
+    color: var(--color-white-primary);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .elegante-input-dark:focus {
+    outline: none;
+    border-color: var(--orange-primary);
+    /* Sin box-shadow: devoluciones no lo tiene */
+  }
+  .elegante-input-dark::placeholder {
+    color: var(--gray-dark);
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    font-size: 13px;
+  }
+  /* Padding izquierdo con icono: 36px igual que devoluciones (left: 11px + icono ~14px + gap) */
+  .relative:has(> svg.absolute.left-3)>input.elegante-input-dark {
+    padding-left: 36px !important;
+  }
+  .relative:has(> button.absolute.right-2)>input.elegante-input-dark,
+  .relative:has(> button.absolute.right-3)>input.elegante-input-dark {
+    padding-right: 2.25rem !important;
+  }
+
+  /* ─── Botón primario estándar para toolbar de tablas (igual que devoluciones) ─── */
+  /*
+   * Replica exactamente .btn-primary-custom de DevolucionesPage:
+   * padding: 9px 18px, font-size: 13px, font-weight: 700, border-radius: 8px,
+   * font-family: DM Sans (herencia del contenedor en devoluciones).
+   * line-height NO se define para que herede 1.4 del button base, igual que devoluciones.
+   */
+  .btn-std-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--orange-primary);
+    color: var(--black-primary);
+    border: none;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .btn-std-primary:hover {
+    background: var(--orange-darker);
+  }
+
+  /* ─── Contador de registros estándar (igual que devoluciones: arriba a la derecha) ─── */
+  .std-records-count {
+    margin-left: auto;
+    font-size: 13px;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    color: var(--gray-lightest);
+    white-space: nowrap;
+  }
+
+  /* ─── Tabla estándar ─── */
+
+  /*
+   * std-table-wrapper: rompe el padding del elegante-card con márgenes negativos
+   * para que los separadores (superior, entre filas e inferior) lleguen de borde
+   * a borde del contenedor visual. El padding del card es 1.5rem (24px).
+   *
+   * - border-top:    separador superior de ancho completo (sobre el thead)
+   * - border-bottom: separador inferior de ancho completo (bajo la última fila)
+   */
+  .std-table-wrapper {
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
+    margin-top: 0;
+    overflow-x: auto;
+    width: calc(100% + 3rem);
+    /* Sin border-top ni border-bottom propios:
+       - El border-b del TableHeaderSection (variant=dark) actúa como separador superior.
+       - El std-full-divider de la paginación actúa como separador inferior.
+       Agregar bordes aquí causaría duplicidad visual. */
+  }
+
+  /*
+   * std-full-divider: separador horizontal de ancho completo dentro de elegante-card.
+   * Úsalo para la paginación y cualquier sección que necesite un borde de borde a borde.
+   * Reemplaza el patrón "border-t border-gray-dark" + "mt-6 pt-6" cuando se necesita
+   * que el borde llegue al borde del card.
+   */
+  .std-full-divider {
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-bottom: 14px;
+    border-top: 1px solid var(--gray-darker);
+  }
+
+  .std-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    background: var(--gray-darkest);
+  }
+
+  /*
+   * std-thead th: padding simétrico vertical (13px arriba y abajo).
+   * El separador inferior del thead actúa como separador entre encabezados y datos.
+   * NO se pone border-top aquí porque el wrapper ya tiene el borde superior.
+   */
+  .std-thead th {
+    padding: 13px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-lightest);
+    text-align: center;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--gray-darker);
+    white-space: nowrap;
+    background: var(--gray-darkest);
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  }
+  /* Primera columna: alineación izquierda con padding compensado al margen negativo */
+  .std-thead th:first-child {
+    text-align: left;
+    padding-left: 24px;
+  }
+  /* Última columna: padding derecho compensado */
+  .std-thead th:last-child {
+    padding-right: 24px;
+  }
+
+  /*
+   * std-tbody tr: separador entre filas de ancho completo.
+   * La última fila NO tiene border-bottom porque el wrapper ya tiene el borde inferior.
+   */
+  .std-tbody tr {
+    border-bottom: 1px solid var(--gray-darker);
+    transition: background 0.12s;
+  }
+  .std-tbody tr:last-child {
+    border-bottom: none;
+  }
+  .std-tbody tr:hover {
+    background: var(--gray-darker);
+  }
+
+  /* Celda de datos: padding vertical simétrico (12px arriba y abajo) */
+  .std-td {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--gray-lightest);
+    text-align: center;
+    vertical-align: middle;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  }
+  /* Última celda de cada fila: padding derecho compensado */
+  .std-td:last-child,
+  .std-td-primary:last-child {
+    padding-right: 24px;
+  }
+  /* Celda primaria (primera columna): color blanco, alineación izquierda */
+  .std-td-primary {
+    padding: 12px 16px;
+    padding-left: 24px;
+    font-size: 13px;
+    color: var(--white-primary);
+    text-align: left;
+    vertical-align: middle;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  }
+
+  /* ─── Badges de estado estándar ─── */
+  .std-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    min-width: 5rem;
+    text-align: center;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  }
+  .std-badge-positive {
+    background: var(--status-green);
+    color: var(--black-primary);
+  }
+  .std-badge-negative {
+    background: var(--status-red);
+    color: var(--black-primary);
+  }
+  .std-badge-neutral {
+    background: #4a4a4a;
+    color: #f3f4f6;
+  }
+
+  /* ─── Paginación estándar (basada en Devoluciones) ─── */
+  .std-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-top: 1px solid var(--gray-darker);
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--gray-darkest);
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  }
+
+  /*
+   * Cuando std-pagination está dentro de std-card o elegante-card (padding: 1.5rem),
+   * se usan márgenes negativos para que el border-top llegue de borde a borde del card.
+   */
+  .std-card .std-pagination,
+  .elegante-card .std-pagination {
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .std-pag-info {
+    font-size: 13px;
+    color: var(--gray-lightest);
+  }
+
+  .std-pag-btns {
+    display: flex;
+    gap: 5px;
+  }
+
+  .pag-btn-custom {
+    background: var(--gray-darker);
+    border: 1px solid var(--gray-dark);
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: var(--gray-lightest);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 34px;
+    transition: background 0.12s, border-color 0.12s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pag-btn-custom:hover:not(:disabled) {
+    background: var(--gray-dark);
+    border-color: var(--orange-primary);
+    color: var(--orange-primary);
+  }
+
+  .pag-btn-custom:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .pag-btn-custom.active {
+    background: var(--orange-primary);
+    border-color: var(--orange-primary);
+    color: var(--black-primary);
+    font-weight: 700;
+    cursor: default;
   }
 }

@@ -311,6 +311,11 @@ export function DashboardPage() {
     return st !== "anulada" && st !== "cancelada";
   };
 
+  const isCitaCompletada = (estado: string) => {
+    const st = String(estado || "").toLowerCase();
+    return st === "completada" || st === "en-curso";
+  };
+
   const ventasHoy = useMemo(() => {
     return ventas.filter(v => {
       if (!v.fecha) return false;
@@ -654,7 +659,7 @@ export function DashboardPage() {
           }
           
           body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'DM Sans', sans-serif;
             background: #ffffff;
             color: #000000;
             line-height: 1.6;
@@ -1060,7 +1065,7 @@ export function DashboardPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Reporte por Fecha</title>
         <style>
-          body { font-family: 'Inter', Arial, sans-serif; color: #000000; margin: 0; padding: 24px; background: #ffffff; }
+          body { font-family: 'DM Sans', Arial, sans-serif; color: #000000; margin: 0; padding: 24px; background: #ffffff; }
           .header { background: #ffffff; color: #000000; padding: 20px; border-bottom: 2px solid #000000; margin-bottom: 30px; text-align: center; }
           .range { color: #000000; margin-top: 6px; font-size: 14px; font-weight: bold; }
           .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 15px; margin-bottom: 30px; }

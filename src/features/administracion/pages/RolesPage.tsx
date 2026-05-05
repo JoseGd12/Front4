@@ -619,7 +619,7 @@ export function RolesPage() {
       <AlertContainer />
 
       <div>
-        <div className="elegante-card">
+        <div className="std-card">
 
           {/* Barra de Controles */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pt-2">
@@ -628,7 +628,7 @@ export function RolesPage() {
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="elegante-button-primary gap-2 flex items-center disabled:opacity-50"
+                    className="btn-std-primary disabled:opacity-50"
                     onClick={() => {
                       setNuevoRol({ nombre: '', descripcion: '', modulos: [] });
                       setHasTriedToSubmit(false);
@@ -737,9 +737,9 @@ export function RolesPage() {
           </div>
 
           {/* Tabla de Roles */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-                <thead className={loading && roles.length === 0 ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+                <thead className={loading && roles.length === 0 ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
@@ -749,7 +749,7 @@ export function RolesPage() {
                     <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="std-tbody">
                   {loading && roles.length === 0 ? (
                     <TableLoadingStateRow
                       colSpan={5}
@@ -770,7 +770,7 @@ export function RolesPage() {
                         <span className="text-gray-lighter">{rol.modulos.length}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${rol.estado === true ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-medium/20 text-gray-lighter border-gray-dark'}`}>
+                        <span className={`std-badge ${rol.estado === true ? 'std-badge-positive' : 'std-badge-neutral'}`}>
                           {rol.estado === true ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
@@ -827,9 +827,9 @@ export function RolesPage() {
                               setEditingRole(rolParaEditar);
                               setIsEditDialogOpen(true);
                             }}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar"
-                            disabled={isCreating || isEditing || isDeleting}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={!rol.estado ? "Rol inactivo (solo historial)" : "Editar"}
+                            disabled={!rol.estado || isCreating || isEditing || isDeleting}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
@@ -842,9 +842,9 @@ export function RolesPage() {
                               setRoleToDelete(rol);
                               setIsDeleteDialogOpen(true);
                             }}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar"
-                            disabled={isCreating || isEditing || isDeleting}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={!rol.estado ? "Rol inactivo (solo historial)" : "Eliminar"}
+                            disabled={!rol.estado || isCreating || isEditing || isDeleting}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>
@@ -858,16 +858,14 @@ export function RolesPage() {
 
           {/* Paginación */}
           {totalPages >= 1 && (
-            <div className="flex items-center justify-between pt-4 border-t border-gray-dark mt-2">
-              <div className="flex items-center gap-3 text-sm text-gray-lightest">
-                <span>Página {currentPage} de {totalPages}</span>
-
+            <div className="std-pagination">
+              <div className="std-pag-info">
+                Página {currentPage} de {totalPages}
               </div>
               <EllipsisPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={(page) => setCurrentPage(page)}
-                className="mx-0 w-auto justify-end"
               />
             </div>
           )}
@@ -899,7 +897,7 @@ export function RolesPage() {
                   </div>
                   <div>
                     <Label className="text-gray-lightest">Estado</Label>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${selectedRole.estado === true ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-gray-medium/20 text-gray-lighter border-gray-dark'}`}>
+                    <span className={`std-badge ${selectedRole.estado === true ? 'std-badge-positive' : 'std-badge-neutral'}`}>
                       {selectedRole.estado === true ? 'Activo' : 'Inactivo'}
                     </span>
                   </div>

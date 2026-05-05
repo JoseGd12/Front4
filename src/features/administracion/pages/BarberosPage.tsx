@@ -43,6 +43,17 @@ const BARBERO_LIMITS = {
   especialidad: 100
 };
 
+const ESPECIALIDADES_SUGERIDAS = [
+  "Corte clásico",
+  "Fade",
+  "Barba",
+  "Colorimetría",
+  "Trenzas",
+  "Diseño",
+  "Afeitado tradicional",
+  "General",
+];
+
 export function BarberosPage() {
   const { success: successAlert, error: errorAlert, AlertContainer } = useCustomAlert();
   const { resetPassword } = useAuth();
@@ -77,6 +88,7 @@ export function BarberosPage() {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [showBarberoFormErrors, setShowBarberoFormErrors] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const formatDateLocal = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -158,7 +170,9 @@ export function BarberosPage() {
     const searchMatch = (barbero.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (barbero.apellido || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (barbero.correo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (barbero.documento || '').includes(searchTerm);
+      (barbero.documento || '').includes(searchTerm) ||
+      (barbero.especialidad || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (barbero.status === 'active' ? 'activo' : 'inactivo').includes(searchTerm.toLowerCase());
 
     const statusMatch = filterStatus === "all" ||
       (filterStatus === "active" && barbero.status === 'active') ||
@@ -186,12 +200,29 @@ export function BarberosPage() {
     fileInputRef.current?.click();
   };
 
+  const especialidadesDatalist = Array.from(
+    new Set(
+      [...ESPECIALIDADES_SUGERIDAS, ...barberos.map((b) => String(b.especialidad || '').trim())]
+        .map((v) => v.trim())
+        .filter(Boolean)
+    )
+  );
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      setLoading(true);
+      if (!file.type.startsWith('image/')) {
+        errorAlert('Formato inválido', 'Selecciona un archivo de imagen válido.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        errorAlert('Archivo muy pesado', 'La imagen no debe superar 5MB.');
+        return;
+      }
+
+      setIsUploadingImage(true);
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
@@ -207,7 +238,7 @@ export function BarberosPage() {
       console.error('Error uploading image:', err);
       errorAlert('Error al subir imagen', 'No se pudo subir la imagen al servidor. Intenta nuevamente.');
     } finally {
-      setLoading(false);
+      setIsUploadingImage(false);
     }
   };
 
@@ -313,6 +344,10 @@ export function BarberosPage() {
   };
 
   const handleEditBarbero = (barbero: Barbero) => {
+    if (barbero.status !== 'active') {
+      errorAlert("Registro inactivo", "Este barbero está inactivo y se maneja solo como historial.");
+      return;
+    }
     setEditingBarbero(barbero);
     setNewBarbero({
       nombre: barbero.nombre || '',
@@ -388,7 +423,8 @@ export function BarberosPage() {
       // Mapear datos del componente a la API
       const apiData = barberosService.mapComponentToApi({
         ...newBarbero,
-        id: editingBarbero.id
+        id: editingBarbero.id,
+        usuarioId: editingBarbero.usuarioId
       });
 
       const updatedBarbero = await barberosService.updateBarbero(editingBarbero.id, apiData);
@@ -410,6 +446,10 @@ export function BarberosPage() {
   const handleDeleteBarbero = (id: number) => {
     const barbero = barberos.find(b => b.id === id);
     if (barbero) {
+      if (barbero.status !== 'active') {
+        errorAlert("Registro inactivo", "Este barbero está inactivo y no permite acciones.");
+        return;
+      }
       setBarberoToDelete(barbero);
       setIsDeleteDialogOpen(true);
     }
@@ -519,8 +559,9 @@ export function BarberosPage() {
       </header>
 
       <main className="flex-1 overflow-auto bg-black-primary">
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <button
                 onClick={() => {
@@ -529,7 +570,7 @@ export function BarberosPage() {
                   generatePassword();
                   setIsDialogOpen(true);
                 }}
-                className="elegante-button-primary gap-2 flex items-center"
+                className="btn-std-primary"
               >
                 <Plus className="w-4 h-4" />
                 Nuevo Barbero
@@ -554,12 +595,12 @@ export function BarberosPage() {
               ],
             }}
             recordsText={`Mostrando ${displayedBarberos.length} de ${filteredBarberos.length} barberos`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+              <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="text-center border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
@@ -569,7 +610,7 @@ export function BarberosPage() {
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="std-tbody">
                 {loading ? (
                   <TableLoadingStateRow
                     colSpan={6}
@@ -612,10 +653,7 @@ export function BarberosPage() {
                         </span>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className={`px-2 py-1 rounded-full text-xs ${barbero.status === 'active'
-                          ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          }`}>
+                        <span className={`std-badge ${barbero.status === 'active' ? 'std-badge-positive' : 'std-badge-negative'}`}>
                           {barbero.status === 'active' ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
@@ -644,22 +682,31 @@ export function BarberosPage() {
                           </button>
                           <button
                             onClick={() => handleEditBarbero(barbero)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar"
+                            disabled={barbero.status !== 'active'}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={barbero.status === 'active' ? "Editar" : "Barbero inactivo (solo historial)"}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
                           <button
-                            onClick={() => handleSendPasswordSetup(barbero.correo)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Enviar enlace de contraseña"
+                            onClick={() => {
+                              if (barbero.status !== 'active') {
+                                errorAlert("Registro inactivo", "Este barbero está inactivo y no permite acciones.");
+                                return;
+                              }
+                              handleSendPasswordSetup(barbero.correo);
+                            }}
+                            disabled={barbero.status !== 'active'}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={barbero.status === 'active' ? "Enviar enlace de contraseña" : "Barbero inactivo (solo historial)"}
                           >
                             <KeyRound className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                           </button>
                           <button
                             onClick={() => handleDeleteBarbero(barbero.id)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar"
+                            disabled={barbero.status !== 'active'}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={barbero.status === 'active' ? "Eliminar" : "Barbero inactivo (solo historial)"}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
                           </button>
@@ -673,17 +720,14 @@ export function BarberosPage() {
           </div>
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-lightest">
-                Página {currentPage} de {totalPages}
-              </div>
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>
@@ -733,11 +777,12 @@ export function BarberosPage() {
                   </div>
                   <button
                     onClick={triggerFileSelect}
+                    disabled={isUploadingImage}
                     className="elegante-button-secondary text-xs px-3 py-1.5 gap-1.5 flex items-center"
                     type="button"
                   >
-                    <Camera className="w-3 h-3" />
-                    {previewUrl ? 'Cambiar' : 'Subir'}
+                    {isUploadingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                    {isUploadingImage ? 'Subiendo...' : (previewUrl ? 'Cambiar' : 'Subir')}
                   </button>
                 </div>
                 <input
@@ -878,9 +923,16 @@ export function BarberosPage() {
               <Input
                 value={newBarbero.especialidad}
                 onChange={(e) => setNewBarbero({ ...newBarbero, especialidad: e.target.value })}
+                list="barbero-especialidades"
                 maxLength={BARBERO_LIMITS.especialidad}
                 className="elegante-input w-full"
+                placeholder="Ej: Fade"
               />
+              <datalist id="barbero-especialidades">
+                {especialidadesDatalist.map((especialidad) => (
+                  <option key={especialidad} value={especialidad} />
+                ))}
+              </datalist>
             </div>
             </div>
 

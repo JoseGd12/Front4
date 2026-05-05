@@ -26,15 +26,15 @@ import {
   Building,
   IdCard,
   X,
-  ToggleLeft,
-  ToggleRight,
   AlertCircle,
   Globe,
   Calendar,
   Briefcase,
   Users,
   FileText,
-  UserCheck
+  UserCheck,
+  ToggleLeft,
+  ToggleRight
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
@@ -44,13 +44,48 @@ import { TableHeaderSection } from "../../../shared/components/ui/table-header-s
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { proveedorService, Proveedor } from "../services/proveedorService";
-import { Switch } from "../../../shared/components/ui/switch";
 import { compraService } from "../services/compraService";
 
 // Tipos de proveedor
 const TIPOS_PROVEEDOR = [
   { value: 'Juridico', label: 'Jurídico (Empresa)' },
   { value: 'Natural', label: 'Natural (Persona)' }
+];
+
+const DEPARTAMENTOS_COLOMBIA = [
+  "Amazonas",
+  "Antioquia",
+  "Arauca",
+  "Atlántico",
+  "Bogotá D.C.",
+  "Bolívar",
+  "Boyacá",
+  "Caldas",
+  "Caquetá",
+  "Casanare",
+  "Cauca",
+  "Cesar",
+  "Chocó",
+  "Córdoba",
+  "Cundinamarca",
+  "Guainía",
+  "Guaviare",
+  "Huila",
+  "La Guajira",
+  "Magdalena",
+  "Meta",
+  "Nariño",
+  "Norte de Santander",
+  "Putumayo",
+  "Quindío",
+  "Risaralda",
+  "San Andrés y Providencia",
+  "Santander",
+  "Sucre",
+  "Tolima",
+  "Valle del Cauca",
+  "Vaupés",
+  "Vichada",
 ];
 
 // Datos estáticos para fallback cuando la API no está disponible
@@ -136,7 +171,6 @@ export function ProveedoresPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedProveedor, setSelectedProveedor] = useState<Proveedor | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [formData, setFormData] = useState({
@@ -167,8 +201,7 @@ export function ProveedoresPage() {
     tipoDocumentoContactoAdicional: "",
     documentoContactoAdicional: "",
     telefonoContactoAdicional: "",
-    correoContactoAdicional: "",
-    estado: true
+    correoContactoAdicional: ""
   });
   const [showProveedorFormErrors, setShowProveedorFormErrors] = useState(false);
   const [proveedorValidationAttempt, setProveedorValidationAttempt] = useState(0);
@@ -295,8 +328,7 @@ export function ProveedoresPage() {
       tipoDocumentoContactoAdicional: "",
       documentoContactoAdicional: "",
       telefonoContactoAdicional: "",
-      correoContactoAdicional: "",
-      estado: true
+      correoContactoAdicional: ""
     });
     setShowProveedorFormErrors(false);
     setProveedorValidationAttempt(0);
@@ -310,14 +342,14 @@ export function ProveedoresPage() {
     const missingRequired =
       !formData.nombre.trim() ||
       !formData.nit.trim() ||
-      !formData.direccion.trim() ||
+      !formData.representanteLegal.trim() ||
       !formData.numero.trim() ||
       !formData.correo.trim();
 
     if (missingRequired) {
       setShowProveedorFormErrors(true);
       setProveedorValidationAttempt(prev => prev + 1);
-      error('Campos obligatorios', 'Completa nombre, NIT, dirección, teléfono y correo.');
+      error('Campos obligatorios', 'Completa nombre, NIT, representante legal, teléfono y correo.');
       return;
     }
 
@@ -338,6 +370,9 @@ export function ProveedoresPage() {
       const documentoUnico = (formData.nit || '').trim();
       const payload = {
         ...formData,
+        // El requisito funcional reemplaza "dirección" por "representante legal".
+        // Se mantiene este mapeo para no romper compatibilidad con endpoints actuales.
+        direccion: formData.representanteLegal,
         nit: documentoUnico,
         // Para Naturales, el backend usa numeroIdentificacion; para Jurídico, nit.
         numeroIdentificacion: documentoUnico,
@@ -412,7 +447,7 @@ export function ProveedoresPage() {
 
         // Datos Jurídicos
         razonSocial: proveedor.razonSocial || "",
-        representanteLegal: proveedor.representanteLegal || "",
+        representanteLegal: proveedor.representanteLegal || proveedor.direccion || "",
         tipoDocumentoRepresentante: proveedor.tipoDocumentoRepresentante || "",
         numeroIdentificacionRepLegal: proveedor.numeroIdentificacionRepLegal || "",
         cargoRepLegal: proveedor.cargoRepLegal || "",
@@ -425,8 +460,7 @@ export function ProveedoresPage() {
 
         // Campos legacy o adicionales para evitar errores
         apellidos: proveedor.apellidos || "",
-        numeroIdentificacion: proveedor.numeroIdentificacion || "",
-        estado: (proveedor.estado !== undefined ? proveedor.estado : proveedor.activo) ?? true
+        numeroIdentificacion: proveedor.numeroIdentificacion || ""
       });
 
       setIsEditDialogOpen(true);
@@ -462,6 +496,7 @@ export function ProveedoresPage() {
       const documentoUnico = (formData.nit || '').trim();
       const tempFormData = {
         ...formData,
+        direccion: formData.representanteLegal,
         nit: documentoUnico,
         numeroIdentificacion: documentoUnico,
         tipoIdentificacion: formData.tipoProveedor === 'Natural' ? (formData as any).tipoIdentificacion || 'CC' : (formData as any).tipoIdentificacion
@@ -535,47 +570,6 @@ export function ProveedoresPage() {
     );
   };
 
-  const handleToggleStatus = async (proveedor: Proveedor) => {
-    // Usar estado si está disponible, sino activo (compatibilidad)
-    const estadoActual = proveedor.estado !== undefined ? proveedor.estado : proveedor.activo;
-    const nuevoEstado = !estadoActual;
-    console.log(`🔄 Toggle status for provider ${proveedor.id}: ${estadoActual} -> ${nuevoEstado}`);
-
-    try {
-      if (proveedor.id) {
-        await proveedorService.cambiarEstadoProveedor(proveedor.id, nuevoEstado);
-      }
-
-      // Refrescar datos desde la API para sincronizar con el servidor (de forma silenciosa)
-      await cargarProveedores(true);
-
-      if (nuevoEstado) {
-        created("Proveedor activado", `El proveedor "${proveedor.nombre}" ha sido activado.`);
-      } else {
-        edited("Proveedor desactivado", `El proveedor "${proveedor.nombre}" ha sido desactivado.`);
-      }
-    } catch (error) {
-      console.error('❌ Error cambiando estado del proveedor:', error);
-
-      // Cambiar estado localmente en caso de error, pero solo si la lista actual no está vacía
-      if (proveedores.length > 0) {
-        setProveedores(proveedores.map(p =>
-          p.id === proveedor.id ? { ...p, estado: nuevoEstado, activo: nuevoEstado } : p
-        ));
-
-        if (nuevoEstado) {
-          created("Proveedor activado", `El proveedor "${proveedor.nombre}" ha sido activado localmente.`);
-        } else {
-          edited("Proveedor desactivado", `El proveedor "${proveedor.nombre}" ha sido desactivado localmente.`);
-        }
-      } else {
-        // Si la lista está vacía, recargar los datos
-        console.log('📥 Provider list is empty, reloading...');
-        await cargarProveedores(true);
-      }
-    }
-  };
-
   const handleViewDetails = async (proveedorPartial: Proveedor) => {
     try {
       let proveedor = proveedorPartial;
@@ -595,18 +589,40 @@ export function ProveedoresPage() {
     }
   };
 
+  const handleToggleStatus = async (proveedor: Proveedor) => {
+    if (!proveedor.id) return;
+    
+    const nuevoEstado = !proveedor.activo;
+    
+    try {
+      // Actualización optimista local
+      setProveedores(prev => 
+        prev.map(p => p.id === proveedor.id ? { ...p, activo: nuevoEstado, estado: nuevoEstado } : p)
+      );
+      
+      await proveedorService.cambiarEstadoProveedor(proveedor.id, nuevoEstado);
+      
+      const accion = nuevoEstado ? 'activado' : 'desactivado';
+      edited(
+        `Proveedor ${accion} ✔️`, 
+        `El proveedor "${proveedor.nombre}" ha sido ${accion} exitosamente.`
+      );
+    } catch (err: any) {
+      // Revertir cambio optimista si falla
+      setProveedores(prev => 
+        prev.map(p => p.id === proveedor.id ? { ...p, activo: !nuevoEstado, estado: !nuevoEstado } : p)
+      );
+      error(
+        "Error al cambiar estado", 
+        err?.message || "No se pudo actualizar el estado del proveedor."
+      );
+    }
+  };
+
   const getTipoProveedorLabel = (tipo: string) => {
     const tipoProveedor = TIPOS_PROVEEDOR.find(t => t.value === tipo);
     return tipoProveedor ? tipoProveedor.label : tipo;
   };
-
-  const getEstadoTexto = (p: Proveedor) => {
-    const st = (p.estado !== undefined ? p.estado : (p as any).activo);
-    return st ? 'activo' : 'inactivo';
-  };
-
-  const proveedoresActivos = proveedores.filter(p => p.activo).length;
-  const proveedoresInactivos = proveedores.filter(p => !p.activo).length;
 
   // Filtrado y paginación
   const norm = (v: unknown) => String(v ?? '')
@@ -616,20 +632,14 @@ export function ProveedoresPage() {
     .trim();
   const term = norm(searchTerm);
   const filteredProveedores = proveedores.filter(p => {
-    const isActive = (p.estado !== undefined ? p.estado : (p as any).activo) !== false;
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && isActive) ||
-      (statusFilter === "inactive" && !isActive);
-    if (!matchesStatus) return false;
     if (!term) return true;
     const nombre = norm(p.nombre);
     const nit = norm(p.nit);
     const correo = norm(p.correo);
     const telefono = norm((p as any).numero || (p as any).telefono);
     const fecha = norm(p.fechaCreacion);
-    const estadoTxt = norm(getEstadoTexto(p));
-    return nombre.includes(term) || nit.includes(term) || correo.includes(term) || telefono.includes(term) || fecha.includes(term) || estadoTxt.includes(term);
+    const representanteLegal = norm(p.representanteLegal || p.direccion);
+    return nombre.includes(term) || nit.includes(term) || correo.includes(term) || telefono.includes(term) || fecha.includes(term) || representanteLegal.includes(term);
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredProveedores.length / itemsPerPage));
@@ -651,13 +661,14 @@ export function ProveedoresPage() {
 
       <main className="flex-1 overflow-auto bg-black-primary">
         {/* Sección Principal */}
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <button
-                    className="elegante-button-primary gap-2 flex items-center"
+                    className="btn-std-primary"
                     onClick={() => {
                       resetForm();
                       setIsEditDialogOpen(false);
@@ -754,16 +765,16 @@ export function ProveedoresPage() {
                       <div className="space-y-2">
                         <Label className="text-white-primary flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-orange-primary" />
-                          Dirección <span className="text-white-primary">*</span>
+                          Representante Legal <span className="text-white-primary">*</span>
                         </Label>
                         <Input
-                          id="direccion"
-                          value={formData.direccion}
-                          onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                          placeholder="Ej: Calle 72 #10-34, Bogotá"
-                          className={`elegante-input ${showProveedorFormErrors && !isEditDialogOpen && !formData.direccion.trim() ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                          id="representanteLegal"
+                          value={formData.representanteLegal}
+                          onChange={(e) => setFormData({ ...formData, representanteLegal: e.target.value })}
+                          placeholder="Ej: María Elena García"
+                          className={`elegante-input ${showProveedorFormErrors && !isEditDialogOpen && !formData.representanteLegal.trim() ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                         />
-                        {showProveedorFormErrors && !isEditDialogOpen && !formData.direccion.trim() && (
+                        {showProveedorFormErrors && !isEditDialogOpen && !formData.representanteLegal.trim() && (
                           <p className="text-xs text-red-400">Este campo es obligatorio.</p>
                         )}
                       </div>
@@ -820,11 +831,17 @@ export function ProveedoresPage() {
                         </Label>
                         <Input
                           id="departamento"
+                          list="departamentos-colombia"
                           value={formData.departamento}
                           onChange={(e) => setFormData({ ...formData, departamento: e.target.value })}
                           className="elegante-input"
                           placeholder="Ej: Cundinamarca"
                         />
+                        <datalist id="departamentos-colombia">
+                          {DEPARTAMENTOS_COLOMBIA.map((departamento) => (
+                            <option key={departamento} value={departamento} />
+                          ))}
+                        </datalist>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-white-primary flex items-center gap-2">
@@ -891,23 +908,6 @@ export function ProveedoresPage() {
                               placeholder="Ej: +57 300 000 0000"
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              Estado
-                            </Label>
-                            <div>
-                              <div className="flex items-center space-x-3">
-                                <Switch
-                                  checked={!!formData.estado}
-                                  onCheckedChange={(checked) => setFormData({ ...formData, estado: checked })}
-                                  className="data-[state=checked]:bg-orange-primary"
-                                />
-                                <span className="text-xs font-medium text-gray-lightest">
-                                  {formData.estado ? 'Activo' : 'Inactivo'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     )}
@@ -961,23 +961,6 @@ export function ProveedoresPage() {
                               placeholder="Ej: +57 300 000 0000"
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              Estado
-                            </Label>
-                            <div>
-                              <div className="flex items-center space-x-3">
-                                <Switch
-                                  checked={!!formData.estado}
-                                  onCheckedChange={(checked) => setFormData({ ...formData, estado: checked })}
-                                  className="data-[state=checked]:bg-orange-primary"
-                                />
-                                <span className="text-xs font-medium text-gray-lightest">
-                                  {formData.estado ? 'Activo' : 'Inactivo'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     )}
@@ -1014,44 +997,31 @@ export function ProveedoresPage() {
               setCurrentPage(1);
             }}
             searchPlaceholder="Buscar por nombre, NIT, correo o tipo..."
-            statusFilter={{
-              value: statusFilter,
-              onChange: (value) => {
-                setStatusFilter(value as "all" | "active" | "inactive");
-                setCurrentPage(1);
-              },
-              options: [
-                { value: "all", label: "Todos" },
-                { value: "active", label: "Activos" },
-                { value: "inactive", label: "Inactivos" },
-              ],
-            }}
             recordsText={`Mostrando ${currentProveedores.length} de ${filteredProveedores.length} proveedores`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
           {/* Tabla de Proveedores */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+              <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">NIT/Documento</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Dirección</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Representante Legal</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="std-tbody">
                 {loading ? (
                   <TableLoadingStateRow
-                    colSpan={6}
+                    colSpan={5}
                     title="Cargando proveedores..."
                   />
                 ) : pageError ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center">
+                    <td colSpan={5} className="py-12 text-center">
                       <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-white-primary mb-2">Error de conexión</h3>
                       <p className="text-gray-lightest mb-4">{pageError}</p>
@@ -1065,7 +1035,7 @@ export function ProveedoresPage() {
                   </tr>
                 ) : currentProveedores.length === 0 ? (
                   <TableEmptyStateRow
-                    colSpan={6}
+                    colSpan={5}
                     title="No se encontraron proveedores"
                     description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                     onReload={cargarProveedores}
@@ -1099,23 +1069,16 @@ export function ProveedoresPage() {
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className="text-sm text-gray-lighter">{proveedor.direccion}</span>
+                        <span className="text-sm text-gray-lighter">{proveedor.representanteLegal || proveedor.direccion || '-'}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <span className={`px-3 py-1 rounded-full text-xs ${(proveedor.estado !== undefined ? proveedor.estado : proveedor.activo) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                            {(proveedor.estado !== undefined ? proveedor.estado : proveedor.activo) ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                        <button
+                          <button
                             onClick={() => handleToggleStatus(proveedor)}
                             className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title={(proveedor.estado !== undefined ? proveedor.estado : proveedor.activo) ? "Desactivar" : "Activar"}
+                            title={proveedor.activo ? "Desactivar proveedor" : "Activar proveedor"}
                           >
-                            {(proveedor.estado !== undefined ? proveedor.estado : proveedor.activo) ? (
+                            {proveedor.activo ? (
                               <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
                             ) : (
                               <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
@@ -1130,16 +1093,18 @@ export function ProveedoresPage() {
                           </button>
                           <button
                             onClick={() => handleEdit(proveedor)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Editar"
+                            disabled={!proveedor.activo}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={proveedor.activo ? "Editar" : "Proveedor inactivo (solo historial)"}
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
                           
                           <button
                             onClick={() => handleDeleteClick(proveedor)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Eliminar"
+                            disabled={!proveedor.activo}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={proveedor.activo ? "Eliminar" : "Proveedor inactivo (solo historial)"}
                           >
                             <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                           </button>
@@ -1154,7 +1119,7 @@ export function ProveedoresPage() {
 
           {/* Paginación */}
           {!pageError && (
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
+            <div className="std-full-divider flex items-center justify-between pt-6 mt-0">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-lightest">
                   Página {currentPage} de {totalPages}
@@ -1233,24 +1198,27 @@ export function ProveedoresPage() {
                     </div>
 
                     {/* Estado */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center">
                       <span className={`px-2 text-sm py-1 rounded-full text-[2px]  ${proveedor.activo ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
                         {proveedor.activo ? 'Activo' : 'Inactivo'}
                       </span>
-                      <button
-                        onClick={() => handleToggleStatus(proveedor)}
-                        className="flex items-center"
-                      >
-                        {proveedor.activo ? (
-                          <ToggleRight className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <ToggleLeft className="w-4 h-4 text-gray-medium" />
-                        )}
-                      </button>
                     </div>
 
                     {/* Acciones */}
                     <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleToggleStatus(proveedor)}
+                        className="elegante-button-secondary p-2 h-8 w-8"
+                        title={proveedor.activo ? "Desactivar proveedor" : "Activar proveedor"}
+                      >
+                        {proveedor.activo ? (
+                          <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                        ) : (
+                          <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                        )}
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -1263,7 +1231,9 @@ export function ProveedoresPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(proveedor)}
-                        className="elegante-button-secondary p-2 h-8 w-8"
+                        disabled={!proveedor.activo}
+                        className="elegante-button-secondary p-2 h-8 w-8 disabled:opacity-50"
+                        title={proveedor.activo ? "Editar" : "Proveedor inactivo (solo historial)"}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -1271,7 +1241,9 @@ export function ProveedoresPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteClick(proveedor)}
-                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white p-2 h-8 w-8"
+                        disabled={!proveedor.activo}
+                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white p-2 h-8 w-8 disabled:opacity-50"
+                        title={proveedor.activo ? "Eliminar" : "Proveedor inactivo (solo historial)"}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1283,15 +1255,14 @@ export function ProveedoresPage() {
           )}
 
           {/* Paginación */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-            <div className="text-sm text-gray-lightest">
+          <div className="std-pagination">
+            <div className="std-pag-info">
               Página {currentPage} de {totalPages}
             </div>
             <EllipsisPagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => setCurrentPage(page)}
-              className="mx-0 w-auto justify-end"
             />
           </div>
         </div>
@@ -1352,10 +1323,10 @@ export function ProveedoresPage() {
                 <div className="space-y-2">
                   <Label className="text-white-primary flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-orange-primary" />
-                    Dirección
+                    Representante Legal
                   </Label>
                   <Input
-                    value={selectedProveedor.direccion || ''}
+                    value={selectedProveedor.representanteLegal || selectedProveedor.direccion || ''}
                     disabled
                     className="elegante-input"
                   />
@@ -1417,16 +1388,6 @@ export function ProveedoresPage() {
                       </Label>
                       <Input value={selectedProveedor.telefonoContactoAdicional || ''} disabled className="elegante-input" />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        Estado
-                      </Label>
-                      <div>
-                        <span className={`px-3 py-1 rounded-full text-xs ${(selectedProveedor.estado !== undefined ? selectedProveedor.estado : (selectedProveedor as any).activo) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                          {(selectedProveedor.estado !== undefined ? selectedProveedor.estado : (selectedProveedor as any).activo) ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </>
               )}
@@ -1460,16 +1421,6 @@ export function ProveedoresPage() {
                         Teléfono contacto adicional
                       </Label>
                       <Input value={selectedProveedor.telefonoContactoAdicional || ''} disabled className="elegante-input" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        Estado
-                      </Label>
-                      <div>
-                        <span className={`px-3 py-1 rounded-full text-xs ${(selectedProveedor.estado !== undefined ? selectedProveedor.estado : (selectedProveedor as any).activo) ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                          {(selectedProveedor.estado !== undefined ? selectedProveedor.estado : (selectedProveedor as any).activo) ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </>

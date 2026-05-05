@@ -478,7 +478,7 @@
     background-color: var(--background);
     color: var(--white-primary);
     background-color: var(--black-primary);
-    font-family: Inter, system-ui, -apple-system, sans-serif;
+    font-family: 'DM Sans', Inter, system-ui, -apple-system, sans-serif;
     font-weight: 400;
   }
 

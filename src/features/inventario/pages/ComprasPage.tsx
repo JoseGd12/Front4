@@ -87,6 +87,17 @@ const normalizeSearchText = (value: unknown): string => {
     .trim();
 };
 
+const sortComprasByRecency = <T extends { id?: number; fecha?: string }>(items: T[]): T[] => {
+  return [...items].sort((a, b) => {
+    const timeA = a?.fecha ? new Date(a.fecha).getTime() : 0;
+    const timeB = b?.fecha ? new Date(b.fecha).getTime() : 0;
+    if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+      return timeB - timeA;
+    }
+    return Number(b?.id || 0) - Number(a?.id || 0);
+  });
+};
+
 import { useAuth } from "../../../shared/contexts/AuthContext";
 
 // Lazy load components incorrectly was causing a crash. 
@@ -130,7 +141,7 @@ const CompraRow = React.memo(({
       <span className="text-sm text-gray-lighter">{compra.fechaFormatted}</span>
     </td>
     <td className="py-4 px-4 text-center">
-      <span className={`px-3 py-1 rounded-full text-xs ${getEstadoColor(compra.estado)}`}>
+      <span className={`std-badge ${getEstadoColor(compra.estado)}`}>
         {compra.estado}
       </span>
     </td>
@@ -333,7 +344,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          setCompras(parsed);
+          setCompras(sortComprasByRecency(parsed));
           // Si tenemos cache, ya no necesitamos mostrar el spinner principal
           // aunque sigamos cargando datos frescos en background
           setLoading(false);
@@ -345,8 +356,9 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
 
     try {
       const comprasData = await compraService.getCompras();
-      setCompras(comprasData);
-      sessionStorage.setItem('compras_cache', JSON.stringify(comprasData));
+      const ordered = sortComprasByRecency(comprasData);
+      setCompras(ordered);
+      sessionStorage.setItem('compras_cache', JSON.stringify(ordered));
     } catch (error) {
       showErrorAlert("Error al cargar compras", "No se pudieron obtener las compras.");
       console.error(error);
@@ -488,12 +500,12 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
   const getEstadoColor = (estado: string) => {
     const estadoNormalizado = (estado || '').toLowerCase().trim();
     if (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado') {
-      return 'bg-red-500/10 text-red-400 border border-red-500/20';
+      return 'std-badge-negative';
     }
     if (estadoNormalizado === 'completada' || estadoNormalizado === 'completado') {
-      return 'bg-green-500/10 text-green-400 border border-green-500/20';
+      return 'std-badge-positive';
     }
-    return 'bg-gray-medium text-gray-lighter';
+    return 'std-badge-neutral';
   };
 
   const calcularSubtotal = () => {
@@ -1444,7 +1456,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
         <meta charset="UTF-8">
         <title>Reporte de Compra - ${compra.numeroCompra}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+          body { font-family: 'DM Sans', Arial, sans-serif; margin: 20px; color: #333; }
           .header { text-align: center; border-bottom: 2px solid #d8b081; padding-bottom: 20px; margin-bottom: 30px; }
           .company-name { color: #d8b081; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
           .report-title { font-size: 18px; color: #666; }
@@ -1586,12 +1598,13 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
           {/* Stats removed/hidden */}
         </div>
 
-        <div className="elegante-card">
+        <div className="std-card">
           <TableHeaderSection
+            variant="dark"
             leftContent={(
               <>
               <button
-                className="elegante-button-primary gap-2 flex items-center"
+                className="btn-std-primary"
                 onClick={() => onNavigate?.("RegistrarCompra")}
               >
                 <Plus className="w-4 h-4" />
@@ -2418,12 +2431,12 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
               ],
             }}
             recordsText={`Mostrando ${displayedCompras.length} de ${filteredCompras.length} compras`}
-            recordsPlacement="left"
+            recordsPlacement="right"
           />
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-                  <thead className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+          <div className="std-table-wrapper">
+            <table className="std-table">
+                  <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                     <tr className="border-b border-gray-dark">
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento/NIT Prov.</th>
@@ -2434,7 +2447,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                       <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="std-tbody">
                     {loading ? (
                       <TableLoadingStateRow
                         colSpan={7}
@@ -2459,21 +2472,17 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                     )}
                   </tbody>
                 </table>
-
-                {/* Paginación */}
-                <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm text-gray-lightest">
-                      Página {currentPage} de {totalPages}
-                    </div>
-                  </div>
-                  <EllipsisPagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={(page) => setCurrentPage(page)}
-                    className="mx-0 w-auto justify-end"
-                  />
-                </div>
+          </div>
+          {/* Paginación */}
+          <div className="std-pagination">
+            <div className="std-pag-info">
+              Página {currentPage} de {totalPages}
+            </div>
+            <EllipsisPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
           </div>
         </div>
 
@@ -2584,7 +2593,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                         Estado
                       </Label>
                       <div className="h-10 flex items-center">
-                        <span className={`px-2 py-1 rounded-full text-xs ${getEstadoColor(selectedCompra.estado)}`}>
+                        <span className={`std-badge ${getEstadoColor(selectedCompra.estado)}`}>
                           {selectedCompra.estado === 'Anulada' ? 'Anulada' : 'Completada'}
                         </span>
                       </div>

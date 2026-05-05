@@ -217,15 +217,14 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
 
           {/* Paginación */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-dark">
-              <div className="text-sm text-gray-lightest">
+            <div className="std-pagination">
+              <div className="std-pag-info">
                 Página {currentPage} de {totalPages}
               </div>
               <EllipsisPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={(page) => setCurrentPage(page)}
-                className="mx-0 w-auto justify-end"
               />
             </div>
           )}
