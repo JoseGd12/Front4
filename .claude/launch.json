@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "3000"],
+      "runtimeArgs": ["C:/Users/josed/OneDrive/Escritorio/front4v2/Front4/node_modules/vite/bin/vite.js", "--port", "3000", "--root", "C:/Users/josed/OneDrive/Escritorio/front4v2/Front4"],
       "port": 3000
     }
   ]
