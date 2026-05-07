@@ -1672,7 +1672,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       doc.setFont("helvetica", "bold");
       doc.text("N. de venta:", hMargin, y);
       doc.setFont("helvetica", "normal");
-      doc.text(String((ventaData as any).id ?? "N/A"), hMargin + 40, y);
+      doc.text(String((ventaData as any).numeroVenta ?? (ventaData as any).id ?? "N/A").padStart(3, "0"), hMargin + 40, y);
 
       y += 8;
       doc.setFont("helvetica", "bold");
@@ -1808,9 +1808,9 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       doc.text(`Documento generado automáticamente el ${new Date().toLocaleString("es-CO")}`, pageWidth / 2, y, { align: "center" });
       doc.text("MANITO BARBERSHOP - Sistema de Gestión de Ventas", pageWidth / 2, y + 4, { align: "center" });
 
-      const fileName = `Reporte_Venta_${(ventaData as any).numeroVenta || ventaData.id}_${new Date().toISOString().split("T")[0]}.pdf`;
+      const fileName = `Reporte_Venta_${String((ventaData as any).numeroVenta || ventaData.id).padStart(3, "0")}_${new Date().toISOString().split("T")[0]}.pdf`;
       doc.save(fileName);
-      created("PDF generado ✔️", `La factura de la venta ${ventaData.id} fue descargada correctamente.`);
+      created("PDF generado ✔️", `La factura de la venta ${String(ventaData.id).padStart(3, "0")} fue descargada correctamente.`);
     } catch (error) {
       console.error("Error generando PDF de venta:", error);
       showErrorAlert("Error al generar PDF", "No se pudo generar el PDF de la venta.");
@@ -1955,7 +1955,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         <td className="py-4 px-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <Hash className="w-4 h-4 text-orange-primary" />
-                            <span className="text-gray-lighter">{String((venta as any).numeroVenta ?? venta.id)}</span>
+                            <span className="text-gray-lighter">{String((venta as any).numeroVenta ?? venta.id).padStart(3, "0")}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4 text-center">
@@ -2107,14 +2107,30 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                 </DialogHeader>
 
                 <div className="space-y-6 pt-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-white-primary flex items-center gap-2">
+                        <Hash className="w-4 h-4 text-orange-primary" />
+                        Número de Recibo
+                      </Label>
+                      <Input
+                        value={(() => {
+                          const numPart = ((selectedVenta as any).numeroRecibo || '').split('-').pop();
+                          if (!numPart) return 'N/A';
+                          const n = parseInt(numPart, 10);
+                          return isNaN(n) ? numPart : n.toString().padStart(3, '0');
+                        })()}
+                        disabled
+                        className="elegante-input bg-gray-medium"
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label className="text-white-primary flex items-center gap-2">
                         <Hash className="w-4 h-4 text-orange-primary" />
                         Número de Venta
                       </Label>
                       <Input
-                        value={String(selectedVenta.numeroVenta || selectedVenta.id).replace(/^(FV|VTA)-?/i, '')}
+                        value={String(selectedVenta.numeroVenta || selectedVenta.id).padStart(3, "0")}
                         disabled
                         className="elegante-input bg-gray-medium"
                       />

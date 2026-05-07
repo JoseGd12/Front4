@@ -2,6 +2,24 @@ import { auth } from '../../../shared/services/firebase';
 
 const API_BASE_URL = '/api';
 
+/** Producto del agendamiento con cantidad e imagen (estructura nueva). */
+export interface AgendamientoProductoDTO {
+    productoId: number;
+    nombre: string;
+    cantidad: number;
+    imagen?: string | null;
+    precioVenta?: number | null;
+}
+
+/** Servicio del agendamiento con duración e imagen (estructura nueva). */
+export interface AgendamientoServicioDTO {
+    servicioId: number;
+    nombre: string;
+    duracion?: number | null;
+    imagen?: string | null;
+    precio?: number | null;
+}
+
 export interface Agendamiento {
     id: number;
     clienteId: number;
@@ -15,8 +33,13 @@ export interface Agendamiento {
     serviciosNombres: string[];
     paqueteId: number | null;
     paqueteNombre: string | null;
+    /** @deprecated usar `productos` */
     productoIds: number[];
     productosNombres: string[];
+    /** Productos con cantidad e imagen (estructura nueva de la API). */
+    productos: AgendamientoProductoDTO[];
+    /** Servicios con duración e imagen (estructura nueva de la API). */
+    servicios: AgendamientoServicioDTO[];
     fecha: string;
     hora: string;
     duracion: number;
@@ -25,12 +48,20 @@ export interface Agendamiento {
     notas: string;
 }
 
+export interface AgendamientoProductoInput {
+    productoId: number;
+    cantidad: number;
+}
+
 export interface CreateAgendamientoData {
     clienteId: number;
     barberoId: number;
     servicioId: number | null;
     servicioIds?: number[];
+    /** OBSOLETO: usar `productos: [{productoId, cantidad}]`. Se mantiene por compat. */
     productoIds?: number[];
+    /** Productos del agendamiento con cantidad (estructura nueva). */
+    productos?: AgendamientoProductoInput[];
     paqueteId: number | null;
     fecha: string;
     hora: string;
@@ -144,7 +175,7 @@ class AgendamientoService {
             serviciosNombres.push(String(servicioNom));
         }
 
-        // Extraer productos del agendamiento
+        // Extraer productos del agendamiento (legacy)
         const rawProductoIds = api.productoIds || api.ProductoIds || [];
         const productoIds = Array.isArray(rawProductoIds)
             ? rawProductoIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
@@ -152,6 +183,30 @@ class AgendamientoService {
         const productosNombresRaw = api.productosNombres || api.ProductosNombres || [];
         const productosNombres = Array.isArray(productosNombresRaw)
             ? productosNombresRaw.map((nombre: any) => String(nombre)).filter((nombre: string) => nombre.trim().length > 0)
+            : [];
+
+        // Estructura nueva: productos[] con cantidad e imagen
+        const productosRaw = api.productos || api.Productos || [];
+        const productos: AgendamientoProductoDTO[] = Array.isArray(productosRaw)
+            ? productosRaw.map((p: any) => ({
+                productoId: Number(p.productoId ?? p.ProductoId ?? 0),
+                nombre: String(p.nombre ?? p.Nombre ?? ''),
+                cantidad: Number(p.cantidad ?? p.Cantidad ?? 1),
+                imagen: p.imagen ?? p.Imagen ?? null,
+                precioVenta: p.precioVenta ?? p.PrecioVenta ?? null
+            }))
+            : [];
+
+        // Estructura nueva: servicios[] con duración e imagen
+        const serviciosRaw = api.servicios || api.Servicios || [];
+        const servicios: AgendamientoServicioDTO[] = Array.isArray(serviciosRaw)
+            ? serviciosRaw.map((s: any) => ({
+                servicioId: Number(s.servicioId ?? s.ServicioId ?? 0),
+                nombre: String(s.nombre ?? s.Nombre ?? ''),
+                duracion: s.duracion ?? s.Duracion ?? null,
+                imagen: s.imagen ?? s.Imagen ?? null,
+                precio: s.precio ?? s.Precio ?? null
+            }))
             : [];
 
         return {
@@ -169,6 +224,8 @@ class AgendamientoService {
             paqueteNombre: api.paqueteNombre || api.PaqueteNombre || null,
             productoIds,
             productosNombres,
+            productos,
+            servicios,
             fecha: fecha,
             hora: hora,
             duracion: duracionNum,
@@ -183,6 +240,7 @@ class AgendamientoService {
             id: 0, clienteId: 0, clienteNombre: 'Desconocido', clienteTelefono: '',
             barberoId: 0, barberoNombre: 'Desconocido', servicioId: 0, servicioIds: [], servicioNombre: 'Servicio', serviciosNombres: [],
             paqueteId: null, paqueteNombre: null, productoIds: [], productosNombres: [],
+            productos: [], servicios: [],
             fecha: '', hora: '', duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
         };
     }
@@ -262,7 +320,14 @@ class AgendamientoService {
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
             ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,
-            ProductoIds: data.productoIds && data.productoIds.length > 0 ? data.productoIds : undefined,
+            // Estructura nueva con cantidad
+            Productos: data.productos && data.productos.length > 0
+                ? data.productos.map(p => ({ ProductoId: p.productoId, Cantidad: Math.max(1, p.cantidad || 1) }))
+                : undefined,
+            // Legacy (compat) — solo se envía si no se usó `productos[]`
+            ProductoIds: (!data.productos || data.productos.length === 0) && data.productoIds && data.productoIds.length > 0
+                ? data.productoIds
+                : undefined,
             PaqueteId: data.paqueteId,
             FechaHora: localIsoStr,
             Duracion: `${data.duracion} minutos`,
@@ -308,7 +373,14 @@ class AgendamientoService {
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
             ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,
-            ProductoIds: data.productoIds && data.productoIds.length > 0 ? data.productoIds : undefined,
+            // Estructura nueva con cantidad
+            Productos: data.productos && data.productos.length > 0
+                ? data.productos.map(p => ({ ProductoId: p.productoId, Cantidad: Math.max(1, p.cantidad || 1) }))
+                : undefined,
+            // Legacy (compat) — solo se envía si no se usó `productos[]`
+            ProductoIds: (!data.productos || data.productos.length === 0) && data.productoIds && data.productoIds.length > 0
+                ? data.productoIds
+                : undefined,
             PaqueteId: data.paqueteId,
             FechaHora: localIsoStr,
             Duracion: `${data.duracion} minutos`,

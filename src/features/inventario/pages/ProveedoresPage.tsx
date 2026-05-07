@@ -370,9 +370,9 @@ export function ProveedoresPage() {
       const documentoUnico = (formData.nit || '').trim();
       const payload = {
         ...formData,
-        // El requisito funcional reemplaza "dirección" por "representante legal".
-        // Se mantiene este mapeo para no romper compatibilidad con endpoints actuales.
-        direccion: formData.representanteLegal,
+        // RepresentanteLegal y Direccion son campos separados (mapeo correcto a la API).
+        direccion: formData.direccion,
+        representanteLegal: formData.representanteLegal,
         nit: documentoUnico,
         // Para Naturales, el backend usa numeroIdentificacion; para Jurídico, nit.
         numeroIdentificacion: documentoUnico,
@@ -447,7 +447,7 @@ export function ProveedoresPage() {
 
         // Datos Jurídicos
         razonSocial: proveedor.razonSocial || "",
-        representanteLegal: proveedor.representanteLegal || proveedor.direccion || "",
+        representanteLegal: proveedor.representanteLegal || "",
         tipoDocumentoRepresentante: proveedor.tipoDocumentoRepresentante || "",
         numeroIdentificacionRepLegal: proveedor.numeroIdentificacionRepLegal || "",
         cargoRepLegal: proveedor.cargoRepLegal || "",
@@ -496,7 +496,9 @@ export function ProveedoresPage() {
       const documentoUnico = (formData.nit || '').trim();
       const tempFormData = {
         ...formData,
-        direccion: formData.representanteLegal,
+        // RepresentanteLegal y Direccion son campos separados.
+        direccion: formData.direccion,
+        representanteLegal: formData.representanteLegal,
         nit: documentoUnico,
         numeroIdentificacion: documentoUnico,
         tipoIdentificacion: formData.tipoProveedor === 'Natural' ? (formData as any).tipoIdentificacion || 'CC' : (formData as any).tipoIdentificacion
@@ -638,8 +640,9 @@ export function ProveedoresPage() {
     const correo = norm(p.correo);
     const telefono = norm((p as any).numero || (p as any).telefono);
     const fecha = norm(p.fechaCreacion);
-    const representanteLegal = norm(p.representanteLegal || p.direccion);
-    return nombre.includes(term) || nit.includes(term) || correo.includes(term) || telefono.includes(term) || fecha.includes(term) || representanteLegal.includes(term);
+    const representanteLegal = norm(p.representanteLegal);
+    const direccion = norm(p.direccion);
+    return nombre.includes(term) || nit.includes(term) || correo.includes(term) || telefono.includes(term) || fecha.includes(term) || representanteLegal.includes(term) || direccion.includes(term);
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredProveedores.length / itemsPerPage));
@@ -821,6 +824,20 @@ export function ProveedoresPage() {
                           <p className="text-xs text-red-400">{duplicateErrors.correo}</p>
                         )}
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-white-primary flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-orange-primary" />
+                        Dirección
+                      </Label>
+                      <Input
+                        id="direccion"
+                        value={formData.direccion}
+                        onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                        className="elegante-input"
+                        placeholder="Ej: Calle 72 #10-34, Oficina 501"
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -1069,7 +1086,7 @@ export function ProveedoresPage() {
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className="text-sm text-gray-lighter">{proveedor.representanteLegal || proveedor.direccion || '-'}</span>
+                        <span className="text-sm text-gray-lighter">{proveedor.representanteLegal || '-'}</span>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -1326,7 +1343,7 @@ export function ProveedoresPage() {
                     Representante Legal
                   </Label>
                   <Input
-                    value={selectedProveedor.representanteLegal || selectedProveedor.direccion || ''}
+                    value={selectedProveedor.representanteLegal || ''}
                     disabled
                     className="elegante-input"
                   />

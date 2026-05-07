@@ -61,8 +61,17 @@ class ModulosService {
      GET ALL
   ======================= */
 
-  async getModulos(): Promise<Modulo[]> {
-    const raw = await this.request<any>('/Modulos');
+  /**
+   * Obtiene TODOS los módulos en una sola llamada.
+   * La API permite pageSize hasta 1000.
+   */
+  async getModulos(q?: string): Promise<Modulo[]> {
+    const params = new URLSearchParams();
+    params.append('page', '1');
+    params.append('pageSize', '1000');
+    if (q) params.append('q', q);
+
+    const raw = await this.request<any>(`/Modulos?${params.toString()}`);
     let items: any[] = [];
     if (Array.isArray(raw)) {
       items = raw;

@@ -62,6 +62,7 @@ export interface Paquete {
   clientesAtendidos: number;
   categoria: string;
   activo: boolean;
+  imagen?: string;
 }
 
 export interface DetallePaquete {
@@ -510,7 +511,8 @@ class ApiService {
       activo: Boolean(
         data.activo === true || data.activo === 'true' || data.activo === 1 ||
         data.Activo === true || data.estado === true || data.Estado === true
-      )
+      ),
+      imagen: data.imagen || data.Imagen || data.imagenUrl || data.ImagenUrl || undefined
     };
   }
 

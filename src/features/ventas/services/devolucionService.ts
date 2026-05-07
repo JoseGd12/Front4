@@ -321,13 +321,41 @@ class DevolucionService {
         }
     }
 
+    /**
+     * @deprecated Las devoluciones NO se pueden eliminar — usar `anularDevolucion(id)`.
+     * Alias para compatibilidad: redirige a anular.
+     */
     async deleteDevolucion(id: number): Promise<void> {
+        console.warn('deleteDevolucion está deprecated. Las devoluciones solo se pueden anular.');
+        return this.anularDevolucion(id);
+    }
+
+    /**
+     * Anula una devolución (soft delete).
+     * Endpoint API: POST /Devoluciones/{id}/anular
+     */
+    async anularDevolucion(id: number): Promise<void> {
         try {
-            await this.request(`/Devoluciones/${id}`, {
-                method: 'DELETE',
+            await this.request(`/Devoluciones/${id}/anular`, {
+                method: 'POST',
             });
         } catch (error) {
-            console.error(`Error deleting devolucion ${id}:`, error);
+            console.error(`Error anulando devolucion ${id}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Obtiene devoluciones filtradas por cliente.
+     * Endpoint API: GET /Devoluciones/cliente/{clienteId}
+     */
+    async getDevolucionesPorCliente(clienteId: number, page = 1, pageSize = 20): Promise<any> {
+        try {
+            const response = await this.request(`/Devoluciones/cliente/${clienteId}?page=${page}&pageSize=${pageSize}`);
+            const text = await response.text();
+            return text ? JSON.parse(text) : { items: [], totalCount: 0 };
+        } catch (error) {
+            console.error(`Error obteniendo devoluciones del cliente ${clienteId}:`, error);
             throw error;
         }
     }

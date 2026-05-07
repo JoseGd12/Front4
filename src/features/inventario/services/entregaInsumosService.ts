@@ -180,20 +180,28 @@ class EntregaInsumosService {
     }
   }
 
-  // Eliminar una entrega
-  async deleteEntrega(id: number): Promise<void> {
+  /**
+   * Anula una entrega de insumos (soft delete).
+   * Endpoint API: POST /EntregasInsumos/{id}/anular
+   */
+  async anularEntrega(id: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando entrega ${id}...`);
-
-      await this.request(`/EntregasInsumos/${id}`, {
-        method: 'DELETE',
+      await this.request(`/EntregasInsumos/${id}/anular`, {
+        method: 'POST',
       });
-
-      console.log(`✅ Entrega ${id} eliminada`);
     } catch (error) {
-      console.error(`❌ Error eliminando entrega ${id}:`, error);
+      console.error(`❌ Error anulando entrega ${id}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * @deprecated Las entregas NO se pueden eliminar — usar `anularEntrega(id)`.
+   * Alias para compatibilidad: redirige a anular.
+   */
+  async deleteEntrega(id: number): Promise<void> {
+    console.warn('deleteEntrega está deprecated. Las entregas solo se pueden anular.');
+    return this.anularEntrega(id);
   }
 }
 

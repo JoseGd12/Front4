@@ -9,6 +9,8 @@ const API_BASE_URL = NORMALIZED_BASE
 
 export interface Venta {
   id: number;
+  /** Número de recibo autogenerado por la API. Formato: REC-YYYY-NNNNNN */
+  numeroRecibo?: string | null;
   numeroVenta: number;
   tipoVenta?: string;
   cliente: string;
@@ -47,6 +49,8 @@ export interface ServicioDetalle {
 }
 
 export interface CreateVentaRequest {
+  /** Si no se envía, la API lo autogenera */
+  numeroRecibo?: string;
   numeroVenta: number;
   tipoVenta?: string;
   clienteNombre?: string;
@@ -395,6 +399,8 @@ class VentaService {
     // 5. Retorno del objeto normalizado
     return {
       id: Number(data.id || data.Id) || 0,
+      // NumeroRecibo viene de la API ya autogenerado (formato REC-YYYY-NNNNNN)
+      numeroRecibo: data.numeroRecibo || data.NumeroRecibo || null,
       numeroVenta: Number(data.numeroVenta || data.NumeroVenta || data.id || data.Id || 0),
       tipoVenta: String(data.tipoVenta || data.TipoVenta || 'Venta directa'),
       cliente: clienteNombre,
@@ -595,15 +601,26 @@ class VentaService {
     }
   }
 
+  /**
+   * @deprecated Las ventas NO se pueden eliminar — usar `anularVenta(id)`.
+   * Este método queda como alias de `anularVenta` para no romper código existente.
+   */
   async deleteVenta(id: number): Promise<void> {
+    console.warn('deleteVenta está deprecated. Las ventas solo se pueden anular. Llamando a anularVenta.');
+    return this.anularVenta(id);
+  }
+
+  /**
+   * Obtiene ventas filtradas por cliente.
+   * Endpoint API: GET /Ventas/cliente/{clienteId}
+   */
+  async getVentasPorCliente(clienteId: number, page = 1, pageSize = 20): Promise<any> {
     try {
-      console.log(`🗑️ Eliminando venta ${id}...`);
-      await this.request(`/Ventas/${id}`, {
-        method: 'DELETE',
-      });
-      console.log(`✅ Venta ${id} eliminada`);
-    } catch (error: any) {
-      console.error(`❌ Error eliminando venta ${id}:`, error);
+      const response = await this.request(`/Ventas/cliente/${clienteId}?page=${page}&pageSize=${pageSize}`);
+      const text = await response.text();
+      return text ? this.safeParseJson(text) : { items: [], totalCount: 0 };
+    } catch (error) {
+      console.error(`❌ Error obteniendo ventas del cliente ${clienteId}:`, error);
       throw error;
     }
   }

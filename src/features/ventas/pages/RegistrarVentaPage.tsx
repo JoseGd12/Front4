@@ -1065,6 +1065,16 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     </div>
 
                     <div className="hidden sm:block w-px h-4 bg-gray-dark" />
+                    <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
+                      <span className="text-white-primary font-bold">
+                        Nº Recibo:
+                      </span>
+                      <span className="text-gray-lightest font-medium tabular-nums">
+                        {numeroVenta.toString().padStart(3, "0")}
+                      </span>
+                    </div>
+
+                    <div className="hidden sm:block w-px h-4 bg-gray-dark" />
                     <div className="flex items-right gap-2">
                       <span className="text-white-primary font-bold">
                         Fecha:

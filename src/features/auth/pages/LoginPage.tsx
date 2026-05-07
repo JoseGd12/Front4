@@ -48,6 +48,36 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
     }
   }, [initialResetData]);
 
+  const getLoginErrorMessage = (error: string): string => {
+    const e = (error || '').toLowerCase();
+    if (e.includes('wrong-password') || e.includes('invalid-credential') || e.includes('invalid credential') || e.includes('contraseña') || e.includes('password')) {
+      return 'Contraseña incorrecta. Verifica e intenta de nuevo.';
+    }
+    if (e.includes('user-not-found') || e.includes('no user') || e.includes('not found')) {
+      return 'No existe una cuenta con ese correo electrónico.';
+    }
+    if (e.includes('invalid-email') || e.includes('invalid email') || e.includes('correo')) {
+      return 'El correo electrónico no es válido.';
+    }
+    if (e.includes('too-many-requests') || e.includes('too many')) {
+      return 'Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.';
+    }
+    if (e.includes('user-disabled') || e.includes('disabled')) {
+      return 'Esta cuenta ha sido deshabilitada. Contacta al administrador.';
+    }
+    if (e.includes('network') || e.includes('conexión') || e.includes('connection')) {
+      return 'Error de conexión. Verifica tu internet e intenta de nuevo.';
+    }
+    if (e.includes('verifica tu email') || e.includes('verify')) {
+      return error; // Mantener el mensaje original para verificación de email
+    }
+    // Si el error ya es un mensaje amigable (no un código técnico), mostrarlo tal cual
+    if (!e.includes('/') && !e.includes('firebase') && !e.includes('auth')) {
+      return error;
+    }
+    return 'Correo o contraseña incorrectos. Verifica tus datos.';
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -64,13 +94,13 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
       // El sistema detectará automáticamente el rol del usuario desde la API
       const result = await login(formData.email, formData.password);
       if (!result.success) {
-        setError(result.error || 'Credenciales inválidas');
+        setError(getLoginErrorMessage(result.error || 'Credenciales inválidas'));
         setCaptchaValidated(false);
         setCaptchaKey(k => k + 1);
         setFormData({ email: '', password: '' });
       }
     } catch (err) {
-      setError('Error al iniciar sesión');
+      setError('Correo o contraseña incorrectos. Verifica tus datos.');
       setCaptchaValidated(false);
       setCaptchaKey(k => k + 1);
       setFormData({ email: '', password: '' });
@@ -109,7 +139,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
       // El sistema detectará automáticamente el rol del usuario desde la API
       const result = await loginWithGoogle();
       if (!result.success) {
-        setError(result.error || 'Error con Google Sign-In');
+        setError(getLoginErrorMessage(result.error || 'Error con Google Sign-In'));
       }
     } catch (err) {
       setError('Error al iniciar sesión con Google');

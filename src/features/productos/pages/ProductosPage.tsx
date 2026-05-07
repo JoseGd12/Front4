@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { Input } from "../../../shared/components/ui/input";
 import {
@@ -18,7 +18,10 @@ import {
   Loader2,
   Info,
   AlertCircle,
-  Filter
+  Filter,
+  DollarSign,
+  ChevronDown,
+  ShoppingCart
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
@@ -34,6 +37,8 @@ import { apiService } from "../../../shared/services/api";
 import { isSaleOnly } from "../../../shared/utils/usagePolicy";
 import { getStoredUsage, saveStoredUsage, removeStoredUsage } from "../utils/usagePersistence";
 import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
+import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
+import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 
 const formatCurrency = (amount: number): string => {
   return (amount ?? 0).toLocaleString('es-CO');
@@ -51,6 +56,26 @@ export function ProductosPage() {
   const [editingStockTotal, setEditingStockTotal] = useState<number | null>(null);
   const [selectedProducto, setSelectedProducto] = useState<any>(null);
   const [productoToDelete, setProductoToDelete] = useState<any>(null);
+  type PrecioCompraPromedioData = {
+    precioCompraPromedio: number;
+    cantidadComprasConsideradas: number;
+    cantidadTotalComprada: number;
+    ultimasCompras: Array<{
+      id: number;
+      compraId: number;
+      fechaRegistro: string | null;
+      fechaFactura: string | null;
+      numeroFactura: string | null;
+      proveedorNombre: string | null;
+      cantidad: number;
+      precioUnitario: number;
+    }>;
+  };
+  const [precioCompraPromedio, setPrecioCompraPromedio] = useState<PrecioCompraPromedioData | null>(null);
+  // Estado de fila expandida y caché de promedio por producto
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [precioComprasCache, setPrecioComprasCache] = useState<Record<number, PrecioCompraPromedioData | null>>({});
+  const [loadingExpandId, setLoadingExpandId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategoria, setFilterCategoria] = useState("all");
 
@@ -177,6 +202,44 @@ export function ProductosPage() {
       });
     }
   }, [esSoloVentaNuevoProducto, editingProducto, editingStockTotal]);
+
+  // Cargar precio compra promedio (últimas 5 compras) cuando se abre el detalle
+  useEffect(() => {
+    if (!isDetailDialogOpen || !selectedProducto?.id) {
+      setPrecioCompraPromedio(null);
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      try {
+        const data = await productoService.getPrecioCompraPromedio(Number(selectedProducto.id));
+        if (!cancel) setPrecioCompraPromedio(data);
+      } catch (err) {
+        if (!cancel) setPrecioCompraPromedio(null);
+      }
+    })();
+    return () => { cancel = true; };
+  }, [isDetailDialogOpen, selectedProducto?.id]);
+
+  // Alternar expansión de fila y cargar promedio de compras del producto
+  const toggleExpandProducto = async (productoId: number) => {
+    if (expandedId === productoId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(productoId);
+    if (precioComprasCache[productoId] === undefined) {
+      setLoadingExpandId(productoId);
+      try {
+        const data = await productoService.getPrecioCompraPromedio(productoId);
+        setPrecioComprasCache(prev => ({ ...prev, [productoId]: data }));
+      } catch (err) {
+        setPrecioComprasCache(prev => ({ ...prev, [productoId]: null }));
+      } finally {
+        setLoadingExpandId(null);
+      }
+    }
+  };
 
   // Load products and categories from API
   useEffect(() => {
@@ -1298,148 +1361,215 @@ export function ProductosPage() {
             />
 
             {/* Tabla de Productos */}
-            <StandardTable<Record<string, unknown>>
-              columns={[
-                {
-                  key: "imagen",
-                  header: "Imagen",
-                  primary: true,
-                  render: (_v, row) => {
-                    const producto = row as unknown as ApiProducto;
-                    return (
-                      <ImageRenderer
-                        url={producto.imagenProduc}
-                        alt={producto.nombre}
-                        className="w-10 h-10 object-cover rounded-lg"
-                        fallbackVariant="product"
-                        showLabel={false}
-                      />
-                    );
-                  },
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "nombre",
-                  header: "Nombre",
-                  render: (_v, row) => (row as unknown as ApiProducto).nombre,
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "precioVenta",
-                  header: "Precio venta",
-                  render: (_v, row) => {
-                    const producto = row as unknown as ApiProducto;
-                    return formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0);
-                  },
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "precioCompra",
-                  header: "Precio compra",
-                  render: (_v, row) => formatearPrecio((row as any).precioCompra ?? 0),
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "stockTotal",
-                  header: "Stock total",
-                  render: (_v, row) => String(getStockTotal(row as unknown as ApiProducto)),
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "stockVentas",
-                  header: "Stock Ventas",
-                  render: (_v, row) => String((row as unknown as ApiProducto).stockVentas ?? 0),
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "stockInsumos",
-                  header: "Stock Insumos",
-                  render: (_v, row) => {
-                    const producto = row as unknown as ApiProducto;
-                    const soloVenta = esProductoSoloVenta(producto as any);
-                    return String(soloVenta ? 0 : (producto.stockInsumos ?? 0));
-                  },
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "uso",
-                  header: "Uso",
-                  render: (_v, row) => {
-                    const producto = row as unknown as ApiProducto;
+            <div className="std-table-wrapper">
+              <table className="std-table">
+                <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
+                  <tr className="border-b border-gray-dark">
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio venta</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio compra</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock total</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Ventas</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Uso</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="std-tbody">
+                  {loading ? (
+                    <TableLoadingStateRow colSpan={10} title="Cargando productos..." />
+                  ) : displayedProductos.length > 0 ? displayedProductos.map((producto) => {
+                    const isExpanded = expandedId === Number(producto.id);
+                    const cached = precioComprasCache[Number(producto.id)];
                     const soloVenta = esProductoSoloVenta(producto as any);
                     return (
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs border whitespace-nowrap ${soloVenta
-                        ? 'bg-gray-500/10 text-gray-300 border-gray-600/50'
-                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                      }`}>
-                        {soloVenta ? 'Solo venta' : 'Venta e insumo'}
-                      </span>
+                      <React.Fragment key={`row-${producto.id}`}>
+                        {/* Fila principal */}
+                        <tr
+                          className={`border-b border-gray-dark transition-colors cursor-pointer ${isExpanded ? 'bg-orange-primary/5' : 'hover:bg-gray-darker'}`}
+                          onClick={() => toggleExpandProducto(Number(producto.id))}
+                        >
+                          <td className="py-4 px-4">
+                            <ImageRenderer
+                              url={producto.imagenProduc}
+                              alt={producto.nombre}
+                              className="w-10 h-10 object-cover rounded-lg"
+                              fallbackVariant="product"
+                              showLabel={false}
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-gray-lightest font-medium">{producto.nombre}</td>
+                          <td className="py-4 px-4 text-center text-gray-lightest">
+                            {formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0)}
+                          </td>
+                          <td className="py-4 px-4 text-center text-gray-lightest">
+                            {formatearPrecio((producto as any).precioCompra ?? 0)}
+                          </td>
+                          <td className="py-4 px-4 text-center text-gray-lightest">
+                            {String(getStockTotal(producto as unknown as ApiProducto))}
+                          </td>
+                          <td className="py-4 px-4 text-center text-gray-lightest">
+                            {String((producto as unknown as ApiProducto).stockVentas ?? 0)}
+                          </td>
+                          <td className="py-4 px-4 text-center text-gray-lightest">
+                            {String(soloVenta ? 0 : ((producto as unknown as ApiProducto).stockInsumos ?? 0))}
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className={`inline-block px-2 py-1 rounded-full text-xs border whitespace-nowrap ${soloVenta
+                              ? 'bg-gray-500/10 text-gray-300 border-gray-600/50'
+                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                            }`}>
+                              {soloVenta ? 'Solo venta' : 'Venta e insumo'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <StandardTable.StatusBadge
+                              variant={resolveStatusVariant(producto.activo ? "Activo" : "Inactivo")}
+                              label={producto.activo ? "Activo" : "Inactivo"}
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                className="p-1.5 rounded-lg transition-colors text-gray-lightest hover:text-orange-primary hover:bg-gray-darker"
+                                title={isExpanded ? 'Cerrar detalle' : 'Ver compras'}
+                                onClick={() => toggleExpandProducto(Number(producto.id))}
+                              >
+                                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-orange-primary' : ''}`} />
+                              </button>
+                              <button
+                                onClick={() => toggleProductoActivo(producto.id)}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                                title={producto.activo ? "Desactivar producto" : "Activar producto"}
+                              >
+                                {producto.activo ? (
+                                  <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400 transition-colors" />
+                                ) : (
+                                  <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400 transition-colors" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedProducto(producto);
+                                  setIsDetailDialogOpen(true);
+                                }}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                                title="Ver detalles"
+                              >
+                                <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                              </button>
+                              <button
+                                onClick={() => handleEditProducto(producto)}
+                                disabled={!producto.activo}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                title={producto.activo ? "Editar" : "Producto inactivo (solo historial)"}
+                              >
+                                <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProducto(producto.id)}
+                                disabled={!producto.activo}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                title={producto.activo ? "Eliminar" : "Producto inactivo (solo historial)"}
+                              >
+                                <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Fila expandible — compras del producto */}
+                        {isExpanded && (
+                          <tr key={`expand-${producto.id}`} className="border-b border-orange-primary/20">
+                            <td colSpan={10} className="px-0 py-0">
+                              <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
+                                {/* Encabezado */}
+                                <div className="px-6 py-3 bg-orange-primary/5 border-b border-gray-darker flex items-center justify-between flex-wrap gap-3">
+                                  <span className="text-[11px] font-bold uppercase tracking-widest text-orange-primary flex items-center gap-2">
+                                    <ShoppingCart className="w-3.5 h-3.5" />
+                                    Historial de compras de {producto.nombre}
+                                  </span>
+                                  {cached && cached.cantidadComprasConsideradas > 0 && (
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-gray-lightest">
+                                        {cached.cantidadComprasConsideradas} compra(s)
+                                        {cached.cantidadTotalComprada > 0 && ` · ${cached.cantidadTotalComprada} unid.`}
+                                      </span>
+                                      <span className="px-3 py-1 rounded-lg bg-orange-primary/15 border border-orange-primary/30 text-orange-primary text-xs font-bold">
+                                        Promedio: {formatCurrency(cached.precioCompraPromedio)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Sub-tabla de compras */}
+                                {loadingExpandId === Number(producto.id) ? (
+                                  <div className="px-6 py-6 text-sm text-gray-lighter italic flex items-center gap-2">
+                                    <Loader2 className="w-4 h-4 animate-spin text-orange-primary" />
+                                    Cargando compras...
+                                  </div>
+                                ) : !cached || cached.cantidadComprasConsideradas === 0 ? (
+                                  <div className="px-6 py-4 text-sm text-gray-lighter italic">
+                                    Este producto aún no tiene compras registradas.
+                                  </div>
+                                ) : (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                      <tr style={{ background: 'rgba(17,17,17,0.5)', borderBottom: '1px solid #2a2a2a' }}>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '52px' }}>Fecha</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Factura</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proveedor</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cantidad</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.06em', paddingRight: '32px' }}>P. Unitario</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {cached.ultimasCompras.map(c => (
+                                        <tr key={c.id} style={{ borderBottom: '1px solid rgba(42,42,42,0.8)', background: '#111111', transition: 'background 0.12s' }}
+                                          onMouseEnter={e => (e.currentTarget.style.background = '#1a1919')}
+                                          onMouseLeave={e => (e.currentTarget.style.background = '#111111')}
+                                        >
+                                          <td style={{ padding: '12px 16px', paddingLeft: '52px', fontSize: '13px', color: '#ffffff', textAlign: 'left', verticalAlign: 'middle' }}>
+                                            {c.fechaFactura ?? (c.fechaRegistro ? new Date(c.fechaRegistro).toLocaleDateString() : '—')}
+                                          </td>
+                                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#ffffff', textAlign: 'center', verticalAlign: 'middle' }}>
+                                            {c.numeroFactura ?? `#${c.compraId}`}
+                                          </td>
+                                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#ffffff', textAlign: 'center', verticalAlign: 'middle' }}>
+                                            {c.proveedorNombre ?? '—'}
+                                          </td>
+                                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#ffffff', textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 600, background: 'rgba(216,176,129,0.1)', color: '#d8b081', border: '1px solid rgba(216,176,129,0.2)' }}>
+                                              {c.cantidad}
+                                            </span>
+                                          </td>
+                                          <td style={{ padding: '12px 16px', paddingRight: '32px', fontSize: '13px', color: '#ffffff', textAlign: 'right', verticalAlign: 'middle', fontWeight: 600 }}>
+                                            {formatCurrency(c.precioUnitario)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
-                  },
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "activo",
-                  header: "Estado",
-                  render: (_v, row) => {
-                    const producto = row as unknown as ApiProducto;
-                    const label = producto.activo ? "Activo" : "Inactivo";
-                    return (
-                      <StandardTable.StatusBadge
-                        variant={resolveStatusVariant(label)}
-                        label={label}
-                      />
-                    );
-                  },
-                } as ColumnDef<Record<string, unknown>>,
-                {
-                  key: "acciones",
-                  header: "Acciones",
-                  render: (_v, row) => {
-                    const producto = row as unknown as ApiProducto;
-                    return (
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => toggleProductoActivo(producto.id)}
-                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                          title={producto.activo ? "Desactivar producto" : "Activar producto"}
-                        >
-                          {producto.activo ? (
-                            <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400 transition-colors" />
-                          ) : (
-                            <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400 transition-colors" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedProducto(producto);
-                            setIsDetailDialogOpen(true);
-                          }}
-                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                          title="Ver detalles"
-                        >
-                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                        </button>
-                        <button
-                          onClick={() => handleEditProducto(producto)}
-                          disabled={!producto.activo}
-                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                          title={producto.activo ? "Editar" : "Producto inactivo (solo historial)"}
-                        >
-                          <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProducto(producto.id)}
-                          disabled={!producto.activo}
-                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                          title={producto.activo ? "Eliminar" : "Producto inactivo (solo historial)"}
-                        >
-                          <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                        </button>
-                      </div>
-                    );
-                  },
-                } as ColumnDef<Record<string, unknown>>,
-              ]}
-              data={displayedProductos as unknown as Record<string, unknown>[]}
-              loading={loading}
-              emptyTitle="No se encontraron productos"
-              emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-              onReload={() => window.location.reload()}
-              rowKey={(row) => String((row as unknown as ApiProducto).id)}
-            />
+                  }) : (
+                    <TableEmptyStateRow
+                      colSpan={10}
+                      title="No se encontraron productos"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={() => window.location.reload()}
+                    />
+                  )}
+                </tbody>
+              </table>
+            </div>
 
             {/* Paginación */}
             {/* Paginación */}
@@ -1595,7 +1725,7 @@ export function ProductosPage() {
                           Precio compra
                         </Label>
                         <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                          {formatearPrecio((selectedProducto as any).precioCompra ?? 0)}
+                          {formatCurrency((selectedProducto as any).precioCompra ?? 0)}
                         </div>
                       </div>
                       <div className="space-y-1.5">
@@ -1604,7 +1734,7 @@ export function ProductosPage() {
                           Precio venta
                         </Label>
                         <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                          {formatearPrecio((selectedProducto as any).precioVenta ?? selectedProducto.precioBase ?? 0)}
+                          {formatCurrency((selectedProducto as any).precioVenta ?? selectedProducto.precioBase ?? 0)}
                         </div>
                       </div>
                     </div>
@@ -1630,6 +1760,68 @@ export function ProductosPage() {
                           {selectedProducto.activo ? 'Activo' : 'Inactivo'}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Precio compra promedio (últimas 5 compras) */}
+                    <div className="pt-4 border-t border-gray-dark">
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-white-primary text-sm font-semibold flex items-center gap-2">
+                          <Tags className="w-4 h-4 text-orange-primary" />
+                          Precio de compra promedio (últimas 5 compras)
+                        </Label>
+                        {precioCompraPromedio && precioCompraPromedio.cantidadComprasConsideradas > 0 && (
+                          <span className="text-xs text-gray-lightest">
+                            {precioCompraPromedio.cantidadComprasConsideradas} compra(s) consideradas
+                            {precioCompraPromedio.cantidadTotalComprada > 0 && ` · ${precioCompraPromedio.cantidadTotalComprada} unid.`}
+                          </span>
+                        )}
+                      </div>
+
+                      {precioCompraPromedio === null ? (
+                        <div className="text-sm text-gray-lightest italic px-3 py-2">
+                          Cargando...
+                        </div>
+                      ) : precioCompraPromedio.cantidadComprasConsideradas === 0 ? (
+                        <div className="text-sm text-gray-lightest italic px-3 py-2 bg-gray-darker rounded border border-gray-dark">
+                          Este producto aún no tiene compras registradas.
+                        </div>
+                      ) : (
+                        <>
+                          <div className="rounded-lg border border-orange-primary/30 bg-orange-primary/5 px-4 py-3 mb-3">
+                            <p className="text-xs text-gray-lightest uppercase tracking-wide mb-1">Promedio</p>
+                            <p className="text-2xl font-bold text-orange-primary">
+                              {formatCurrency(precioCompraPromedio.precioCompraPromedio)}
+                            </p>
+                          </div>
+
+                          <div className="overflow-x-auto rounded border border-gray-dark">
+                            <table className="w-full text-xs">
+                              <thead className="bg-gray-darker">
+                                <tr className="text-left text-gray-lightest">
+                                  <th className="px-3 py-2 font-medium">Fecha</th>
+                                  <th className="px-3 py-2 font-medium">Factura</th>
+                                  <th className="px-3 py-2 font-medium">Proveedor</th>
+                                  <th className="px-3 py-2 font-medium text-right">Cantidad</th>
+                                  <th className="px-3 py-2 font-medium text-right">P. Unitario</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-dark text-white-primary">
+                                {precioCompraPromedio.ultimasCompras.map((c) => (
+                                  <tr key={c.id}>
+                                    <td className="px-3 py-2">
+                                      {c.fechaFactura ?? (c.fechaRegistro ? new Date(c.fechaRegistro).toLocaleDateString() : '—')}
+                                    </td>
+                                    <td className="px-3 py-2">{c.numeroFactura ?? `#${c.compraId}`}</td>
+                                    <td className="px-3 py-2">{c.proveedorNombre ?? '—'}</td>
+                                    <td className="px-3 py-2 text-right">{c.cantidad}</td>
+                                    <td className="px-3 py-2 text-right">{formatCurrency(c.precioUnitario)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -26,7 +26,8 @@ export interface ApiProducto {
   stockVentas: number;
   stockInsumos: number;
   cantidad: number;
-  minCantidad: number;
+  /** @deprecated StockMinimo ya no existe en la API. Mantenido solo para compat de UI. */
+  minCantidad?: number;
   marca: string | null;
   imagenProduc: string | null;
   activo: boolean;
@@ -208,7 +209,8 @@ class ProductoService {
       stockVentas: Number(data.StockVentas ?? data.stockVentas ?? data.CantidadVentas ?? data.cantidadVentas ?? 0),
       stockInsumos: Number(data.StockInsumos ?? data.stockInsumos ?? data.CantidadInsumos ?? data.cantidadInsumos ?? 0),
       cantidad: Number(data.Cantidad ?? data.cantidad ?? data.StockTotal ?? data.stockTotal ?? 0),
-      minCantidad: Number(data.MinCantidad || data.minCantidad || data.stockMinimo || 0),
+      // StockMinimo ya no existe en API — siempre 0
+      minCantidad: 0,
       marca: data.Marca || data.marca || '',
       imagenProduc: data.imagenProduc || data.ImagenProduc || '',
       activo: activoNormalizado,
@@ -274,6 +276,38 @@ class ProductoService {
     }
   }
 
+  /**
+   * Obtiene el precio de compra promedio (últimas 5 compras) de un producto.
+   * Endpoint API: GET /Productos/{id}/precio-compra-promedio
+   */
+  async getPrecioCompraPromedio(id: number): Promise<{
+    productoId: number;
+    productoNombre: string;
+    precioCompraPromedio: number;
+    cantidadComprasConsideradas: number;
+    cantidadTotalComprada: number;
+    ultimasCompras: Array<{
+      id: number;
+      compraId: number;
+      fechaRegistro: string | null;
+      fechaFactura: string | null;
+      numeroFactura: string | null;
+      proveedorNombre: string | null;
+      cantidad: number;
+      precioUnitario: number;
+    }>;
+  } | null> {
+    try {
+      const response = await this.request(`/Productos/${id}/precio-compra-promedio`);
+      const text = await response.text();
+      if (!text || !text.trim()) return null;
+      return JSON.parse(text);
+    } catch (error) {
+      console.error(`❌ Error obteniendo precio compra promedio (id=${id}):`, error);
+      return null;
+    }
+  }
+
   async createProducto(productoData: Partial<ApiProducto>): Promise<ApiProducto> {
     let categoriaId = 0;
     if (typeof (productoData as any).categoriaId === 'number' && (productoData as any).categoriaId > 0) {
@@ -294,7 +328,7 @@ class ProductoService {
       Descripcion: productoData.descripcion || '',
       StockVentas: Number(productoData.stockVentas) || 0,
       StockInsumos: Number(productoData.stockInsumos) || 0,
-      StockMinimo: Number(productoData.minCantidad) || 0,
+      Marca: productoData.marca || '',
       CategoriaId: categoriaId,
       Tipo: productoData.tipo || '',
       tipo: productoData.tipo || '',
@@ -436,7 +470,6 @@ class ProductoService {
       cantidadInsumos: stockInsumosFinal,
       stockTotal: totalStockFinal,
       cantidad: totalStockFinal,
-      StockMinimo: Number(productoData.minCantidad),
       CategoriaId: categoriaId,
       Tipo: productoData.tipo || '',
       tipo: productoData.tipo || '',

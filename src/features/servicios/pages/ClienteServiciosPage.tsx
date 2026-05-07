@@ -205,15 +205,17 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                       <img
                         src={(item as any).imagen}
                         alt={item.nombre}
-                        className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : item.type === 'paquete' ? (
+                      <img
+                        src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600"
+                        alt={item.nombre}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                     ) : (
                       <div className="flex items-center justify-center pointer-events-none">
-                        {item.type === 'paquete' ? (
-                          <Package className="w-10 h-10 text-orange-primary opacity-30" />
-                        ) : (
-                          <Scissors className="w-10 h-10 text-gray-medium opacity-20" />
-                        )}
+                        <Scissors className="w-10 h-10 text-gray-medium opacity-20" />
                       </div>
                     )}
                     {item.type === 'paquete' && (
@@ -332,7 +334,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                     <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
                       <div className="w-48 h-48 rounded-xl overflow-hidden border border-gray-dark shadow-lg relative shrink-0">
                         <ImageRenderer
-                          url={(selectedItem as any).imagen}
+                          url={(selectedItem as any).imagen || (selectedItem.type === 'paquete' ? 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600' : undefined)}
                           alt={selectedItem.nombre}
                           showLabel={false}
                           className="w-full h-full object-cover"

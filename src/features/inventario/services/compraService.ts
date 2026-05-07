@@ -314,13 +314,17 @@ class CompraService {
         }
     }
 
+    /**
+     * Anula una compra (soft delete).
+     * Endpoint API: POST /Compras/{id}/anular
+     */
     async anularCompra(id: number): Promise<void> {
         try {
-            await this.request(`/Compras/${id}`, {
-                method: 'DELETE'
+            await this.request(`/Compras/${id}/anular`, {
+                method: 'POST'
             });
         } catch (error: any) {
-            // Si el error es que ya está anulada, lo dejamos pasar como éxito para el flujo del front
+            // Si ya está anulada o el endpoint POST no está disponible aún, intentar con DELETE legacy
             if (error.message?.includes("ya está anulada") || error.message?.includes("ya esta anulada")) {
                 console.warn(`⚠️ Intento de anular compra ${id} que ya estaba anulada.`);
                 return;

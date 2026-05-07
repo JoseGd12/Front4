@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Clock,
   Calendar,
@@ -17,6 +18,8 @@ import {
   ToggleLeft,
   Loader2,
   CalendarX,
+  ChevronDown,
+  FileText,
 } from "lucide-react";
 import {
   Dialog,
@@ -83,12 +86,18 @@ interface HorarioSemanal {
   fotoPerfil?: string;
 }
 
-export function HorariosPage() {
+interface HorariosPageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
+  const navigate = useNavigate();
   const { success, error, AlertContainer } = useCustomAlert();
   const [horarios, setHorarios] = useState<HorarioSemanal[]>([]);
   const [barberos, setBarberos] = useState<Barbero[]>([]);
   const [loading, setLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -599,6 +608,53 @@ export function HorariosPage() {
     }
   };
 
+  // Desactivar/activar solo los bloques de un día específico
+  const toggleEstadoDia = async (horario: HorarioSemanal, dia: string) => {
+    const bloquesDelDia = horario.bloques.filter(b => b.dia === dia && !!b.id);
+    if (bloquesDelDia.length === 0) return;
+    const hayActivos = bloquesDelDia.some(b => b.estado !== false);
+    const nuevoEstado = !hayActivos;
+    try {
+      setTogglingId(horario.id);
+      if (!nuevoEstado) {
+        const usuarioSolicitanteId = obtenerUsuarioSolicitanteId();
+        if (!usuarioSolicitanteId) { error("Sesión inválida", "No se pudo identificar el usuario."); return; }
+        await Promise.all(bloquesDelDia.map(b => horariosService.toggleEstado(b.id!, false, {
+          usuarioSolicitanteId,
+          fechaReferencia: formatDateLocal(getDateForThisWeek(b.dia)),
+          motivo: "Día desactivado desde el panel de gestión.",
+          cantidadSugerencias: 3
+        })));
+        success("Día desactivado", `Los bloques del ${dia} han sido desactivados.`);
+      } else {
+        await Promise.all(bloquesDelDia.map(b => horariosService.toggleEstado(b.id!, true)));
+        success("Día activado", `Los bloques del ${dia} han sido activados.`);
+      }
+      await loadData(true);
+    } catch (err) {
+      error("Error", "No se pudo cambiar el estado del día.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  // Abrir modal de cancelación preseleccionando el día de la semana
+  const handleCancelarDia = (horario: HorarioSemanal, dia: string) => {
+    setSelectedHorario(horario);
+    setSelectedDates([]);
+    setCancelMotive("Día cancelado por administración.");
+    setCancelTab('dia');
+    // Calcular la fecha del próximo día de la semana correspondiente
+    const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const targetDow = diasSemana.indexOf(dia);
+    const hoy = new Date();
+    const diff = (targetDow - hoy.getDay() + 7) % 7;
+    const fecha = new Date(hoy);
+    fecha.setDate(hoy.getDate() + (diff === 0 ? 0 : diff));
+    setCancelFechaDia(formatDateLocal(fecha));
+    setIsSpecialCancelDialogOpen(true);
+  };
+
   const handleOpenSpecialCancel = (horario: HorarioSemanal) => {
     setSelectedHorario(horario);
     setSelectedDates([]);
@@ -963,20 +1019,29 @@ export function HorariosPage() {
           <TableHeaderSection
             variant="dark"
             leftContent={(
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <button
-                    className="btn-std-primary"
-                    onClick={() => {
-                      setEditingHorario(null);
-                      resetFormulario();
-                    }}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nuevo Horario
-                  </button>
-                </DialogTrigger>
-              </Dialog>
+              <div className="flex items-center gap-2">
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <button
+                      className="btn-std-primary"
+                      onClick={() => {
+                        setEditingHorario(null);
+                        resetFormulario();
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Nuevo Horario
+                    </button>
+                  </DialogTrigger>
+                </Dialog>
+                <button
+                  onClick={() => onNavigate?.('Solicitudes de Cambio de Horario')}
+                  className="btn-std-primary"
+                >
+                  <FileText className="w-4 h-4" />
+                  Solicitudes de Cambio
+                </button>
+              </div>
             )}
             searchValue={searchTerm}
             onSearchChange={(value) => {
@@ -1004,140 +1069,187 @@ export function HorariosPage() {
             <table className="std-table">
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
-                      Documento
-                    </th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
-                      Barbero
-                    </th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
-                      Días
-                    </th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
-                      Horas
-                    </th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
-                      Bloques
-                    </th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
-                      Semana
-                    </th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">
-                      Acciones
-                    </th>
+                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Horas</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Días Trabajo</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="std-tbody">
                   {loading ? (
-                    <TableLoadingStateRow
-                      colSpan={7}
-                      title="Cargando horarios..."
-                    />
-                  ) : displayedHorarios.length > 0 ? displayedHorarios.map((horario) => (
-                    <tr
-                      key={horario.id}
-                      className="border-b border-gray-dark hover:bg-gray-darker transition-colors"
-                    >
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">
-                          {horario.tipoDocumento} {horario.documento || '—'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-dark border-2 border-gray-medium overflow-hidden flex items-center justify-center shrink-0 shadow-sm shadow-black/20">
-                            {horario.fotoPerfil ? (
-                              <img 
-                                src={horario.fotoPerfil} 
-                                alt={horario.barbero} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <UserIcon className="w-5 h-5 text-gray-lightest" />
-                            )}
-                          </div>
-                          <span className="text-gray-lighter">
-                            {horario.barbero}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-gray-lighter">
-                          {getDiasResumen(horario.bloques)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="text-gray-lighter text-sm">
-                          {horario.bloques.length > 0 && (
-                            <div className="text-gray-lighter">
-                              {horario.bloques[0].horaInicio} - {horario.bloques[0].horaFin}
+                    <TableLoadingStateRow colSpan={6} title="Cargando horarios..." />
+                  ) : displayedHorarios.length > 0 ? displayedHorarios.map((horario) => {
+                    const isExpanded = expandedId === horario.id;
+                    // Agrupar bloques por día
+                    const diasOrden = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+                    const diasUnicos = diasOrden.filter(d => horario.bloques.some(b => b.dia === d && b.estado !== false));
+                    const calcHoras = (b: BloqueHorario) => {
+                      const [hI, mI] = b.horaInicio.split(':').map(Number);
+                      const [hF, mF] = b.horaFin.split(':').map(Number);
+                      return ((hF * 60 + mF) - (hI * 60 + mI)) / 60;
+                    };
+
+                    return (
+                      <>
+                        {/* Fila principal */}
+                        <tr
+                          key={`row-${horario.id}`}
+                          className={`border-b border-gray-dark transition-colors cursor-pointer ${isExpanded ? 'bg-orange-primary/5' : 'hover:bg-gray-darker'}`}
+                          onClick={() => setExpandedId(isExpanded ? null : horario.id)}
+                        >
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-gray-dark border-2 border-gray-medium overflow-hidden flex items-center justify-center shrink-0">
+                                {horario.fotoPerfil ? (
+                                  <img src={horario.fotoPerfil} alt={horario.barbero} className="w-full h-full object-cover" />
+                                ) : (
+                                  <UserIcon className="w-4 h-4 text-gray-lightest" />
+                                )}
+                              </div>
+                              <span className="text-white-primary font-medium">{horario.barbero}</span>
                             </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="px-2 py-1 rounded bg-gray-medium text-gray-lighter text-sm">
-                          {horario.bloques.length} bloque{horario.bloques.length !== 1 ? "s" : ""}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-xs text-gray-lightest">
-                          {getWeekRangeLabel(weekOffset)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => toggleEstadoHorario(horario)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title={horario.activo ? "Desactivar" : "Activar"}
-                            disabled={togglingId === horario.id}
-                          >
-                            {togglingId === horario.id ? (
-                              <Loader2 className="w-4 h-4 text-orange-primary animate-spin" />
-                            ) : horario.activo ? (
-                              <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
-                            ) : (
-                              <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleOpenSpecialCancel(horario)}
-                            disabled={!horario.activo}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={horario.activo ? "Cancelación Especial (Días/Citas)" : "Horario inactivo (solo historial)"}
-                          >
-                            <CalendarX className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
-                          </button>
-                          <button
-                            onClick={() => handleViewDetail(horario)}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                            title="Ver detalle"
-                          >
-                            <Eye className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                          </button>
-                          <button
-                            onClick={() => handleEditHorario(horario)}
-                            disabled={!horario.activo}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={horario.activo ? "Editar" : "Horario inactivo (solo historial)"}
-                          >
-                            <Edit className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteHorario(horario)}
-                            disabled={!horario.activo}
-                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={horario.activo ? "Eliminar" : "Horario inactivo (solo historial)"}
-                          >
-                            <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className="text-gray-lighter text-sm">{horario.tipoDocumento} {horario.documento || '—'}</span>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className="text-gray-lighter text-sm">
+                              {horario.bloques.length > 0 ? `${horario.bloques[0].horaInicio} - ${horario.bloques[0].horaFin}` : '—'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className="px-2 py-1 rounded bg-gray-medium text-gray-lighter text-sm">
+                              {[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length} día{[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length !== 1 ? 's' : ''}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className={`std-badge ${horario.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                              {horario.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                className="p-1.5 rounded-lg transition-colors text-gray-lightest hover:text-orange-primary hover:bg-gray-darker"
+                                title={isExpanded ? 'Cerrar detalle' : 'Ver días'}
+                                onClick={() => setExpandedId(isExpanded ? null : horario.id)}
+                              >
+                                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-orange-primary' : ''}`} />
+                              </button>
+                              <button
+                                onClick={() => toggleEstadoHorario(horario)}
+                                disabled={togglingId === horario.id}
+                                className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={horario.activo ? 'Desactivar horario' : 'Activar horario'}
+                              >
+                                {togglingId === horario.id ? (
+                                  <Loader2 className="w-4 h-4 text-orange-primary animate-spin" />
+                                ) : horario.activo ? (
+                                  <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                                ) : (
+                                  <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                                )}
+                              </button>
+                              <button onClick={() => handleOpenSpecialCancel(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
+                                <CalendarX className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
+                              </button>
+                              <button onClick={() => handleEditHorario(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
+                                <Edit className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                              </button>
+                              <button onClick={() => handleDeleteHorario(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
+                                <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Fila expandible — días del barbero */}
+                        {isExpanded && (
+                          <tr key={`expand-${horario.id}`} className="border-b border-orange-primary/20">
+                            <td colSpan={6} className="px-0 py-0">
+                              <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
+                                {/* Etiqueta */}
+                                <div className="px-6 py-2 bg-orange-primary/5 border-b border-gray-darker">
+                                  <span className="text-[11px] font-bold uppercase tracking-widest text-orange-primary">
+                                    Horario semanal de {horario.barbero}
+                                  </span>
+                                </div>
+
+                                {/* Sub-tabla de días */}
+                                {diasUnicos.length === 0 ? (
+                                  <div className="px-6 py-4 text-sm text-gray-lighter italic">Sin días configurados</div>
+                                ) : (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                      <tr style={{ background: 'rgba(17,17,17,0.5)', borderBottom: '1px solid #2a2a2a' }}>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '52px' }}>Día</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horario</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bloques</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acciones</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {diasUnicos.map(dia => {
+                                        const bloquesDelDia = horario.bloques.filter(b => b.dia === dia);
+                                        const activos = bloquesDelDia.filter(b => b.estado !== false).length;
+                                        const horaInicio = bloquesDelDia.reduce((min, b) => b.horaInicio < min ? b.horaInicio : min, bloquesDelDia[0]?.horaInicio || '—');
+                                        const horaFin = bloquesDelDia.reduce((max, b) => b.horaFin > max ? b.horaFin : max, bloquesDelDia[0]?.horaFin || '—');
+
+                                        return (
+                                          <tr key={dia} style={{ borderBottom: '1px solid rgba(42,42,42,0.8)', background: '#111111', transition: 'background 0.12s' }}
+                                            onMouseEnter={e => (e.currentTarget.style.background = '#1a1919')}
+                                            onMouseLeave={e => (e.currentTarget.style.background = '#111111')}
+                                          >
+                                            <td style={{ padding: '12px 16px', paddingLeft: '52px', fontSize: '13px', color: '#ffffff', textAlign: 'left', verticalAlign: 'middle' }}>
+                                              <span style={{ fontWeight: 600 }}>{dia}</span>
+                                            </td>
+                                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#ffffff', textAlign: 'center', verticalAlign: 'middle' }}>
+                                              {horaInicio} — {horaFin}
+                                            </td>
+                                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#ffffff', textAlign: 'center', verticalAlign: 'middle' }}>
+                                              <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 600, background: 'rgba(216,176,129,0.1)', color: '#d8b081', border: '1px solid rgba(216,176,129,0.2)' }}>
+                                                {bloquesDelDia.length} bloque{bloquesDelDia.length !== 1 ? 's' : ''}
+                                              </span>
+                                            </td>
+                                            <td style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                              <span style={{
+                                                display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 600,
+                                                background: activos > 0 ? 'var(--status-green)' : 'var(--status-red)',
+                                                color: '#1a1008'
+                                              }}>
+                                                {activos > 0 ? 'Activo' : 'Inactivo'}
+                                              </span>
+                                            </td>
+                                            <td style={{ padding: '12px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                              <div className="flex items-center justify-center gap-2">
+                                                {/* Cancelar día */}
+                                                <button
+                                                  onClick={() => handleCancelarDia(horario, dia)}
+                                                  className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group"
+                                                  title={`Cancelar citas del ${dia}`}
+                                                >
+                                                  <CalendarX className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  }) : (
                     <TableEmptyStateRow
-                      colSpan={7}
+                      colSpan={6}
                       title="No se encontraron horarios"
                       description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                       onReload={loadData}

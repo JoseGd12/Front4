@@ -46,6 +46,7 @@ const ProductosPage = React.lazy(() => import("../../productos/pages/ProductosPa
 const VentasPage = React.lazy(() => import("../../ventas/pages/VentasPage").then(m => ({ default: m.VentasPage })));
 const ClientesPage = React.lazy(() => import("../../clientes/pages/ClientesPage").then(m => ({ default: m.ClientesPage })));
 const HorariosPage = React.lazy(() => import("../../horarios/pages/HorariosPage").then(m => ({ default: m.HorariosPage })));
+const RevisarSolicitudesPage = React.lazy(() => import("../../horarios/pages/SolicitudesCambioHorario/RevisarSolicitudesPage"));
 const PaquetesPage = React.lazy(() => import("../../paquetes/pages/PaquetesPage").then(m => ({ default: m.PaquetesPage })));
 const ComprasPage = React.lazy(() => import("../../inventario/pages/ComprasPage").then(m => ({ default: m.ComprasPage })));
 const RegistrarCompraPage = React.lazy(() => import("../../inventario/pages/RegistrarCompraPage").then(m => ({ default: m.RegistrarCompraPage })));
@@ -142,6 +143,12 @@ const moduleInfo: Record<string, {
     description: "Configuración de horarios de trabajo",
     icon: Clock,
     color: "text-cyan-400"
+  },
+  "Solicitudes de Cambio de Horario": {
+    title: "Solicitudes de Cambio de Horario",
+    description: "Revisar y gestionar solicitudes de cambio de horario",
+    icon: FileText,
+    color: "text-blue-400"
   },
   "Barberos": {
     title: "Barberos",
@@ -267,6 +274,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (target === '') return 'Dashboard';
     if (target === 'agendamientos') return 'Agendamientos';
     if (target === 'horarios') return 'Horarios';
+    if (target === 'horarios/solicitudes') return 'Solicitudes de Cambio de Horario';
     if (target === 'barberos') return 'Barberos';
     if (target === 'servicios') return 'Servicios';
     if (target === 'paquetes') return 'Paquetes';
@@ -292,6 +300,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (page === 'Dashboard') return '';
     if (page === 'Agendamientos') return 'agendamientos';
     if (page === 'Horarios') return 'horarios';
+    if (page === 'Solicitudes de Cambio de Horario') return 'horarios/solicitudes';
     if (page === 'Barberos') return 'barberos';
     if (page === 'Servicios') return 'servicios';
     if (page === 'Paquetes') return 'paquetes';
@@ -510,7 +519,9 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           />
         );
       case "Horarios":
-        return <HorariosPage />;
+        return <HorariosPage onNavigate={(page: string) => setActivePage(page)} />;
+      case "Solicitudes de Cambio de Horario":
+        return <RevisarSolicitudesPage usuarioId={user?.id || 0} onBack={() => setActivePage("Horarios")} />;
       case "Barberos":
         return <BarberosPage />;
       case "Entregas de Insumos":

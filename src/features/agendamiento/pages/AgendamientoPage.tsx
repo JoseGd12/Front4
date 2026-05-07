@@ -167,6 +167,26 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [selectedCita, setSelectedCita] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'crear'>('calendar');
   const [ventasPorCita, setVentasPorCita] = useState<Record<number, number>>({});
+  // Índice de la cita visible cuando hay varias en una misma franja (key: `${fecha}-${hora}`)
+  const [slotCitaIndex, setSlotCitaIndex] = useState<Record<string, number>>({});
+
+  const navegarCitaEnSlot = (
+    slotKey: string,
+    totalCitas: number,
+    direction: 'next' | 'prev',
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    if (totalCitas <= 1) return;
+    setSlotCitaIndex(prev => {
+      const current = prev[slotKey] ?? 0;
+      const newIdx =
+        direction === 'next'
+          ? (current + 1) % totalCitas
+          : (current - 1 + totalCitas) % totalCitas;
+      return { ...prev, [slotKey]: newIdx };
+    });
+  };
 
   // Estados para gestión de descuentos por día
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
@@ -2041,130 +2061,190 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               })}
             </div>
 
-            {/* Grid de horarios */}
+          </div>
+
+          {/* Grid de horarios */}
+          <div className="std-card mb-0">
             <div className="w-full pb-4 pt-3">
               <div className="-mx-6 pl-3 pr-6">
-                  <div className="relative">
-                    {(() => {
-                      const weekDays = getCurrentWeekDays();
-                      const todayStr = toLocalDateString(new Date());
-                      return horasDelDia.map((hora) => (
-                        <div
-                          key={hora}
-                          className="grid gap-1 h-14"
-                          style={{ gridTemplateColumns: calendarGridTemplate }}
-                        >
-                          <div className="flex h-full items-center justify-center text-center text-[11px] font-semibold tracking-[0.04em] text-gray-lightest whitespace-nowrap">
-                            {formatHora12(hora)}
-                          </div>
-                          {diasSemana.map((dia) => {
-                            const citasEnSlot = getCitasEnSlot(dia, hora);
-                            const dayInfo = weekDays.find(d => d.dia === dia);
+                {(() => {
+                  const weekDays = getCurrentWeekDays();
+                  const todayStr = toLocalDateString(new Date());
+                  return horasDelDia.map((hora) => (
+                    <div
+                      key={hora}
+                      className="grid gap-1 h-14"
+                      style={{ gridTemplateColumns: calendarGridTemplate }}
+                    >
+                      <div className="flex h-full items-center justify-center text-center text-[11px] font-semibold tracking-[0.04em] text-gray-lightest whitespace-nowrap">
+                        {formatHora12(hora)}
+                      </div>
+                      {diasSemana.map((dia) => {
+                        const citasEnSlot = getCitasEnSlot(dia, hora);
+                        const dayInfo = weekDays.find(d => d.dia === dia);
 
-                            let isPastSlot = false;
-                            if (dayInfo) {
-                              if (dayInfo.fechaCompleta < todayStr) {
-                                isPastSlot = true;
-                              } else if (dayInfo.fechaCompleta === todayStr) {
-                                const today = new Date();
-                                const currentMinutesAdjusted = today.getHours() * 60 + today.getMinutes();
-                                // Se desactiva si han pasado más de 30 minutos desde el inicio de la hora
-                                if ((hora * 60) <= currentMinutesAdjusted - 30) {
-                                  isPastSlot = true;
-                                }
-                              }
+                        let isPastSlot = false;
+                        if (dayInfo) {
+                          if (dayInfo.fechaCompleta < todayStr) {
+                            isPastSlot = true;
+                          } else if (dayInfo.fechaCompleta === todayStr) {
+                            const today = new Date();
+                            const cur = today.getHours() * 60 + today.getMinutes();
+                            if ((hora * 60) <= cur - 30) isPastSlot = true;
+                          }
+                        }
+
+                        const slotKey = `${dayInfo?.fechaCompleta}-${hora}`;
+                        const safeIdx =
+                          citasEnSlot.length > 0
+                            ? (slotCitaIndex[slotKey] ?? 0) % citasEnSlot.length
+                            : 0;
+                        const citaEnCurso = citasEnSlot[safeIdx] || null;
+                        const tieneMultiples = citasEnSlot.length > 1;
+                        let slotRole: 'none' | 'start' | 'middle' | 'end' = 'none';
+                        if (citaEnCurso) {
+                          const [hStr, mStr] = (citaEnCurso.hora || '').split(':');
+                          const citaInicio = parseInt(hStr) + parseInt(mStr) / 60;
+                          const citaFin = citaInicio + (citaEnCurso.duracion || 60) / 60;
+                          const isStart = Math.abs(citaInicio - hora) < 0.001;
+                          const isEnd = Math.abs(citaFin - (hora + 0.5)) < 0.001;
+                          if (isStart && isEnd) slotRole = 'start';
+                          else if (isStart) slotRole = 'start';
+                          else if (isEnd) slotRole = 'end';
+                          else slotRole = 'middle';
+                        }
+
+                        // Si es middle/end, verificar que esta cita sigue seleccionada en su slot de inicio.
+                        // Si en su inicio hay múltiples citas y se seleccionó otra, suprimir este bloque.
+                        if ((slotRole === 'middle' || slotRole === 'end') && citaEnCurso && dayInfo) {
+                          const [cHStr, cMStr] = (citaEnCurso.hora || '09:00').split(':');
+                          const citaStartHora = parseInt(cHStr) + parseInt(cMStr || '0') / 60;
+                          const citaStartKey = `${dayInfo.fechaCompleta}-${citaStartHora}`;
+                          const citasDia = citas.filter(c => c.fecha === dayInfo.fechaCompleta);
+                          const citasEnInicio = citasDia.filter(c => {
+                            const [hh, mm] = (c.hora || '').split(':');
+                            return Math.abs((parseInt(hh) + parseInt(mm || '0') / 60) - citaStartHora) < 0.001;
+                          });
+                          if (citasEnInicio.length > 1) {
+                            const idxEnInicio = (slotCitaIndex[citaStartKey] ?? 0) % citasEnInicio.length;
+                            const citaSeleccionadaEnInicio = citasEnInicio[idxEnInicio];
+                            if (!citaSeleccionadaEnInicio || citaSeleccionadaEnInicio.id !== citaEnCurso.id) {
+                              slotRole = 'none';
                             }
+                          }
+                        }
 
-                            return (
-                              <div
-                                key={`${dia}-${hora}`}
-                                className={`relative min-w-0 rounded border transition-all duration-200 ${isPastSlot && citasEnSlot.length === 0
-                                  ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
-                                  : isPastSlot && citasEnSlot.length > 0
-                                    ? "bg-gray-darker border-gray-dark hover:bg-gray-dark opacity-80 cursor-pointer hover:border-orange-primary/50 group"
-                                    : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
-                                  }`}
-                                onClick={() => {
-                                  // Permitir clic si no es pasada o si es pasada pero tiene citas (para poder editarlas)
-                                  if (!isPastSlot || citasEnSlot.length > 0) handleSlotClick(dia, hora);
-                                }}
-                                title={isPastSlot && citasEnSlot.length === 0 ? "Franja pasada y sin citas" : `Gestionar citas de ${dia} a las ${formatHora12(hora)}`}
-                              >
-                                {/* Overlay hover */}
-                                {(!isPastSlot || citasEnSlot.length > 0) && (
-                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-orange-primary/10 backdrop-blur-[1px] z-0">
-                                    <div className="bg-orange-primary/20 p-1.5 rounded-full border border-orange-primary/30 transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                                      <Plus className="w-4 h-4 text-orange-primary" />
-                                    </div>
-                                  </div>
-                                )}
+                        // Beige claro como en la imagen de referencia
+                        const citaBg = isPastSlot ? 'rgba(220,190,130,0.25)' : '#e8d5a8';
+                        const citaBorder = isPastSlot ? 'rgba(180,140,80,0.2)' : 'rgba(160,120,60,0.4)';
+                        const citaBorderLeft = isPastSlot ? 'rgba(180,140,80,0.3)' : '#a07830';
 
-                                {/* Vista previa de citas */}
-                                <div className="p-0.5 space-y-0 relative z-0 flex flex-col items-center justify-center h-full min-h-[54px]">
-                                  {citasEnSlot.slice(0, 2).map((cita) => {
-                                    const horaSplit = (cita.hora || '').split(':');
-                                    const citaHoraInicio = parseInt(horaSplit[0] || '0') + (parseInt(horaSplit[1] || '0') / 60);
-                                    const isStartingSlot = Math.abs(citaHoraInicio - hora) < 0.001;
-                                    const citaHoraFin = citaHoraInicio + (cita.duracion || 60) / 60;
-                                    const isLastSlot = Math.abs(citaHoraFin - (hora + 0.5)) < 0.001;
-
-                                    return (
-                                      <div
-                                        key={cita.id}
-                                        className={`group/cita relative transition-all duration-200 border-x-0 w-full flex-1 flex flex-col items-center justify-center ${isStartingSlot ? "rounded-t-md mt-0.5 border-t" : "mt-0 border-t-0"
-                                          } ${isLastSlot ? "rounded-b-md mb-0.5 border-b" : "mb-0 border-b-0"}`}
-                                        style={{
-                                          background: isPastSlot ? 'rgba(216, 176, 129, 0.05)' : 'rgba(216, 176, 129, 0.15)',
-                                          borderLeft: isPastSlot ? '2px solid rgba(216, 176, 129, 0.3)' : '3px solid #d8b081',
-                                          borderTopColor: 'rgba(216, 176, 129, 0.2)',
-                                          borderBottomColor: 'rgba(216, 176, 129, 0.2)',
-                                          minHeight: isStartingSlot || isLastSlot ? '26px' : '28px',
-                                          zIndex: isStartingSlot ? 10 : 1
-                                        }}
-                                      >
-                                        {isStartingSlot ? (
-                                          <div 
-                                            className="absolute top-0 left-0 w-full flex flex-col items-center justify-center pointer-events-none"
-                                            style={{ height: `${((cita.duracion || 60) / 30) * 100}%` }}
-                                          >
-                                            <div className="px-2 py-0.5 flex flex-col items-center text-center min-w-0 w-full">
-                                              <span className={`text-[10px] font-medium truncate leading-tight w-full ${isPastSlot ? 'text-gray-600' : 'text-white'}`}>
-                                                {formatNombre((cita.clienteNombre || 'Cliente').split(' ')[0])}
-                                              </span>
-                                              <div className="flex items-center justify-center gap-1 w-full">
-                                                <span className={`text-[8px] tracking-normal truncate font-normal ${isPastSlot ? 'text-gray-800' : 'text-gray-900'}`}>
-                                                  {formatNombre(cita.servicioNombre || "servicio")}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ) : null}
-
-                                        {/* Barra de progreso sutil para citas en proceso */}
-                                        {cita.estado === 'En Proceso' && isLastSlot && (
-                                          <div className="absolute bottom-0 left-0 h-0.5 bg-orange-primary w-full animate-pulse" />
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                  
-                                  {citasEnSlot.length > 2 && (
-                                    <div className="flex items-center justify-center pt-0.5">
-                                      <div className="text-[9px] font-bold text-orange-primary bg-orange-primary/10 px-2 py-0.5 rounded-full border border-orange-primary/20">
-                                        +{citasEnSlot.length - 2}
-                                      </div>
-                                    </div>
-                                  )}
+                        return (
+                          <div
+                            key={`${dia}-${hora}`}
+                            className={`relative min-w-0 transition-all duration-200 ${
+                              slotRole !== 'none'
+                                ? 'cursor-pointer'
+                                : isPastSlot
+                                  ? 'rounded border bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60'
+                                  : 'rounded border bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group'
+                            }`}
+                            style={slotRole !== 'none' ? {
+                              background: citaBg,
+                              borderLeft: `3px solid ${citaBorderLeft}`,
+                              borderRight: `1px solid ${citaBorder}`,
+                              borderTop: slotRole === 'start' ? `1px solid ${citaBorder}` : 'none',
+                              borderBottom: slotRole === 'end' ? `1px solid ${citaBorder}` : 'none',
+                              borderRadius: slotRole === 'start' ? '6px 6px 0 0' : slotRole === 'end' ? '0 0 6px 6px' : '0',
+                              marginTop: (slotRole === 'middle' || slotRole === 'end') ? '-4px' : '0',
+                              paddingTop: (slotRole === 'middle' || slotRole === 'end') ? '4px' : '0',
+                              height: (slotRole === 'middle' || slotRole === 'end') ? 'calc(100% + 4px)' : '100%',
+                              zIndex: slotRole === 'start' ? 2 : 1,
+                            } : {}}
+                            onClick={() => {
+                              if (slotRole !== 'none') {
+                                const [hStr, mStr] = (citaEnCurso!.hora || '09:00').split(':');
+                                const horaNum = parseInt(hStr) + parseInt(mStr) / 60;
+                                const fechaObj = new Date(`${dayInfo?.fechaCompleta}T12:00:00`);
+                                const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
+                                setSelectedCita(citaEnCurso!);
+                                setSelectedSlot({ dia: diaStr, hora: horaNum, fecha: dayInfo?.fechaCompleta || '' });
+                                setActiveTab('detalle');
+                                setIsSlotModalOpen(true);
+                              } else if (!isPastSlot) {
+                                handleSlotClick(dia, hora);
+                              }
+                            }}
+                          >
+                            {slotRole === 'none' && !isPastSlot && (
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-orange-primary/10 backdrop-blur-[1px] z-0 rounded">
+                                <div className="bg-orange-primary/20 p-1.5 rounded-full border border-orange-primary/30 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                                  <Plus className="w-4 h-4 text-orange-primary" />
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
+                            )}
+                            {slotRole === 'start' && citaEnCurso && (() => {
+                              const durSlots = Math.ceil((citaEnCurso.duracion || 60) / 30);
+                              const contentH = `calc(${durSlots} * 3.5rem)`;
+                              return (
+                              <>
+                                <div
+                                  className={`absolute left-0 right-0 top-0 flex flex-col items-center justify-center pointer-events-none px-1 gap-0.5 ${tieneMultiples ? 'pt-5' : ''}`}
+                                  style={{ height: contentH, zIndex: 3 }}
+                                >
+                                  <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] font-bold leading-tight text-center w-full truncate">
+                                    {formatNombre((citaEnCurso.clienteNombre || 'Cliente').split(' ')[0])}
+                                  </span>
+                                  <span style={{ color: isPastSlot ? '#a08060' : '#5a3510' }} className="text-[9px] leading-tight text-center w-full truncate">
+                                    {formatNombre(citaEnCurso.servicioNombre || citaEnCurso.paqueteNombre || (citaEnCurso.serviciosNombres?.[0]) || 'Servicio')}
+                                  </span>
+                                </div>
+                                {tieneMultiples && (
+                                  <div
+                                    className="absolute top-0 right-0 z-10 flex items-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'prev', e)}
+                                      className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
+                                      style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                      aria-label="Cita anterior"
+                                    >
+                                      <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <span
+                                      className="text-[10px] font-bold leading-none select-none"
+                                      style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                      title={`${citasEnSlot.length} citas en esta franja`}
+                                    >
+                                      {safeIdx + 1}/{citasEnSlot.length}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'next', e)}
+                                      className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
+                                      style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                      aria-label="Cita siguiente"
+                                    >
+                                      <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                              );
+                            })()}
+                            {citaEnCurso?.estado === 'En Proceso' && slotRole === 'end' && (
+                              <div className="absolute bottom-0 left-0 h-0.5 bg-orange-primary w-full animate-pulse" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
               </div>
+            </div>
           </div>
 
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Calendar,
   Clock,
@@ -46,6 +46,7 @@ import { horariosService } from "../../agendamiento/services/horariosService";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
+const calendarGridTemplate = "clamp(64px, 6vw, 78px) repeat(7, minmax(0, 1fr))";
 
 const formatHora12 = (hora: number): string => {
   const h = Math.floor(hora);
@@ -55,6 +56,22 @@ const formatHora12 = (hora: number): string => {
   if (h12 === 0) h12 = 12;
   const minutesStr = m === 0 ? '00' : '30';
   return `${h12}:${minutesStr} ${ampm}`;
+};
+
+const formatHoraStr12 = (horaStr: string): string => {
+  if (!horaStr) return '';
+  const [hStr, mStr = '00'] = horaStr.split(':');
+  const h = parseInt(hStr || '0', 10);
+  const m = parseInt(mStr || '0', 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
+const formatNombre = (nombre: string): string => {
+  if (!nombre) return '—';
+  return nombre.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
 const estados = [
@@ -104,6 +121,28 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [horariosList, setHorariosList] = useState<any[]>([]);
 
   const [currentWeek, setCurrentWeek] = useState(0);
+  const [carouselPage, setCarouselPage] = useState(0);
+  const CAROUSEL_PAGE_SIZE = 5;
+  // Índice de la cita visible cuando hay varias en una misma franja (key: `${fecha}-${hora}`)
+  const [slotCitaIndex, setSlotCitaIndex] = useState<Record<string, number>>({});
+
+  const navegarCitaEnSlot = (
+    slotKey: string,
+    totalCitas: number,
+    direction: 'next' | 'prev',
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    if (totalCitas <= 1) return;
+    setSlotCitaIndex(prev => {
+      const current = prev[slotKey] ?? 0;
+      const newIdx =
+        direction === 'next'
+          ? (current + 1) % totalCitas
+          : (current - 1 + totalCitas) % totalCitas;
+      return { ...prev, [slotKey]: newIdx };
+    });
+  };
 
   // Cargar datos al montar
   useEffect(() => {
@@ -227,7 +266,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [citaCarouselIndex, setCitaCarouselIndex] = useState(0);
 
   // Resetear carrusel de citas al cambiar de semana
-  useEffect(() => { setCitaCarouselIndex(0); }, [currentWeek]);
+  useEffect(() => { setCitaCarouselIndex(0); setCarouselPage(0); }, [currentWeek]);
 
   // Cuando llega un producto pre-seleccionado desde la página de productos,
   // abrir el formulario y guardar el producto pendiente para agregarlo al seleccionar servicio/paquete
@@ -815,24 +854,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     <>
       <AlertContainer />
 
-      {viewMode === 'calendar' && (
-        <header className="bg-black-primary border-b border-gray-dark px-8 py-6 shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white-primary">Mis Citas</h1>
-              <p className="text-sm text-gray-lightest mt-1">Gestiona tu agenda y programa nuevas visitas</p>
-            </div>
-            <button
-              onClick={handleOpenCreate}
-              className="elegante-button-primary flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Agendar Nueva Cita
-            </button>
-          </div>
-        </header>
-      )}
-
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-orange-primary animate-pulse text-xl font-medium">Cargando tus citas...</div>
@@ -1406,219 +1427,343 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
           </div>
         </div>
       ) : (
-        <div className="overflow-auto flex-1 p-2">
-          <div className="mx-auto px-2 sm:px-4 lg:px-6 flex flex-col gap-4">
-            {/* Card unificado — Navegación semanal + Citas de la semana */}
+        <div className="p-2">
+
+          {/* Navegación de Semana */}
+          <div className="std-card mb-4">
+            {/* Fila de controles */}
+            <div className="flex items-center gap-6">
+              {/* Navegación izquierda */}
+              <div className="flex items-center gap-2 flex-1">
+                <button
+                  onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); }}
+                  className="elegante-button-secondary p-2"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                <div className="flex-1 text-center">
+                  <h3 className="text-lg font-semibold text-gray-lightest">
+                    {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
+                  </h3>
+                  <p className="text-xs text-gray-light">
+                    {weekDays[0].fecha} - {weekDays[6].fecha}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => { setCurrentWeek(currentWeek + 1); setCarouselPage(0); }}
+                  className="elegante-button-secondary p-2"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Acciones derecha */}
+              <div className="flex items-center gap-2 ml-10">
+                <button
+                  onClick={() => { setCurrentWeek(0); setCarouselPage(0); }}
+                  className="elegante-button-secondary text-sm"
+                >
+                  Hoy
+                </button>
+                <button
+                  onClick={handleOpenCreate}
+                  className="btn-std-primary"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nueva Cita
+                </button>
+              </div>
+            </div>
+
+            {/* Separador */}
+            <div className="border-t border-gray-darker -mx-6 mt-4" />
+
+            {/* Carrusel de citas de la semana */}
             {(() => {
               const weekFechas = new Set(weekDays.map(d => d.fechaCompleta));
               const citasSemana = citas
-                .filter(c => c.fecha && weekFechas.has(c.fecha) && c.estado !== 'Cancelada')
+                .filter(c => c.fecha && weekFechas.has(c.fecha))
                 .sort((a, b) => {
-                  const da = weekDays.findIndex(d => d.fechaCompleta === a.fecha);
-                  const db = weekDays.findIndex(d => d.fechaCompleta === b.fecha);
-                  if (da !== db) return da - db;
-                  return (a.hora || "").localeCompare(b.hora || "");
+                  if (a.fecha < b.fecha) return -1;
+                  if (a.fecha > b.fecha) return 1;
+                  return (a.hora || '').localeCompare(b.hora || '');
                 });
-              const ITEMS = 4;
-              const maxIdx = Math.max(0, citasSemana.length - ITEMS);
-              const safeIndex = Math.min(citaCarouselIndex, maxIdx);
-              const visibleCitas = citasSemana.slice(safeIndex, safeIndex + ITEMS);
-              const canPrev = safeIndex > 0;
-              const canNext = safeIndex < maxIdx;
+
+              const totalPages = Math.max(1, Math.ceil(citasSemana.length / CAROUSEL_PAGE_SIZE));
+              const pageCitas = citasSemana.slice(
+                carouselPage * CAROUSEL_PAGE_SIZE,
+                (carouselPage + 1) * CAROUSEL_PAGE_SIZE
+              );
+
               return (
-                <div className="elegante-card p-0 overflow-hidden">
-                  {/* Fila 1: navegación semanal */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark/60">
+                <div className="pt-4 pb-4 flex items-center gap-6">
+                  <div className="flex items-center gap-2 flex-1">
                     <button
-                      onClick={() => setCurrentWeek(currentWeek - 1)}
-                      className="p-2 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark transition-colors cursor-pointer"
+                      onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
+                      disabled={carouselPage === 0 || citasSemana.length === 0}
+                      className="shrink-0 text-white-primary hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
                     >
-                      <ChevronLeft className="w-5 h-5 text-white-primary" />
+                      <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <div className="text-center">
-                      <h3 className="text-base font-semibold text-white-primary">
-                        {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
-                      </h3>
-                      <p className="text-xs text-gray-lightest">{weekDays[0].fecha} - {weekDays[6].fecha}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        title="Nueva Cita"
-                        onClick={handleOpenCreate}
-                        className="p-2 rounded-lg bg-orange-primary/10 hover:bg-orange-primary/20 border border-orange-primary/30 transition-colors cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4 text-orange-primary" />
-                      </button>
-                      <button
-                        onClick={() => setCurrentWeek(0)}
-                        className="elegante-button-secondary text-xs py-1.5 cursor-pointer"
-                      >
-                        Hoy
-                      </button>
-                      <button
-                        onClick={() => setCurrentWeek(currentWeek + 1)}
-                        className="p-2 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark transition-colors cursor-pointer"
-                      >
-                        <ChevronRight className="w-5 h-5 text-white-primary" />
-                      </button>
-                    </div>
-                  </div>
-                  {/* Fila 2: carrusel de citas */}
-                  <div className="flex items-center gap-2 px-4 py-3">
-                    <CalendarDays className="w-4 h-4 text-orange-primary shrink-0" />
-                    <span className="text-[11px] font-black uppercase tracking-widest text-gray-lighter shrink-0">
-                      Citas
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setCitaCarouselIndex(i => Math.max(0, i - 1))}
-                      disabled={!canPrev}
-                      className={`p-1 rounded-md border transition-colors shrink-0 ${canPrev ? 'border-gray-dark bg-gray-darker hover:bg-gray-dark text-white-primary cursor-pointer' : 'border-transparent text-gray-dark cursor-not-allowed'}`}
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex-1 flex gap-3 min-w-0 pr-20">
                       {citasSemana.length === 0 ? (
-                        <p className="text-xs text-gray-lightest italic">Sin citas esta semana</p>
+                        <p className="flex-1 text-center text-sm text-gray-dark">Sin citas para esta semana</p>
                       ) : (
-                        visibleCitas.map((cita: any) => {
-                          const fechaObj = new Date(`${cita.fecha}T12:00:00`);
-                          const fechaStr = fechaObj.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
-                          const servicioStr = cita.servicioNombre || cita.paqueteNombre || "Servicio";
-                          const color = getCitaColor(cita.estado);
-                          return (
-                            <button
-                              key={cita.id}
-                              type="button"
-                              onClick={() => { setSelectedCita(cita); setIsDetailDialogOpen(true); }}
-                              className="shrink-0 flex items-center gap-2 bg-gray-darker hover:bg-gray-dark border border-gray-dark hover:border-orange-primary/40 rounded-lg px-3 py-2 transition-all duration-200 cursor-pointer text-left"
-                            >
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                              <div>
-                                <p className="text-white-primary text-xs font-semibold leading-none truncate max-w-[120px]">{servicioStr}</p>
-                                <p className="text-gray-lighter text-[10px] leading-none mt-1">{fechaStr} · {cita.hora}</p>
+                        <>
+                          {pageCitas.map((cita: any) => {
+                            const servicio = formatNombre(cita.servicioNombre || cita.paqueteNombre || '—');
+                            const subtitulo = [formatHoraStr12(cita.hora), formatNombre(cita.barberoNombre)].join(' — ');
+                            const estadoColor =
+                              cita.estado === 'Completada' || cita.estado === 'Confirmada'
+                                ? 'border-l-[3px] border-l-[#7aab8a]'
+                                : cita.estado === 'Cancelada' || cita.estado === 'Anulada'
+                                ? 'border-l-[3px] border-l-[#b07070]'
+                                : 'border-l-[3px] border-l-orange-primary';
+                            return (
+                              <div
+                                key={cita.id}
+                                className={`flex-1 min-w-0 bg-gray-darker/40 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-gray-dark/80 hover:border-gray-medium border border-transparent transition-all duration-200 ${estadoColor}`}
+                                onClick={() => {
+                                  setSelectedCita(cita);
+                                  setIsDetailDialogOpen(true);
+                                }}
+                              >
+                                <p className="text-sm font-normal text-gray-lightest truncate leading-tight">
+                                  {servicio}
+                                </p>
+                                <p className="text-xs text-gray-lighter/80 truncate mt-0.5 leading-tight font-normal">
+                                  {formatNombre(cita.barberoNombre)}
+                                </p>
+                                <p className="text-[11px] text-gray-light mt-1 leading-tight font-normal tracking-tight">
+                                  {subtitulo}
+                                </p>
                               </div>
-                            </button>
-                          );
-                        })
+                            );
+                          })}
+                          {pageCitas.length < CAROUSEL_PAGE_SIZE && Array.from({ length: CAROUSEL_PAGE_SIZE - pageCitas.length }).map((_, i) => (
+                            <div key={`empty-${i}`} className="flex-1 min-w-0" />
+                          ))}
+                        </>
                       )}
                     </div>
+
                     <button
-                      type="button"
-                      onClick={() => setCitaCarouselIndex(i => Math.min(maxIdx, i + 1))}
-                      disabled={!canNext}
-                      className={`p-1 rounded-md border transition-colors shrink-0 ${canNext ? 'border-gray-dark bg-gray-darker hover:bg-gray-dark text-white-primary cursor-pointer' : 'border-transparent text-gray-dark cursor-not-allowed'}`}
+                      onClick={() => setCarouselPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={carouselPage >= totalPages - 1 || citasSemana.length === 0}
+                      className="shrink-0 text-white-primary hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
                     >
-                      <ChevronRight className="w-3.5 h-3.5" />
+                      <ChevronRight className="w-5 h-5" />
                     </button>
-                    {citasSemana.length > ITEMS && (
-                      <span className="text-[10px] text-gray-lighter shrink-0 tabular-nums">
-                        {safeIndex + 1}–{Math.min(safeIndex + ITEMS, citasSemana.length)}/{citasSemana.length}
-                      </span>
-                    )}
+                  </div>
+
+                  <div className="ml-10 w-[220px] shrink-0 flex justify-end">
+                    <div className="rounded-lg border border-gray-dark bg-gray-darker/50 px-3 py-2 text-center min-w-[170px]">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-lighter">Total Semana</p>
+                      <p className="text-sm font-semibold text-gray-lightest tabular-nums">{citasSemana.length} citas</p>
+                    </div>
                   </div>
                 </div>
               );
             })()}
+          </div>
 
-            {/* Grid Calendario */}
-            <div className="elegante-card">
-              <div className="overflow-x-auto">
-                <div className="min-w-[1200px]">
-                  {/* Header Días */}
-                  <div className="grid grid-cols-8 gap-1 mb-4 border-b border-gray-dark pb-4">
-                    <div className="text-center">
-                      <span className="text-sm font-semibold text-gray-light font-black uppercase tracking-tighter">Horas</span>
-                    </div>
-                    {weekDays.map(day => (
-                      <div key={day.dia} className="text-center">
-                        <h4 className="font-semibold text-white-primary uppercase text-[10px] tracking-tighter">{day.dia}</h4>
-                        <p className="text-[10px] text-gray-lightest">{day.fecha}</p>
-                        <div className="text-[9px] text-orange-primary mt-1 font-bold">
-                          {citas.filter(c => c.fecha === day.fechaCompleta && c.estado !== 'Cancelada').length} citas
-                        </div>
-                      </div>
-                    ))}
+          {/* Encabezado de días */}
+          <div className="std-card mb-0">
+            <div
+              className="grid gap-1 py-3"
+              style={{ gridTemplateColumns: calendarGridTemplate }}
+            >
+              <div />
+              {weekDays.map(({ dia, fecha }) => (
+                <div
+                  key={dia}
+                  className="min-w-0 text-center rounded-lg py-3 px-2 border-2 border-transparent"
+                >
+                  <div className="flex justify-center items-center gap-1">
+                    <h4 className="text-sm font-bold tracking-[0.06em] uppercase text-gray-lightest">{dia.slice(0, 3)}</h4>
                   </div>
-
-                  {/* Grid de horarios */}
-                  <div className="relative">
-                    {(() => {
-                      const todayStr = toLocalDateString(new Date());
-                      const now = new Date();
-                      const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
-
-                      return horasDelDia.map((hora) => (
-                        <div key={hora} className="grid grid-cols-8 gap-1 h-16 border-b border-gray-dark">
-                          <div className="flex items-center justify-center text-[10px] text-gray-light font-bold">
-                            {formatHora12(hora)}
-                          </div>
-                          {weekDays.map((day) => {
-                            const citasEnSlot = getCitasEnSlot(day.fechaCompleta, hora);
-
-                            let isPastSlot = false;
-                            if (day.fechaCompleta < todayStr) {
-                              isPastSlot = true;
-                            } else if (day.fechaCompleta === todayStr) {
-                              // Se desactiva solo si han pasado más de 30 minutos de la hora de inicio
-                              if ((hora * 60) <= currentTotalMinutes - 30) isPastSlot = true;
-                            }
-
-                            return (
-                              <div
-                                key={`${day.dia}-${hora}`}
-                                className={`relative rounded border transition-all duration-200 p-1 flex flex-col gap-1 ${isPastSlot && citasEnSlot.length === 0
-                                  ? "bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60"
-                                  : "bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group"
-                                  }`}
-                                onClick={() => {
-                                  if (!isPastSlot && citasEnSlot.length === 0) {
-                                    handleSlotClick(day.fechaCompleta, hora);
-                                  }
-                                }}
-                              >
-                                {citasEnSlot.map(cita => (
-                                  <div
-                                    key={cita.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedCita(cita);
-                                      setIsDetailDialogOpen(true);
-                                    }}
-                                    className="text-[10px] p-1.5 rounded truncate font-bold border transition-transform hover:scale-[1.02] cursor-pointer"
-                                    style={{
-                                      backgroundColor: getCitaColor(cita.estado) + (isPastSlot ? '15' : '25'),
-                                      color: getCitaColor(cita.estado),
-                                      borderColor: getCitaColor(cita.estado) + '50'
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getCitaColor(cita.estado) }} />
-                                      {cita.servicioNombre || cita.paqueteNombre}
-                                    </div>
-                                    <div className="text-[8px] opacity-70 mt-0.5 ml-3 truncate">
-                                      {cita.barberoNombre} • {cita.hora}
-                                    </div>
-                                  </div>
-                                ))}
-
-                                {citasEnSlot.length === 0 && !isPastSlot && (
-                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Plus className="w-4 h-4 text-orange-primary/50" />
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ));
-                    })()}
-                  </div>
+                  <p className="text-sm font-bold tracking-[0.06em] text-gray-lightest">{fecha}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid de horarios */}
+          <div className="std-card mb-0">
+            <div className="w-full pb-4 pt-3">
+              <div className="-mx-6 pl-3 pr-6">
+                {(() => {
+                  const todayStr = toLocalDateString(new Date());
+                  return horasDelDia.map((hora) => (
+                    <div
+                      key={hora}
+                      className="grid gap-1 h-14"
+                      style={{ gridTemplateColumns: calendarGridTemplate }}
+                    >
+                      <div className="flex h-full items-center justify-center text-center text-[11px] font-semibold tracking-[0.04em] text-gray-lightest whitespace-nowrap">
+                        {formatHora12(hora)}
+                      </div>
+                      {weekDays.map((dayInfo) => {
+                        const citasEnSlot = getCitasEnSlot(dayInfo.fechaCompleta, hora);
+
+                        let isPastSlot = false;
+                        if (dayInfo.fechaCompleta < todayStr) {
+                          isPastSlot = true;
+                        } else if (dayInfo.fechaCompleta === todayStr) {
+                          const today = new Date();
+                          const cur = today.getHours() * 60 + today.getMinutes();
+                          if ((hora * 60) <= cur - 30) isPastSlot = true;
+                        }
+
+                        const slotKey = `${dayInfo.fechaCompleta}-${hora}`;
+                        const safeIdx =
+                          citasEnSlot.length > 0
+                            ? (slotCitaIndex[slotKey] ?? 0) % citasEnSlot.length
+                            : 0;
+                        const citaEnCurso = citasEnSlot[safeIdx] || null;
+                        const tieneMultiples = citasEnSlot.length > 1;
+                        let slotRole: 'none' | 'start' | 'middle' | 'end' = 'none';
+                        if (citaEnCurso) {
+                          const [hStr, mStr] = (citaEnCurso.hora || '').split(':');
+                          const citaInicio = parseInt(hStr) + parseInt(mStr) / 60;
+                          const citaFin = citaInicio + (citaEnCurso.duracion || 60) / 60;
+                          const isStart = Math.abs(citaInicio - hora) < 0.001;
+                          const isEnd = Math.abs(citaFin - (hora + 0.5)) < 0.001;
+                          if (isStart && isEnd) slotRole = 'start';
+                          else if (isStart) slotRole = 'start';
+                          else if (isEnd) slotRole = 'end';
+                          else slotRole = 'middle';
+                        }
+
+                        // Si es middle/end, verificar que esta cita sigue seleccionada en su slot de inicio.
+                        if ((slotRole === 'middle' || slotRole === 'end') && citaEnCurso) {
+                          const [cHStr, cMStr] = (citaEnCurso.hora || '09:00').split(':');
+                          const citaStartHora = parseInt(cHStr) + parseInt(cMStr || '0') / 60;
+                          const citaStartKey = `${dayInfo.fechaCompleta}-${citaStartHora}`;
+                          const citasDia = citas.filter(c => c.fecha === dayInfo.fechaCompleta);
+                          const citasEnInicio = citasDia.filter(c => {
+                            const [hh, mm] = (c.hora || '').split(':');
+                            return Math.abs((parseInt(hh) + parseInt(mm || '0') / 60) - citaStartHora) < 0.001;
+                          });
+                          if (citasEnInicio.length > 1) {
+                            const idxEnInicio = (slotCitaIndex[citaStartKey] ?? 0) % citasEnInicio.length;
+                            const citaSeleccionadaEnInicio = citasEnInicio[idxEnInicio];
+                            if (!citaSeleccionadaEnInicio || citaSeleccionadaEnInicio.id !== citaEnCurso.id) {
+                              slotRole = 'none';
+                            }
+                          }
+                        }
+
+                        // Beige claro como en el diseño admin
+                        const citaBg = isPastSlot ? 'rgba(220,190,130,0.25)' : '#e8d5a8';
+                        const citaBorder = isPastSlot ? 'rgba(180,140,80,0.2)' : 'rgba(160,120,60,0.4)';
+                        const citaBorderLeft = isPastSlot ? 'rgba(180,140,80,0.3)' : '#a07830';
+
+                        return (
+                          <div
+                            key={`${dayInfo.dia}-${hora}`}
+                            className={`relative min-w-0 transition-all duration-200 ${
+                              slotRole !== 'none'
+                                ? 'cursor-pointer'
+                                : isPastSlot
+                                  ? 'rounded border bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60'
+                                  : 'rounded border bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group'
+                            }`}
+                            style={slotRole !== 'none' ? {
+                              background: citaBg,
+                              borderLeft: `3px solid ${citaBorderLeft}`,
+                              borderRight: `1px solid ${citaBorder}`,
+                              borderTop: slotRole === 'start' ? `1px solid ${citaBorder}` : 'none',
+                              borderBottom: slotRole === 'end' ? `1px solid ${citaBorder}` : 'none',
+                              borderRadius: slotRole === 'start' ? '6px 6px 0 0' : slotRole === 'end' ? '0 0 6px 6px' : '0',
+                              marginTop: (slotRole === 'middle' || slotRole === 'end') ? '-4px' : '0',
+                              paddingTop: (slotRole === 'middle' || slotRole === 'end') ? '4px' : '0',
+                              height: (slotRole === 'middle' || slotRole === 'end') ? 'calc(100% + 4px)' : '100%',
+                              zIndex: slotRole === 'start' ? 2 : 1,
+                            } : {}}
+                            onClick={() => {
+                              if (slotRole !== 'none' && citaEnCurso) {
+                                setSelectedCita(citaEnCurso);
+                                setIsDetailDialogOpen(true);
+                              } else if (!isPastSlot) {
+                                handleSlotClick(dayInfo.fechaCompleta, hora);
+                              }
+                            }}
+                          >
+                            {slotRole === 'none' && !isPastSlot && (
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-orange-primary/10 backdrop-blur-[1px] z-0 rounded">
+                                <div className="bg-orange-primary/20 p-1.5 rounded-full border border-orange-primary/30 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                                  <Plus className="w-4 h-4 text-orange-primary" />
+                                </div>
+                              </div>
+                            )}
+                            {slotRole === 'start' && citaEnCurso && (() => {
+                              const durSlots = Math.ceil((citaEnCurso.duracion || 60) / 30);
+                              const contentH = `calc(${durSlots} * 3.5rem)`;
+                              return (
+                                <>
+                                  <div
+                                    className={`absolute left-0 right-0 top-0 flex flex-col items-center justify-center pointer-events-none px-1 gap-0.5 ${tieneMultiples ? 'pt-5' : ''}`}
+                                    style={{ height: contentH, zIndex: 3 }}
+                                  >
+                                    <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] font-bold leading-tight text-center w-full truncate">
+                                      {formatNombre(citaEnCurso.servicioNombre || citaEnCurso.paqueteNombre || (citaEnCurso.serviciosNombres?.[0]) || 'Servicio')}
+                                    </span>
+                                    <span style={{ color: isPastSlot ? '#a08060' : '#5a3510' }} className="text-[9px] leading-tight text-center w-full truncate">
+                                      {formatNombre(citaEnCurso.barberoNombre || 'Barbero')}
+                                    </span>
+                                  </div>
+                                  {tieneMultiples && (
+                                    <div
+                                      className="absolute top-0 right-0 z-10 flex items-center"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'prev', e)}
+                                        className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
+                                        style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                        aria-label="Cita anterior"
+                                      >
+                                        <ChevronLeft className="w-4 h-4" />
+                                      </button>
+                                      <span
+                                        className="text-[10px] font-bold leading-none select-none"
+                                        style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                        title={`${citasEnSlot.length} citas en esta franja`}
+                                      >
+                                        {safeIdx + 1}/{citasEnSlot.length}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'next', e)}
+                                        className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
+                                        style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                        aria-label="Cita siguiente"
+                                      >
+                                        <ChevronRight className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                            {citaEnCurso?.estado === 'En Proceso' && slotRole === 'end' && (
+                              <div className="absolute bottom-0 left-0 h-0.5 bg-orange-primary w-full animate-pulse" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           </div>
+
         </div>
       )}
 

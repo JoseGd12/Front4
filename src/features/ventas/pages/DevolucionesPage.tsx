@@ -776,19 +776,26 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   }), [devoluciones, searchTerm, filtroEstado]);
 
   const groupedDevoluciones = useMemo(() => {
-    const map = new Map<string, { 
-      cliente: string; 
-      documento: string; 
+    const map = new Map<string, {
+      cliente: string;
+      tipo: 'Cliente' | 'Barbero';
+      rol: string;
+      documento: string;
       tipoDocumento: string;
-      saldoTotal: number; 
+      saldoTotal: number;
       totalDevoluciones: number;
       ultimaDevolucion: string;
-      items: Devolucion[] 
+      items: Devolucion[]
     }>();
 
     filteredDevoluciones.forEach((devolucion) => {
-      const clienteKey = String(devolucion.clienteId || devolucion.cliente || 'sin-cliente');
-      const existing = map.get(clienteKey);
+      // Determinar si es devolución de cliente o de barbero
+      const esBarbero = !!(devolucion.barberoId && devolucion.barberoId > 0) && !devolucion.clienteId;
+      const groupKey = esBarbero
+        ? `barbero-${devolucion.barberoId}`
+        : `cliente-${devolucion.clienteId || devolucion.cliente || 'sin-cliente'}`;
+
+      const existing = map.get(groupKey);
       const saldo = Number(devolucion.saldoAFavor || 0);
 
       if (existing) {
@@ -805,8 +812,12 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       const tipoDoc = docParts.length > 1 ? docParts[0] : 'CC';
       const numDoc = docParts.length > 1 ? docParts.slice(1).join(' ') : docRaw;
 
-      map.set(clienteKey, {
-        cliente: devolucion.cliente || 'Cliente',
+      map.set(groupKey, {
+        cliente: esBarbero
+          ? (devolucion.barbero || 'Barbero')
+          : (devolucion.cliente || 'Cliente'),
+        tipo: esBarbero ? 'Barbero' : 'Cliente',
+        rol: esBarbero ? 'Barbero' : 'Cliente',
         documento: numDoc || '—',
         tipoDocumento: tipoDoc,
         saldoTotal: String(devolucion.estado).toLowerCase() === 'completada' ? saldo : 0,
@@ -1706,8 +1717,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
             <table className="dev-table">
               <thead className="dev-thead">
                 <tr>
-                  <th>Cliente</th>
-                  <th>Documento</th>
+                  <th>Usuario</th>
+                  <th>Tipo</th>
                   <th>Total Devoluciones</th>
                   <th>Saldo a Favor Total</th>
                   <th>Última Devolución</th>
@@ -1740,7 +1751,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                           className="dev-group-row"
                           onClick={() => toggleExpand(grupo.key)}
                         >
-                          {/* Cliente */}
+                          {/* Usuario + Rol debajo */}
                           <td className="dev-group-cell">
                             <div className="dev-group-inner">
                               <div className="dev-avatar">
@@ -1749,15 +1760,28 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                               <div>
                                 <div className="dev-client-name">{grupo.cliente}</div>
                                 <div className="dev-client-doc">
-                                  {grupo.tipoDocumento} {grupo.documento}
+                                  {grupo.rol}
                                 </div>
                               </div>
                             </div>
                           </td>
 
-                          {/* Documento */}
+                          {/* Tipo */}
                           <td className="dev-td">
-                            {grupo.documento}
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 12px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                background: grupo.tipo === 'Barbero' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(251, 146, 60, 0.15)',
+                                color: grupo.tipo === 'Barbero' ? '#3b82f6' : '#fb923c',
+                                border: `1px solid ${grupo.tipo === 'Barbero' ? '#3b82f6' : '#fb923c'}`,
+                              }}
+                            >
+                              {grupo.tipo}
+                            </span>
                           </td>
 
                           {/* Total devoluciones */}
