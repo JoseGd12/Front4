@@ -602,12 +602,12 @@ export function BarberosPage() {
             <table className="std-table">
               <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="text-center border-b border-gray-dark">
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Especialidad</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Barbero</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Contacto</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Especialidad</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody className="std-tbody">
@@ -1116,7 +1116,7 @@ export function BarberosPage() {
                   <Input
                     value={selectedBarbero.status === 'active' ? 'Activo' : 'Inactivo'}
                     readOnly
-                    className={`elegante-input w-full cursor-default ${selectedBarbero.status === 'active' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}`}
+                    className={`elegante-input w-full cursor-default ${selectedBarbero.status === 'active' ? 'text-green-400' : 'text-red-400'}`}
                   />
                 </div>
               </div>

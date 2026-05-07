@@ -776,7 +776,7 @@ html {
     margin-left: -1.5rem;
     margin-right: -1.5rem;
     margin-top: 0;
-    overflow-x: auto;
+    overflow-x: hidden;
     width: calc(100% + 3rem);
     /* Sin border-top ni border-bottom propios:
        - El border-b del TableHeaderSection (variant=dark) actúa como separador superior.
@@ -804,6 +804,7 @@ html {
     border-collapse: collapse;
     font-family: 'DM Sans', 'Segoe UI', sans-serif;
     background: var(--gray-darkest);
+    table-layout: fixed;
   }
 
   /*
@@ -814,7 +815,7 @@ html {
   .std-thead th {
     padding: 13px 16px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--gray-lightest);
     text-align: center;
     letter-spacing: 0.06em;
@@ -832,6 +833,12 @@ html {
   /* Última columna: padding derecho compensado */
   .std-thead th:last-child {
     padding-right: 24px;
+  }
+
+  .std-thead th, .std-td, .std-td-primary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /*
@@ -868,7 +875,7 @@ html {
     padding: 12px 16px;
     padding-left: 24px;
     font-size: 13px;
-    color: var(--white-primary);
+    color: var(--gray-lightest);
     text-align: left;
     vertical-align: middle;
     font-family: 'DM Sans', 'Segoe UI', sans-serif;
@@ -880,7 +887,7 @@ html {
     padding: 3px 12px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
     min-width: 5rem;
     text-align: center;

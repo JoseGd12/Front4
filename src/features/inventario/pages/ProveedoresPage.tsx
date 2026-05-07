@@ -656,7 +656,7 @@ export function ProveedoresPage() {
       <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Gestión de Proveedores</h1>
+            <h1 className="text-2xl font-semibold text-gray-lightest">Gestión de Proveedores</h1>
             <p className="text-sm text-gray-lightest mt-1">Administra la red de proveedores</p>
           </div>
         </div>
@@ -683,7 +683,7 @@ export function ProveedoresPage() {
                 </DialogTrigger>
                 <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="text-white-primary flex items-center gap-2">
+                    <DialogTitle className="text-gray-lightest flex items-center gap-2">
                       <Truck className="w-5 h-5 text-orange-primary" />
                       {isEditDialogOpen ? 'Editar Proveedor' : 'Agregar Nuevo Proveedor'}
                     </DialogTitle>
@@ -692,14 +692,14 @@ export function ProveedoresPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={isEditDialogOpen ? handleEditSubmit : handleSubmit} className="space-y-6 pt-4">
-                    <h4 className="text-sm font-medium text-white-primary mb-3 flex items-center gap-2">
+                    <h4 className="text-sm font-normal text-gray-lightest mb-3 flex items-center gap-2">
                       <FileText className="w-4 h-4 text-orange-primary" />
                       Información General
                     </h4>
                     {/* Sección 1: Información Básica e Identificación */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <Building className="w-4 h-4 text-orange-primary" />
                           Tipo de Proveedor
                         </Label>
@@ -713,7 +713,7 @@ export function ProveedoresPage() {
                           </SelectTrigger>
                           <SelectContent className="bg-gray-darkest border-gray-dark">
                             {TIPOS_PROVEEDOR.map((tipo) => (
-                              <SelectItem key={tipo.value} value={tipo.value} className="text-white-primary">
+                              <SelectItem key={tipo.value} value={tipo.value} className="text-gray-lightest">
                                 {tipo.label}
                               </SelectItem>
                             ))}
@@ -726,7 +726,7 @@ export function ProveedoresPage() {
                       <div className="space-y-2">
                         <Label className="text-white-primary flex items-center gap-2">
                           <User className="w-4 h-4 text-orange-primary" />
-                          {formData.tipoProveedor === 'Juridico' ? 'Nombre Comercial' : 'Nombre Completo'} <span className="text-white-primary">*</span>
+                          {formData.tipoProveedor === 'Juridico' ? 'Nombre Comercial' : 'Nombre Completo'} <span className="text-gray-lightest">*</span>
                         </Label>
                         <Input
                           id="nombre"
@@ -748,7 +748,7 @@ export function ProveedoresPage() {
                       <div className="space-y-2">
                         <Label className="text-white-primary flex items-center gap-2">
                           <IdCard className="w-4 h-4 text-orange-primary" />
-                          NIT / Identificación <span className="text-white-primary">*</span>
+                          NIT / Identificación <span className="text-gray-lightest">*</span>
                         </Label>
                         <Input
                           id="nit"
@@ -768,7 +768,7 @@ export function ProveedoresPage() {
                       <div className="space-y-2">
                         <Label className="text-white-primary flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-orange-primary" />
-                          Representante Legal <span className="text-white-primary">*</span>
+                          Representante Legal <span className="text-gray-lightest">*</span>
                         </Label>
                         <Input
                           id="representanteLegal"
@@ -788,7 +788,7 @@ export function ProveedoresPage() {
                       <div className="space-y-2">
                         <Label className="text-white-primary flex items-center gap-2">
                           <Phone className="w-4 h-4 text-orange-primary" />
-                          Teléfono Principal <span className="text-white-primary">*</span>
+                          Teléfono Principal <span className="text-gray-lightest">*</span>
                         </Label>
                         <Input
                           id="numero"
@@ -1166,12 +1166,12 @@ export function ProveedoresPage() {
             <div className="overflow-hidden">
               {/* Encabezados de tabla */}
               <div className="grid grid-cols-6 gap-4 p-4 border-b border-gray-dark bg-gray-darker">
-                <div className="text-sm font-medium text-white-primary">ID</div>
-                <div className="text-sm font-medium text-white-primary">Proveedor</div>
-                <div className="text-sm font-medium text-white-primary">Fecha</div>
-                <div className="text-sm font-medium text-white-primary">Total</div>
-                <div className="text-sm font-medium text-white-primary">Estado</div>
-                <div className="text-sm font-medium text-white-primary">Acciones</div>
+                <div className="text-sm font-normal text-gray-lightest">ID</div>
+                <div className="text-sm font-normal text-gray-lightest">Proveedor</div>
+                <div className="text-sm font-normal text-gray-lightest">Fecha</div>
+                <div className="text-sm font-normal text-gray-lightest">Total</div>
+                <div className="text-sm font-normal text-gray-lightest">Estado</div>
+                <div className="text-sm font-normal text-gray-lightest">Acciones</div>
               </div>
 
               {/* Filas de datos */}
@@ -1190,12 +1190,12 @@ export function ProveedoresPage() {
                           <User className="w-4 h-4 text-black-primary" />
                         )}
                       </div>
-                      <span className="text-sm font-medium text-white-primary">{proveedor.id}</span>
+                      <span className="text-sm text-gray-lightest">{proveedor.id}</span>
                     </div>
 
                     {/* Proveedor */}
                     <div>
-                      <div className="text-sm font-medium text-white-primary">{proveedor.nombre}</div>
+                      <div className="text-sm text-gray-lightest">{proveedor.nombre}</div>
                       <div className="text-xs text-gray-lightest">{proveedor.correo}</div>
                     </div>
 

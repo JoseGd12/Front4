@@ -1269,36 +1269,9 @@ export function ProductosPage() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-4 border-t border-gray-dark pt-4 mt-4">
+                      <div className="grid grid-cols-1 gap-4 border-t border-gray-dark pt-4 mt-4">
                         <div className="space-y-1.5">
-                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                            <Info className="w-3.5 h-3.5 text-orange-primary" />
-                            Uso del producto
-                          </Label>
-                          <Select
-                            value={usoProductoValue}
-                            onValueChange={(value) => {
-                              setNuevoProducto(prev => ({
-                                ...prev,
-                                usoProducto: value,
-                                stockVentas: value === 'solo_venta'
-                                  ? Number(prev.stockVentas || 0) + Number(prev.stockInsumos || 0)
-                                  : prev.stockVentas,
-                                stockInsumos: value === 'solo_venta' ? 0 : prev.stockInsumos
-                              }));
-                            }}
-                          >
-                            <SelectTrigger className="elegante-input h-9 text-sm">
-                              <SelectValue placeholder="Selecciona el uso" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-darkest border-gray-dark text-gray-lightest">
-                              <SelectItem value="solo_venta" className="text-white-primary">Solo venta</SelectItem>
-                              <SelectItem value="venta_e_insumo" className="text-white-primary">Venta e insumo</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                             <Info className="w-3.5 h-3.5 text-orange-primary" />
                             Estado
                           </Label>
@@ -1310,7 +1283,7 @@ export function ProductosPage() {
                               }
                               className="data-[state=checked]:bg-orange-primary"
                             />
-                            <span className={`text-sm font-medium ${nuevoProducto.activo ? 'text-orange-primary' : 'text-gray-lightest'}`}>
+                            <span className={`text-sm font-normal ${nuevoProducto.activo ? 'text-orange-primary' : 'text-gray-lightest'}`}>
                               {nuevoProducto.activo ? 'Activo' : 'Inactivo'}
                             </span>
                           </div>
@@ -1363,23 +1336,33 @@ export function ProductosPage() {
             {/* Tabla de Productos */}
             <div className="std-table-wrapper">
               <table className="std-table">
+                <colgroup>
+                  <col style={{ width: '64px' }} />   {/* Imagen */}
+                  <col style={{ width: 'auto' }} />   {/* Nombre */}
+                  <col style={{ width: '120px' }} />  {/* Precio venta */}
+                  <col style={{ width: '120px' }} />  {/* Precio compra */}
+                  <col style={{ width: '90px' }} />   {/* Stock total */}
+                  <col style={{ width: '100px' }} />  {/* Stock Ventas */}
+                  <col style={{ width: '110px' }} />  {/* Stock Insumos */}
+                  <col style={{ width: '100px' }} />  {/* Estado */}
+                  <col style={{ width: '160px' }} />  {/* Acciones */}
+                </colgroup>
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Imagen</th>
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Nombre</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio venta</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Precio compra</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock total</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Ventas</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Stock Insumos</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Uso</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-left py-3 px-4 text-gray-lightest font-normal text-sm">Imagen</th>
+                    <th className="text-left py-3 px-4 text-gray-lightest font-normal text-sm">Nombre</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Precio venta</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Precio compra</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock total</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock Ventas</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock Insumos</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="std-tbody">
                   {loading ? (
-                    <TableLoadingStateRow colSpan={10} title="Cargando productos..." />
+                    <TableLoadingStateRow colSpan={9} title="Cargando productos..." />
                   ) : displayedProductos.length > 0 ? displayedProductos.map((producto) => {
                     const isExpanded = expandedId === Number(producto.id);
                     const cached = precioComprasCache[Number(producto.id)];
@@ -1391,7 +1374,7 @@ export function ProductosPage() {
                           className={`border-b border-gray-dark transition-colors cursor-pointer ${isExpanded ? 'bg-orange-primary/5' : 'hover:bg-gray-darker'}`}
                           onClick={() => toggleExpandProducto(Number(producto.id))}
                         >
-                          <td className="py-4 px-4">
+                          <td className="std-td-primary">
                             <ImageRenderer
                               url={producto.imagenProduc}
                               alt={producto.nombre}
@@ -1400,37 +1383,29 @@ export function ProductosPage() {
                               showLabel={false}
                             />
                           </td>
-                          <td className="py-4 px-4 text-gray-lightest font-medium">{producto.nombre}</td>
-                          <td className="py-4 px-4 text-center text-gray-lightest">
+                          <td className="std-td-primary" title={producto.nombre}>{producto.nombre}</td>
+                          <td className="std-td text-gray-lightest">
                             {formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0)}
                           </td>
-                          <td className="py-4 px-4 text-center text-gray-lightest">
+                          <td className="std-td text-gray-lightest">
                             {formatearPrecio((producto as any).precioCompra ?? 0)}
                           </td>
-                          <td className="py-4 px-4 text-center text-gray-lightest">
+                          <td className="std-td text-gray-lightest">
                             {String(getStockTotal(producto as unknown as ApiProducto))}
                           </td>
-                          <td className="py-4 px-4 text-center text-gray-lightest">
+                          <td className="std-td text-gray-lightest">
                             {String((producto as unknown as ApiProducto).stockVentas ?? 0)}
                           </td>
-                          <td className="py-4 px-4 text-center text-gray-lightest">
+                          <td className="std-td text-gray-lightest">
                             {String(soloVenta ? 0 : ((producto as unknown as ApiProducto).stockInsumos ?? 0))}
                           </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className={`inline-block px-2 py-1 rounded-full text-xs border whitespace-nowrap ${soloVenta
-                              ? 'bg-gray-500/10 text-gray-300 border-gray-600/50'
-                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                            }`}>
-                              {soloVenta ? 'Solo venta' : 'Venta e insumo'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
+                          <td className="std-td">
                             <StandardTable.StatusBadge
                               variant={resolveStatusVariant(producto.activo ? "Activo" : "Inactivo")}
                               label={producto.activo ? "Activo" : "Inactivo"}
                             />
                           </td>
-                          <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
+                          <td className="std-td" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 className="p-1.5 rounded-lg transition-colors text-gray-lightest hover:text-orange-primary hover:bg-gray-darker"
@@ -1483,7 +1458,7 @@ export function ProductosPage() {
                         {/* Fila expandible — compras del producto */}
                         {isExpanded && (
                           <tr key={`expand-${producto.id}`} className="border-b border-orange-primary/20">
-                            <td colSpan={10} className="px-0 py-0">
+                            <td colSpan={9} className="px-0 py-0">
                               <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
                                 {/* Encabezado */}
                                 <div className="px-6 py-3 bg-orange-primary/5 border-b border-gray-darker flex items-center justify-between flex-wrap gap-3">
@@ -1497,8 +1472,8 @@ export function ProductosPage() {
                                         {cached.cantidadComprasConsideradas} compra(s)
                                         {cached.cantidadTotalComprada > 0 && ` · ${cached.cantidadTotalComprada} unid.`}
                                       </span>
-                                      <span className="px-3 py-1 rounded-lg bg-orange-primary/15 border border-orange-primary/30 text-orange-primary text-xs font-bold">
-                                        Promedio: {formatCurrency(cached.precioCompraPromedio)}
+                                      <span className="px-5 py-2.5 rounded-xl bg-orange-primary/20 border border-orange-primary/40 text-orange-primary text-base font-normal shadow-sm">
+                                        Promedio de precios de compra: {formatCurrency(cached.precioCompraPromedio)}
                                       </span>
                                     </div>
                                   )}
@@ -1561,7 +1536,7 @@ export function ProductosPage() {
                     );
                   }) : (
                     <TableEmptyStateRow
-                      colSpan={10}
+                      colSpan={9}
                       title="No se encontraron productos"
                       description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                       onReload={() => window.location.reload()}
@@ -1738,18 +1713,9 @@ export function ProductosPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-1.5">
-                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <Info className="w-3.5 h-3.5 text-orange-primary" />
-                          Uso del producto
-                        </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                          {esProductoSoloVenta(selectedProducto as any) ? 'Solo venta' : 'Venta e insumo'}
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                           Estado
                         </Label>
                         <div className={`elegante-input h-9 text-sm flex items-center px-3 border ${
@@ -1765,9 +1731,9 @@ export function ProductosPage() {
                     {/* Precio compra promedio (últimas 5 compras) */}
                     <div className="pt-4 border-t border-gray-dark">
                       <div className="flex items-center justify-between mb-3">
-                        <Label className="text-white-primary text-sm font-semibold flex items-center gap-2">
+                        <Label className="text-gray-lightest text-base font-normal flex items-center gap-2">
                           <Tags className="w-4 h-4 text-orange-primary" />
-                          Precio de compra promedio (últimas 5 compras)
+                          Promedio de precios de compra (últimas 5 compras)
                         </Label>
                         {precioCompraPromedio && precioCompraPromedio.cantidadComprasConsideradas > 0 && (
                           <span className="text-xs text-gray-lightest">
@@ -1787,9 +1753,9 @@ export function ProductosPage() {
                         </div>
                       ) : (
                         <>
-                          <div className="rounded-lg border border-orange-primary/30 bg-orange-primary/5 px-4 py-3 mb-3">
-                            <p className="text-xs text-gray-lightest uppercase tracking-wide mb-1">Promedio</p>
-                            <p className="text-2xl font-bold text-orange-primary">
+                          <div className="rounded-lg border border-orange-primary/30 bg-orange-primary/10 px-5 py-4 mb-4">
+                            <p className="text-[11px] text-gray-lighter uppercase tracking-widest font-normal mb-1">Promedio de precios de compra</p>
+                            <p className="text-3xl font-normal text-orange-primary">
                               {formatCurrency(precioCompraPromedio.precioCompraPromedio)}
                             </p>
                           </div>

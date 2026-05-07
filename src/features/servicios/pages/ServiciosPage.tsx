@@ -597,7 +597,7 @@ export function ServiciosPage() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-white-primary flex items-center gap-2">
+              <DialogTitle className="text-gray-lightest flex items-center gap-2">
                 <Scissors className="w-5 h-5 text-orange-primary" />
                 {editingServicio ? 'Editar Servicio' : 'Crear Nuevo Servicio'}
               </DialogTitle>
@@ -610,7 +610,7 @@ export function ServiciosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label className="text-white-primary text-xs flex items-center gap-1.5 py-2">
+                    <Label className="text-gray-lightest text-xs flex items-center gap-1.5 py-2">
                       <Scissors className="w-3.5 h-3.5 text-orange-primary" />
                       Nombre del Servicio *
                     </Label>
@@ -631,7 +631,7 @@ export function ServiciosPage() {
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                    <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                       <Scissors className="w-3.5 h-3.5 text-orange-primary" />
                       Precio ($) *
                     </Label>
@@ -659,7 +659,7 @@ export function ServiciosPage() {
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                    <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                       <Scissors className="w-3.5 h-3.5 text-orange-primary" />
                       Duración (minutos) *
                     </Label>
@@ -681,7 +681,7 @@ export function ServiciosPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 h-9">
-                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                    <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                       <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
                       Imagen del Servicio
                     </Label>
@@ -758,7 +758,7 @@ export function ServiciosPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                   Estado
                 </Label>
                 <div className="flex items-center space-x-3">
@@ -767,7 +767,7 @@ export function ServiciosPage() {
                     onCheckedChange={(checked) => setNuevoServicio({ ...nuevoServicio, estado: !!checked })}
                     className="data-[state=checked]:bg-orange-primary"
                   />
-                  <span className={`text-sm font-medium ${nuevoServicio.estado ? 'text-orange-primary' : 'text-gray-lightest'}`}>
+                  <span className={`text-sm ${nuevoServicio.estado ? 'text-orange-primary' : 'text-gray-lightest'}`}>
                     {nuevoServicio.estado ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
@@ -800,7 +800,7 @@ export function ServiciosPage() {
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
           <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-white-primary flex items-center gap-2">
+              <DialogTitle className="text-gray-lightest flex items-center gap-2">
                 <Scissors className="w-5 h-5 text-orange-primary" />
                 Detalle del Servicio
               </DialogTitle>
@@ -813,7 +813,7 @@ export function ServiciosPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                         <Scissors className="w-3.5 h-3.5 text-orange-primary" />
                         Nombre
                       </Label>
@@ -822,7 +822,7 @@ export function ServiciosPage() {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                         <Scissors className="w-3.5 h-3.5 text-orange-primary" />
                         Precio
                       </Label>
@@ -831,7 +831,7 @@ export function ServiciosPage() {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                         <Scissors className="w-3.5 h-3.5 text-orange-primary" />
                         Duración
                       </Label>
@@ -840,7 +840,7 @@ export function ServiciosPage() {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                      <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                         Estado
                       </Label>
                       <div className={`elegante-input h-9 text-sm flex items-center px-3 border ${
@@ -870,7 +870,7 @@ export function ServiciosPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                  <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-orange-primary" />
                     Descripción
                   </Label>

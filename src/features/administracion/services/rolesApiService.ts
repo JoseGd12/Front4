@@ -317,23 +317,45 @@ class RolesApiService {
       }
 
       const currentAssignments = await this.getRoleModules(roleId);
-      const currentModulos = currentAssignments.map(rm => String((rm as any).moduloId));
+      const currentModulos = Array.from(new Set(currentAssignments.map(rm => String((rm as any).moduloId ?? (rm as any).ModuloId))));
+      const newModulosUnicos = Array.from(new Set(roleData.modulos));
 
-      // Módulos a eliminar
-      const modulosToDelete = currentModulos.filter(m => !roleData.modulos.includes(m));
+      // Módulos a eliminar (están en BD pero no en la nueva selección)
+      const modulosToDelete = currentModulos.filter(m => !newModulosUnicos.includes(m));
 
-      // Módulos a agregar
-      const modulosToAdd = roleData.modulos.filter(m => !currentModulos.includes(m));
+      // Módulos a agregar (están en la nueva selección pero no en BD)
+      const modulosToAdd = newModulosUnicos.filter(m => !currentModulos.includes(m));
 
-      // Eliminar módulos no seleccionados
+      // Identificar todos los IDs de RolesModulos a eliminar
+      const rmIdsToDelete: number[] = [];
+      
+      // 1. Eliminar módulos deseleccionados (todos los duplicados si existen)
       for (const moduloId of modulosToDelete) {
-        const rolesModulo = currentAssignments.find(rm => String((rm as any).moduloId) === String(moduloId));
-        if (rolesModulo && (rolesModulo as any).id != null) {
-          await fetch(`${API_BASE_URL}/RolesModulos/${(rolesModulo as any).id}`, {
-            method: 'DELETE',
-            headers,
-          });
+        const assignmentsToDelete = currentAssignments.filter(rm => String((rm as any).moduloId ?? (rm as any).ModuloId) === String(moduloId));
+        for (const rm of assignmentsToDelete) {
+          const rmId = (rm as any)?.id ?? (rm as any)?.Id;
+          if (rmId != null) rmIdsToDelete.push(rmId);
         }
+      }
+
+      // 2. Limpieza general: si hay módulos duplicados en BD (para los que sí se quedan), dejar solo uno y borrar el resto
+      for (const moduloId of newModulosUnicos) {
+        const assignmentsForModulo = currentAssignments.filter(rm => String((rm as any).moduloId ?? (rm as any).ModuloId) === String(moduloId));
+        if (assignmentsForModulo.length > 1) {
+          // Dejar el primero, borrar los demás
+          for (let i = 1; i < assignmentsForModulo.length; i++) {
+            const rmId = (assignmentsForModulo[i] as any)?.id ?? (assignmentsForModulo[i] as any)?.Id;
+            if (rmId != null) rmIdsToDelete.push(rmId);
+          }
+        }
+      }
+
+      // Ejecutar borrados
+      for (const rmId of rmIdsToDelete) {
+        await fetch(`${API_BASE_URL}/RolesModulos/${rmId}`, {
+          method: 'DELETE',
+          headers,
+        });
       }
 
       // Agregar nuevos módulos
@@ -367,16 +389,22 @@ class RolesApiService {
         }
       }
 
-      // Actualizar permisos si se proporcionan
+      // Actualizar permisos si se proporcionan (solo para módulos que siguen activos)
       if (roleData.permisos) {
         for (const [moduloId, permisos] of Object.entries(roleData.permisos)) {
-          const rolesModulo = currentAssignments.find(rm => String((rm as any).moduloId) === String(moduloId));
-          if (rolesModulo && (rolesModulo as any).id != null) {
-            const response = await fetch(`${API_BASE_URL}/RolesModulos/${(rolesModulo as any).id}`, {
+          // Evitar actualizar módulos que fueron borrados
+          if (!newModulosUnicos.includes(moduloId)) continue;
+
+          // Buscar la asignación actual (tomar la primera si hubiera duplicados, aunque ya limpiamos arriba)
+          const rolesModulo = currentAssignments.find(rm => String((rm as any).moduloId ?? (rm as any).ModuloId) === String(moduloId));
+          const rmId = (rolesModulo as any)?.id ?? (rolesModulo as any)?.Id;
+          
+          if (rolesModulo && rmId != null && !rmIdsToDelete.includes(rmId)) {
+            const response = await fetch(`${API_BASE_URL}/RolesModulos/${rmId}`, {
               method: 'PUT',
               headers,
               body: JSON.stringify({
-                Id: (rolesModulo as any).id,
+                Id: rmId,
                 RolId: typeof roleId === 'string' ? parseInt(roleId, 10) : roleId,
                 ModuloId: typeof moduloId === 'string' ? parseInt(moduloId, 10) : moduloId,
                 PuedeVer: permisos.puedeVer,
@@ -395,15 +423,15 @@ class RolesApiService {
 
       const updatedBase = await this.getRoleById(roleId);
       const updatedAssignments = await this.getRoleModules(roleId);
-      const moduloIds = updatedAssignments.map(rm => String((rm as any).moduloId));
+      const moduloIds = updatedAssignments.map(rm => String((rm as any).moduloId ?? (rm as any).ModuloId));
       const permisosPorModulo: Record<string, PermisoModulo> = {};
       updatedAssignments.forEach((rm: any) => {
-        const key = String(rm.moduloId);
+        const key = String(rm.moduloId ?? rm.ModuloId);
         permisosPorModulo[key] = {
-          puedeVer: !!rm.puedeVer,
-          puedeCrear: !!rm.puedeCrear,
-          puedeEditar: !!rm.puedeEditar,
-          puedeEliminar: !!rm.puedeEliminar
+          puedeVer: !!(rm.puedeVer ?? rm.PuedeVer),
+          puedeCrear: !!(rm.puedeCrear ?? rm.PuedeCrear),
+          puedeEditar: !!(rm.puedeEditar ?? rm.PuedeEditar),
+          puedeEliminar: !!(rm.puedeEliminar ?? rm.PuedeEliminar)
         };
       });
       return {
@@ -445,7 +473,7 @@ class RolesApiService {
   async getRoleModules(roleId: number): Promise<RolesModulos[]> {
     try {
       const headers = await this.getHeadersWithFirebaseAuth();
-      const response = await fetch(`${API_BASE_URL}/RolesModulos/role/${roleId}`, {
+      const response = await fetch(`${API_BASE_URL}/RolesModulos/role/${roleId}?pageSize=1000`, {
         method: 'GET',
         headers,
       });
@@ -454,8 +482,18 @@ class RolesApiService {
         throw new Error(`Error: ${response.status}`);
       }
 
-      const data = await response.json();
-      return Array.isArray(data) ? data : data.data || [];
+      const raw = await response.json();
+      let rolesModulosData: any[] = [];
+      if (Array.isArray(raw)) {
+        rolesModulosData = raw;
+      } else if (raw && typeof raw === 'object') {
+        rolesModulosData = raw.items || raw.data || raw.$values || raw.Items || raw.Data || [];
+        if (!Array.isArray(rolesModulosData)) {
+          const firstArr = Object.values(raw).find(v => Array.isArray(v)) as any[] | undefined;
+          rolesModulosData = firstArr || [];
+        }
+      }
+      return rolesModulosData;
     } catch (error) {
       console.error('Error fetching role modules:', error);
       throw error;

@@ -1623,7 +1623,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                   }}
                 >
                   <DialogHeader>
-                    <DialogTitle className="text-white-primary flex items-center gap-2">
+                    <DialogTitle className="text-gray-lightest flex items-center gap-2">
                       <Receipt className="w-5 h-5 text-orange-primary" />
                       Registrar Nueva Compra
                     </DialogTitle>
@@ -1634,7 +1634,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                   <div className="space-y-6 pt-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <Hash className="w-4 h-4 text-orange-primary" />
                           Número de Compra (Automático)
                         </Label>
@@ -1645,7 +1645,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-orange-primary" />
                           Fecha de Registro
                         </Label>
@@ -1660,7 +1660,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <FileText className="w-4 h-4 text-orange-primary" />
                           Fecha de Factura *
                         </Label>
@@ -1704,7 +1704,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <CreditCard className="w-4 h-4 text-orange-primary" />
                           Metodo de Pago *
                         </Label>
@@ -1716,9 +1716,9 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                             <SelectValue placeholder="Seleccionar metodo..." />
                           </SelectTrigger>
                           <SelectContent className="bg-gray-darkest border-gray-dark">
-                            <SelectItem value="Efectivo" className="text-white-primary">Efectivo</SelectItem>
-                            <SelectItem value="Tarjeta" className="text-white-primary">Tarjeta</SelectItem>
-                            <SelectItem value="Transferencia" className="text-white-primary">Transferencia</SelectItem>
+                            <SelectItem value="Efectivo" className="text-gray-lightest">Efectivo</SelectItem>
+                            <SelectItem value="Tarjeta" className="text-gray-lightest">Tarjeta</SelectItem>
+                            <SelectItem value="Transferencia" className="text-gray-lightest">Transferencia</SelectItem>
                           </SelectContent>
                         </Select>
                         {showCompraFormErrors && !nuevaCompra.metodoPago && (
@@ -1729,7 +1729,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2 relative">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <Building className="w-4 h-4 text-orange-primary" />
                           Proveedor *
                         </Label>
@@ -1822,7 +1822,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                                   >
                                     <div className="flex justify-between items-center">
                                       <div>
-                                        <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                                        <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
                                           {proveedor.nombre}
                                         </p>
                                         <p className="text-[10px] text-gray-lightest">
@@ -1841,7 +1841,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <Calculator className="w-4 h-4 text-orange-primary" />
                           Porcentaje Descuento (%)
                         </Label>
@@ -1867,11 +1867,11 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-white-primary">Agregar Productos</h3>
+                      <h3 className="text-lg font-normal text-gray-lightest">Agregar Productos</h3>
 
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2 col-span-2 relative">
-                          <Label className="text-white-primary flex items-center gap-2">
+                          <Label className="text-gray-lightest flex items-center gap-2">
                             <ShoppingBag className="w-4 h-4 text-orange-primary" />
                             Producto *
                           </Label>
@@ -1958,23 +1958,21 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                                     >
                                       <div className="flex justify-between items-center">
                                         <div>
-                                          <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
-                                            {producto.nombre}
-                                          </p>
+                                           <p className="text-gray-lightest text-sm">{producto.nombre}</p>
                                           <p className="text-[10px] text-gray-lightest">${formatCurrency(getPrecioCompra(producto as any))}</p>
                                           <p className="text-[10px] text-gray-400">{getCategoriaNombre(producto) || 'Sin categoría'}</p>
                                         </div>
                                         <div className="text-right">
                                           <div className="flex flex-col items-end gap-1">
-                                            <div className="flex items-center gap-2">
+                                             <div className="flex items-center gap-2">
                                               <span className="text-[9px] text-gray-lightest leading-none">Stock ventas</span>
-                                              <span className={`text-xs font-bold ${(((producto as any).stockVentas ?? 0) > 0) ? 'text-green-400' : 'text-red-400'}`}>
+                                              <span className="text-xs text-gray-lightest">
                                                 {Number((producto as any).stockVentas ?? 0)}
                                               </span>
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                             <div className="flex items-center gap-2">
                                               <span className="text-[9px] text-gray-lightest leading-none">Stock insumos</span>
-                                              <span className={`text-xs font-bold ${(((producto as any).stockInsumos ?? (producto as any).stock ?? 0) > 0) ? 'text-blue-400' : 'text-red-400'}`}>
+                                              <span className="text-xs text-gray-lightest">
                                                 {Number((producto as any).stockInsumos ?? (producto as any).stock ?? 0)}
                                               </span>
                                             </div>
@@ -1992,7 +1990,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                           )}
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-white-primary flex items-center gap-2">
+                          <Label className="text-gray-lightest flex items-center gap-2">
                             <Hash className="w-4 h-4 text-orange-primary" />
                             Cantidad Total *
                           </Label>
@@ -2041,7 +2039,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
+                            <Label className="text-gray-lightest flex items-center gap-2">
                               <Boxes className="w-4 h-4 text-orange-primary" />
                               Stock para Ventas
                             </Label>
@@ -2080,7 +2078,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                             )}
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
+                            <Label className="text-gray-lightest flex items-center gap-2">
                               <Boxes className="w-4 h-4 text-orange-primary" />
                               Stock para Entregas
                             </Label>
@@ -2120,7 +2118,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                             )}
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-white-primary">ㅤ</Label>
+                            <Label className="text-gray-lightest">ㅤ</Label>
                             <button
                               onClick={agregarProducto}
                               className="elegante-button-primary w-full"
@@ -2147,7 +2145,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                       {nuevaCompra.productos && nuevaCompra.productos.length > 0 && (
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-md font-medium text-white-primary">Productos Agregados:</h4>
+                            <h4 className="text-md font-normal text-gray-lightest">Productos Agregados:</h4>
 
 
                           </div>
@@ -2438,13 +2436,13 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
             <table className="std-table">
                   <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                     <tr className="border-b border-gray-dark">
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento/NIT Prov.</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Número</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento/NIT Prov.</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Proveedor</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Total</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Fecha</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="std-tbody">

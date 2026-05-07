@@ -1069,12 +1069,12 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             <table className="std-table">
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Horas</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Días Trabajo</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-left py-3 px-4 text-gray-lightest font-normal text-sm">Barbero</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Horas</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Días Trabajo</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="std-tbody">
@@ -1108,7 +1108,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                   <UserIcon className="w-4 h-4 text-gray-lightest" />
                                 )}
                               </div>
-                              <span className="text-white-primary font-medium">{horario.barbero}</span>
+                              <span className="text-gray-lightest font-normal">{horario.barbero}</span>
                             </div>
                           </td>
                           <td className="py-4 px-4 text-center">
@@ -1172,7 +1172,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                               <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
                                 {/* Etiqueta */}
                                 <div className="px-6 py-2 bg-orange-primary/5 border-b border-gray-darker">
-                                  <span className="text-[11px] font-bold uppercase tracking-widest text-orange-primary">
+                                  <span className="text-[11px] font-normal uppercase tracking-widest text-orange-primary">
                                     Horario semanal de {horario.barbero}
                                   </span>
                                 </div>
@@ -1184,11 +1184,11 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                       <tr style={{ background: 'rgba(17,17,17,0.5)', borderBottom: '1px solid #2a2a2a' }}>
-                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '52px' }}>Día</th>
-                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horario</th>
-                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bloques</th>
-                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</th>
-                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 700, color: '#ffffff', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acciones</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '52px' }}>Día</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horario</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bloques</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acciones</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1203,20 +1203,20 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                             onMouseEnter={e => (e.currentTarget.style.background = '#1a1919')}
                                             onMouseLeave={e => (e.currentTarget.style.background = '#111111')}
                                           >
-                                            <td style={{ padding: '12px 16px', paddingLeft: '52px', fontSize: '13px', color: '#ffffff', textAlign: 'left', verticalAlign: 'middle' }}>
-                                              <span style={{ fontWeight: 600 }}>{dia}</span>
+                                            <td style={{ padding: '12px 16px', paddingLeft: '52px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'left', verticalAlign: 'middle' }}>
+                                              <span style={{ fontWeight: 400 }}>{dia}</span>
                                             </td>
-                                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#ffffff', textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'center', verticalAlign: 'middle' }}>
                                               {horaInicio} — {horaFin}
                                             </td>
-                                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#ffffff', textAlign: 'center', verticalAlign: 'middle' }}>
-                                              <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 600, background: 'rgba(216,176,129,0.1)', color: '#d8b081', border: '1px solid rgba(216,176,129,0.2)' }}>
+                                            <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'center', verticalAlign: 'middle' }}>
+                                              <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 400, background: 'rgba(216,176,129,0.1)', color: '#d8b081', border: '1px solid rgba(216,176,129,0.2)' }}>
                                                 {bloquesDelDia.length} bloque{bloquesDelDia.length !== 1 ? 's' : ''}
                                               </span>
                                             </td>
                                             <td style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'center', verticalAlign: 'middle' }}>
                                               <span style={{
-                                                display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 600,
+                                                display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 400,
                                                 background: activos > 0 ? 'var(--status-green)' : 'var(--status-red)',
                                                 color: '#1a1008'
                                               }}>
@@ -1277,7 +1277,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-dark">
-            <DialogTitle className="text-white-primary flex items-center gap-2">
+            <DialogTitle className="text-gray-lightest flex items-center gap-2">
               <Clock className="w-5 h-5 text-orange-primary" />
               {editingHorario ? "Editar Horario" : "Nuevo Horario"}
             </DialogTitle>
@@ -1341,7 +1341,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                               className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer group"
                             >
                               <div className="flex justify-between items-center">
-                                <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                                <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
                                   {barbero.nombre} {barbero.apellido}
                                 </p>
                                 <p className="text-[10px] text-gray-lightest">{barbero.documento || ''}</p>
@@ -1357,7 +1357,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                 {/* Agregar Bloque */}
                 <div className="bg-gray-darker rounded-lg p-4 border border-gray-dark">
                   <div className="mb-3">
-                    <h3 className="text-white-primary font-medium flex items-center gap-2 text-sm">
+                    <h3 className="text-gray-lightest font-normal flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-orange-primary" />
                       Agregar Bloque de Horario
                     </h3>

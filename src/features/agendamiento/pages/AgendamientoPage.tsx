@@ -1223,11 +1223,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   return (
     <>
-      {isLoading && (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-orange-primary text-xl animate-pulse">Cargando datos...</div>
-        </div>
-      )}
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* VISTA DE CREAR / EDITAR CITA (inline, no modal) */}
@@ -1268,7 +1263,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           }}
                           renderItem={(c) => (
                             <div>
-                              <p className="text-white-primary text-sm font-medium">{c.nombre}</p>
+                              <p className="text-gray-lightest text-sm">{c.nombre}</p>
                               <p className="text-gray-lighter text-xs">{c.telefono || 'Sin teléfono'}</p>
                             </div>
                           )}
@@ -1278,7 +1273,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         {nuevaCita.telefono && (
                           <div className="mt-2">
                             <Label className="text-xs text-gray-lighter">Teléfono</Label>
-                            <p className="text-sm text-white-primary">{nuevaCita.telefono}</p>
+                            <p className="text-sm text-gray-lightest">{nuevaCita.telefono}</p>
                           </div>
                         )}
                       </FormSection>
@@ -1303,7 +1298,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             setBarberoFormSearchTerm('');
                           }}
                           renderItem={(b) => (
-                            <p className="text-white-primary text-sm">{b.nombre}</p>
+                            <p className="text-gray-lightest text-sm">{b.nombre}</p>
                           )}
                           isSelected={!!nuevaCita.barberoId}
                           error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
@@ -1341,7 +1336,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                     <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
+                                    <p className="text-gray-lightest text-sm truncate">{s.nombre}</p>
                                     <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
                                   </div>
                                   <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
@@ -1429,7 +1424,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   <Package className="w-5 h-5 text-orange-primary/50" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                  <p className="text-gray-lightest text-sm truncate">{p.nombre}</p>
                                   <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
                                 </div>
                                 <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
@@ -1470,7 +1465,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                     <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                    <p className="text-gray-lightest text-sm truncate">{p.nombre}</p>
                                     <p className="text-gray-lighter text-xs">Stock: {p.stockVentas}{cantActual > 0 ? ` · Ya agregado: ${cantActual}` : ''}</p>
                                   </div>
                                   <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
@@ -1493,19 +1488,19 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                       <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-white-primary text-xs font-medium truncate">{prod.nombre}</p>
+                                      <p className="text-gray-lightest text-xs truncate">{prod.nombre}</p>
                                       <p className="text-orange-primary text-[10px] font-bold">{formatearPrecio(precioUnit)} c/u</p>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       <button
                                         type="button"
                                         onClick={() => removeProducto(pId)}
-                                        className="w-6 h-6 rounded-full bg-gray-dark hover:bg-gray-darker flex items-center justify-center text-white-primary transition-colors"
+                                        className="w-6 h-6 rounded-full bg-gray-dark hover:bg-gray-darker flex items-center justify-center text-gray-lightest transition-colors"
                                         title="Disminuir cantidad"
                                       >
                                         <Minus className="w-3 h-3" />
                                       </button>
-                                      <span className="text-white-primary text-sm font-bold w-6 text-center">{cantidad}</span>
+                                      <span className="text-gray-lightest text-sm w-6 text-center">{cantidad}</span>
                                       <button
                                         type="button"
                                         onClick={() => addProducto(pId)}
@@ -1557,7 +1552,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 </SelectTrigger>
                                 <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
                                   {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
-                                    <SelectItem key={h} value={h} className="text-white-primary">{h}</SelectItem>
+                                    <SelectItem key={h} value={h} className="text-gray-lightest">{h}</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -1589,7 +1584,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               </SelectTrigger>
                               <SelectContent className="bg-gray-darkest border-gray-dark">
                                 {estados.map(e => (
-                                  <SelectItem key={e.value} value={e.value} className="text-white-primary">{e.label}</SelectItem>
+                                  <SelectItem key={e.value} value={e.value} className="text-gray-lightest">{e.label}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -1638,11 +1633,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
                 {/* Header con gradiente */}
                 <div className="bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
-                  <h3 className="text-white-primary font-bold text-lg flex items-center gap-2">
+                  <h3 className="text-gray-lightest font-normal text-lg flex items-center gap-2">
                     <Eye className="w-5 h-5 text-orange-primary" />
                     Resumen de la Cita
                   </h3>
-                  <p className="text-xs text-gray-lighter mt-1">Vista previa de los datos seleccionados</p>
+                  <p className="text-[11px] text-gray-lighter mt-1">Vista previa de los datos seleccionados</p>
                 </div>
 
                 {/* Contenido scrollable */}
@@ -1650,8 +1645,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   {/* Cliente */}
                   {nuevaCita.clienteId > 0 && (
                     <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Cliente</p>
-                      <p className="text-white-primary font-semibold">{nuevaCita.cliente}</p>
+                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-normal mb-1">Cliente</p>
+                      <p className="text-gray-lightest text-sm">{nuevaCita.cliente}</p>
                       {nuevaCita.telefono && <p className="text-xs text-gray-lighter">{nuevaCita.telefono}</p>}
                     </div>
                   )}
@@ -1674,8 +1669,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-white-primary text-sm font-medium truncate">{srv.nombre}</span>
-                                    <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(srv.precio)}</span>
+                                    <span className="text-gray-lightest text-sm truncate font-normal">{srv.nombre}</span>
+                                    <span className="text-orange-primary text-sm font-normal shrink-0 ml-2">{formatearPrecio(srv.precio)}</span>
                                   </div>
                                   {srv.descripcion && (
                                     <p className="text-xs text-gray-lighter mt-0.5 italic truncate">{srv.descripcion}</p>
@@ -1701,9 +1696,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                               <Package className="w-4 h-4 text-orange-primary" />
-                              <span className="text-white-primary font-semibold text-sm">{paq.nombre}</span>
+                              <span className="text-gray-lightest text-sm">{paq.nombre}</span>
                             </div>
-                            <span className="text-orange-primary font-bold text-sm">{formatearPrecio(paq.precio)}</span>
+                            <span className="text-orange-primary font-normal text-sm">{formatearPrecio(paq.precio)}</span>
                           </div>
                           {paq.descripcion && (
                             <p className="text-xs text-gray-lighter mt-1 ml-6 italic">{paq.descripcion}</p>
@@ -1753,15 +1748,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <span className="text-white-primary text-sm font-medium truncate block">{prod.nombre}</span>
+                                  <span className="text-gray-lightest text-sm truncate block">{prod.nombre}</span>
                                   <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-orange-primary text-sm font-bold">{formatearPrecio(precioUnit * cantidad)}</span>
+                                    <span className="text-orange-primary text-sm font-normal">{formatearPrecio(precioUnit * cantidad)}</span>
                                     {cantidad > 1 && (
                                       <span className="text-gray-lighter text-[10px]">({cantidad} × {formatearPrecio(precioUnit)})</span>
                                     )}
                                   </div>
                                 </div>
-                                <span className="bg-orange-primary/20 text-orange-primary text-xs font-bold px-2 py-0.5 rounded-full">{cantidad}</span>
+                                <span className="bg-orange-primary/20 text-orange-primary text-xs font-normal px-2 py-0.5 rounded-full">{cantidad}</span>
                               </div>
                             </div>
                           );
@@ -1776,7 +1771,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Barbero</p>
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-orange-primary" />
-                        <span className="text-white-primary font-medium text-sm">{nuevaCita.barbero}</span>
+                        <span className="text-gray-lightest text-sm">{nuevaCita.barbero}</span>
                       </div>
                     </div>
                   )}
@@ -1787,7 +1782,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Horario</p>
                       <div className="flex items-center gap-2">
                         <CalendarDays className="w-4 h-4 text-orange-primary" />
-                        <span className="text-white-primary text-sm">
+                        <span className="text-gray-lightest text-sm">
                           {nuevaCita.fecha && new Date(nuevaCita.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                           {nuevaCita.hora && ` — ${nuevaCita.hora}`}
                         </span>
@@ -1822,8 +1817,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       border: '1px solid rgba(244,194,69,0.25)',
                     }}
                   >
-                    <span className="text-white-primary font-bold text-base tracking-wide">TOTAL</span>
-                    <span className="text-orange-primary font-bold text-2xl tabular-nums">{formatearPrecio(nuevaCita.precio)}</span>
+                    <span className="text-gray-lightest font-normal text-base tracking-wide">TOTAL</span>
+                    <span className="text-orange-primary font-normal text-2xl tabular-nums">{formatearPrecio(nuevaCita.precio)}</span>
                   </div>
                 </div>
               </div>
@@ -1842,17 +1837,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="elegante-card text-center">
               <Calendar className="w-8 h-8 text-orange-primary mx-auto mb-2" />
-              <h4 className="text-2xl font-bold text-white-primary mb-1">{totalCitas}</h4>
+              <h4 className="text-2xl font-bold text-gray-lightest mb-1">{totalCitas}</h4>
               <p className="text-gray-lightest text-sm">Total Citas</p>
             </div>
             <div className="elegante-card text-center">
               <Clock className="w-8 h-8 text-green-400 mx-auto mb-2" />
-              <h4 className="text-2xl font-bold text-white-primary mb-1">{citasActivas}</h4>
+              <h4 className="text-2xl font-bold text-gray-lightest mb-1">{citasActivas}</h4>
               <p className="text-gray-lightest text-sm">Citas Activas</p>
             </div>
             <div className="elegante-card text-center">
               <User className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-              <h4 className="text-2xl font-bold text-white-primary mb-1">{citasHoy}</h4>
+              <h4 className="text-2xl font-bold text-gray-lightest mb-1">{citasHoy}</h4>
               <p className="text-gray-lightest text-sm">Citas Hoy</p>
             </div>
           </div>
@@ -1945,14 +1940,24 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     <button
                       onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
                       disabled={carouselPage === 0 || citasSemana.length === 0}
-                      className="shrink-0 text-white-primary hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
+                      className="shrink-0 text-gray-lightest hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
 
                     {/* Tarjetas — ocupan el espacio central */}
                     <div className="flex-1 flex gap-3 min-w-0 pr-20">
-                      {citasSemana.length === 0 ? (
+                      {isLoading ? (
+                         <div className="flex-1 flex flex-col items-center justify-center py-6 bg-gray-darker/20 rounded-lg border border-dashed border-gray-dark">
+                           <div className="relative">
+                             <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-dark border-t-orange-primary"></div>
+                             <div className="absolute inset-0 flex items-center justify-center">
+                               <div className="h-1 w-1 bg-orange-primary rounded-full animate-ping"></div>
+                             </div>
+                           </div>
+                           <p className="text-[11px] text-gray-lighter mt-3 tracking-wider uppercase font-medium">Cargando agenda semanal...</p>
+                         </div>
+                       ) : citasSemana.length === 0 ? (
                         <p className="flex-1 text-center text-sm text-gray-dark">Sin citas para esta semana</p>
                       ) : (
                         <>
@@ -1987,13 +1992,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   setIsSlotModalOpen(true);
                                 }}
                               >
-                                <p className="text-sm font-normal text-gray-lightest truncate leading-tight">
+                                <p className="text-sm text-gray-lightest truncate leading-tight">
                                   {formatNombre(cita.clienteNombre)}
                                 </p>
-                                <p className="text-xs text-gray-lighter/80 truncate mt-0.5 leading-tight font-normal">
+                                <p className="text-xs text-gray-lighter/80 truncate mt-0.5 leading-tight">
                                   {servicio}
                                 </p>
-                                <p className="text-[11px] text-gray-light mt-1 leading-tight font-normal tracking-tight">
+                                <p className="text-[11px] text-gray-light mt-1 leading-tight tracking-tight">
                                   {subtitulo}
                                 </p>
                               </div>
@@ -2011,7 +2016,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     <button
                       onClick={() => setCarouselPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={carouselPage >= totalPages - 1 || citasSemana.length === 0}
-                      className="shrink-0 text-white-primary hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
+                      className="shrink-0 text-gray-lightest hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -2021,7 +2026,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   <div className="ml-10 w-[220px] shrink-0 flex justify-end">
                     <div className="rounded-lg border border-gray-dark bg-gray-darker/50 px-3 py-2 text-center min-w-[170px]">
                       <p className="text-[10px] uppercase tracking-widest text-gray-lighter">Total Semana</p>
-                      <p className="text-sm font-semibold text-gray-lightest tabular-nums">{citasSemana.length} citas</p>
+                      <p className="text-sm text-gray-lightest tabular-nums">{citasSemana.length} citas</p>
                     </div>
                   </div>
                 </div>
@@ -2048,14 +2053,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     onClick={() => handleDateSelect(fechaCompleta)}
                   >
                     <div className="flex justify-center items-center gap-1">
-                      <h4 className="text-sm font-bold tracking-[0.06em] uppercase text-gray-lightest">{dia.slice(0, 3)}</h4>
+                      <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest">{dia.slice(0, 3)}</h4>
                       {discount > 0 && (
                         <span className="bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                           -{discount}%
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-bold tracking-[0.06em] text-gray-lightest">{fecha}</p>
+                    <p className="text-sm tracking-[0.06em] text-gray-lightest">{fecha}</p>
                   </div>
                 );
               })}
@@ -2076,7 +2081,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       className="grid gap-1 h-14"
                       style={{ gridTemplateColumns: calendarGridTemplate }}
                     >
-                      <div className="flex h-full items-center justify-center text-center text-[11px] font-semibold tracking-[0.04em] text-gray-lightest whitespace-nowrap">
+                      <div className="flex h-full items-center justify-center text-center text-[11px] tracking-[0.04em] text-gray-lightest whitespace-nowrap">
                         {formatHora12(hora)}
                       </div>
                       {diasSemana.map((dia) => {
@@ -2192,7 +2197,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   className={`absolute left-0 right-0 top-0 flex flex-col items-center justify-center pointer-events-none px-1 gap-0.5 ${tieneMultiples ? 'pt-5' : ''}`}
                                   style={{ height: contentH, zIndex: 3 }}
                                 >
-                                  <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] font-bold leading-tight text-center w-full truncate">
+                                  <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] leading-tight text-center w-full truncate">
                                     {formatNombre((citaEnCurso.clienteNombre || 'Cliente').split(' ')[0])}
                                   </span>
                                   <span style={{ color: isPastSlot ? '#a08060' : '#5a3510' }} className="text-[9px] leading-tight text-center w-full truncate">
@@ -2214,7 +2219,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                       <ChevronLeft className="w-4 h-4" />
                                     </button>
                                     <span
-                                      className="text-[10px] font-bold leading-none select-none"
+                                      className="text-[10px] leading-none select-none"
                                       style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
                                       title={`${citasEnSlot.length} citas en esta franja`}
                                     >
@@ -2254,7 +2259,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       <Dialog open={isSlotModalOpen} onOpenChange={setIsSlotModalOpen}>
         <DialogContent className="bg-gray-darkest border-gray-dark w-[95vw] max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader className="border-b border-gray-dark pb-4">
-            <DialogTitle className="text-white-primary text-2xl flex items-center gap-3">
+            <DialogTitle className="text-gray-lightest text-2xl flex items-center gap-3">
               <Clock className="w-7 h-7 text-orange-primary" />
               {selectedSlot && `${selectedSlot.dia} - ${selectedSlot.hora}:00`}
             </DialogTitle>
@@ -2368,7 +2373,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             className="w-4 h-4 rounded-full"
                             style={{ backgroundColor: getCitaColor(cita.estado) }}
                           />
-                          <h4 className="font-semibold text-white-primary">{cita.clienteNombre}</h4>
+                          <h4 className="text-gray-lightest">{cita.clienteNombre}</h4>
                           <div className={`elegante-tag ${getEstadoInfo(cita.estado).color} text-white text-xs`}>
                             {getEstadoInfo(cita.estado).label}
                           </div>
@@ -2382,7 +2387,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             </SelectTrigger>
                             <SelectContent className="bg-gray-darkest border-gray-dark">
                               {estados.map((estado) => (
-                                <SelectItem key={estado.value} value={estado.value} className="text-white-primary text-xs">
+                                <SelectItem key={estado.value} value={estado.value} className="text-gray-lightest text-xs">
                                   {estado.label}
                                 </SelectItem>
                               ))}
@@ -2462,7 +2467,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             <div className="space-y-6">
               <div className="bg-gray-darker border border-gray-dark rounded-lg p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-white-primary">{formatNombre(selectedCita.clienteNombre)}</h3>
+                  <h3 className="text-xl text-gray-lightest">{formatNombre(selectedCita.clienteNombre)}</h3>
                   <div className={`elegante-tag ${getEstadoInfo(selectedCita.estado).color} text-white`}>
                     {getEstadoInfo(selectedCita.estado).label}
                   </div>
@@ -2472,13 +2477,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-sm font-semibold text-gray-light mb-1">Información del Cliente</h4>
-                      <p className="text-white-primary">{formatNombre(selectedCita.clienteNombre)}</p>
+                      <p className="text-gray-lightest">{formatNombre(selectedCita.clienteNombre)}</p>
                       <p className="text-gray-lightest text-sm">{selectedCita.telefono}</p>
                     </div>
 
                     <div>
                       <h4 className="text-sm font-semibold text-gray-light mb-1">Servicio</h4>
-                      <p className="text-white-primary">{formatNombre(selectedCita.servicioNombre)}</p>
+                      <p className="text-gray-lightest">{formatNombre(selectedCita.servicioNombre)}</p>
                       <p className="text-orange-primary font-semibold">{formatearPrecio(selectedCita.precio)}</p>
                     </div>
                     {selectedCita.productosNombres && selectedCita.productosNombres.length > 0 && (
@@ -2487,7 +2492,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           <ShoppingBag className="w-3.5 h-3.5" /> Productos
                         </h4>
                         {selectedCita.productosNombres.map((nombre: string, i: number) => (
-                          <p key={i} className="text-white-primary text-sm">• {formatNombre(nombre)}</p>
+                          <p key={i} className="text-gray-lightest text-sm">• {formatNombre(nombre)}</p>
                         ))}
                       </div>
                     )}
@@ -2496,13 +2501,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-sm font-semibold text-gray-light mb-1">Programación</h4>
-                      <p className="text-white-primary">{selectedCita.fecha}</p>
+                      <p className="text-gray-lightest">{selectedCita.fecha}</p>
                       <p className="text-gray-lightest">{selectedCita.hora} - {selectedCita.duracion} minutos</p>
                     </div>
 
                     <div>
                       <h4 className="text-sm font-semibold text-gray-light mb-1">Barbero Asignado</h4>
-                      <p className="text-white-primary">{formatNombre(selectedCita.barberoNombre)}</p>
+                      <p className="text-gray-lightest">{formatNombre(selectedCita.barberoNombre)}</p>
                     </div>
                   </div>
                 </div>

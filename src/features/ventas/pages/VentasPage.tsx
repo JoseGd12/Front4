@@ -1344,10 +1344,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
       const nuevaVentaCreada = await ventaService.createVenta(ventaData);
 
-      // Restar stock de los productos vendidos
-      for (const p of productosActuales) {
-        await productoService.adjustStock(Number(p.id), p.cantidad, 'decrement', 'ventas');
-      }
+      // Stock adjustment is now handled automatically by the backend when createVenta is called
+      // to avoid double deduction of quantities.
 
       // Ajustar saldo a favor localmente si se usó
       if (nuevaVenta.usarSaldoAFavor && nuevaVenta.clienteId) {
@@ -1933,15 +1931,24 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
               {/* Tabla de Ventas */}
               <div className="std-table-wrapper">
                 <table className="std-table">
+                  <colgroup>
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "15%" }} />
+                  </colgroup>
                   <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                     <tr className="border-b border-gray-dark">
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Documento Cliente</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Nombre Cliente</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha de Registro</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                      <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Número</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento Cliente</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Nombre Cliente</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Total</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Fecha de Registro</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="std-tbody">
@@ -1973,7 +1980,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                           </div>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter font-bold">
+                          <span className="text-gray-lighter font-normal">
                             ${(() => {
                               const sumDev = devoluciones
                                 .filter((d) => {
@@ -2075,11 +2082,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
         {/* Diálogo de Detalles de Venta */}
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-          <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto text-white-primary">
+          <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto text-gray-lightest">
             {loadingDetails ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-white-primary flex items-center gap-2">
+                  <DialogTitle className="text-gray-lightest flex items-center gap-2">
                     <Receipt className="w-5 h-5 text-orange-primary" />
                     Cargando...
                   </DialogTitle>
@@ -2097,7 +2104,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
             ) : selectedVenta ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-white-primary flex items-center gap-2">
+                  <DialogTitle className="text-gray-lightest flex items-center gap-2">
                     <Receipt className="w-5 h-5 text-orange-primary" />
                     Detalle de Venta
                   </DialogTitle>
@@ -2109,7 +2116,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <Hash className="w-4 h-4 text-orange-primary" />
                         Número de Recibo
                       </Label>
@@ -2125,7 +2132,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <Hash className="w-4 h-4 text-orange-primary" />
                         Número de Venta
                       </Label>
@@ -2136,7 +2143,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-orange-primary" />
                         Fecha de Registro
                       </Label>
@@ -2150,7 +2157,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <User className="w-4 h-4 text-orange-primary" />
                         Cliente
                       </Label>
@@ -2161,7 +2168,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-orange-primary" />
                         Método de Pago
                       </Label>
@@ -2172,7 +2179,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <FileText className="w-4 h-4 text-orange-primary" />
                         Tipo de Venta
                       </Label>
@@ -2186,7 +2193,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <Scissors className="w-4 h-4 text-orange-primary" />
                         Barbero
                       </Label>
@@ -2197,7 +2204,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <Calculator className="w-4 h-4 text-orange-primary" />
                         Porcentaje Descuento (%)
                       </Label>
@@ -2212,7 +2219,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         <User className="w-4 h-4 text-orange-primary" />
                         Responsable
                       </Label>
@@ -2223,7 +2230,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center justify-between">
+                      <Label className="text-gray-lightest flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <ShieldCheck className="w-4 h-4 text-orange-primary" />
                           Garantía
@@ -2257,7 +2264,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
                         Estado
                       </Label>
                       <div className="h-10 flex items-center">
@@ -2272,7 +2279,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-md font-medium text-white-primary">Productos y Servicios {devolucionesVentaActual.length > 0 ? '(Ajustado por Devoluciones)' : 'Agregados'}:</h4>
+                      <h4 className="text-md font-normal text-gray-lightest">Productos y Servicios {devolucionesVentaActual.length > 0 ? '(Ajustado por Devoluciones)' : 'Agregados'}:</h4>
                     </div>
                     <div className="space-y-2 max-h-52 overflow-y-auto">
                       {detalleItemsVenta.length > 0 ? (
@@ -2288,7 +2295,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                                 />
                               </div>
                               <div className="min-w-0 flex-1 shrink flex items-center justify-center">
-                                <span className="text-white-primary font-semibold text-base truncate block text-center w-full" title={detalle.nombre}>
+                                <span className="text-gray-lightest font-normal text-base truncate block text-center w-full" title={detalle.nombre}>
                                   {detalle.nombre}
                                   <span className="ml-2 text-[11px] text-gray-lightest font-normal">({detalle.tipo})</span>
                                 </span>
@@ -2313,7 +2320,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
                               <div className="flex flex-col gap-0.5 shrink-0 justify-center">
                                 <label className="text-[11px] text-gray-400 font-normal">Subt.</label>
-                                <span className="text-orange-primary font-semibold text-xs tabular-nums leading-7">
+                                <span className="text-orange-primary font-normal text-xs tabular-nums leading-7">
                                   ${formatCurrency(detalle.subtotal)}
                                 </span>
                               </div>
@@ -2331,7 +2338,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                   {devolucionesVentaActual.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-md font-medium text-white-primary">Devoluciones Asociadas:</h4>
+                        <h4 className="text-md font-normal text-gray-lightest">Devoluciones Asociadas:</h4>
                         <span className="text-[11px] text-gray-lightest">
                           Total Devuelto: <span className="text-orange-primary font-semibold">${formatCurrency(totalMontoDevuelto)}</span>
                         </span>
@@ -2348,7 +2355,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                                 />
                               </div>
                               <div className="min-w-0 flex-1 shrink">
-                                <span className="text-white-primary font-semibold text-sm truncate block" title={dev.producto}>
+                                <span className="text-gray-lightest font-normal text-sm truncate block" title={dev.producto}>
                                   {dev.producto}
                                 </span>
                                 <div className="text-[11px] text-gray-lightest">
@@ -2358,11 +2365,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                               </div>
                               <div className="flex flex-col gap-0.5 shrink-0 text-right">
                                 <span className="text-[11px] text-gray-400">Cantidad</span>
-                                <span className="text-xs text-white-primary tabular-nums">{dev.cantidad}</span>
+                                <span className="text-xs text-gray-lightest tabular-nums">{dev.cantidad}</span>
                               </div>
                               <div className="flex flex-col gap-0.5 shrink-0 text-right">
                                 <span className="text-[11px] text-gray-400">Monto</span>
-                                <span className="text-xs text-orange-primary font-semibold tabular-nums">
+                                <span className="text-xs text-orange-primary font-normal tabular-nums">
                                   ${formatCurrency(dev.monto)}
                                 </span>
                               </div>
@@ -2389,7 +2396,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     )}
 
                     {/* Subtotal Ajustado */}
-                    <div className="flex justify-between text-white-primary font-semibold">
+                    <div className="flex justify-between text-gray-lightest font-normal">
                       <span>Subtotal Ajustado:</span>
                       <span>
                         ${formatCurrency(

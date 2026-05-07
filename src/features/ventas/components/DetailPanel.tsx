@@ -84,7 +84,7 @@ export function DetailPanel({
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
               <Package className="w-4 h-4 text-blue-400" />
-              <h4 className="text-sm font-semibold text-white-primary">
+              <h4 className="text-sm font-normal text-gray-lightest">
                 Productos ({productos.length})
               </h4>
             </div>
@@ -109,8 +109,8 @@ export function DetailPanel({
                       </div>
 
                       <div className="min-w-0 flex-1 shrink flex flex-col items-center justify-center">
-                        <span
-                          className="text-white-primary font-semibold text-sm truncate block text-center w-full"
+                         <span
+                          className="text-gray-lightest font-normal text-sm truncate block text-center w-full"
                           title={p.nombre}
                         >
                           {p.nombre}
@@ -151,14 +151,14 @@ export function DetailPanel({
 
                       <div className="flex flex-col gap-0.5 shrink-0">
                         <label className="text-[11px] text-gray-400 font-normal">Precio</label>
-                        <span className="text-white-primary font-medium text-xs tabular-nums leading-7 text-right">
+                         <span className="text-gray-lightest font-normal text-xs tabular-nums leading-7 text-right">
                           ${formatCurrency(p.precio)}
                         </span>
                       </div>
 
                       <div className="flex flex-col gap-0.5 shrink-0">
                         <label className="text-[11px] text-gray-400 font-normal">Subt.</label>
-                        <span className="text-orange-primary font-semibold text-xs tabular-nums leading-7">
+                         <span className="text-orange-primary font-normal text-xs tabular-nums leading-7">
                           ${formatCurrency(p.cantidad * p.precio)}
                         </span>
                       </div>
@@ -183,7 +183,7 @@ export function DetailPanel({
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
               <Scissors className="w-4 h-4 text-purple-400" />
-              <h4 className="text-sm font-semibold text-white-primary">
+              <h4 className="text-sm font-normal text-gray-lightest">
                 Servicios ({servicios.length})
               </h4>
             </div>
@@ -203,8 +203,8 @@ export function DetailPanel({
                     </div>
 
                     <div className="min-w-0 flex-1 shrink flex flex-col items-center justify-center">
-                      <span
-                        className="text-white-primary font-semibold text-sm truncate block text-center w-full"
+                       <span
+                        className="text-gray-lightest font-normal text-sm truncate block text-center w-full"
                         title={s.nombre}
                       >
                         {s.nombre}
@@ -213,14 +213,14 @@ export function DetailPanel({
 
                     <div className="flex flex-col gap-0.5 shrink-0">
                       <label className="text-[11px] text-gray-400 font-normal">Precio</label>
-                      <span className="text-white-primary font-medium text-xs tabular-nums leading-7 text-right">
+                       <span className="text-gray-lightest font-normal text-xs tabular-nums leading-7 text-right">
                         ${formatCurrency(s.precio)}
                       </span>
                     </div>
 
                     <div className="flex flex-col gap-0.5 shrink-0">
                       <label className="text-[11px] text-gray-400 font-normal">Total</label>
-                      <span className="text-orange-primary font-semibold text-xs tabular-nums leading-7">
+                       <span className="text-orange-primary font-normal text-xs tabular-nums leading-7">
                         ${formatCurrency(s.cantidad * s.precio)}
                       </span>
                     </div>
@@ -256,8 +256,8 @@ export function DetailPanel({
             background: 'rgba(255,255,255,0.03)',
           }}
         >
-          <span className="text-white-primary font-semibold text-sm">Subtotal</span>
-          <span className="text-white-primary font-bold text-lg tabular-nums">
+           <span className="text-gray-lightest font-normal text-sm">Subtotal</span>
+          <span className="text-gray-lightest font-normal text-lg tabular-nums">
             ${formatCurrency(subtotalGeneral)}
           </span>
         </div>
@@ -269,10 +269,10 @@ export function DetailPanel({
             background: 'rgba(255,255,255,0.03)',
           }}
         >
-          <span className="text-white-primary font-semibold text-sm">
+           <span className="text-gray-lightest font-normal text-sm">
             Descuento ({descuentoPorcentaje}%)
           </span>
-          <span className={`font-bold text-lg tabular-nums ${descuentoMonto > 0 ? 'text-red-400' : 'text-gray-lightest'}`}>
+          <span className={`font-normal text-lg tabular-nums ${descuentoMonto > 0 ? 'text-red-400' : 'text-gray-lightest'}`}>
             {descuentoMonto > 0 ? '-' : ''}${formatCurrency(descuentoMonto)}
           </span>
         </div>
@@ -285,8 +285,8 @@ export function DetailPanel({
               background: 'rgba(74,222,128,0.04)',
             }}
           >
-            <span className="text-green-400 font-semibold text-sm">Saldo a Favor</span>
-            <span className="text-green-400 font-bold text-lg tabular-nums">
+             <span className="text-green-400 font-normal text-sm">Saldo a Favor</span>
+            <span className="text-green-400 font-normal text-lg tabular-nums">
               -${formatCurrency(saldoUsado)}
             </span>
           </div>
@@ -301,8 +301,8 @@ export function DetailPanel({
             border: '1px solid rgba(244,194,69,0.25)',
           }}
         >
-          <span className="text-white-primary font-bold text-base tracking-wide">TOTAL</span>
-          <span className="text-orange-primary font-bold text-2xl tabular-nums">
+           <span className="text-gray-lightest font-normal text-base tracking-wide">TOTAL</span>
+          <span className="text-orange-primary font-normal text-2xl tabular-nums">
             ${formatCurrency(Math.max(0, total))}
           </span>
         </div>

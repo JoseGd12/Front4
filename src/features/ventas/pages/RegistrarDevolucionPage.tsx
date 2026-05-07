@@ -721,15 +721,15 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                     <div className="flex items-center gap-2" style={{ paddingRight: '20px' }}>
-                      <span className="text-white-primary font-bold">Nº Devolución:</span>
-                      <span className="text-gray-lightest font-medium tabular-nums">
+                      <span className="text-gray-lightest font-normal">Nº Devolución:</span>
+                      <span className="text-gray-lightest font-normal tabular-nums">
                         {numeroDevolucion.toString().padStart(3, "0")}
                       </span>
                     </div>
                     <div className="hidden sm:block w-px h-4 bg-gray-dark" />
                     <div className="flex items-center gap-2">
-                      <span className="text-white-primary font-bold">Fecha:</span>
-                      <span className="text-gray-lightest font-medium">
+                      <span className="text-gray-lightest font-normal">Fecha:</span>
+                      <span className="text-gray-lightest font-normal">
                         {formatDate(generateCurrentDate())}
                       </span>
                     </div>
@@ -747,7 +747,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                 <div className="flex gap-3">
                   <button
                     onClick={() => { setTipoDevolucion('venta'); limpiarFormulario(); setTipoDevolucion('venta'); }}
-                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-normal transition-all ${
                       tipoDevolucion === 'venta'
                         ? 'bg-red-500/20 text-red-300 border border-red-500/30'
                         : 'bg-gray-darker text-gray-lightest border border-gray-dark hover:bg-gray-dark'
@@ -757,7 +757,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                   </button>
                   <button
                     onClick={() => { setTipoDevolucion('insumos'); limpiarFormulario(); setTipoDevolucion('insumos'); }}
-                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-normal transition-all ${
                       tipoDevolucion === 'insumos'
                         ? 'bg-red-500/20 text-red-300 border border-red-500/30'
                         : 'bg-gray-darker text-gray-lightest border border-gray-dark hover:bg-gray-dark'
@@ -802,7 +802,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                           return (
                             <div className="flex justify-between items-center">
                               <div>
-                                <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                                <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
                                   Venta #{venta.numeroVenta} — {venta.cliente}
                                 </p>
                                 <p className="text-[10px] text-gray-lightest">
@@ -810,9 +810,9 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-xs font-bold text-white-primary">${formatCurrency(venta.total)}</p>
+                                <p className="text-xs font-normal text-gray-lightest">${formatCurrency(venta.total)}</p>
                                 {diasGarantia !== null && (
-                                  <p className={`text-[9px] font-medium ${diasGarantia > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  <p className={`text-[9px] font-normal ${diasGarantia > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {diasGarantia > 0 ? `${diasGarantia} días de garantía` : 'Garantía expirada'}
                                   </p>
                                 )}
@@ -866,7 +866,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
                                     <ImageRenderer url={producto.imagen || ""} alt={producto.nombre} className="w-full h-full border-0 bg-transparent" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-white-primary font-medium text-sm truncate">{producto.nombre}</p>
+                                    <p className="text-gray-lightest font-normal text-sm truncate">{producto.nombre}</p>
                                     <p className="text-[10px] text-gray-lightest">
                                       Precio: ${formatCurrency(producto.precio)} • Disponible: {maxCant}
                                     </p>

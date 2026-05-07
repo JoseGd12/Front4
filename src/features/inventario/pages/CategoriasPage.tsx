@@ -295,7 +295,7 @@ export function CategoriasPage() {
       <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Gestión de Categorías</h1>
+            <h1 className="text-2xl font-semibold text-gray-lightest">Gestión de Categorías</h1>
             <p className="text-sm text-gray-lightest mt-1">Administra las categorías de productos</p>
           </div>
         </div>
@@ -337,7 +337,7 @@ export function CategoriasPage() {
                   }}
                 >
                   <DialogHeader>
-                    <DialogTitle className="text-white-primary flex items-center gap-2">
+                    <DialogTitle className="text-gray-lightest flex items-center gap-2">
                       <Plus className="w-5 h-5 text-orange-primary" />
                       Crear Nueva Categoría
                     </DialogTitle>
@@ -354,7 +354,7 @@ export function CategoriasPage() {
                     )}
 
                     <div className="space-y-2">
-                    <Label className="text-white-primary">Nombre de la Categoría *</Label>
+                    <Label className="text-gray-lightest">Nombre de la Categoría *</Label>
                     <Input
                       value={nuevaCategoria.nombre}
                       onChange={(e) => {
@@ -379,7 +379,7 @@ export function CategoriasPage() {
                     ) : null}
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary">Descripción</Label>
+                      <Label className="text-gray-lightest">Descripción</Label>
                       <textarea
                         value={nuevaCategoria.descripcion}
                         onChange={(e) => setNuevaCategoria({ ...nuevaCategoria, descripcion: e.target.value })}
@@ -389,7 +389,7 @@ export function CategoriasPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary">Estado</Label>
+                      <Label className="text-gray-lightest">Estado</Label>
                       <div className="flex items-center space-x-3">
                         <Switch
                           checked={nuevaCategoria.estado}
@@ -480,7 +480,7 @@ export function CategoriasPage() {
                           <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center">
                             <Tags className="w-4 h-4 text-black-primary" />
                           </div>
-                          <span className="font-medium text-white-primary">{categoria.nombre}</span>
+                          <span className="text-gray-lightest">{categoria.nombre}</span>
                         </div>
                       </td>
                       <td className="std-td">
@@ -580,7 +580,7 @@ export function CategoriasPage() {
             }}
           >
             <DialogHeader>
-              <DialogTitle className="text-white-primary flex items-center gap-2">
+              <DialogTitle className="text-gray-lightest flex items-center gap-2">
                 <Edit className="w-5 h-5 text-orange-primary" />
                 Editar Categoría
               </DialogTitle>
@@ -597,7 +597,7 @@ export function CategoriasPage() {
               )}
 
               <div className="space-y-2">
-                <Label className="text-white-primary">Nombre de la Categoría *</Label>
+                <Label className="text-gray-lightest">Nombre de la Categoría *</Label>
                 <Input
                   value={editCategoria.nombre}
                   onChange={(e) => {
@@ -625,7 +625,7 @@ export function CategoriasPage() {
                 ) : null}
               </div>
               <div className="space-y-2">
-                <Label className="text-white-primary">Descripción</Label>
+                <Label className="text-gray-lightest">Descripción</Label>
                 <textarea
                   value={editCategoria.descripcion}
                   onChange={(e) => setEditCategoria({ ...editCategoria, descripcion: e.target.value })}
@@ -635,7 +635,7 @@ export function CategoriasPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-white-primary">Estado</Label>
+                <Label className="text-gray-lightest">Estado</Label>
                 <div className="flex items-center space-x-3">
                   <Switch
                     checked={editCategoria.estado}
@@ -677,7 +677,7 @@ export function CategoriasPage() {
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
           <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-white-primary">Detalle de Categoría</DialogTitle>
+              <DialogTitle className="text-gray-lightest">Detalle de Categoría</DialogTitle>
               
             </DialogHeader>
             {selectedCategoria && (
@@ -685,7 +685,7 @@ export function CategoriasPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-light">ID de Categoría</p>
-                    <p className="font-semibold text-orange-primary">{selectedCategoria.id}</p>
+                    <p className="text-orange-primary">{selectedCategoria.id}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-light">Estado</p>
@@ -695,7 +695,7 @@ export function CategoriasPage() {
                       ) : (
                         <PowerOff className="w-4 h-4 text-gray-lightest" />
                       )}
-                      <span className={`font-semibold ${selectedCategoria.estado ? 'text-orange-primary' : 'text-gray-lightest'}`}>
+                      <span className={` ${selectedCategoria.estado ? 'text-orange-primary' : 'text-gray-lightest'}`}>
                         {selectedCategoria.estado ? 'Activa' : 'Inactiva'}
                       </span>
                     </div>
@@ -703,11 +703,11 @@ export function CategoriasPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-light">Nombre</p>
-                  <p className="font-semibold text-white-primary text-lg">{selectedCategoria.nombre}</p>
+                  <p className="text-gray-lightest text-lg">{selectedCategoria.nombre}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-light">Descripción</p>
-                  <p className="text-white-primary">{selectedCategoria.descripcion || 'Sin descripción'}</p>
+                  <p className="text-gray-lightest">{selectedCategoria.descripcion || 'Sin descripción'}</p>
                 </div>
 
                 <div className="flex justify-end pt-4 border-t border-gray-dark">

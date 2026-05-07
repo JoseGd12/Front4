@@ -102,19 +102,19 @@ const getRemainingWarrantyDays = (fechaISO: string, _garantiaMeses: number): num
 
 // ─── Design Tokens (Front4 palette) ──────────────────────────────────────────
 const T = {
-  orangePrimary:  "#d8b081",
-  orangeDarker:   "#c4a06d",
-  blackPrimary:   "#212020",
+  orangePrimary: "#d8b081",
+  orangeDarker: "#c4a06d",
+  blackPrimary: "#212020",
   blackSecondary: "#111111",
-  grayDarkest:    "#1a1919",
-  grayDarker:     "#2a2a2a",
-  grayDark:       "#3a3a3a",
-  grayMedium:     "#333131",
-  grayLightest:   "#d0d0d0",
-  whitePrimary:   "#ffffff",
+  grayDarkest: "#1a1919",
+  grayDarker: "#2a2a2a",
+  grayDark: "#3a3a3a",
+  grayMedium: "#333131",
+  grayLightest: "#d0d0d0",
+  whitePrimary: "#ffffff",
   whiteSecondary: "#f5f5f5",
-  green:          "#7aab8a",
-  red:            "#b07070",
+  green: "#7aab8a",
+  red: "#b07070",
 };
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
@@ -244,8 +244,8 @@ const css = `
 
   .dev-client-name {
     font-size: 14px;
-    font-weight: 600;
-    color: ${T.whitePrimary};
+    font-weight: 400;
+    color: ${T.grayLightest};
     line-height: 1.3;
   }
   .dev-client-doc {
@@ -332,7 +332,7 @@ const css = `
     background: none;
     border: none;
     cursor: pointer;
-    color: ${T.grayDark};
+    color: ${T.grayLightest};
     padding: 6px;
     border-radius: 7px;
     display: inline-flex;
@@ -432,6 +432,7 @@ interface Devolucion {
   entregaId?: number;
   entregaEstado?: string;
   entregaFecha?: string;
+  userImagen?: string;
 }
 
 // Interface para manejar saldos de clientes
@@ -450,6 +451,7 @@ interface DevolucionesPageProps {
 
 export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const { user } = useAuth();
+  const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const { created, success, error: showErrorAlert, info: showInfoAlert, warning: showWarningAlert, AlertContainer } = useCustomAlert();
   const { confirmCreateAction, confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
@@ -526,7 +528,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       setBarberosDisponibles(barberos || []);
 
       // Crear mapa de clienteId -> info de cliente para búsqueda rápida
-      const clientesMapa = new Map<number, { documento: string; tipoDocumento?: string; nombreCompleto?: string }>();
+      const clientesMapa = new Map<number, { documento: string; tipoDocumento?: string; nombreCompleto?: string; imagen?: string }>();
       clientes.forEach(cliente => {
         if (cliente.id) {
           const documentoStr = cliente.documento || '';
@@ -538,7 +540,18 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           clientesMapa.set(cliente.id, {
             documento: numeroDocumento,
             tipoDocumento: tipoDocumento,
-            nombreCompleto
+            nombreCompleto,
+            imagen: String(cliente.fotoPerfil || cliente.FotoPerfil || cliente.imagen || cliente.foto || '')
+          });
+        }
+      });
+
+      const barberosMapa = new Map<number, { nombreCompleto: string; imagen: string }>();
+      (barberos || []).forEach((barbero: any) => {
+        if (barbero.id) {
+          barberosMapa.set(Number(barbero.id), {
+            nombreCompleto: `${barbero.nombre || ''} ${barbero.apellido || ''}`.trim(),
+            imagen: String(barbero.fotoPerfil || barbero.FotoPerfil || barbero.imagen || barbero.foto || '')
           });
         }
       });
@@ -626,7 +639,12 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           productoId: d.productoId,
           entregaId: (d as any).entregaId,
           entregaEstado: (d as any).entregaEstado,
-          entregaFecha: (d as any).entregaFecha
+          entregaFecha: (d as any).entregaFecha,
+          userImagen: clienteIdNum && clientesMapa.has(clienteIdNum)
+            ? clientesMapa.get(clienteIdNum)!.imagen
+            : (d as any).barberoId && barberosMapa.has(Number((d as any).barberoId))
+              ? barberosMapa.get(Number((d as any).barberoId))!.imagen
+              : ''
         };
       });
 
@@ -785,6 +803,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       saldoTotal: number;
       totalDevoluciones: number;
       ultimaDevolucion: string;
+      imagen: string;
       items: Devolucion[]
     }>();
 
@@ -823,6 +842,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         saldoTotal: String(devolucion.estado).toLowerCase() === 'completada' ? saldo : 0,
         totalDevoluciones: 1,
         ultimaDevolucion: devolucion.fecha,
+        imagen: devolucion.userImagen || '',
         items: [devolucion]
       });
     });
@@ -1471,11 +1491,11 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       const pageWidth = doc.internal.pageSize.getWidth();
       const hMargin = 20;
 
-      
+
 
       try {
         doc.addImage(manitoLogo, 'JPEG', pageWidth / 2 - 12.5, 5, 25, 25);
-      } catch {}
+      } catch { }
 
       const negocioNombre = "Manito BarberShop";
       const negocioEmail = "Edwainsolano007@gmail.com";
@@ -1666,7 +1686,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
           {/* ── Toolbar ── */}
           <div className="dev-toolbar">
-            <button 
+            <button
               className="btn-std-primary"
               onClick={() => {
                 if (onNavigate) {
@@ -1717,8 +1737,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
             <table className="dev-table">
               <thead className="dev-thead">
                 <tr>
+                  <th style={{ textAlign: "left", paddingLeft: "20px" }}>Documento</th>
                   <th>Usuario</th>
-                  <th>Tipo</th>
                   <th>Total Devoluciones</th>
                   <th>Saldo a Favor Total</th>
                   <th>Última Devolución</th>
@@ -1751,11 +1771,38 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                           className="dev-group-row"
                           onClick={() => toggleExpand(grupo.key)}
                         >
-                          {/* Usuario + Rol debajo */}
+                          {/* Documento */}
                           <td className="dev-group-cell">
+                            <div className="flex items-center gap-2">
+                              <span style={{ fontWeight: 400, color: T.grayLightest }}>
+                                {grupo.tipoDocumento} {grupo.documento}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Usuario + Rol debajo */}
+                          <td className="dev-td" style={{ textAlign: 'left' }}>
                             <div className="dev-group-inner">
-                              <div className="dev-avatar">
-                                {inits(grupo.cliente)}
+                              <div
+                                className="dev-avatar"
+                                style={{
+                                  overflow: 'hidden',
+                                  background: (grupo.imagen && grupo.imagen.trim() !== '' && grupo.imagen !== 'No especificada') ? 'transparent' : T.orangePrimary,
+                                  color: T.blackPrimary,
+                                  border: 'none'
+                                }}
+                              >
+                                {(grupo.imagen && grupo.imagen.trim() !== '' && grupo.imagen !== 'No especificada') ? (
+                                  <ImageRenderer
+                                    url={grupo.imagen}
+                                    alt={grupo.cliente}
+                                    className="w-full h-full object-cover border-0 bg-transparent rounded-full"
+                                    showLabel={false}
+                                    fallbackVariant="person"
+                                  />
+                                ) : (
+                                  <UserIcon className="w-5 h-5" />
+                                )}
                               </div>
                               <div>
                                 <div className="dev-client-name">{grupo.cliente}</div>
@@ -1766,26 +1813,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                             </div>
                           </td>
 
-                          {/* Tipo */}
-                          <td className="dev-td">
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '4px 12px',
-                                borderRadius: '12px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                background: grupo.tipo === 'Barbero' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(251, 146, 60, 0.15)',
-                                color: grupo.tipo === 'Barbero' ? '#3b82f6' : '#fb923c',
-                                border: `1px solid ${grupo.tipo === 'Barbero' ? '#3b82f6' : '#fb923c'}`,
-                              }}
-                            >
-                              {grupo.tipo}
-                            </span>
-                          </td>
-
                           {/* Total devoluciones */}
-                          <td className="dev-td" style={{ fontWeight: 600, color: T.whitePrimary }}>
+                          <td className="dev-td" style={{ fontWeight: 400, color: T.grayLightest }}>
                             {grupo.totalDevoluciones}
                           </td>
 
@@ -1795,7 +1824,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                               style={{
                                 fontWeight: 700,
                                 fontSize: "14px",
-                                color: grupo.saldoTotal > 0 ? T.green : T.grayDark,
+                                color: grupo.saldoTotal > 0 ? (isAdminOrSuperAdmin ? T.red : T.green) : T.grayDark,
                               }}
                             >
                               ${formatCurrency(grupo.saldoTotal)}
@@ -1826,134 +1855,143 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                             <div className={`dev-accordion-wrap${open ? " open" : ""}`}>
                               <div className="dev-accordion-inner">
 
-                              {/* Sub-label */}
-                              <div className="dev-sub-label">
-                                Todas las devoluciones de{" "}
-                                <span style={{ color: T.orangePrimary, fontWeight: 600 }}>
-                                  {grupo.cliente}
-                                </span>
-                              </div>
+                                {/* Sub-label */}
+                                <div className="dev-sub-label">
+                                  Todas las devoluciones de{" "}
+                                  <span style={{ color: T.orangePrimary, fontWeight: 600 }}>
+                                    {grupo.cliente}
+                                  </span>
+                                </div>
 
-                              {/* Inner table */}
-                              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                <thead>
-                                  <tr className="dev-sub-header">
-                                    <th>Número</th>
-                                    <th>Tipo</th>
-                                    <th>Monto Devolución</th>
-                                    <th>Saldo a Favor</th>
-                                    <th>Fecha de Registro</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {devsFiltradas.length === 0 ? (
-                                    <tr>
-                                      <td
-                                        colSpan={7}
-                                        style={{
-                                          padding: "20px",
-                                          textAlign: "center",
-                                          color: T.grayDark,
-                                          fontSize: "13px",
-                                        }}
-                                      >
-                                        Sin devoluciones para este filtro.
-                                      </td>
+                                {/* Inner table */}
+                                <table className="dev-table" style={{ borderTop: 'none' }}>
+                                  <colgroup>
+                                    <col style={{ width: "15%" }} />
+                                    <col style={{ width: "10%" }} />
+                                    <col style={{ width: "15%" }} />
+                                    <col style={{ width: "15%" }} />
+                                    <col style={{ width: "15%" }} />
+                                    <col style={{ width: "15%" }} />
+                                    <col style={{ width: "15%" }} />
+                                  </colgroup>
+                                  <thead>
+                                    <tr className="dev-sub-header">
+                                      <th>Número</th>
+                                      <th>Tipo</th>
+                                      <th>Monto Devolución</th>
+                                      <th>Saldo a Favor</th>
+                                      <th>Fecha de Registro</th>
+                                      <th>Estado</th>
+                                      <th>Acciones</th>
                                     </tr>
-                                  ) : (
-                                    devsFiltradas.map((dev) => (
-                                      <tr key={dev.id} className="dev-item-row">
-
-                                        {/* Número */}
+                                  </thead>
+                                  <tbody>
+                                    {devsFiltradas.length === 0 ? (
+                                      <tr>
                                         <td
-                                          className="dev-td"
-                                          style={{ paddingLeft: "52px", textAlign: "left" }}
+                                          colSpan={7}
+                                          style={{
+                                            padding: "20px",
+                                            textAlign: "center",
+                                            color: T.grayDark,
+                                            fontSize: "13px",
+                                          }}
                                         >
-                                          <span className="dev-num">
-                                            <Hash className="w-3 h-3" />
-                                            {dev.id}
-                                          </span>
-                                        </td>
-
-                                        {/* Tipo */}
-                                        <td className="dev-td">
-                                          {dev.ventaId ? 'Venta' : (dev.entregaId ? 'Insumos' : '—')}
-                                        </td>
-
-                                        {/* Monto */}
-                                        <td
-                                          className="dev-td"
-                                          style={{ fontWeight: 600, color: T.whitePrimary }}
-                                        >
-                                          ${formatCurrency(dev.monto)}
-                                        </td>
-
-                                        {/* Saldo a Favor */}
-                                        <td className="dev-td">
-                                          <span
-                                            style={{
-                                              color: dev.saldoAFavor > 0 ? T.green : T.grayDark,
-                                              fontWeight: dev.saldoAFavor > 0 ? 600 : 400,
-                                            }}
-                                          >
-                                            ${formatCurrency(dev.saldoAFavor)}
-                                          </span>
-                                        </td>
-
-                                        {/* Fecha */}
-                                        <td className="dev-td">{dev.fecha}</td>
-
-                                        {/* Estado */}
-                                        <td className="dev-td">
-                                          <span className={badgeClass(dev.estado)}>
-                                            {dev.estado}
-                                          </span>
-                                        </td>
-
-                                        {/* Acciones */}
-                                        <td className="dev-td">
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              justifyContent: "center",
-                                              gap: "4px",
-                                            }}
-                                          >
-                                            <button
-                                              className="dev-icon-btn ban"
-                                              title="Anular devolución"
-                                              disabled={dev.estado !== "Completada"}
-                                              onClick={() => handleToggleEstado(dev)}
-                                            >
-                                              <Ban className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                              className="dev-icon-btn eye"
-                                              title="Ver detalle"
-                                              onClick={() => {
-                                                setSelectedDevolucion(dev);
-                                                setIsDetailDialogOpen(true);
-                                              }}
-                                            >
-                                              <Eye className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                              className="dev-icon-btn pdf"
-                                              title="Descargar PDF"
-                                              onClick={() => generateIndividualPdf(dev)}
-                                            >
-                                              <FileDown className="w-4 h-4" />
-                                            </button>
-                                          </div>
+                                          Sin devoluciones para este filtro.
                                         </td>
                                       </tr>
-                                    ))
-                                  )}
-                                </tbody>
-                              </table>
+                                    ) : (
+                                      devsFiltradas.map((dev) => (
+                                        <tr key={dev.id} className="dev-item-row">
+
+                                          {/* Número */}
+                                          <td
+                                            className="dev-td"
+                                            style={{ paddingLeft: "52px", textAlign: "left" }}
+                                          >
+                                            <span className="dev-num">
+                                              <Hash className="w-3 h-3" />
+                                              {dev.id}
+                                            </span>
+                                          </td>
+
+                                          {/* Tipo */}
+                                          <td className="dev-td">
+                                            {dev.ventaId ? 'Venta' : (dev.entregaId ? 'Insumos' : '—')}
+                                          </td>
+
+                                          {/* Monto */}
+                                          <td
+                                            className="dev-td"
+                                            style={{ fontWeight: 400, color: T.grayLightest }}
+                                          >
+                                            ${formatCurrency(dev.monto)}
+                                          </td>
+
+                                          {/* Saldo a Favor */}
+                                          <td className="dev-td">
+                                            <span
+                                              style={{
+                                                color: dev.saldoAFavor > 0 ? (isAdminOrSuperAdmin ? T.red : T.green) : T.grayDark,
+                                                fontWeight: 400,
+                                              }}
+                                            >
+                                              ${formatCurrency(dev.saldoAFavor)}
+                                            </span>
+                                          </td>
+
+                                          {/* Fecha */}
+                                          <td className="dev-td">{dev.fecha}</td>
+
+                                          {/* Estado */}
+                                          <td className="dev-td">
+                                            <span className={badgeClass(dev.estado)}>
+                                              {dev.estado}
+                                            </span>
+                                          </td>
+
+                                          {/* Acciones */}
+                                          <td className="dev-td">
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                gap: "4px",
+                                              }}
+                                            >
+                                              <button
+                                                className="dev-icon-btn ban"
+                                                title="Anular devolución"
+                                                disabled={dev.estado !== "Completada"}
+                                                onClick={() => handleToggleEstado(dev)}
+                                              >
+                                                <Ban className="w-4 h-4" />
+                                              </button>
+                                              <button
+                                                className="dev-icon-btn eye"
+                                                title="Ver detalle"
+                                                onClick={() => {
+                                                  setSelectedDevolucion(dev);
+                                                  setIsDetailDialogOpen(true);
+                                                }}
+                                              >
+                                                <Eye className="w-4 h-4" />
+                                              </button>
+                                              <button
+                                                className="dev-icon-btn pdf"
+                                                title="Descargar PDF"
+                                                onClick={() => generateIndividualPdf(dev)}
+                                              >
+                                                <FileDown className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))
+                                    )}
+                                  </tbody>
+                                </table>
 
                               </div>
                             </div>
@@ -1987,7 +2025,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white-primary">Detalle de Devolución </DialogTitle>
+            <DialogTitle className="text-gray-lightest">Detalle de Devolución </DialogTitle>
 
             <DialogDescription className="text-gray-lightest">
               Información completa de la devolución {selectedDevolucion?.id}
@@ -2006,7 +2044,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
               {/* Selección de Venta (Lectura) */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <Receipt className="w-4 h-4 text-orange-primary" />
                     Número de Venta
                   </Label>
@@ -2017,7 +2055,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <IdCard className="w-4 h-4 text-orange-primary" />
                     Documento Cliente
                   </Label>
@@ -2028,7 +2066,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
 
                     Estado
                   </Label>
@@ -2049,19 +2087,19 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                       <UserIcon className="w-4 h-4 text-orange-primary" />
                       Cliente
                     </Label>
-                    <p className="font-semibold text-white-primary">
+                    <p className="font-normal text-gray-lightest">
                       {selectedDevolucion.cliente}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-light">Responsable</p>
-                    <p className="font-semibold text-white-primary">
+                    <p className="font-normal text-gray-lightest">
                       {selectedDevolucion.responsable}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-light">Fecha y Hora</p>
-                    <p className="font-semibold text-white-primary">
+                    <p className="font-normal text-gray-lightest">
                       {selectedDevolucion.fecha} - {selectedDevolucion.hora}
                     </p>
                   </div>
@@ -2089,7 +2127,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                       </div>
 
                       <div className="min-w-0 flex-1 shrink flex items-center justify-start">
-                        <span className="text-white-primary font-semibold text-base truncate block w-full">
+                        <span className="text-gray-lightest font-normal text-base truncate block w-full">
                           {selectedDevolucion.producto}
                         </span>
                       </div>
@@ -2106,14 +2144,14 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
                       <div className="flex flex-col gap-0.5 shrink-0">
                         <label className="text-[11px] text-gray-400 font-normal">Precio Unit.</label>
-                        <span className="text-white-primary font-semibold text-xs tabular-nums leading-7">
+                        <span className="text-gray-lightest font-normal text-xs tabular-nums leading-7">
                           ${formatCurrency(selectedDevolucion.precioUnitario)}
                         </span>
                       </div>
 
                       <div className="flex flex-col gap-0.5 shrink-0 justify-center">
                         <label className="text-[11px] text-gray-400 font-normal">Subt.</label>
-                        <span className="text-orange-primary font-semibold text-xs tabular-nums leading-7">
+                        <span className="text-orange-primary font-normal text-xs tabular-nums leading-7">
                           ${formatCurrency(selectedDevolucion.monto)}
                         </span>
                       </div>
@@ -2125,7 +2163,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
               {/* Motivo */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-orange-primary" />
                     Motivo de la Devolución
                   </Label>
@@ -2136,7 +2174,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-orange-primary" />
                     Resumen Seleccionado
                   </Label>
@@ -2151,7 +2189,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
               {/* Observaciones */}
               <div className="space-y-2">
-                <Label className="text-white-primary flex items-center gap-2">
+                <Label className="text-gray-lightest flex items-center gap-2">
                   <FileText className="w-4 h-4 text-orange-primary" />
                   Observaciones
                 </Label>
@@ -2204,7 +2242,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
                 return (
                   <div className="space-y-3 pt-2">
-                    <h4 className="text-md font-medium text-white-primary flex items-center gap-2">
+                    <h4 className="text-md font-normal text-gray-lightest flex items-center gap-2">
                       <Receipt className="w-4 h-4 text-orange-primary" />
                       Venta Asociada — Productos después de la devolución
                     </h4>
@@ -2220,7 +2258,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                               />
                             </div>
                             <div className="min-w-0 flex-1 shrink flex items-center justify-center">
-                              <span className="text-white-primary font-semibold text-base truncate block text-center w-full" title={p.nombre}>
+                              <span className="text-gray-lightest font-normal text-base truncate block text-center w-full" title={p.nombre}>
                                 {p.nombre}
                               </span>
                             </div>
@@ -2271,10 +2309,10 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                 </div>
                 <div className="flex justify-between text-gray-lightest">
                   <span>Saldo a Favor Actual:</span>
-                  <span className="text-green-400 font-bold text-md">${formatCurrency(selectedDevolucion.saldoAFavor)}</span>
+                  <span className={`${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'} font-bold text-md`}>${formatCurrency(selectedDevolucion.saldoAFavor)}</span>
                 </div>
                 <p className="text-sm text-gray-lightest pt-2 border-t border-gray-dark mt-2">
-                  Saldo Total Acumulado del Cliente: <span className="text-green-400 font-bold">${formatCurrency(getSaldoTotalCliente(selectedDevolucion.clienteId))}</span>
+                  Saldo Total Acumulado del Cliente: <span className={`${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'} font-bold`}>${formatCurrency(getSaldoTotalCliente(selectedDevolucion.clienteId))}</span>
                 </p>
               </div>
 
@@ -2295,7 +2333,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white-primary">Nueva Devolución</DialogTitle>
+            <DialogTitle className="text-gray-lightest">Nueva Devolución</DialogTitle>
             <DialogDescription className="text-gray-lightest">
               Registra una nueva devolución de producto para generar saldo a favor
             </DialogDescription>
@@ -2303,7 +2341,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           <div className="space-y-6 pt-4">
             {/* Buscador Principal de Ventas */}
             <div className="space-y-2 relative">
-              <Label className="text-white-primary flex items-center gap-2">
+              <Label className="text-gray-lightest flex items-center gap-2">
                 <Search className="w-4 h-4 text-orange-primary" />
                 Buscar Venta o Barbero *
               </Label>
@@ -2408,7 +2446,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                                 </div>
                                 <div className="flex justify-between items-end">
                                   <div>
-                                    <p className="text-white-primary font-medium text-xs group-hover:text-orange-secondary transition-colors">
+                                    <p className="text-sm text-gray-lightest font-normal">
                                       {clienteNombre}
                                     </p>
                                     <p className="text-[10px] text-gray-lightest">{venta.clienteDocumento || 'Sin documento'}</p>
@@ -2871,7 +2909,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-green-400 font-bold text-lg">${formatCurrency(saldo.saldoTotal)}</p>
+                    <p className={`font-bold text-lg ${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'}`}>${formatCurrency(saldo.saldoTotal)}</p>
                     <p className="text-gray-lightest text-sm">Saldo disponible</p>
                   </div>
                 </div>
@@ -2886,7 +2924,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                       .map((dev) => (
                         <div key={dev.id} className="flex items-center justify-between text-sm">
                           <span className="text-gray-lightest">{dev.id} - {dev.producto}</span>
-                          <span className="text-green-400">${formatCurrency(dev.saldoAFavor)}</span>
+                          <span className={isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'}>${formatCurrency(dev.saldoAFavor)}</span>
                         </div>
                       ))}
                   </div>

@@ -25,6 +25,7 @@ import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { rolesApiService, RoleWithModules, CreateRoleData, UpdateRoleData, PermisoModulo } from "../services/rolesApiService";
 import { modulosService, Modulo } from "../services/modulosService";
 
@@ -438,7 +439,7 @@ export function RolesPage() {
     try {
       console.log(`📋 Cargando rolesmodulos para rol ${roleId}...`);
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/RolesModulos/role/${roleId}`, {
+      const response = await fetch(`${API_BASE_URL}/RolesModulos/role/${roleId}?pageSize=1000`, {
         method: 'GET',
         headers,
       });
@@ -447,8 +448,19 @@ export function RolesPage() {
         throw new Error(`Error: ${response.status}`);
       }
 
-      const rolesModulosData = await response.json();
-      console.log('📋 Datos crudos de rolesmodulos API:', rolesModulosData);
+      const raw = await response.json();
+      console.log('📋 Datos crudos de rolesmodulos API:', raw);
+      // Normalizar: la API puede devolver un array directo o un objeto paginado
+      let rolesModulosData: any[] = [];
+      if (Array.isArray(raw)) {
+        rolesModulosData = raw;
+      } else if (raw && typeof raw === 'object') {
+        rolesModulosData = raw.items || raw.data || raw.$values || raw.Items || raw.Data || [];
+        if (!Array.isArray(rolesModulosData)) {
+          const firstArr = Object.values(raw).find(v => Array.isArray(v)) as any[] | undefined;
+          rolesModulosData = firstArr || [];
+        }
+      }
       return rolesModulosData;
     } catch (error) {
       console.error('Error cargando rolesmodulos:', error);
@@ -463,6 +475,7 @@ export function RolesPage() {
 
     // Cargar rolesmodulos específicos del rol
     const rolesModulosData = await loadRolesModulosByRole(rol.id);
+    console.log('📋 rolesModulosData normalizado:', rolesModulosData);
 
     // Actualizar el rol seleccionado con los datos de rolesmodulos
     setSelectedRole(prev => ({
@@ -622,131 +635,52 @@ export function RolesPage() {
         <div className="std-card">
 
           {/* Barra de Controles */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pt-2">
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Botón Nuevo Rol */}
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <button
-                    className="btn-std-primary disabled:opacity-50"
-                    onClick={() => {
-                      setNuevoRol({ nombre: '', descripcion: '', modulos: [] });
-                      setHasTriedToSubmit(false);
-                    }}
-                    disabled={isCreating || isEditing || isDeleting}
-                  >
-                    {isCreating || isEditing || isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    Nuevo Rol
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
-                  <DialogHeader>
-                    <DialogTitle className="text-white-primary">Crear Nuevo Rol</DialogTitle>
-                    <DialogDescription className="text-gray-lightest">
-                      Define el nombre, descripción y módulos de acceso para el nuevo rol
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-6 pt-4">
-                    {/* Información Básica */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
-                          <UserCheck className="w-4 h-4 text-orange-primary" />
-                          Nombre del Rol *
-                        </Label>
-                        <Input
-                          value={nuevoRol.nombre}
-                          onChange={(e) => setNuevoRol({ ...nuevoRol, nombre: e.target.value })}
-                          placeholder="Ej: Content Manager"
-                          className={`elegante-input w-full ${hasTriedToSubmit && !nuevoRol.nombre.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                        />
-                        {hasTriedToSubmit && !nuevoRol.nombre.trim() && (
-                          <p className="text-xs text-red-500 mt-1">Este campo es obligatorio.</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-orange-primary" />
-                          Descripción
-                        </Label>
-                        <Input
-                          value={nuevoRol.descripcion}
-                          onChange={(e) => setNuevoRol({ ...nuevoRol, descripcion: e.target.value })}
-                          placeholder="Descripción del rol..."
-                          className="elegante-input w-full"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Módulos */}
-                    <ModuleSelector
-                      modulos={nuevoRol.modulos}
-                      onToggle={toggleModulo}
-                      isEditing={false}
-                      showPermisos={false}
-                    />
-                  </div>
-
-                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
-                    <button
-                      onClick={() => setIsDialogOpen(false)}
-                      className="elegante-button-secondary"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleCreateRole}
-                      className="elegante-button-primary disabled:opacity-50"
-                      disabled={isCreating}
-                    >
-                      {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      {isCreating ? 'Creando...' : 'Crear Rol'}
-                    </button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter" />
-                <Input
-                  placeholder="Buscar roles..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="elegante-input pl-10 w-80"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-lighter" />
-                <Select value={filterEstado} onValueChange={(val) => { setFilterEstado(val as 'todos' | 'activo' | 'inactivo'); setCurrentPage(1); }}>
-                  <SelectTrigger className="elegante-input px-3 py-2 text-sm">
-                    <SelectValue placeholder="Todos" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-darkest border-gray-dark">
-                    <SelectItem value="todos" className="text-white-primary">Todos</SelectItem>
-                    <SelectItem value="activo" className="text-white-primary">Activo</SelectItem>
-                    <SelectItem value="inactivo" className="text-white-primary">Inactivo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="text-sm text-gray-lightest">
-              Mostrando {displayedRoles.length} de {filteredRoles.length} roles
-            </div>
-          </div>
+          <TableHeaderSection
+            variant="dark"
+            leftContent={(
+              <button
+                className="btn-std-primary disabled:opacity-50"
+                onClick={() => {
+                  setNuevoRol({ nombre: '', descripcion: '', modulos: [] });
+                  setHasTriedToSubmit(false);
+                  setIsDialogOpen(true);
+                }}
+                disabled={isCreating || isEditing || isDeleting}
+              >
+                {isCreating || isEditing || isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Nuevo Rol
+              </button>
+            )}
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Buscar roles..."
+            statusFilter={{
+              value: filterEstado,
+              onChange: (val) => {
+                setFilterEstado(val as 'todos' | 'activo' | 'inactivo');
+                setCurrentPage(1);
+              },
+              options: [
+                { value: 'todos', label: 'Todos' },
+                { value: 'activo', label: 'Activos' },
+                { value: 'inactivo', label: 'Inactivos' },
+              ],
+            }}
+            recordsText={`Mostrando ${displayedRoles.length} de ${filteredRoles.length} roles`}
+            recordsPlacement="right"
+          />
 
           {/* Tabla de Roles */}
           <div className="std-table-wrapper">
             <table className="std-table">
                 <thead className={loading && roles.length === 0 ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">ID</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Rol</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Usuarios</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Módulos</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">ID</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Rol</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Usuarios</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Módulos</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="std-tbody">
@@ -807,13 +741,13 @@ export function RolesPage() {
                               const modulosIds: string[] = [];
 
                               rolesModulosData.forEach((rm: any) => {
-                                const modId = String(rm.moduloId);
+                                const modId = String(rm.moduloId ?? rm.ModuloId);
                                 modulosIds.push(modId);
                                 permisosMap[modId] = {
-                                  puedeVer: rm.puedeVer,
-                                  puedeCrear: rm.puedeCrear,
-                                  puedeEditar: rm.puedeEditar,
-                                  puedeEliminar: rm.puedeEliminar
+                                  puedeVer: rm.puedeVer ?? rm.PuedeVer,
+                                  puedeCrear: rm.puedeCrear ?? rm.PuedeCrear,
+                                  puedeEditar: rm.puedeEditar ?? rm.PuedeEditar,
+                                  puedeEliminar: rm.puedeEliminar ?? rm.PuedeEliminar
                                 };
                               });
 
@@ -870,6 +804,72 @@ export function RolesPage() {
             </div>
           )}
         </div>
+        {/* Dialog de Creación */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
+            <DialogHeader>
+              <DialogTitle className="text-white-primary">Crear Nuevo Rol</DialogTitle>
+              <DialogDescription className="text-gray-lightest">
+                Define el nombre, descripción y módulos de acceso para el nuevo rol
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-orange-primary" />
+                    Nombre del Rol *
+                  </Label>
+                  <Input
+                    value={nuevoRol.nombre}
+                    onChange={(e) => setNuevoRol({ ...nuevoRol, nombre: e.target.value })}
+                    placeholder="Ej: Content Manager"
+                    className={`elegante-input w-full ${hasTriedToSubmit && !nuevoRol.nombre.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  />
+                  {hasTriedToSubmit && !nuevoRol.nombre.trim() && (
+                    <p className="text-xs text-red-500 mt-1">Este campo es obligatorio.</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-orange-primary" />
+                    Descripción
+                  </Label>
+                  <Input
+                    value={nuevoRol.descripcion}
+                    onChange={(e) => setNuevoRol({ ...nuevoRol, descripcion: e.target.value })}
+                    placeholder="Descripción del rol..."
+                    className="elegante-input w-full"
+                  />
+                </div>
+              </div>
+
+              <ModuleSelector
+                modulos={nuevoRol.modulos}
+                onToggle={toggleModulo}
+                isEditing={false}
+                showPermisos={false}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
+              <button
+                onClick={() => setIsDialogOpen(false)}
+                className="elegante-button-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateRole}
+                className="elegante-button-primary disabled:opacity-50"
+                disabled={isCreating}
+              >
+                {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {isCreating ? 'Creando...' : 'Crear Rol'}
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Dialog de Detalles */}
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
@@ -911,37 +911,29 @@ export function RolesPage() {
                 </div>
 
                 <div>
-                  <Label className="text-gray-lightest">Módulos con Acceso ({selectedRole.modulos?.length || 0})</Label>
+                  <Label className="text-gray-lightest">Módulos con Acceso ({selectedRole.rolesModulos?.length || selectedRole.modulos?.length || 0})</Label>
                   <div className="mt-2 space-y-2">
-                    {(() => {
-                      console.log('🔍 Debug - selectedRole:', selectedRole);
-                      console.log('🔍 Debug - modulos:', selectedRole.modulos);
-                      console.log('🔍 Debug - permisosPorModulo:', selectedRole.permisosPorModulo);
-                      console.log('🔍 Debug - rolesModulos:', selectedRole.rolesModulos);
-                      return null;
-                    })()}
                     {selectedRole.rolesModulos && selectedRole.rolesModulos.length > 0 ? (
                       selectedRole.rolesModulos.map((rolModulo: any) => {
-                        const modulo = getModuloInfo(String(rolModulo.moduloId)); // Convertir a string
-                        if (!modulo) {
-                          console.log('⚠️ Módulo no encontrado para ID:', rolModulo.moduloId);
-                          return null;
-                        }
+                        const moduloId = String(rolModulo.moduloId ?? rolModulo.ModuloId);
+                        const modulo = getModuloInfo(moduloId);
 
-                        const IconComponent = modulo.icono;
+                        const IconComponent = modulo?.icono || Settings;
+                        const moduloNombre = modulo?.nombre || rolModulo.modulo?.nombre || `Módulo ${moduloId}`;
+                        const moduloDesc = modulo?.descripcion || rolModulo.modulo?.descripcion || '';
 
                         return (
-                          <div key={rolModulo.moduloId} className="flex items-center gap-3 p-3 bg-gray-darker rounded-lg">
-                            <IconComponent className={`w-4 h-4 ${modulo.color}`} />
+                          <div key={moduloId} className="flex items-center gap-3 p-3 bg-gray-darker rounded-lg">
+                            <IconComponent className={`w-4 h-4 ${modulo?.color || 'text-gray-lighter'}`} />
                             <div className="flex-1">
-                              <p className="text-white-primary font-medium text-sm">{modulo.nombre}</p>
-                              <p className="text-gray-lightest text-xs">{modulo.descripcion}</p>
+                              <p className="text-white-primary font-medium text-sm">{moduloNombre}</p>
+                              {moduloDesc && <p className="text-gray-lightest text-xs">{moduloDesc}</p>}
                               <div className="mt-1 text-xs text-gray-lightest">
                                 <span className="text-orange-primary">
-                                  Permisos: {rolModulo.puedeVer ? '✓' : '✗'} Ver,
-                                  {rolModulo.puedeCrear ? '✓' : '✗'} Crear,
-                                  {rolModulo.puedeEditar ? '✓' : '✗'} Editar,
-                                  {rolModulo.puedeEliminar ? '✓' : '✗'} Eliminar
+                                  Permisos: {(rolModulo.puedeVer ?? rolModulo.PuedeVer) ? '✓' : '✗'} Ver,{' '}
+                                  {(rolModulo.puedeCrear ?? rolModulo.PuedeCrear) ? '✓' : '✗'} Crear,{' '}
+                                  {(rolModulo.puedeEditar ?? rolModulo.PuedeEditar) ? '✓' : '✗'} Editar,{' '}
+                                  {(rolModulo.puedeEliminar ?? rolModulo.PuedeEliminar) ? '✓' : '✗'} Eliminar
                                 </span>
                               </div>
                             </div>
@@ -950,7 +942,7 @@ export function RolesPage() {
                       })
                     ) : (
                       <div className="p-4 bg-gray-darker rounded-lg text-center">
-                        <p className="text-gray-lightest text-sm">Este rol no tiene módulos asignados</p>
+                        <p className="text-gray-lightest text-sm">Cargando módulos...</p>
                       </div>
                     )}
                   </div>

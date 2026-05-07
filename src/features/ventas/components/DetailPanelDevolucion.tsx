@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import { useAuth } from "../../../shared/contexts/AuthContext";
 
 const formatCurrency = (amount: number): string => {
   return (amount ?? 0).toLocaleString('es-CO');
@@ -47,6 +48,8 @@ export function DetailPanelDevolucion({
   getTarjetaInput,
   onTarjetaInputChange,
 }: DetailPanelDevolucionProps) {
+  const { user } = useAuth();
+  const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const tieneItems = productos.length > 0;
 
   return (
@@ -63,7 +66,7 @@ export function DetailPanelDevolucion({
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
               <Package className="w-4 h-4 text-red-400" />
-              <h4 className="text-sm font-semibold text-white-primary">
+              <h4 className="text-sm font-normal text-gray-lightest">
                 Productos ({productos.length})
               </h4>
             </div>
@@ -88,8 +91,8 @@ export function DetailPanelDevolucion({
                       </div>
 
                       <div className="min-w-0 flex-1 shrink flex flex-col items-center justify-center">
-                        <span
-                          className="text-white-primary font-semibold text-sm truncate block text-center w-full"
+                         <span
+                          className="text-gray-lightest font-normal text-sm truncate block text-center w-full"
                           title={p.nombre}
                         >
                           {p.nombre}
@@ -130,14 +133,14 @@ export function DetailPanelDevolucion({
 
                       <div className="flex flex-col gap-0.5 shrink-0">
                         <label className="text-[11px] text-gray-400 font-normal">Precio</label>
-                        <span className="text-white-primary font-medium text-xs tabular-nums leading-7 text-right">
+                         <span className="text-gray-lightest font-normal text-xs tabular-nums leading-7 text-right">
                           ${formatCurrency(p.precio)}
                         </span>
                       </div>
 
                       <div className="flex flex-col gap-0.5 shrink-0">
                         <label className="text-[11px] text-gray-400 font-normal">Subt.</label>
-                        <span className="text-red-400 font-semibold text-xs tabular-nums leading-7">
+                         <span className="text-red-400 font-normal text-xs tabular-nums leading-7">
                           ${formatCurrency(p.cantidad * p.precio)}
                         </span>
                       </div>
@@ -174,8 +177,8 @@ export function DetailPanelDevolucion({
             background: 'rgba(255,255,255,0.03)',
           }}
         >
-          <span className="text-white-primary font-semibold text-sm">Subtotal</span>
-          <span className="text-white-primary font-bold text-lg tabular-nums">
+           <span className="text-gray-lightest font-normal text-sm">Subtotal</span>
+          <span className="text-gray-lightest font-normal text-lg tabular-nums">
             ${formatCurrency(subtotal)}
           </span>
         </div>
@@ -184,12 +187,12 @@ export function DetailPanelDevolucion({
           <div
             className="mx-5 mb-4 flex justify-between items-center rounded-lg px-4 py-2.5"
             style={{
-              border: '1px solid rgba(74,222,128,0.15)',
-              background: 'rgba(74,222,128,0.04)',
+              border: `1px solid ${isAdminOrSuperAdmin ? 'rgba(248,113,113,0.15)' : 'rgba(74,222,128,0.15)'}`,
+              background: isAdminOrSuperAdmin ? 'rgba(248,113,113,0.04)' : 'rgba(74,222,128,0.04)',
             }}
           >
-            <span className="text-green-400 font-semibold text-sm">Saldo a Favor generado</span>
-            <span className="text-green-400 font-bold text-lg tabular-nums">
+             <span className={`${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'} font-normal text-sm`}>Saldo a Favor generado</span>
+            <span className={`${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'} font-normal text-lg tabular-nums`}>
               +${formatCurrency(saldoAFavor)}
             </span>
           </div>
@@ -204,8 +207,8 @@ export function DetailPanelDevolucion({
             border: '1px solid rgba(248,113,113,0.25)',
           }}
         >
-          <span className="text-white-primary font-bold text-base tracking-wide">TOTAL DEVOLUCIÓN</span>
-          <span className="text-red-400 font-bold text-2xl tabular-nums">
+           <span className="text-gray-lightest font-normal text-base tracking-wide">TOTAL DEVOLUCIÓN</span>
+          <span className="text-red-400 font-normal text-2xl tabular-nums">
             ${formatCurrency(Math.max(0, total))}
           </span>
         </div>

@@ -234,10 +234,10 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
       // Barberos - Usar barberosService para obtener el BarberoId real
       const barberosResponse = await barberosService.getBarberos().catch(() => []);
-      const barberos = Array.isArray(barberosResponse) 
+      const barberos = Array.isArray(barberosResponse)
         ? barberosResponse.map(b => barberosService.mapApiToComponent(b))
         : [];
-      
+
       setBarberosAPI(barberos);
     } catch (err: any) {
       console.error("Error cargando datos:", err);
@@ -928,15 +928,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
       const nuevaVentaCreada = await ventaService.createVenta(ventaData);
 
-      // Adjust stock
-      for (const p of productosActuales) {
-        await productoService.adjustStock(
-          Number(p.id),
-          p.cantidad,
-          "decrement",
-          "ventas"
-        );
-      }
+      // Stock adjustment is now handled automatically by the backend when createVenta is called
+      // to avoid double deduction of quantities.
 
       // Handle saldo a favor
       if (nuevaVenta.usarSaldoAFavor && nuevaVenta.clienteId) {
@@ -1056,7 +1049,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
                     <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
-                      <span className="text-white-primary font-bold">
+                      <span className="text-gray-lightest font-normal">
                         Nº Venta:
                       </span>
                       <span className="text-gray-lightest font-medium tabular-nums">
@@ -1066,7 +1059,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
                     <div className="hidden sm:block w-px h-4 bg-gray-dark" />
                     <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
-                      <span className="text-white-primary font-bold">
+                      <span className="text-gray-lightest font-normal">
                         Nº Recibo:
                       </span>
                       <span className="text-gray-lightest font-medium tabular-nums">
@@ -1076,7 +1069,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
                     <div className="hidden sm:block w-px h-4 bg-gray-dark" />
                     <div className="flex items-right gap-2">
-                      <span className="text-white-primary font-bold">
+                      <span className="text-gray-lightest font-normal">
                         Fecha:
                       </span>
                       <span className="text-gray-lightest font-medium">
@@ -1125,7 +1118,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       renderItem={(cliente) => (
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                            <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
                               {cliente.nombre}
                             </p>
                             <p className="text-[10px] text-gray-lightest">
@@ -1137,9 +1130,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                               Saldo Disponible
                             </p>
                             <p
-                              className={`text-xs font-bold ${cliente.saldoAFavor > 0
-                                  ? "text-green-400"
-                                  : "text-gray-lightest"
+                              className={`text-xs ${cliente.saldoAFavor > 0
+                                ? "text-green-400"
+                                : "text-gray-lightest"
                                 }`}
                             >
                               ${formatCurrency(cliente.saldoAFavor)}
@@ -1187,26 +1180,26 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                           className={`p-2 rounded-full ${clientesDisponibles.find(
                             (c) => c.id === Number(nuevaVenta.clienteId)
                           )?.saldoAFavor
-                              ? "bg-orange-primary/10"
-                              : "bg-gray-dark"
+                            ? "bg-orange-primary/10"
+                            : "bg-gray-dark"
                             }`}
                         >
                           <DollarSign
                             className={`w-5 h-5 ${clientesDisponibles.find(
                               (c) => c.id === Number(nuevaVenta.clienteId)
                             )?.saldoAFavor
-                                ? "text-orange-primary"
-                                : "text-gray-lightest"
+                              ? "text-orange-primary"
+                              : "text-gray-lightest"
                               }`}
                           />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white-primary">
+                          <p className="text-sm text-gray-lightest">
                             Saldo a Favor del Cliente
                           </p>
                           <p className="text-xs text-gray-lightest">
                             Disponible:{" "}
-                            <span className="text-orange-primary font-bold">
+                            <span className="text-orange-primary">
                               $
                               {formatCurrency(
                                 clientesDisponibles.find(
@@ -1224,8 +1217,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       )?.saldoAFavor || 0) > 0 && (
                           <div
                             className={`flex items-center space-x-3 px-4 py-2 rounded-lg border transition-all cursor-pointer ${nuevaVenta.usarSaldoAFavor
-                                ? "bg-blue-500/10 border-blue-500/30"
-                                : "bg-gray-dark border-gray-medium/30 hover:bg-gray-dark/80"
+                              ? "bg-blue-500/10 border-blue-500/30"
+                              : "bg-gray-dark border-gray-medium/30 hover:bg-gray-dark/80"
                               }`}
                             onClick={() =>
                               setNuevaVenta({
@@ -1244,16 +1237,16 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                                 });
                               }}
                               className={`border-2 ${nuevaVenta.usarSaldoAFavor
-                                  ? "border-blue-400 bg-blue-500 text-white"
-                                  : "border-gray-400"
+                                ? "border-blue-400 bg-blue-500 text-white"
+                                : "border-gray-400"
                                 }`}
                               checkClassName="stroke-[3.5] w-3 h-3"
                             />
                             <label
                               htmlFor="usar-saldo"
-                              className={`text-sm font-semibold leading-none cursor-pointer select-none ${nuevaVenta.usarSaldoAFavor
-                                  ? "text-blue-400"
-                                  : "text-gray-light"
+                              className={`text-sm leading-none cursor-pointer select-none ${nuevaVenta.usarSaldoAFavor
+                                ? "text-blue-400"
+                                : "text-gray-light"
                                 }`}
                             >
                               Usar saldo en esta venta
@@ -1286,8 +1279,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     >
                       <SelectTrigger
                         className={`elegante-input ${showVentaFormErrors && !nuevaVenta.metodoPago
-                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                            : ""
+                          ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                          : ""
                           }`}
                       >
                         <SelectValue placeholder="Selecciona el método" />
@@ -1362,7 +1355,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       renderItem={(producto) => (
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                            <p className="text-gray-lightest text-sm group-hover:text-orange-secondary transition-colors">
                               {producto.nombre}
                             </p>
                             <p className="text-[10px] text-gray-lightest">
@@ -1377,9 +1370,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                               Stock
                             </p>
                             <p
-                              className={`text-xs font-bold ${producto.stockVentas > 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
+                              className={`text-xs ${producto.stockVentas > 0
+                                ? "text-green-400"
+                                : "text-red-400"
                                 }`}
                             >
                               {producto.stockVentas}
@@ -1414,8 +1407,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         }
                       }}
                       className={`elegante-input no-spin ${showCantidadProductoError
-                          ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                          : ""
+                        ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                        : ""
                         }`}
                       min="1"
                     />
@@ -1499,7 +1492,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         return (
                           <div className="flex justify-between items-center">
                             <div>
-                              <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                              <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
                                 {nombreCompleto}
                               </p>
                               <p className="text-[10px] text-gray-lightest">
@@ -1510,140 +1503,140 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                               <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
                                 Rol
                               </p>
-                              <p className="text-xs font-bold text-gray-lightest">
+                              <p className="text-[10px] text-gray-lightest font-normal">
                                 {barbero.rol || "Barbero"}
                               </p>
                             </div>
                           </div>
                         );
                       }}
-                      onSelect={(barbero: any) => {
-                        const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""
-                          }`.trim();
-                        setNuevaVenta({
-                          ...nuevaVenta,
-                          barberoId: Number(barbero.id),
-                          barberoNombre: nombreCompleto,
-                        });
-                        setBarberoSearchTerm(
-                          `${nombreCompleto}${barbero.documento
-                            ? ` — CC ${barbero.documento}`
-                            : ""
-                          }`
-                        );
-                      }}
-                      error={serviciosAgregados.length > 0 && !nuevaVenta.barberoId
-                        ? "El barbero es requerido cuando hay servicios."
-                        : undefined}
-                      shakeClass={shakeClass}
-                      onFocus={clearValidationErrors}
-                      dropUp
+                onSelect={(barbero: any) => {
+                  const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""
+                    }`.trim();
+                  setNuevaVenta({
+                    ...nuevaVenta,
+                    barberoId: Number(barbero.id),
+                    barberoNombre: nombreCompleto,
+                  });
+                  setBarberoSearchTerm(
+                    `${nombreCompleto}${barbero.documento
+                      ? ` — CC ${barbero.documento}`
+                      : ""
+                    }`
+                  );
+                }}
+                error={serviciosAgregados.length > 0 && !nuevaVenta.barberoId
+                  ? "El barbero es requerido cuando hay servicios."
+                  : undefined}
+                shakeClass={shakeClass}
+                onFocus={clearValidationErrors}
+                dropUp
                     />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-gray-lightest text-xs">Servicio</Label>
-                    <SearchField
-                      placeholder="Escribe el nombre..."
-                      value={serviceSearchTerm}
-                      onChange={(val) => setServiceSearchTerm(val)}
-                      onClear={() => {
-                        setServiceSearchTerm("");
-                        setServicioSeleccionado("");
-                      }}
-                      items={serviciosDisponibles}
-                      filterFn={(s, query) =>
-                        normalizeSearchText(s).includes(
-                          normalizeSearchText(query)
-                        )
-                      }
-                      renderItem={(servicioNom) => (
-                        <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors text-center">
-                          {servicioNom}
-                        </p>
-                      )}
-                      onSelect={(servicioNom) => {
-                        setServicioSeleccionado(servicioNom);
-                        setServiceSearchTerm(servicioNom);
-                        if (showAddServicioErrors)
-                          setShowAddServicioErrors(false);
-                      }}
-                      error={showServicioSelectorError
-                        ? "Selecciona un servicio del buscador o agrega un producto."
-                        : undefined}
-                      shakeClass={shakeClass}
-                      maxResults={20}
-                      onFocus={clearValidationErrors}
-                      dropUp
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-gray-lightest text-xs">ㅤ</Label>
-                    <button
-                      onClick={agregarServicio}
-                      className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Agregar
-                    </button>
-                  </div>
-                </div>
-
-              </FormSection>
             </div>
-            {/* Action Buttons */}
-            <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
-              <button onClick={onBack} className="elegante-button-secondary">
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreateVenta}
-                disabled={isSubmitting}
-                className="elegante-button-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Registrando...
-                  </>
-                ) : (
-                  <>
-                    <Receipt className="w-4 h-4" />
-                    Registrar Venta
-                  </>
+
+            <div className="space-y-1">
+              <Label className="text-gray-lightest text-xs">Servicio</Label>
+              <SearchField
+                placeholder="Escribe el nombre..."
+                value={serviceSearchTerm}
+                onChange={(val) => setServiceSearchTerm(val)}
+                onClear={() => {
+                  setServiceSearchTerm("");
+                  setServicioSeleccionado("");
+                }}
+                items={serviciosDisponibles}
+                filterFn={(s, query) =>
+                  normalizeSearchText(s).includes(
+                    normalizeSearchText(query)
+                  )
+                }
+                renderItem={(servicioNom) => (
+                  <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors text-center">
+                    {servicioNom}
+                  </p>
                 )}
+                onSelect={(servicioNom) => {
+                  setServicioSeleccionado(servicioNom);
+                  setServiceSearchTerm(servicioNom);
+                  if (showAddServicioErrors)
+                    setShowAddServicioErrors(false);
+                }}
+                error={showServicioSelectorError
+                  ? "Selecciona un servicio del buscador o agrega un producto."
+                  : undefined}
+                shakeClass={shakeClass}
+                maxResults={20}
+                onFocus={clearValidationErrors}
+                dropUp
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-gray-lightest text-xs">ㅤ</Label>
+              <button
+                onClick={agregarServicio}
+                className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Agregar
               </button>
             </div>
           </div>
-        </aside>
 
-        {/* RIGHT: Detail Panel */}
-        <section className="lg:min-h-0 lg:min-w-0 lg:pr-2">
-          <DetailPanel
-            productos={nuevaVenta.productos || []}
-            servicios={serviciosAgregados}
-            subtotalProductos={subtotalProductos}
-            subtotalServicios={subtotalServicios}
-            descuentoPorcentaje={nuevaVenta.porcentajeDescuento}
-            descuentoMonto={calcularDescuento(calcularSubtotal())}
-            saldoUsado={
-              nuevaVenta.usarSaldoAFavor ? calcularSaldoAFavorUsado() : 0
-            }
-            total={Math.max(
-              0,
-              calcularTotal() -
-              (nuevaVenta.usarSaldoAFavor
-                ? calcularSaldoAFavorUsado()
-                : 0)
-            )}
-            onRemoveProducto={eliminarProducto}
-            onRemoveServicio={eliminarServicio}
-            getTarjetaProductoInput={getTarjetaProductoInput}
-            onTarjetaProductoInputChange={onTarjetaProductoInputChange}
-          />
-        </section>
+        </FormSection>
+      </div>
+      {/* Action Buttons */}
+      <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
+        <button onClick={onBack} className="elegante-button-secondary">
+          Cancelar
+        </button>
+        <button
+          onClick={handleCreateVenta}
+          disabled={isSubmitting}
+          className="elegante-button-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Registrando...
+            </>
+          ) : (
+            <>
+              <Receipt className="w-4 h-4" />
+              Registrar Venta
+            </>
+          )}
+        </button>
       </div>
     </div>
+        </aside >
+
+    {/* RIGHT: Detail Panel */ }
+    < section className = "lg:min-h-0 lg:min-w-0 lg:pr-2" >
+      <DetailPanel
+        productos={nuevaVenta.productos || []}
+        servicios={serviciosAgregados}
+        subtotalProductos={subtotalProductos}
+        subtotalServicios={subtotalServicios}
+        descuentoPorcentaje={nuevaVenta.porcentajeDescuento}
+        descuentoMonto={calcularDescuento(calcularSubtotal())}
+        saldoUsado={
+          nuevaVenta.usarSaldoAFavor ? calcularSaldoAFavorUsado() : 0
+        }
+        total={Math.max(
+          0,
+          calcularTotal() -
+          (nuevaVenta.usarSaldoAFavor
+            ? calcularSaldoAFavorUsado()
+            : 0)
+        )}
+        onRemoveProducto={eliminarProducto}
+        onRemoveServicio={eliminarServicio}
+        getTarjetaProductoInput={getTarjetaProductoInput}
+        onTarjetaProductoInputChange={onTarjetaProductoInputChange}
+      />
+        </section >
+      </div >
+    </div >
   );
 }

@@ -973,7 +973,7 @@ export function PaquetesPage() {
                       </div>
                     )}
                     <div className="flex justify-between text-lg font-bold border-t border-gray-dark pt-2">
-                      <span className="text-white-primary">Total:</span>
+                      <span className="text-gray-lightest">Total:</span>
                       <span className="text-orange-primary">${calcularTotal().toLocaleString('es-CO')}</span>
                     </div>
                   </div>
@@ -1124,8 +1124,8 @@ export function PaquetesPage() {
                             {detallePaquete.length > 0 ? (
                               detallePaquete.map((detalle: any, index: number) => (
                                 <div key={index} className="flex items-center justify-between bg-gray-darker p-4 rounded-xl border border-gray-dark">
-                                  <span className="text-white-primary font-semibold">{detalle.nombreServicio}</span>
-                                  <span className="text-white-primary font-medium">
+                                  <span className="text-gray-lightest">{detalle.nombreServicio}</span>
+                                  <span className="text-gray-lightest">
                                     ${(detalle.precioServicio ?? 0).toLocaleString('es-CO')}
                                   </span>
                                 </div>
@@ -1135,8 +1135,8 @@ export function PaquetesPage() {
                                 const servicioInfo = serviciosDisponibles.find(s => s.nombre === servicio);
                                 return (
                                   <div key={index} className="flex items-center justify-between bg-gray-darker p-4 rounded-xl border border-gray-dark">
-                                    <span className="text-white-primary font-semibold">{servicio}</span>
-                                    <span className="text-white-primary font-medium">
+                                    <span className="text-gray-lightest">{servicio}</span>
+                                    <span className="text-gray-lightest">
                                       ${servicioInfo ? (servicioInfo.precio ?? 0).toLocaleString('es-CO') : '0'}
                                     </span>
                                   </div>
@@ -1161,7 +1161,7 @@ export function PaquetesPage() {
                       {(selectedPaquete.precioOriginal ?? selectedPaquete.precio) > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-lightest">Subtotal / Precio original:</span>
-                          <span className="text-white-primary">
+                          <span className="text-gray-lightest">
                             ${(selectedPaquete.precioOriginal ?? selectedPaquete.precio ?? 0).toLocaleString('es-CO')}
                           </span>
                         </div>
@@ -1175,7 +1175,7 @@ export function PaquetesPage() {
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold border-t border-gray-dark pt-2">
-                        <span className="text-white-primary">Total:</span>
+                        <span className="text-gray-lightest">Total:</span>
                         <span className="text-orange-primary">${(selectedPaquete.precio ?? 0).toLocaleString('es-CO')}</span>
                       </div>
                     </div>
