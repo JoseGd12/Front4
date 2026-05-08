@@ -173,6 +173,7 @@ class VentaService {
     if (data.metodoPago !== undefined) mapped.MetodoPago = data.metodoPago;
     if (data.tipoVenta !== undefined) mapped.TipoVenta = data.tipoVenta;
     if (data.clienteNombre !== undefined) mapped.ClienteNombre = data.clienteNombre;
+    if (data.numeroRecibo !== undefined && data.numeroRecibo !== null) mapped.NumeroRecibo = data.numeroRecibo;
     if (data.numeroVenta !== undefined) mapped.NumeroVenta = Number(data.numeroVenta);
     if (data.fecha !== undefined) mapped.Fecha = data.fecha;
     if (data.estado !== undefined) mapped.Estado = data.estado;

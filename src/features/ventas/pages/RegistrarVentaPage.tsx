@@ -894,6 +894,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         : null;
 
       const ventaData = {
+        numeroRecibo: numeroVenta.toString().padStart(3, "0"),
         numeroVenta,
         tipoVenta: nuevaVenta.tipoVenta,
         clienteId: nuevaVenta.clienteId || null,

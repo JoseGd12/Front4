@@ -52,6 +52,22 @@ const TIPOS_PROVEEDOR = [
   { value: 'Natural', label: 'Natural (Persona)' }
 ];
 
+// Tipos de identificación (proveedor y representante)
+const TIPOS_IDENTIFICACION_PROVEEDOR = [
+  { value: 'CC', label: 'Cédula de ciudadanía' },
+  { value: 'CE', label: 'Cédula de extranjería' },
+  { value: 'TI', label: 'Tarjeta de identidad' },
+  { value: 'Pasaporte', label: 'Pasaporte' },
+  { value: 'NIT', label: 'NIT' }
+];
+
+const TIPOS_IDENTIFICACION_REPRESENTANTE = [
+  { value: 'CC', label: 'Cédula de ciudadanía' },
+  { value: 'CE', label: 'Cédula de extranjería' },
+  { value: 'TI', label: 'Tarjeta de identidad' },
+  { value: 'Pasaporte', label: 'Pasaporte' }
+];
+
 const DEPARTAMENTOS_COLOMBIA = [
   "Amazonas",
   "Antioquia",
@@ -174,39 +190,131 @@ export function ProveedoresPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [formData, setFormData] = useState({
-    nombre: "",
+    // 1
     tipoProveedor: "Juridico" as 'Juridico' | 'Natural',
-    nit: "",
+    // 2
+    nombre: "",
+    // 3
+    tipoIdentificacionProveedor: "NIT",
+    // 4
+    identificacion: "",
+    // 5
     correo: "",
-    numero: "",
+    // 6
+    telefono: "",
+    // 7
     direccion: "",
-    razonSocial: "",
-    representanteLegal: "",
-    tipoDocumentoRepresentante: "",
-    documentoRepresentante: "",
-    telefonoRepresentante: "",
-    correoRepresentante: "",
-    sectorEconomico: "",
-    anosOperacion: 0,
-    paginaWeb: "",
-    personaContacto: "",
-    // Campos adicionales faltantes
-    apellidos: "",
-    cargoRepLegal: "",
+    // 8
     ciudad: "",
+    // 9
     departamento: "",
-    numeroIdentificacion: "",
-    numeroIdentificacionRepLegal: "",
-    // Contacto adicional (Natural)
-    tipoDocumentoContactoAdicional: "",
-    documentoContactoAdicional: "",
-    telefonoContactoAdicional: "",
-    correoContactoAdicional: ""
+    // 10
+    representanteLegal: "",
+    // 11
+    tipoIdentificacionRepresentante: "CC",
+    // 12
+    identificacionRepresentante: "",
+    // 13
+    correoRepresentante: "",
+    // 14
+    telefonoRepresentante: ""
   });
   const [showProveedorFormErrors, setShowProveedorFormErrors] = useState(false);
   const [proveedorValidationAttempt, setProveedorValidationAttempt] = useState(0);
   const shakeClass = proveedorValidationAttempt % 2 === 0 ? "input-required-shake-a" : "input-required-shake-b";
-  const [duplicateErrors, setDuplicateErrors] = useState<{ nombre?: string; nit?: string; numero?: string; correo?: string }>({});
+  const [duplicateErrors, setDuplicateErrors] = useState<{ nombre?: string; identificacion?: string; telefono?: string; correo?: string }>({});
+  const [formatErrors, setFormatErrors] = useState<{
+    nombre?: string;
+    identificacion?: string;
+    telefono?: string;
+    correo?: string;
+    representanteLegal?: string;
+    identificacionRepresentante?: string;
+    telefonoRepresentante?: string;
+    correoRepresentante?: string;
+  }>({});
+
+  // ===== Helpers de sanitización (filtrado en tiempo real) =====
+  // Solo letras (incluye tildes/ñ), espacios y caracteres comunes para nombres
+  const sanitizeNombre = (v: string) => v.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü .'\-&]/g, '');
+
+  // Filtrado de identificación según tipo: CC/TI/CE solo dígitos; NIT dígitos+guion; Pasaporte alfanumérico
+  const sanitizeIdentificacion = (v: string, tipo: string) => {
+    switch (tipo) {
+      case 'NIT':
+        return v.replace(/[^0-9-]/g, '');
+      case 'Pasaporte':
+        return v.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+      case 'CC':
+      case 'CE':
+      case 'TI':
+      default:
+        return v.replace(/\D/g, '');
+    }
+  };
+
+  // Solo dígitos, +, espacios, guiones y paréntesis
+  const sanitizeTelefono = (v: string) => v.replace(/[^0-9+\-() ]/g, '');
+
+  // ===== Helpers de validación de formato (en submit) =====
+  const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+  const isValidNombre = (v: string) => /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü .'\-&]{2,150}$/.test(v.trim());
+  const isValidTelefono = (v: string) => {
+    const digits = v.replace(/\D/g, '');
+    return digits.length >= 7 && digits.length <= 15;
+  };
+  const isValidIdentificacion = (v: string, tipo: string) => {
+    const val = v.trim();
+    switch (tipo) {
+      case 'NIT':
+        // 9-10 dígitos + opcional guion verificador
+        return /^\d{9,10}(-\d)?$/.test(val);
+      case 'Pasaporte':
+        return /^[A-Z0-9]{6,15}$/i.test(val);
+      case 'CC':
+      case 'CE':
+        return /^\d{6,12}$/.test(val);
+      case 'TI':
+        return /^\d{8,11}$/.test(val);
+      default:
+        return val.length >= 6 && val.length <= 20;
+    }
+  };
+
+  const validateFormatFields = (esJuridico: boolean) => {
+    const errs: typeof formatErrors = {};
+
+    if (formData.nombre.trim() && !isValidNombre(formData.nombre)) {
+      errs.nombre = 'El nombre solo puede contener letras y espacios (2-150 caracteres).';
+    }
+    if (formData.identificacion.trim() && !isValidIdentificacion(formData.identificacion, formData.tipoIdentificacionProveedor)) {
+      errs.identificacion = `Formato inválido para ${formData.tipoIdentificacionProveedor}.`;
+    }
+    if (formData.telefono.trim() && !isValidTelefono(formData.telefono)) {
+      errs.telefono = 'El teléfono debe tener entre 7 y 15 dígitos.';
+    }
+    if (formData.correo.trim() && !isValidEmail(formData.correo)) {
+      errs.correo = 'El correo no tiene un formato válido.';
+    }
+
+    if (esJuridico) {
+      if (formData.representanteLegal.trim() && !isValidNombre(formData.representanteLegal)) {
+        errs.representanteLegal = 'El nombre solo puede contener letras y espacios (2-150 caracteres).';
+      }
+      if (formData.identificacionRepresentante.trim() && !isValidIdentificacion(formData.identificacionRepresentante, formData.tipoIdentificacionRepresentante)) {
+        errs.identificacionRepresentante = `Formato inválido para ${formData.tipoIdentificacionRepresentante}.`;
+      }
+      if (formData.telefonoRepresentante.trim() && !isValidTelefono(formData.telefonoRepresentante)) {
+        errs.telefonoRepresentante = 'El teléfono debe tener entre 7 y 15 dígitos.';
+      }
+      if (formData.correoRepresentante.trim() && !isValidEmail(formData.correoRepresentante)) {
+        errs.correoRepresentante = 'El correo no tiene un formato válido.';
+      }
+    }
+
+    setFormatErrors(errs);
+    return { hasError: Object.keys(errs).length > 0, errs };
+  };
 
   const normalizeText = (v: unknown) =>
     String(v ?? '')
@@ -218,50 +326,50 @@ export function ProveedoresPage() {
   const normalizePhone = (v: unknown) => String(v ?? '').replace(/\D/g, '');
   const normalizeEmail = (v: unknown) => String(v ?? '').toLowerCase().trim();
 
-  const validateDuplicateFields = (payload: { nombre: string; nit: string; numero: string; correo: string }, ignoreId?: number) => {
+  const validateDuplicateFields = (payload: { nombre: string; identificacion: string; telefono: string; correo: string }, ignoreId?: number) => {
     const nombreNorm = normalizeText(payload.nombre);
-    const nitNorm = normalizeNit(payload.nit);
-    const numeroNorm = normalizePhone(payload.numero);
+    const identNorm = normalizeNit(payload.identificacion);
+    const telefonoNorm = normalizePhone(payload.telefono);
     const correoNorm = normalizeEmail(payload.correo);
 
-    const errs: { nombre?: string; nit?: string; numero?: string; correo?: string } = {};
+    const errs: { nombre?: string; identificacion?: string; telefono?: string; correo?: string } = {};
 
     for (const p of proveedores) {
       if (ignoreId && p.id === ignoreId) continue;
       const pNombre = normalizeText(p.nombre);
-      const pNit = normalizeNit(p.nit || p.numeroIdentificacion || '');
-      const pTelefono = normalizePhone((p as any).numero || p.telefono || '');
+      const pIdent = normalizeNit(p.identificacion || p.nit || '');
+      const pTelefono = normalizePhone((p as any).telefono || (p as any).numero || '');
       const pCorreo = normalizeEmail(p.correo || '');
 
       if (!errs.nombre && nombreNorm && pNombre && pNombre === nombreNorm) {
         errs.nombre = 'Ya existe un proveedor con este nombre.';
       }
-      if (!errs.nit && nitNorm && pNit && pNit === nitNorm) {
-        errs.nit = 'Ya existe un proveedor con este NIT.';
+      if (!errs.identificacion && identNorm && pIdent && pIdent === identNorm) {
+        errs.identificacion = 'Ya existe un proveedor con esta identificación.';
       }
-      if (!errs.numero && numeroNorm && pTelefono && pTelefono === numeroNorm) {
-        errs.numero = 'Ya existe un proveedor con este teléfono.';
+      if (!errs.telefono && telefonoNorm && pTelefono && pTelefono === telefonoNorm) {
+        errs.telefono = 'Ya existe un proveedor con este teléfono.';
       }
       if (!errs.correo && correoNorm && pCorreo && pCorreo === correoNorm) {
         errs.correo = 'Ya existe un proveedor con este correo.';
       }
-      if (errs.nombre || errs.nit || errs.numero || errs.correo) break;
+      if (errs.nombre || errs.identificacion || errs.telefono || errs.correo) break;
     }
 
     setDuplicateErrors(errs);
-    return { hasError: !!(errs.nombre || errs.nit || errs.numero || errs.correo), errs };
+    return { hasError: !!(errs.nombre || errs.identificacion || errs.telefono || errs.correo), errs };
   };
 
   useEffect(() => {
     const timer = setTimeout(() => {
       const ignoreId = isEditDialogOpen && selectedProveedor ? Number((selectedProveedor as any).id) : undefined;
       validateDuplicateFields(
-        { nombre: formData.nombre, nit: formData.nit, numero: formData.numero, correo: formData.correo },
+        { nombre: formData.nombre, identificacion: formData.identificacion, telefono: formData.telefono, correo: formData.correo },
         ignoreId
       );
     }, 300);
     return () => clearTimeout(timer);
-  }, [formData.nombre, formData.nit, formData.numero, formData.correo, isEditDialogOpen, selectedProveedor]);
+  }, [formData.nombre, formData.identificacion, formData.telefono, formData.correo, isEditDialogOpen, selectedProveedor]);
 
   // Cargar proveedores desde la API
   const cargarProveedores = async (silent = false) => {
@@ -301,37 +409,25 @@ export function ProveedoresPage() {
 
   const resetForm = () => {
     setFormData({
-      nombre: "",
       tipoProveedor: "Juridico",
-      nit: "",
+      nombre: "",
+      tipoIdentificacionProveedor: "NIT",
+      identificacion: "",
       correo: "",
-      numero: "",
+      telefono: "",
       direccion: "",
-      razonSocial: "",
-      representanteLegal: "",
-      tipoDocumentoRepresentante: "",
-      documentoRepresentante: "",
-      telefonoRepresentante: "",
-      correoRepresentante: "",
-      sectorEconomico: "",
-      anosOperacion: 0,
-      paginaWeb: "",
-      personaContacto: "",
-      // Campos adicionales faltantes
-      apellidos: "",
-      cargoRepLegal: "",
       ciudad: "",
       departamento: "",
-      numeroIdentificacion: "",
-      numeroIdentificacionRepLegal: "",
-      // Contacto adicional (Natural)
-      tipoDocumentoContactoAdicional: "",
-      documentoContactoAdicional: "",
-      telefonoContactoAdicional: "",
-      correoContactoAdicional: ""
+      representanteLegal: "",
+      tipoIdentificacionRepresentante: "CC",
+      identificacionRepresentante: "",
+      correoRepresentante: "",
+      telefonoRepresentante: ""
     });
     setShowProveedorFormErrors(false);
     setProveedorValidationAttempt(0);
+    setFormatErrors({});
+    setDuplicateErrors({});
     setIsEditDialogOpen(false);
     setSelectedProveedor(null);
   };
@@ -339,25 +435,49 @@ export function ProveedoresPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const missingRequired =
-      !formData.nombre.trim() ||
-      !formData.nit.trim() ||
-      !formData.representanteLegal.trim() ||
-      !formData.numero.trim() ||
-      !formData.correo.trim();
+    const esJuridico = formData.tipoProveedor === 'Juridico';
+    const missingRequired = esJuridico
+      ? (
+          !formData.nombre.trim() ||
+          !formData.identificacion.trim() ||
+          !formData.telefono.trim() ||
+          !formData.correo.trim() ||
+          !formData.direccion.trim() ||
+          !formData.ciudad.trim() ||
+          !formData.departamento.trim() ||
+          !formData.representanteLegal.trim() ||
+          !formData.identificacionRepresentante.trim() ||
+          !formData.correoRepresentante.trim() ||
+          !formData.telefonoRepresentante.trim()
+        )
+      : (
+          !formData.nombre.trim() ||
+          !formData.identificacion.trim() ||
+          !formData.telefono.trim() ||
+          !formData.correo.trim()
+        );
 
     if (missingRequired) {
       setShowProveedorFormErrors(true);
       setProveedorValidationAttempt(prev => prev + 1);
-      error('Campos obligatorios', 'Completa nombre, NIT, representante legal, teléfono y correo.');
+      error('Campos obligatorios', esJuridico ? 'Completa todos los campos obligatorios del formulario.' : 'Completa nombre, identificación, teléfono y correo.');
+      return;
+    }
+
+    // Validación de formato
+    const formatCheck = validateFormatFields(esJuridico);
+    if (formatCheck.hasError) {
+      setShowProveedorFormErrors(true);
+      setProveedorValidationAttempt(prev => prev + 1);
+      error('Formato inválido', 'Revisa los campos marcados en rojo.');
       return;
     }
 
     const dupCheck = validateDuplicateFields(
       {
         nombre: formData.nombre,
-        nit: formData.nit,
-        numero: formData.numero,
+        identificacion: formData.identificacion,
+        telefono: formData.telefono,
         correo: formData.correo
       }
     );
@@ -367,17 +487,18 @@ export function ProveedoresPage() {
     }
 
     try {
-      const documentoUnico = (formData.nit || '').trim();
-      const payload = {
+      // Para Natural: copiar datos del proveedor a los campos de representante
+      const dataParaEnviar = !esJuridico ? {
         ...formData,
-        // RepresentanteLegal y Direccion son campos separados (mapeo correcto a la API).
-        direccion: formData.direccion,
-        representanteLegal: formData.representanteLegal,
-        nit: documentoUnico,
-        // Para Naturales, el backend usa numeroIdentificacion; para Jurídico, nit.
-        numeroIdentificacion: documentoUnico,
-        // Valor por defecto razonable si no viene del formulario en Naturales
-        tipoIdentificacion: formData.tipoProveedor === 'Natural' ? (formData as any).tipoIdentificacion || 'CC' : (formData as any).tipoIdentificacion,
+        representanteLegal: formData.nombre,
+        tipoIdentificacionRepresentante: formData.tipoIdentificacionProveedor,
+        identificacionRepresentante: formData.identificacion,
+        correoRepresentante: formData.correo,
+        telefonoRepresentante: formData.telefono
+      } : formData;
+
+      const payload = {
+        ...dataParaEnviar,
         fechaCreacion: new Date().toLocaleDateString('es-ES', {
           day: '2-digit',
           month: '2-digit',
@@ -409,7 +530,6 @@ export function ProveedoresPage() {
 
   const handleEdit = async (proveedorPartial: Proveedor) => {
     try {
-      // Intentar obtener la versión más completa del proveedor desde la API
       let proveedor = proveedorPartial;
       if (proveedorPartial.id) {
         const freshData = await proveedorService.obtenerProveedorPorId(proveedorPartial.id);
@@ -423,52 +543,31 @@ export function ProveedoresPage() {
       setShowProveedorFormErrors(false);
       setProveedorValidationAttempt(0);
 
-      // Configurar tipo de proveedor, con fallback a 'Juridico' si no está definido
       const tipo = (proveedor.tipoProveedor === 'Natural' || proveedor.tipoProveedor === 'Juridico')
         ? proveedor.tipoProveedor
         : 'Juridico';
 
       setFormData({
-        nombre: proveedor.nombre || "",
         tipoProveedor: tipo,
-        nit: proveedor.nit || proveedor.numeroIdentificacion || "",
+        nombre: proveedor.nombre || "",
+        tipoIdentificacionProveedor: proveedor.tipoIdentificacionProveedor || (tipo === 'Natural' ? 'CC' : 'NIT'),
+        identificacion: proveedor.identificacion || proveedor.nit || "",
         correo: proveedor.correo || "",
-        numero: proveedor.numero || proveedor.telefono || "",
+        telefono: (proveedor.telefono as string) || proveedor.numero || "",
         direccion: proveedor.direccion || "",
         ciudad: proveedor.ciudad || "",
         departamento: proveedor.departamento || "",
-
-        // Contacto adicional (Natural)
-        personaContacto: proveedor.personaContacto || proveedor.contacto || "",
-        tipoDocumentoContactoAdicional: proveedor.tipoDocumentoContactoAdicional || "",
-        documentoContactoAdicional: proveedor.documentoContactoAdicional || "",
-        telefonoContactoAdicional: proveedor.telefonoContactoAdicional || "",
-        correoContactoAdicional: proveedor.correoContactoAdicional || "",
-
-        // Datos Jurídicos
-        razonSocial: proveedor.razonSocial || "",
         representanteLegal: proveedor.representanteLegal || "",
-        tipoDocumentoRepresentante: proveedor.tipoDocumentoRepresentante || "",
-        numeroIdentificacionRepLegal: proveedor.numeroIdentificacionRepLegal || "",
-        cargoRepLegal: proveedor.cargoRepLegal || "",
-        documentoRepresentante: proveedor.documentoRepresentante || "",
-        telefonoRepresentante: proveedor.telefonoRepresentante || "",
+        tipoIdentificacionRepresentante: proveedor.tipoIdentificacionRepresentante || proveedor.tipoIdentificacion || "CC",
+        identificacionRepresentante: proveedor.identificacionRepresentante || proveedor.numeroIdentificacion || "",
         correoRepresentante: proveedor.correoRepresentante || "",
-        sectorEconomico: proveedor.sectorEconomico || "",
-        anosOperacion: proveedor.anosOperacion || 0,
-        paginaWeb: proveedor.paginaWeb || "",
-
-        // Campos legacy o adicionales para evitar errores
-        apellidos: proveedor.apellidos || "",
-        numeroIdentificacion: proveedor.numeroIdentificacion || ""
+        telefonoRepresentante: proveedor.telefonoRepresentante || ""
       });
 
       setIsEditDialogOpen(true);
-      setIsDialogOpen(true); // Abrimos el mismo diálogo pero en modo edición
+      setIsDialogOpen(true);
     } catch (error) {
       console.error('Error preparando edición:', error);
-      // Fallback: intentar editar con lo que tenemos
-      // ... (lógica original simplificada)
     }
   };
 
@@ -477,11 +576,49 @@ export function ProveedoresPage() {
 
     if (!selectedProveedor) return;
 
+    const esJuridico = formData.tipoProveedor === 'Juridico';
+    const missingRequired = esJuridico
+      ? (
+          !formData.nombre.trim() ||
+          !formData.identificacion.trim() ||
+          !formData.telefono.trim() ||
+          !formData.correo.trim() ||
+          !formData.direccion.trim() ||
+          !formData.ciudad.trim() ||
+          !formData.departamento.trim() ||
+          !formData.representanteLegal.trim() ||
+          !formData.identificacionRepresentante.trim() ||
+          !formData.correoRepresentante.trim() ||
+          !formData.telefonoRepresentante.trim()
+        )
+      : (
+          !formData.nombre.trim() ||
+          !formData.identificacion.trim() ||
+          !formData.telefono.trim() ||
+          !formData.correo.trim()
+        );
+
+    if (missingRequired) {
+      setShowProveedorFormErrors(true);
+      setProveedorValidationAttempt(prev => prev + 1);
+      error('Campos obligatorios', esJuridico ? 'Completa todos los campos obligatorios del formulario.' : 'Completa nombre, identificación, teléfono y correo.');
+      return;
+    }
+
+    // Validación de formato
+    const formatCheck = validateFormatFields(esJuridico);
+    if (formatCheck.hasError) {
+      setShowProveedorFormErrors(true);
+      setProveedorValidationAttempt(prev => prev + 1);
+      error('Formato inválido', 'Revisa los campos marcados en rojo.');
+      return;
+    }
+
     const dupCheck = validateDuplicateFields(
       {
         nombre: formData.nombre,
-        nit: formData.nit,
-        numero: formData.numero,
+        identificacion: formData.identificacion,
+        telefono: formData.telefono,
         correo: formData.correo
       },
       selectedProveedor.id
@@ -492,17 +629,15 @@ export function ProveedoresPage() {
     }
 
     try {
-      // Unificar el documento en un solo campo antes de actualizar
-      const documentoUnico = (formData.nit || '').trim();
-      const tempFormData = {
+      // Para Natural: copiar datos del proveedor a los campos de representante
+      const tempFormData = !esJuridico ? {
         ...formData,
-        // RepresentanteLegal y Direccion son campos separados.
-        direccion: formData.direccion,
-        representanteLegal: formData.representanteLegal,
-        nit: documentoUnico,
-        numeroIdentificacion: documentoUnico,
-        tipoIdentificacion: formData.tipoProveedor === 'Natural' ? (formData as any).tipoIdentificacion || 'CC' : (formData as any).tipoIdentificacion
-      };
+        representanteLegal: formData.nombre,
+        tipoIdentificacionRepresentante: formData.tipoIdentificacionProveedor,
+        identificacionRepresentante: formData.identificacion,
+        correoRepresentante: formData.correo,
+        telefonoRepresentante: formData.telefono
+      } : { ...formData };
       const tempSelectedProveedor = { ...selectedProveedor };
       setIsEditDialogOpen(false);
       if (tempSelectedProveedor.id) {
@@ -515,9 +650,17 @@ export function ProveedoresPage() {
       resetForm();
     } catch (error) {
       console.error('Error actualizando proveedor:', error);
+      const fallbackData = !esJuridico ? {
+        ...formData,
+        representanteLegal: formData.nombre,
+        tipoIdentificacionRepresentante: formData.tipoIdentificacionProveedor,
+        identificacionRepresentante: formData.identificacion,
+        correoRepresentante: formData.correo,
+        telefonoRepresentante: formData.telefono
+      } : formData;
       const proveedorActualizado: Proveedor = {
         ...selectedProveedor,
-        ...formData
+        ...fallbackData
       };
       setProveedores(proveedores.map(p =>
         p.id === selectedProveedor.id ? proveedorActualizado : p
@@ -636,13 +779,14 @@ export function ProveedoresPage() {
   const filteredProveedores = proveedores.filter(p => {
     if (!term) return true;
     const nombre = norm(p.nombre);
-    const nit = norm(p.nit);
+    const ident = norm(p.identificacion || p.nit);
     const correo = norm(p.correo);
-    const telefono = norm((p as any).numero || (p as any).telefono);
+    const telefono = norm((p as any).telefono || (p as any).numero);
     const fecha = norm(p.fechaCreacion);
-    const representanteLegal = norm(p.representanteLegal);
+    const repLegal = norm(p.representanteLegal);
     const direccion = norm(p.direccion);
-    return nombre.includes(term) || nit.includes(term) || correo.includes(term) || telefono.includes(term) || fecha.includes(term) || representanteLegal.includes(term) || direccion.includes(term);
+    const estadoStr = p.activo ? 'activo' : 'inactivo';
+    return nombre.includes(term) || ident.includes(term) || correo.includes(term) || telefono.includes(term) || fecha.includes(term) || repLegal.includes(term) || direccion.includes(term) || estadoStr.includes(term);
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredProveedores.length / itemsPerPage));
@@ -697,128 +841,134 @@ export function ProveedoresPage() {
                       Información General
                     </h4>
                     {/* Sección 1: Información Básica e Identificación */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      {/* 1. Tipo de Proveedor */}
                       <div className="space-y-2">
                         <Label className="text-gray-lightest flex items-center gap-2">
                           <Building className="w-4 h-4 text-orange-primary" />
                           Tipo de Proveedor
                         </Label>
+                        <div className="flex gap-2 p-1 bg-gray-darker rounded-xl border border-gray-dark">
+                          {TIPOS_PROVEEDOR.map((tipo) => (
+                            <button
+                              key={tipo.value}
+                              type="button"
+                              disabled={isEditDialogOpen}
+                              onClick={() => {
+                                const val = tipo.value as 'Juridico' | 'Natural';
+                                setFormData({
+                                  ...formData,
+                                  tipoProveedor: val,
+                                  tipoIdentificacionProveedor: val === 'Juridico' ? 'NIT' : 'CC'
+                                });
+                              }}
+                              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+                                formData.tipoProveedor === tipo.value
+                                  ? 'bg-orange-primary text-black shadow-[0_0_15px_rgba(216,176,129,0.3)]'
+                                  : 'text-gray-lightest hover:bg-gray-dark hover:text-orange-secondary'
+                              } ${isEditDialogOpen && formData.tipoProveedor !== tipo.value ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {tipo.value === 'Juridico' ? <Building className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                              {tipo.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Tipo identificación prov. + 4. Identificación */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
+                          <IdCard className="w-4 h-4 text-orange-primary" />
+                          Tipo identificación
+                        </Label>
                         <Select
-                          disabled={isEditDialogOpen}
-                          value={formData.tipoProveedor}
-                          onValueChange={(val) => setFormData({ ...formData, tipoProveedor: val as 'Juridico' | 'Natural' })}
+                          value={formData.tipoIdentificacionProveedor}
+                          onValueChange={(val) => setFormData({ ...formData, tipoIdentificacionProveedor: val })}
                         >
-                          <SelectTrigger id="tipoProveedor" className="elegante-input w-full">
+                          <SelectTrigger className="elegante-input w-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-gray-darkest border-gray-dark">
-                            {TIPOS_PROVEEDOR.map((tipo) => (
-                              <SelectItem key={tipo.value} value={tipo.value} className="text-gray-lightest">
-                                {tipo.label}
+                            {TIPOS_IDENTIFICACION_PROVEEDOR.map((t) => (
+                              <SelectItem key={t.value} value={t.value} className="text-gray-lightest">
+                                {t.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-
-                  
-
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
+                          <IdCard className="w-4 h-4 text-orange-primary" />
+                          Identificación <span className="text-gray-lightest">*</span>
+                        </Label>
+                        <Input
+                          id="identificacion"
+                          value={formData.identificacion}
+                          onChange={(e) => setFormData({ ...formData, identificacion: sanitizeIdentificacion(e.target.value, formData.tipoIdentificacionProveedor) })}
+                          placeholder={formData.tipoIdentificacionProveedor === 'NIT' ? 'Ej: 900123456-7' : formData.tipoIdentificacionProveedor === 'Pasaporte' ? 'Ej: AB123456' : 'Ej: 1023456789'}
+                          maxLength={18}
+                          inputMode={formData.tipoIdentificacionProveedor === 'Pasaporte' ? 'text' : 'numeric'}
+                          className={`elegante-input ${((showProveedorFormErrors && !formData.identificacion.trim()) || !!duplicateErrors.identificacion || !!formatErrors.identificacion) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                        />
+                        {showProveedorFormErrors && !formData.identificacion.trim() && (
+                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                        )}
+                        {!!formatErrors.identificacion && (
+                          <p className="text-xs text-red-400">{formatErrors.identificacion}</p>
+                        )}
+                        {!!duplicateErrors.identificacion && (
+                          <p className="text-xs text-red-400">{duplicateErrors.identificacion}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 2. Nombre + 5. Correo */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <User className="w-4 h-4 text-orange-primary" />
                           {formData.tipoProveedor === 'Juridico' ? 'Nombre Comercial' : 'Nombre Completo'} <span className="text-gray-lightest">*</span>
                         </Label>
                         <Input
                           id="nombre"
                           value={formData.nombre}
-                          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                          onChange={(e) => setFormData({ ...formData, nombre: sanitizeNombre(e.target.value) })}
                           placeholder={formData.tipoProveedor === 'Juridico' ? 'Ej: Suministros Barbería Pro S.A.S' : 'Ej: Carlos Andrés Martínez'}
-                          className={`elegante-input ${((showProveedorFormErrors && !isEditDialogOpen && !formData.nombre.trim()) || !!duplicateErrors.nombre) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                          maxLength={150}
+                          className={`elegante-input ${((showProveedorFormErrors && !formData.nombre.trim()) || !!duplicateErrors.nombre || !!formatErrors.nombre) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                         />
-                        {showProveedorFormErrors && !isEditDialogOpen && !formData.nombre.trim() && (
+                        {showProveedorFormErrors && !formData.nombre.trim() && (
                           <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                        )}
+                        {!!formatErrors.nombre && (
+                          <p className="text-xs text-red-400">{formatErrors.nombre}</p>
                         )}
                         {!!duplicateErrors.nombre && (
                           <p className="text-xs text-red-400">{duplicateErrors.nombre}</p>
                         )}
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
-                          <IdCard className="w-4 h-4 text-orange-primary" />
-                          NIT / Identificación <span className="text-gray-lightest">*</span>
-                        </Label>
-                        <Input
-                          id="nit"
-                          value={formData.nit}
-                          onChange={(e) => setFormData({ ...formData, nit: e.target.value })}
-                          placeholder="Ej: 900123456-7"
-                          maxLength={18}
-                          className={`elegante-input ${((showProveedorFormErrors && !isEditDialogOpen && !formData.nit.trim()) || !!duplicateErrors.nit) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-                        />
-                        {showProveedorFormErrors && !isEditDialogOpen && !formData.nit.trim() && (
-                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
-                        )}
-                        {!!duplicateErrors.nit && (
-                          <p className="text-xs text-red-400">{duplicateErrors.nit}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-orange-primary" />
-                          Representante Legal <span className="text-gray-lightest">*</span>
-                        </Label>
-                        <Input
-                          id="representanteLegal"
-                          value={formData.representanteLegal}
-                          onChange={(e) => setFormData({ ...formData, representanteLegal: e.target.value })}
-                          placeholder="Ej: María Elena García"
-                          className={`elegante-input ${showProveedorFormErrors && !isEditDialogOpen && !formData.representanteLegal.trim() ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-                        />
-                        {showProveedorFormErrors && !isEditDialogOpen && !formData.representanteLegal.trim() && (
-                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Sección 2: Contacto Principal */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-orange-primary" />
-                          Teléfono Principal <span className="text-gray-lightest">*</span>
-                        </Label>
-                        <Input
-                          id="numero"
-                          value={formData.numero}
-                          onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                          placeholder="Ej: +57 301 234 5678"
-                          className={`elegante-input ${((showProveedorFormErrors && !isEditDialogOpen && !formData.numero.trim()) || !!duplicateErrors.numero) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-                        />
-                        {showProveedorFormErrors && !isEditDialogOpen && !formData.numero.trim() && (
-                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
-                        )}
-                        {!!duplicateErrors.numero && (
-                          <p className="text-xs text-red-400">{duplicateErrors.numero}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <Mail className="w-4 h-4 text-orange-primary" />
-                          Correo <span className="text-white-primary">*</span>
+                          Correo <span className="text-gray-lightest">*</span>
                         </Label>
                         <Input
                           id="correo"
                           type="email"
                           value={formData.correo}
-                          onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                          onChange={(e) => setFormData({ ...formData, correo: e.target.value.replace(/\s/g, '') })}
                           placeholder="Ej: proveedor@correo.com"
-                          className={`elegante-input ${((showProveedorFormErrors && !isEditDialogOpen && !formData.correo.trim()) || !!duplicateErrors.correo) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                          maxLength={150}
+                          className={`elegante-input ${((showProveedorFormErrors && !formData.correo.trim()) || !!duplicateErrors.correo || !!formatErrors.correo) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                         />
-                        {showProveedorFormErrors && !isEditDialogOpen && !formData.correo.trim() && (
+                        {showProveedorFormErrors && !formData.correo.trim() && (
                           <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                        )}
+                        {!!formatErrors.correo && (
+                          <p className="text-xs text-red-400">{formatErrors.correo}</p>
                         )}
                         {!!duplicateErrors.correo && (
                           <p className="text-xs text-red-400">{duplicateErrors.correo}</p>
@@ -826,32 +976,79 @@ export function ProveedoresPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-orange-primary" />
-                        Dirección
-                      </Label>
-                      <Input
-                        id="direccion"
-                        value={formData.direccion}
-                        onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                        className="elegante-input"
-                        placeholder="Ej: Calle 72 #10-34, Oficina 501"
-                      />
-                    </div>
-
+                    {/* 6. Teléfono + 7. Dirección */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-orange-primary" />
+                          Teléfono <span className="text-gray-lightest">*</span>
+                        </Label>
+                        <Input
+                          id="telefono"
+                          value={formData.telefono}
+                          onChange={(e) => setFormData({ ...formData, telefono: sanitizeTelefono(e.target.value) })}
+                          placeholder="Ej: +57 301 234 5678"
+                          maxLength={20}
+                          inputMode="tel"
+                          className={`elegante-input ${((showProveedorFormErrors && !formData.telefono.trim()) || !!duplicateErrors.telefono || !!formatErrors.telefono) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                        />
+                        {showProveedorFormErrors && !formData.telefono.trim() && (
+                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                        )}
+                        {!!formatErrors.telefono && (
+                          <p className="text-xs text-red-400">{formatErrors.telefono}</p>
+                        )}
+                        {!!duplicateErrors.telefono && (
+                          <p className="text-xs text-red-400">{duplicateErrors.telefono}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-orange-primary" />
-                          Departamento
+                          Dirección {formData.tipoProveedor === 'Juridico' && <span className="text-gray-lightest">*</span>}
+                        </Label>
+                        <Input
+                          id="direccion"
+                          value={formData.direccion}
+                          onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                          className={`elegante-input ${showProveedorFormErrors && formData.tipoProveedor === 'Juridico' && !formData.direccion.trim() ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                          placeholder="Ej: Calle 72 #10-34, Oficina 501"
+                        />
+                        {showProveedorFormErrors && formData.tipoProveedor === 'Juridico' && !formData.direccion.trim() && (
+                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 8. Ciudad + 9. Departamento */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-orange-primary" />
+                          Ciudad {formData.tipoProveedor === 'Juridico' && <span className="text-gray-lightest">*</span>}
+                        </Label>
+                        <Input
+                          id="ciudad"
+                          value={formData.ciudad}
+                          onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                          className={`elegante-input ${showProveedorFormErrors && formData.tipoProveedor === 'Juridico' && !formData.ciudad.trim() ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                          placeholder="Ej: Bogotá"
+                        />
+                        {showProveedorFormErrors && formData.tipoProveedor === 'Juridico' && !formData.ciudad.trim() && (
+                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-lightest flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-orange-primary" />
+                          Departamento {formData.tipoProveedor === 'Juridico' && <span className="text-gray-lightest">*</span>}
                         </Label>
                         <Input
                           id="departamento"
                           list="departamentos-colombia"
                           value={formData.departamento}
                           onChange={(e) => setFormData({ ...formData, departamento: e.target.value })}
-                          className="elegante-input"
+                          className={`elegante-input ${showProveedorFormErrors && formData.tipoProveedor === 'Juridico' && !formData.departamento.trim() ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                           placeholder="Ej: Cundinamarca"
                         />
                         <datalist id="departamentos-colombia">
@@ -859,130 +1056,138 @@ export function ProveedoresPage() {
                             <option key={departamento} value={departamento} />
                           ))}
                         </datalist>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-white-primary flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-orange-primary" />
-                          Ciudad
-                        </Label>
-                        <Input
-                          id="ciudad"
-                          value={formData.ciudad}
-                          onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
-                          className="elegante-input"
-                          placeholder="Ej: Bogotá"
-                        />
+                        {showProveedorFormErrors && formData.tipoProveedor === 'Juridico' && !formData.departamento.trim() && (
+                          <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                        )}
                       </div>
                     </div>
 
-                    {/* Sección 3: Datos Específicos */}
+                    {/* Sección Representante Legal: campos 10-14 (solo para Jurídico) */}
                     {formData.tipoProveedor === 'Juridico' && (
                       <div className="border-t border-gray-700 pt-4 mt-4">
-                        <h4 className="text-sm font-medium text-white-primary mb-3 flex items-center gap-2">
+                        <h4 className="text-sm font-medium text-gray-lightest mb-3 flex items-center gap-2">
                           <UserCheck className="w-4 h-4 text-orange-primary" />
-                          Información de Contacto
+                          Informacion del Representante
                         </h4>
+
+                        {/* 10. Representante legal + 11. Tipo identificación rep. */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              <User className="w-4 h-4 text-gray-400" />
-                              Persona de Contacto (Opcional)
+                            <Label className="text-gray-lightest flex items-center gap-2">
+                              <User className="w-4 h-4 text-orange-primary" />
+                              Representante legal <span className="text-gray-lightest">*</span>
                             </Label>
                             <Input
-                              id="personaContacto"
-                              value={formData.personaContacto || ''}
-                              onChange={(e) => setFormData({ ...formData, personaContacto: e.target.value })}
-                              className="elegante-input"
-                              placeholder="Nombre de contacto alternativo"
+                              id="representanteLegal"
+                              value={formData.representanteLegal}
+                              onChange={(e) => setFormData({ ...formData, representanteLegal: sanitizeNombre(e.target.value) })}
+                              placeholder="Ej: María Elena García"
+                              maxLength={150}
+                              className={`elegante-input ${(showProveedorFormErrors && !formData.representanteLegal.trim()) || !!formatErrors.representanteLegal ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                             />
+                            {showProveedorFormErrors && !formData.representanteLegal.trim() && (
+                              <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                            )}
+                            {!!formatErrors.representanteLegal && (
+                              <p className="text-xs text-red-400">{formatErrors.representanteLegal}</p>
+                            )}
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              <Mail className="w-4 h-4 text-gray-400" />
-                              Correo contacto adicional
+                            <Label className="text-gray-lightest flex items-center gap-2">
+                              <IdCard className="w-4 h-4 text-orange-primary" />
+                              Tipo identificación rep. <span className="text-gray-lightest">*</span>
                             </Label>
-                            <Input
-                              id="correoContactoAdicional"
-                              type="email"
-                              value={formData.correoContactoAdicional}
-                              onChange={(e) => setFormData({ ...formData, correoContactoAdicional: e.target.value })}
-                              className="elegante-input"
-                              placeholder="contacto@correo.com"
-                            />
+                            <Select
+                              value={formData.tipoIdentificacionRepresentante}
+                              onValueChange={(val) => setFormData({ ...formData, tipoIdentificacionRepresentante: val })}
+                            >
+                              <SelectTrigger className="elegante-input w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-darkest border-gray-dark">
+                                {TIPOS_IDENTIFICACION_REPRESENTANTE.map((t) => (
+                                  <SelectItem key={t.value} value={t.value} className="text-gray-lightest">
+                                    {t.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+
+                        {/* 12. Identificación rep. + 13. Correo representante */}
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                           <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              <Phone className="w-4 h-4 text-gray-400" />
-                              Teléfono contacto adicional
+                            <Label className="text-gray-lightest flex items-center gap-2">
+                              <IdCard className="w-4 h-4 text-orange-primary" />
+                              Identificación rep. <span className="text-gray-lightest">*</span>
                             </Label>
                             <Input
-                              id="telefonoContactoAdicional"
-                              value={formData.telefonoContactoAdicional}
-                              onChange={(e) => setFormData({ ...formData, telefonoContactoAdicional: e.target.value })}
-                              className="elegante-input"
-                              placeholder="Ej: +57 300 000 0000"
+                              id="identificacionRepresentante"
+                              value={formData.identificacionRepresentante}
+                              onChange={(e) => setFormData({ ...formData, identificacionRepresentante: sanitizeIdentificacion(e.target.value, formData.tipoIdentificacionRepresentante) })}
+                              placeholder={formData.tipoIdentificacionRepresentante === 'Pasaporte' ? 'Ej: AB123456' : 'Ej: 1023456789'}
+                              maxLength={18}
+                              inputMode={formData.tipoIdentificacionRepresentante === 'Pasaporte' ? 'text' : 'numeric'}
+                              className={`elegante-input ${(showProveedorFormErrors && !formData.identificacionRepresentante.trim()) || !!formatErrors.identificacionRepresentante ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                             />
+                            {showProveedorFormErrors && !formData.identificacionRepresentante.trim() && (
+                              <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                            )}
+                            {!!formatErrors.identificacionRepresentante && (
+                              <p className="text-xs text-red-400">{formatErrors.identificacionRepresentante}</p>
+                            )}
                           </div>
+                          <div className="space-y-2">
+                            <Label className="text-gray-lightest flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-orange-primary" />
+                              Correo representante <span className="text-gray-lightest">*</span>
+                            </Label>
+                            <Input
+                              id="correoRepresentante"
+                              type="email"
+                              value={formData.correoRepresentante}
+                              onChange={(e) => setFormData({ ...formData, correoRepresentante: e.target.value.replace(/\s/g, '') })}
+                              placeholder="representante@correo.com"
+                              maxLength={150}
+                              className={`elegante-input ${(showProveedorFormErrors && !formData.correoRepresentante.trim()) || !!formatErrors.correoRepresentante ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                            />
+                            {showProveedorFormErrors && !formData.correoRepresentante.trim() && (
+                              <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                            )}
+                            {!!formatErrors.correoRepresentante && (
+                              <p className="text-xs text-red-400">{formatErrors.correoRepresentante}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 14. Teléfono representante */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-gray-lightest flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-orange-primary" />
+                              Teléfono representante <span className="text-gray-lightest">*</span>
+                            </Label>
+                            <Input
+                              id="telefonoRepresentante"
+                              value={formData.telefonoRepresentante}
+                              onChange={(e) => setFormData({ ...formData, telefonoRepresentante: sanitizeTelefono(e.target.value) })}
+                              placeholder="Ej: +57 301 111 2222"
+                              maxLength={20}
+                              inputMode="tel"
+                              className={`elegante-input ${(showProveedorFormErrors && !formData.telefonoRepresentante.trim()) || !!formatErrors.telefonoRepresentante ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                            />
+                            {showProveedorFormErrors && !formData.telefonoRepresentante.trim() && (
+                              <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                            )}
+                            {!!formatErrors.telefonoRepresentante && (
+                              <p className="text-xs text-red-400">{formatErrors.telefonoRepresentante}</p>
+                            )}
+                          </div>
+                          <div className="space-y-2" />
                         </div>
                       </div>
                     )}
-
-                    {formData.tipoProveedor === 'Natural' && (
-                      <div className="border-t border-gray-700 pt-4 mt-4">
-                        <h4 className="text-sm font-medium text-white-primary mb-3 flex items-center gap-2">
-                          <UserCheck className="w-4 h-4 text-orange-primary" />
-                          Información de Contacto Adicional
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              <User className="w-4 h-4 text-gray-400" />
-                              Persona de Contacto (Opcional)
-                            </Label>
-                            <Input
-                              id="personaContacto"
-                              value={formData.personaContacto || ''}
-                              onChange={(e) => setFormData({ ...formData, personaContacto: e.target.value })}
-                              className="elegante-input"
-                              placeholder="Nombre de contacto alternativo"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              <Mail className="w-4 h-4 text-gray-400" />
-                              Correo contacto adicional
-                            </Label>
-                            <Input
-                              id="correoContactoAdicional"
-                              type="email"
-                              value={formData.correoContactoAdicional}
-                              onChange={(e) => setFormData({ ...formData, correoContactoAdicional: e.target.value })}
-                              className="elegante-input"
-                              placeholder="contacto@correo.com"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-white-primary flex items-center gap-2">
-                              <Phone className="w-4 h-4 text-gray-400" />
-                              Teléfono contacto adicional
-                            </Label>
-                            <Input
-                              id="telefonoContactoAdicional"
-                              value={formData.telefonoContactoAdicional}
-                              onChange={(e) => setFormData({ ...formData, telefonoContactoAdicional: e.target.value })}
-                              className="elegante-input"
-                              placeholder="Ej: +57 300 000 0000"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    
 
                     <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
                       <Button
@@ -1026,7 +1231,7 @@ export function ProveedoresPage() {
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">NIT/Documento</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Representante Legal</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
@@ -1065,28 +1270,37 @@ export function ProveedoresPage() {
                       className="border-b border-gray-dark hover:bg-gray-darker transition-colors"
                     >
                       <td className="py-4 px-4 text-center">
-                        <span className="text-sm text-gray-lighter">{proveedor.nit}</span>
+                        <span className="text-sm text-gray-lighter">{proveedor.identificacion || proveedor.nit}</span>
                       </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3 justify-center sm:justify-start">
+                          <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center shrink-0">
                             {proveedor.tipoProveedor === 'Juridico' ? (
                               <Building className="w-4 h-4 text-black-primary" />
                             ) : (
                               <User className="w-4 h-4 text-black-primary" />
                             )}
                           </div>
-                          <span className="text-sm text-gray-lighter">{proveedor.nombre}</span>
+                          <div className="flex flex-col items-start min-w-0">
+                            <span className="text-sm text-gray-lighter font-medium truncate w-full">{proveedor.nombre}</span>
+                            {proveedor.tipoProveedor === 'Juridico' && (
+                              <span className="text-[10px] text-gray-lightest italic truncate w-full" title="Representante Legal">
+                                {proveedor.representanteLegal || '-'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex flex-col">
                           <span className="text-sm text-gray-lighter">{proveedor.correo || '-'}</span>
-                          <span className="text-xs text-gray-lightest">{(proveedor as any).numero || (proveedor as any).telefono || ''}</span>
+                          <span className="text-xs text-gray-lightest">{(proveedor as any).telefono || (proveedor as any).numero || ''}</span>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className="text-sm text-gray-lighter">{proveedor.representanteLegal || '-'}</span>
+                        <span className={`std-badge ${proveedor.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          {proveedor.activo ? 'Activo' : 'Inactivo'}
+                        </span>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -1300,9 +1514,10 @@ export function ProveedoresPage() {
             </DialogHeader>
 
             <div className="space-y-6 pt-4">
+              {/* 1 + 2 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <Building className="w-4 h-4 text-orange-primary" />
                     Tipo de Proveedor
                   </Label>
@@ -1313,9 +1528,9 @@ export function ProveedoresPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <User className="w-4 h-4 text-orange-primary" />
-                    {selectedProveedor.tipoProveedor === 'Juridico' ? 'Nombre Comercial' : 'Nombre Completo'}
+                    Nombre proveedor
                   </Label>
                   <Input
                     value={selectedProveedor.nombre || ''}
@@ -1325,45 +1540,36 @@ export function ProveedoresPage() {
                 </div>
               </div>
 
+              {/* 3 + 4 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <IdCard className="w-4 h-4 text-orange-primary" />
-                    NIT / Identificación
+                    Tipo identificación prov.
                   </Label>
                   <Input
-                    value={selectedProveedor.nit || (selectedProveedor as any).numeroIdentificacion || ''}
+                    value={selectedProveedor.tipoIdentificacionProveedor || ''}
                     disabled
                     className="elegante-input"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-orange-primary" />
-                    Representante Legal
+                  <Label className="text-gray-lightest flex items-center gap-2">
+                    <IdCard className="w-4 h-4 text-orange-primary" />
+                    Identificación
                   </Label>
                   <Input
-                    value={selectedProveedor.representanteLegal || ''}
+                    value={selectedProveedor.identificacion || selectedProveedor.nit || ''}
                     disabled
                     className="elegante-input"
                   />
                 </div>
               </div>
 
+              {/* 5 + 6 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-orange-primary" />
-                    Teléfono Principal
-                  </Label>
-                  <Input
-                    value={selectedProveedor.numero || (selectedProveedor as any).telefono || ''}
-                    disabled
-                    className="elegante-input"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-white-primary flex items-center gap-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
                     <Mail className="w-4 h-4 text-orange-primary" />
                     Correo
                   </Label>
@@ -1373,71 +1579,128 @@ export function ProveedoresPage() {
                     className="elegante-input"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-orange-primary" />
+                    Teléfono
+                  </Label>
+                  <Input
+                    value={(selectedProveedor.telefono as string) || selectedProveedor.numero || ''}
+                    disabled
+                    className="elegante-input"
+                  />
+                </div>
               </div>
 
+              {/* 7 */}
+              <div className="space-y-2">
+                <Label className="text-gray-lightest flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-orange-primary" />
+                  Dirección
+                </Label>
+                <Input
+                  value={selectedProveedor.direccion || ''}
+                  disabled
+                  className="elegante-input"
+                />
+              </div>
+
+              {/* 8 + 9 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-orange-primary" />
+                    Ciudad
+                  </Label>
+                  <Input
+                    value={selectedProveedor.ciudad || ''}
+                    disabled
+                    className="elegante-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-lightest flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-orange-primary" />
+                    Departamento
+                  </Label>
+                  <Input
+                    value={selectedProveedor.departamento || ''}
+                    disabled
+                    className="elegante-input"
+                  />
+                </div>
+              </div>
+
+              {/* Sección Representante (solo para Jurídico) */}
               {selectedProveedor.tipoProveedor === 'Juridico' && (
                 <>
                   <h4 className="text-sm font-medium text-white-primary mb-3 flex items-center gap-2">
                     <UserCheck className="w-4 h-4 text-orange-primary" />
-                    Información de Contacto
+                    Representante Legal
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        <User className="w-4 h-4 text-orange-primary" />
-                        Persona de Contacto
-                      </Label>
-                      <Input value={selectedProveedor.contacto || (selectedProveedor as any).personaContacto || ''} disabled className="elegante-input" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-orange-primary" />
-                        Correo contacto adicional
-                      </Label>
-                      <Input value={selectedProveedor.correoContactoAdicional || ''} disabled className="elegante-input" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-orange-primary" />
-                        Teléfono contacto adicional
-                      </Label>
-                      <Input value={selectedProveedor.telefonoContactoAdicional || ''} disabled className="elegante-input" />
-                    </div>
-                  </div>
-                </>
-              )}
 
-              {selectedProveedor.tipoProveedor === 'Natural' && (
-                <>
-                  <h4 className="text-sm font-medium text-white-primary mb-3 flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-orange-primary" />
-                    Información Representante
-                  </h4>
+                  {/* 10 */}
+                  <div className="space-y-2">
+                    <Label className="text-gray-lightest flex items-center gap-2">
+                      <User className="w-4 h-4 text-orange-primary" />
+                      Representante legal
+                    </Label>
+                    <Input
+                      value={selectedProveedor.representanteLegal || ''}
+                      disabled
+                      className="elegante-input"
+                    />
+                  </div>
+
+                  {/* 11 + 12 */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        <User className="w-4 h-4 text-orange-primary" />
-                        Persona de Contacto
+                      <Label className="text-gray-lightest flex items-center gap-2">
+                        <IdCard className="w-4 h-4 text-orange-primary" />
+                        Tipo identificación rep.
                       </Label>
-                      <Input value={(selectedProveedor as any).personaContacto || (selectedProveedor as any).contacto || ''} disabled className="elegante-input" />
+                      <Input
+                        value={selectedProveedor.tipoIdentificacionRepresentante || selectedProveedor.tipoIdentificacion || ''}
+                        disabled
+                        className="elegante-input"
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-orange-primary" />
-                        Correo contacto adicional
+                      <Label className="text-gray-lightest flex items-center gap-2">
+                        <IdCard className="w-4 h-4 text-orange-primary" />
+                        Identificación rep.
                       </Label>
-                      <Input value={selectedProveedor.correoContactoAdicional || ''} disabled className="elegante-input" />
+                      <Input
+                        value={selectedProveedor.identificacionRepresentante || selectedProveedor.numeroIdentificacion || ''}
+                        disabled
+                        className="elegante-input"
+                      />
                     </div>
                   </div>
+
+                  {/* 13 + 14 */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white-primary flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-orange-primary" />
-                        Teléfono contacto adicional
+                      <Label className="text-gray-lightest flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-orange-primary" />
+                        Correo representante
                       </Label>
-                      <Input value={selectedProveedor.telefonoContactoAdicional || ''} disabled className="elegante-input" />
+                      <Input
+                        value={selectedProveedor.correoRepresentante || ''}
+                        disabled
+                        className="elegante-input"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-lightest flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-orange-primary" />
+                        Teléfono representante
+                      </Label>
+                      <Input
+                        value={selectedProveedor.telefonoRepresentante || ''}
+                        disabled
+                        className="elegante-input"
+                      />
                     </div>
                   </div>
                 </>

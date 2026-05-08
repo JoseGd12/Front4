@@ -2122,7 +2122,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       </Label>
                       <Input
                         value={(() => {
-                          const numPart = ((selectedVenta as any).numeroRecibo || '').split('-').pop();
+                          const rec = (selectedVenta as any).numeroRecibo;
+                          const numPart = (rec || String(selectedVenta.numeroVenta || selectedVenta.id)).split('-').pop();
                           if (!numPart) return 'N/A';
                           const n = parseInt(numPart, 10);
                           return isNaN(n) ? numPart : n.toString().padStart(3, '0');

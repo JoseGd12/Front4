@@ -2,36 +2,66 @@ const API_BASE_URL = '/api';
 
 export interface Proveedor {
   id?: number;
-  nombre: string;
-  nit?: string;
-  correo?: string;
-  telefono?: string | null;
-  direccion?: string;
-  estado?: boolean;
+
+  // 1. Tipo de Proveedor
   tipoProveedor?: 'Juridico' | 'Natural';
 
-  // Campos del Representante Legal (alineados con la API)
+  // 2. Nombre proveedor
+  nombre: string;
+
+  // 3. Tipo identificación prov.
+  tipoIdentificacionProveedor?: string | null;
+
+  // 4. Identificación
+  identificacion?: string;
+
+  // 5. Correo
+  correo?: string;
+
+  // 6. Teléfono
+  telefono?: string | null;
+
+  // 7. Dirección
+  direccion?: string;
+
+  // 8. Ciudad
+  ciudad?: string;
+
+  // 9. Departamento
+  departamento?: string;
+
+  // 10. Representante legal
   representanteLegal?: string;
-  numeroIdentificacion?: string | null;
-  tipoIdentificacion?: string | null;
+
+  // 11. Tipo identificación rep.
+  tipoIdentificacionRepresentante?: string | null;
+
+  // 12. Identificación rep.
+  identificacionRepresentante?: string | null;
+
+  // 13. Correo representante
   correoRepresentante?: string;
+
+  // 14. Teléfono representante
   telefonoRepresentante?: string;
 
-  // Información jurídica
-  ciudad?: string;
-  departamento?: string;
+  estado?: boolean;
 
   // Relaciones
   compras?: any[];
 
-  // Aliases / compat (no se envían a la API)
+  // Aliases / compat de UI (no se envían a la API)
   numero?: string;
   activo?: boolean;
   fechaCreacion?: string;
 
-  // ⚠️ Campos legacy / deprecated — NO existen en la API.
-  // Se mantienen como opcionales solo para no romper componentes antiguos
-  // mientras se migran. NO enviar al backend.
+  // ===== Aliases legacy mantenidos para no romper componentes que aún los usan =====
+  /** @deprecated Usar identificacion */
+  nit?: string;
+  /** @deprecated Usar identificacionRepresentante */
+  numeroIdentificacion?: string | null;
+  /** @deprecated Usar tipoIdentificacionRepresentante */
+  tipoIdentificacion?: string | null;
   /** @deprecated Usar representanteLegal */
   contacto?: string | null;
   /** @deprecated No existe en API */
@@ -54,7 +84,6 @@ export interface Proveedor {
   personaContacto?: string;
   /** @deprecated No existe en API */
   apellidos?: string;
-  // Contacto adicional (Natural) — NO existe en API
   /** @deprecated */
   tipoDocumentoContactoAdicional?: string;
   /** @deprecated */
@@ -106,29 +135,45 @@ class ProveedorService {
 
   /**
    * Mapeo del Proveedor al formato JSON que espera la API.
-   * Solo incluye los campos que existen en la entidad Proveedor del backend.
+   * Solo incluye los 14 campos definidos en la entidad Proveedor del backend.
    */
   private mapToApiFormatJson(data: Partial<Proveedor>): any {
     const tipo = data.tipoProveedor || 'Juridico';
-    const tipoIdent = data.tipoIdentificacion || (tipo === 'Natural' ? 'CC' : 'NIT');
-
-    // Compatibilidad con personaContacto / contacto legacy → representanteLegal
+    const tipoIdentProv = data.tipoIdentificacionProveedor || (tipo === 'Natural' ? 'CC' : 'NIT');
+    const tipoIdentRep = data.tipoIdentificacionRepresentante || data.tipoIdentificacion || (tipo === 'Juridico' ? 'CC' : null);
+    const identificacion = data.identificacion || data.nit || '';
+    const identificacionRep = data.identificacionRepresentante || data.numeroIdentificacion || '';
     const representante = data.representanteLegal || data.personaContacto || data.contacto || '';
 
     return {
+      // 1
       TipoProveedor: tipo,
+      // 2
       Nombre: data.nombre || '',
-      NIT: data.nit || data.numeroIdentificacion || '',
+      // 3
+      TipoIdentificacionProveedor: tipoIdentProv,
+      // 4
+      Identificacion: identificacion,
+      // 5
       Correo: data.correo || '',
+      // 6
       Telefono: data.numero || data.telefono || '',
+      // 7
       Direccion: data.direccion || '',
-      RepresentanteLegal: representante,
-      NumeroIdentificacion: data.numeroIdentificacion || data.nit || '',
-      TipoIdentificacion: tipoIdent,
-      CorreoRepresentante: data.correoRepresentante || '',
-      TelefonoRepresentante: data.telefonoRepresentante || '',
+      // 8
       Ciudad: data.ciudad || '',
-      Departamento: data.departamento || ''
+      // 9
+      Departamento: data.departamento || '',
+      // 10
+      RepresentanteLegal: representante,
+      // 11
+      TipoIdentificacionRepresentante: tipoIdentRep,
+      // 12
+      IdentificacionRepresentante: identificacionRep,
+      // 13
+      CorreoRepresentante: data.correoRepresentante || '',
+      // 14
+      TelefonoRepresentante: data.telefonoRepresentante || ''
     };
   }
 
@@ -141,8 +186,17 @@ class ProveedorService {
     const rawTipo = apiData.tipoProveedor ?? apiData.TipoProveedor ?? 'Juridico';
     const tipo = String(rawTipo).toLowerCase() === 'natural' ? 'Natural' : 'Juridico';
 
-    const nitValue = apiData.nit || apiData.Nit || apiData.NIT
+    const identificacionValue = apiData.identificacion || apiData.Identificacion
+      || apiData.nit || apiData.NIT || '';
+
+    const identificacionRepValue = apiData.identificacionRepresentante || apiData.IdentificacionRepresentante
       || apiData.numeroIdentificacion || apiData.NumeroIdentificacion || '';
+
+    const tipoIdentRepValue = apiData.tipoIdentificacionRepresentante || apiData.TipoIdentificacionRepresentante
+      || apiData.tipoIdentificacion || apiData.TipoIdentificacion || '';
+
+    const tipoIdentProvValue = apiData.tipoIdentificacionProveedor || apiData.TipoIdentificacionProveedor
+      || (tipo === 'Natural' ? 'CC' : 'NIT');
 
     const rawEstado = apiData.estado ?? apiData.Estado ?? apiData.activo ?? apiData.Activo;
     let isEstadoTrue = true;
@@ -156,30 +210,45 @@ class ProveedorService {
 
     return {
       id: Number(apiData.id || apiData.Id || 0),
-      nombre: apiData.nombre || apiData.Nombre || '',
-      nit: nitValue,
-      correo: apiData.correo || apiData.Correo || '',
-      telefono: apiData.telefono || apiData.Telefono || apiData.numero || apiData.Numero || '',
-      direccion: apiData.direccion || apiData.Direccion || '',
-      estado: isEstadoTrue,
+      // 1
       tipoProveedor: tipo,
-
-      representanteLegal: apiData.representanteLegal || apiData.RepresentanteLegal || '',
-      numeroIdentificacion: apiData.numeroIdentificacion || apiData.NumeroIdentificacion || nitValue,
-      tipoIdentificacion: apiData.tipoIdentificacion || apiData.TipoIdentificacion || '',
-      correoRepresentante: apiData.correoRepresentante || apiData.CorreoRepresentante || '',
-      telefonoRepresentante: apiData.telefonoRepresentante || apiData.TelefonoRepresentante || '',
+      // 2
+      nombre: apiData.nombre || apiData.Nombre || '',
+      // 3
+      tipoIdentificacionProveedor: tipoIdentProvValue,
+      // 4
+      identificacion: identificacionValue,
+      // 5
+      correo: apiData.correo || apiData.Correo || '',
+      // 6
+      telefono: apiData.telefono || apiData.Telefono || apiData.numero || apiData.Numero || '',
+      // 7
+      direccion: apiData.direccion || apiData.Direccion || '',
+      // 8
       ciudad: apiData.ciudad || apiData.Ciudad || '',
+      // 9
       departamento: apiData.departamento || apiData.Departamento || '',
+      // 10
+      representanteLegal: apiData.representanteLegal || apiData.RepresentanteLegal || '',
+      // 11
+      tipoIdentificacionRepresentante: tipoIdentRepValue,
+      // 12
+      identificacionRepresentante: identificacionRepValue,
+      // 13
+      correoRepresentante: apiData.correoRepresentante || apiData.CorreoRepresentante || '',
+      // 14
+      telefonoRepresentante: apiData.telefonoRepresentante || apiData.TelefonoRepresentante || '',
 
+      estado: isEstadoTrue,
       compras: apiData.compras || apiData.Compras || [],
 
-      // Aliases para compatibilidad
+      // Aliases para compatibilidad con UI legacy
+      nit: identificacionValue,
+      numeroIdentificacion: identificacionRepValue,
+      tipoIdentificacion: tipoIdentRepValue,
       numero: apiData.telefono || apiData.Telefono || apiData.numero || apiData.Numero || '',
       activo: isEstadoTrue,
       fechaCreacion: apiData.fechaCreacion || apiData.FechaCreacion || new Date().toLocaleDateString('es-CO'),
-
-      // Mantener legacy fields como vacíos para compat con UI
       contacto: apiData.representanteLegal || apiData.RepresentanteLegal || '',
       personaContacto: apiData.representanteLegal || apiData.RepresentanteLegal || ''
     };
