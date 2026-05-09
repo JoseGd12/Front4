@@ -1456,9 +1456,10 @@ export function ProductosPage() {
                         </tr>
 
                         {/* Fila expandible — compras del producto */}
-                        {isExpanded && (
-                          <tr key={`expand-${producto.id}`} className="border-b border-orange-primary/20">
-                            <td colSpan={9} className="px-0 py-0">
+                        <tr key={`expand-${producto.id}`} className={isExpanded ? 'border-b border-orange-primary/20' : ''}>
+                          <td colSpan={9} style={{ padding: 0 }}>
+                            <div className={`row-accordion-wrap${isExpanded ? ' open' : ''}`}>
+                              <div className="row-accordion-inner">
                               <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
                                 {/* Encabezado */}
                                 <div className="px-6 py-3 bg-orange-primary/5 border-b border-gray-darker flex items-center justify-between flex-wrap gap-3">
@@ -1529,9 +1530,10 @@ export function ProductosPage() {
                                   </table>
                                 )}
                               </div>
-                            </td>
-                          </tr>
-                        )}
+                            </div>
+                            </div>
+                          </td>
+                        </tr>
                       </React.Fragment>
                     );
                   }) : (

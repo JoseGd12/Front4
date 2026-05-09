@@ -2035,9 +2035,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </div>
 
           {/* Carrusel de días — citas por día de la semana */}
-          <div className="std-card mb-0">
+          <div 
+            className="mb-0 overflow-hidden"
+            style={{ 
+              backgroundColor: 'var(--gray-darkest)', 
+              border: '1px solid var(--gray-darker)', 
+              borderRadius: '14px',
+              padding: 0 
+            }}
+          >
             <div
-              className="grid gap-1 py-3"
+              className="grid gap-1 py-6 items-center"
               style={{ gridTemplateColumns: calendarGridTemplate }}
             >
               <div />
@@ -2047,13 +2055,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 return (
                   <div
                     key={dia}
-                    className={`min-w-0 text-center cursor-pointer transition-all duration-200 rounded-lg py-3 px-2 border-2 ${
+                    className={`min-w-0 text-center cursor-pointer transition-all duration-200 rounded-lg py-4 px-2 border-2 flex flex-col items-center justify-center gap-1.5 ${
                       isSelected ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent hover:bg-gray-darker'
                     }`}
                     onClick={() => handleDateSelect(fechaCompleta)}
                   >
                     <div className="flex justify-center items-center gap-1">
-                      <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest">{dia.slice(0, 3)}</h4>
+                      <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-bold">{dia.slice(0, 3)}</h4>
                       {discount > 0 && (
                         <span className="bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                           -{discount}%
@@ -2069,8 +2077,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </div>
 
           {/* Grid de horarios */}
-          <div className="std-card mb-0">
-            <div className="w-full pb-4 pt-3">
+          <div className="std-card mb-0 !py-0">
+            <div className="w-full py-5">
               <div className="-mx-6 pl-3 pr-6">
                 {(() => {
                   const weekDays = getCurrentWeekDays();
@@ -2078,7 +2086,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   return horasDelDia.map((hora) => (
                     <div
                       key={hora}
-                      className="grid gap-1 h-14"
+                      className="grid gap-1 h-20"
                       style={{ gridTemplateColumns: calendarGridTemplate }}
                     >
                       <div className="flex h-full items-center justify-center text-center text-[11px] tracking-[0.04em] text-gray-lightest whitespace-nowrap">
@@ -2190,14 +2198,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             )}
                             {slotRole === 'start' && citaEnCurso && (() => {
                               const durSlots = Math.ceil((citaEnCurso.duracion || 60) / 30);
-                              const contentH = `calc(${durSlots} * 3.5rem)`;
+                              const contentH = `calc(${durSlots} * 5rem)`;
                               return (
                               <>
                                 <div
-                                  className={`absolute left-0 right-0 top-0 flex flex-col items-center justify-center pointer-events-none px-1 gap-0.5 ${tieneMultiples ? 'pt-5' : ''}`}
+                                  className="absolute left-0 right-0 top-0 flex flex-col items-center justify-center pointer-events-none px-1 gap-1"
                                   style={{ height: contentH, zIndex: 3 }}
                                 >
-                                  <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] leading-tight text-center w-full truncate">
+                                  <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] leading-tight text-center w-full truncate font-bold">
                                     {formatNombre((citaEnCurso.clienteNombre || 'Cliente').split(' ')[0])}
                                   </span>
                                   <span style={{ color: isPastSlot ? '#a08060' : '#5a3510' }} className="text-[9px] leading-tight text-center w-full truncate">

@@ -1166,9 +1166,10 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                         </tr>
 
                         {/* Fila expandible — días del barbero */}
-                        {isExpanded && (
-                          <tr key={`expand-${horario.id}`} className="border-b border-orange-primary/20">
-                            <td colSpan={6} className="px-0 py-0">
+                        <tr key={`expand-${horario.id}`} className={isExpanded ? 'border-b border-orange-primary/20' : ''}>
+                          <td colSpan={6} style={{ padding: 0 }}>
+                            <div className={`row-accordion-wrap${isExpanded ? ' open' : ''}`}>
+                              <div className="row-accordion-inner">
                               <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
                                 {/* Etiqueta */}
                                 <div className="px-6 py-2 bg-orange-primary/5 border-b border-gray-darker">
@@ -1242,9 +1243,10 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                   </table>
                                 )}
                               </div>
-                            </td>
-                          </tr>
-                        )}
+                            </div>
+                            </div>
+                          </td>
+                        </tr>
                       </>
                     );
                   }) : (

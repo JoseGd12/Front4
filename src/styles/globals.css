@@ -976,3 +976,17 @@ html {
     cursor: default;
   }
 }
+
+/* ── Accordion row animation (Horarios & Productos) ── */
+.row-accordion-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+.row-accordion-wrap.open {
+  grid-template-rows: 1fr;
+}
+.row-accordion-inner {
+  overflow: hidden;
+}
