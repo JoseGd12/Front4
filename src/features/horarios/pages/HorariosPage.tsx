@@ -64,6 +64,18 @@ const diasSemana = [
   "Domingo",
 ];
 
+// Convierte un string "HH:MM" o "HH:MM:SS" a formato 12 horas con AM/PM
+const formatHoraStr12 = (horaStr: string): string => {
+  if (!horaStr) return '';
+  const [hStr, mStr = '00'] = horaStr.split(':');
+  const h = parseInt(hStr || '0', 10);
+  const m = parseInt(mStr || '0', 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
 // Tipo para un bloque de horario (día + hora inicio + hora fin)
 interface BloqueHorario {
   id?: number;
@@ -1116,7 +1128,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                           </td>
                           <td className="py-4 px-4 text-center">
                             <span className="text-gray-lighter text-sm">
-                              {horario.bloques.length > 0 ? `${horario.bloques[0].horaInicio} - ${horario.bloques[0].horaFin}` : '—'}
+                              {horario.bloques.length > 0 ? `${formatHoraStr12(horario.bloques[0].horaInicio)} - ${formatHoraStr12(horario.bloques[0].horaFin)}` : '—'}
                             </span>
                           </td>
                           <td className="py-4 px-4 text-center">
@@ -1208,7 +1220,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                               <span style={{ fontWeight: 400 }}>{dia}</span>
                                             </td>
                                             <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'center', verticalAlign: 'middle' }}>
-                                              {horaInicio} — {horaFin}
+                                              {formatHoraStr12(horaInicio)} — {formatHoraStr12(horaFin)}
                                             </td>
                                             <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'center', verticalAlign: 'middle' }}>
                                               <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 400, background: 'rgba(216,176,129,0.1)', color: '#d8b081', border: '1px solid rgba(216,176,129,0.2)' }}>
@@ -1475,7 +1487,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                 {bloque.dia}
                               </p>
                               <p className="text-gray-lightest text-xs">
-                                {bloque.horaInicio} - {bloque.horaFin}
+                                {formatHoraStr12(bloque.horaInicio)} - {formatHoraStr12(bloque.horaFin)}
                               </p>
                             </div>
                           </div>
@@ -1947,7 +1959,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                             </span>
                           </p>
                           <p className="text-orange-primary text-sm font-semibold">
-                            {bloque.horaInicio} - {bloque.horaFin}
+                            {formatHoraStr12(bloque.horaInicio)} - {formatHoraStr12(bloque.horaFin)}
                           </p>
                         </div>
                         {bloque.estado === false && (

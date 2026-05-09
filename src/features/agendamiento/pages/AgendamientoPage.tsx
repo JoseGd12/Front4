@@ -2269,7 +2269,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           <DialogHeader className="border-b border-gray-dark pb-4">
             <DialogTitle className="text-gray-lightest text-2xl flex items-center gap-3">
               <Clock className="w-7 h-7 text-orange-primary" />
-              {selectedSlot && `${selectedSlot.dia} - ${selectedSlot.hora}:00`}
+              {selectedSlot && `${selectedSlot.dia} - ${formatHora12(selectedSlot.hora)}`}
             </DialogTitle>
             <DialogDescription className="text-gray-lightest text-lg">
               Gestiona todas las citas para esta franja horaria
@@ -2337,29 +2337,31 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             const citasEnFranja = selectedSlot ? getCitasEnSlot(selectedSlot.dia, selectedSlot.hora) : [];
 
             return (
-              <div className="space-y-6">
-                <TableHeaderSection
-                  variant="dark"
-                  searchValue={slotSearchTerm}
-                  onSearchChange={setSlotSearchTerm}
-                  searchPlaceholder="Buscar por cliente, telefono o servicio..."
-                  statusFilter={{
-                    value: slotFilterEstado,
-                    onChange: setSlotFilterEstado,
-                    options: [
-                      { value: "all", label: "Todos" },
-                      ...estados.map((estado) => ({
-                        value: estado.value,
-                        label: estado.label,
-                      })),
-                    ],
-                    placeholder: "Filtrar por estado",
-                  }}
-                  recordsText={`Mostrando ${citasEnFranja.length} registros`}
-                />
+              <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="shrink-0 mb-4">
+                  <TableHeaderSection
+                    variant="dark"
+                    searchValue={slotSearchTerm}
+                    onSearchChange={setSlotSearchTerm}
+                    searchPlaceholder="Buscar por cliente, telefono o servicio..."
+                    statusFilter={{
+                      value: slotFilterEstado,
+                      onChange: setSlotFilterEstado,
+                      options: [
+                        { value: "all", label: "Todos" },
+                        ...estados.map((estado) => ({
+                          value: estado.value,
+                          label: estado.label,
+                        })),
+                      ],
+                      placeholder: "Filtrar por estado",
+                    }}
+                    recordsText={`Mostrando ${citasEnFranja.length} registros`}
+                  />
+                </div>
 
                 {/* Lista de citas */}
-                <div className="space-y-4 max-h-96 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar space-y-3">
                   {citasEnFranja.map((cita) => {
                   let isPasada = false;
                   const today = new Date();
@@ -2373,95 +2375,256 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     }
                   }
 
+                  // Datos enriquecidos
+                  const servicios: any[] = Array.isArray(cita.servicios) && cita.servicios.length > 0
+                    ? cita.servicios
+                    : (Array.isArray(cita.serviciosNombres) ? cita.serviciosNombres.map((n: string) => ({ nombre: n })) : []);
+                  const productos: any[] = Array.isArray(cita.productos) && cita.productos.length > 0
+                    ? cita.productos
+                    : (Array.isArray(cita.productosNombres) ? cita.productosNombres.map((n: string) => ({ nombre: n, cantidad: 1 })) : []);
+                  const paqueteData = cita.paqueteId ? paquetesList.find((p: any) => p.id === cita.paqueteId) : null;
+                  const barberoData = cita.barberoId ? barberosList.find((b: any) => b.id === cita.barberoId) : null;
+                  const clienteData = cita.clienteId ? clientesList.find((c: any) => c.id === cita.clienteId) : null;
+                  const inicialesCliente = (cita.clienteNombre || '?')
+                    .split(' ').filter(Boolean).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join('') || '?';
+                  const inicialesBarbero = (cita.barberoNombre || '?')
+                    .split(' ').filter(Boolean).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join('') || '?';
+                  const estadoColor = getCitaColor(cita.estado);
+
                   return (
-                    <div key={cita.id} className="bg-gray-darker border border-gray-dark rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: getCitaColor(cita.estado) }}
-                          />
-                          <h4 className="text-gray-lightest">{cita.clienteNombre}</h4>
-                          <div className={`elegante-tag ${getEstadoInfo(cita.estado).color} text-white text-xs`}>
-                            {getEstadoInfo(cita.estado).label}
+                    <div
+                      key={cita.id}
+                      className="group relative bg-gradient-to-br from-gray-darker via-gray-darker to-gray-darkest border border-gray-dark/80 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:border-orange-primary/30 transition-all duration-300"
+                    >
+                      {/* Franja de color de estado lateral */}
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-1"
+                        style={{ background: estadoColor }}
+                      />
+
+                      <div className="p-4 pl-5">
+                        {/* Header: cliente + estado + acciones */}
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            {/* Avatar cliente */}
+                            <div
+                              className="shrink-0 w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark border border-gray-dark/60 ring-2 ring-orange-primary/20 shadow-md"
+                            >
+                              {clienteData?.fotoPerfil ? (
+                                <img
+                                  src={clienteData.fotoPerfil}
+                                  alt={cita.clienteNombre}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                />
+                              ) : (
+                                <User className="w-5 h-5 text-gray-lightest" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-gray-lightest font-medium text-base truncate" title={cita.clienteNombre}>
+                                {formatNombre(cita.clienteNombre)}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-light flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {formatHoraStr12(cita.hora)} · {cita.duracion}min
+                                </span>
+                                <span className="text-gray-dark">•</span>
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <span className="shrink-0 w-6 h-6 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                    {barberoData?.fotoPerfil ? (
+                                      <img
+                                        src={barberoData.fotoPerfil}
+                                        alt={cita.barberoNombre}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                      />
+                                    ) : (
+                                      <User className="w-3.5 h-3.5 text-gray-lightest" />
+                                    )}
+                                  </span>
+                                  <span className="truncate text-gray-lightest">{formatNombre(cita.barberoNombre)}</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span
+                              className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider"
+                              style={{
+                                background: `${estadoColor}20`,
+                                color: estadoColor,
+                                border: `1px solid ${estadoColor}40`,
+                              }}
+                            >
+                              {getEstadoInfo(cita.estado).label}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
-                          {/* Cambio rápido de estado */}
-                          <Select value={cita.estado} onValueChange={(value) => handleChangeEstado(cita.id, value)}>
-                            <SelectTrigger className="w-32 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-darkest border-gray-dark">
-                              {estados.map((estado) => (
-                                <SelectItem key={estado.value} value={estado.value} className="text-gray-lightest text-xs">
-                                  {estado.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetail(cita);
-                            }}
-                            className="p-2 rounded bg-blue-600/20 hover:bg-blue-600/30 transition-colors"
-                            title="Ver detalle"
-                          >
-                            <Eye className="w-4 h-4 text-blue-400" />
-                          </button>
+                        {/* Paquete (si aplica) */}
+                        {paqueteData && (
+                          <div className="mb-3 flex items-center gap-3 bg-orange-primary/5 border border-orange-primary/20 rounded-lg p-2.5">
+                            <div className="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-gray-dark border border-orange-primary/30 flex items-center justify-center">
+                              {(paqueteData.imagen || paqueteData.imagenUrl) ? (
+                                <ImageRenderer
+                                  url={paqueteData.imagen || paqueteData.imagenUrl}
+                                  alt={paqueteData.nombre}
+                                  className="w-full h-full border-0 bg-transparent"
+                                  showLabel={false}
+                                />
+                              ) : (
+                                <Package className="w-5 h-5 text-orange-primary" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] uppercase tracking-wider text-orange-primary font-semibold">Paquete</p>
+                              <p className="text-gray-lightest text-sm font-medium truncate">{formatNombre(paqueteData.nombre || cita.paqueteNombre || '')}</p>
+                            </div>
+                          </div>
+                        )}
 
-                          {!isPasada && (
-                            <>
+                        {/* Servicios */}
+                        {servicios.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold mb-1.5 flex items-center gap-1">
+                              <Scissors className="w-3 h-3" /> Servicios
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {servicios.map((s: any, idx: number) => (
+                                <div
+                                  key={s.servicioId || idx}
+                                  className="flex items-center gap-2 bg-gray-darkest/60 border border-gray-dark rounded-lg px-2 py-1.5"
+                                >
+                                  <div className="shrink-0 w-7 h-7 rounded-md overflow-hidden bg-gray-dark flex items-center justify-center">
+                                    {s.imagen ? (
+                                      <ImageRenderer
+                                        url={s.imagen}
+                                        alt={s.nombre}
+                                        className="w-full h-full border-0 bg-transparent"
+                                        showLabel={false}
+                                      />
+                                    ) : (
+                                      <Scissors className="w-3.5 h-3.5 text-orange-primary/60" />
+                                    )}
+                                  </div>
+                                  <span className="text-gray-lightest text-xs font-medium">{formatNombre(s.nombre)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Productos */}
+                        {productos.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold mb-1.5 flex items-center gap-1">
+                              <ShoppingBag className="w-3 h-3" /> Productos
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {productos.map((p: any, idx: number) => (
+                                <div
+                                  key={p.productoId || idx}
+                                  className="flex items-center gap-2 bg-gray-darkest/60 border border-gray-dark rounded-lg px-2 py-1.5"
+                                >
+                                  <div className="relative shrink-0 w-7 h-7 rounded-md overflow-hidden bg-gray-dark flex items-center justify-center">
+                                    {p.imagen ? (
+                                      <ImageRenderer
+                                        url={p.imagen}
+                                        alt={p.nombre}
+                                        className="w-full h-full border-0 bg-transparent"
+                                        showLabel={false}
+                                      />
+                                    ) : (
+                                      <ShoppingBag className="w-3.5 h-3.5 text-orange-primary/60" />
+                                    )}
+                                    {p.cantidad > 1 && (
+                                      <span className="absolute -top-1 -right-1 bg-orange-primary text-black-primary text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                                        {p.cantidad}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-gray-lightest text-xs font-medium">{formatNombre(p.nombre)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Notas */}
+                        {cita.notas && (
+                          <div className="mb-3 bg-gray-darkest/40 border-l-2 border-orange-primary/30 rounded-r px-3 py-2">
+                            <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold mb-0.5 flex items-center gap-1">
+                              <FileText className="w-3 h-3" /> Notas
+                            </p>
+                            <p className="text-gray-lightest text-xs italic">{cita.notas}</p>
+                          </div>
+                        )}
+
+                        {/* Footer: precio + acciones */}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-dark/60">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Total</span>
+                            <span className="text-orange-primary font-bold text-lg tabular-nums leading-tight">
+                              {formatearPrecio(cita.precio)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Select value={cita.estado} onValueChange={(value) => handleChangeEstado(cita.id, value)}>
+                              <SelectTrigger className="w-32 h-8 text-xs bg-gray-darkest border-gray-dark hover:border-orange-primary/40 transition-colors">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-darkest border-gray-dark">
+                                {estados.map((estado) => (
+                                  <SelectItem key={estado.value} value={estado.value} className="text-gray-lightest text-xs">
+                                    {estado.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDetail(cita);
+                              }}
+                              className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 transition-all"
+                              title="Ver detalle"
+                            >
+                              <Eye className="w-4 h-4 text-blue-400" />
+                            </button>
+
+                            {!isPasada && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  console.log("Click en icono Eliminar (Trash2)");
                                   handleDeleteCita(cita);
                                 }}
-                                className="p-2 rounded bg-red-600/20 hover:bg-red-600/30 transition-colors"
+                                className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 transition-all"
                                 title="Eliminar"
                               >
                                 <Trash2 className="w-4 h-4 text-red-400" />
                               </button>
-                            </>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-lightest">
-                        <div>
-                          <span className="text-gray-light">Servicio:</span> {cita.servicioNombre}
-                        </div>
-                        <div>
-                          <span className="text-gray-light">Barbero:</span> {cita.barberoNombre}
-                        </div>
-                        <div>
-                          <span className="text-gray-light">Hora:</span> {cita.hora} ({cita.duracion}min)
-                        </div>
-                        <div>
-                          <span className="text-gray-light">Precio:</span> {formatearPrecio(cita.precio)}
-                        </div>
-                      </div>
-
-                      {cita.notas && (
-                        <div className="mt-2 text-sm text-gray-lightest">
-                          <span className="text-gray-light">Notas:</span> {cita.notas}
-                        </div>
-                      )}
                     </div>
                   );
                   })}
 
                   {selectedSlot && citasEnFranja.length === 0 && (
-                    <div className="text-center py-8">
+                    <div className="text-center py-12 bg-gray-darker/40 border border-dashed border-gray-dark rounded-2xl">
                       <Calendar className="w-12 h-12 text-gray-medium mx-auto mb-4" />
-                      <p className="text-gray-lightest">No hay citas para esta franja horaria</p>
+                      <p className="text-gray-lightest mb-1 font-medium">Sin citas en esta franja</p>
+                      <p className="text-gray-light text-xs mb-4">No hay citas registradas para este horario.</p>
                       <button
                         onClick={() => { setIsSlotModalOpen(false); setSelectedCita(null); setViewMode('crear'); }}
-                        className="elegante-button-primary mt-4"
+                        className="elegante-button-primary"
                       >
+                        <Plus className="w-4 h-4 mr-2 inline" />
                         Crear Cita
                       </button>
                     </div>
@@ -2471,87 +2634,331 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             );
           })()}
 
-          {activeTab === 'detalle' && selectedCita && (
-            <div className="space-y-6">
-              <div className="bg-gray-darker border border-gray-dark rounded-lg p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl text-gray-lightest">{formatNombre(selectedCita.clienteNombre)}</h3>
-                  <div className={`elegante-tag ${getEstadoInfo(selectedCita.estado).color} text-white`}>
-                    {getEstadoInfo(selectedCita.estado).label}
+          {activeTab === 'detalle' && selectedCita && (() => {
+            const detalleServicios: any[] = Array.isArray(selectedCita.servicios) && selectedCita.servicios.length > 0
+              ? selectedCita.servicios
+              : (Array.isArray(selectedCita.serviciosNombres) ? selectedCita.serviciosNombres.map((n: string) => ({ nombre: n })) : []);
+            const detalleProductos: any[] = Array.isArray(selectedCita.productos) && selectedCita.productos.length > 0
+              ? selectedCita.productos
+              : (Array.isArray(selectedCita.productosNombres) ? selectedCita.productosNombres.map((n: string) => ({ nombre: n, cantidad: 1 })) : []);
+            const paqueteData = selectedCita.paqueteId ? paquetesList.find((p: any) => p.id === selectedCita.paqueteId) : null;
+            const barberoDataDetalle = selectedCita.barberoId ? barberosList.find((b: any) => b.id === selectedCita.barberoId) : null;
+            const inicialesBarberoDetalle = (selectedCita.barberoNombre || '?')
+              .split(' ').filter(Boolean).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join('') || '?';
+            // Mapear nombres de servicios del paquete a sus imágenes desde serviciosList
+            const serviciosDelPaquete: any[] = paqueteData && Array.isArray(paqueteData.servicios)
+              ? paqueteData.servicios.map((nombre: string) => {
+                  const srv = serviciosList.find((s: any) => (s.nombre || '').toLowerCase() === String(nombre).toLowerCase());
+                  return srv
+                    ? { nombre, imagen: srv.imagen, duracion: srv.duracion, precio: srv.precio }
+                    : { nombre };
+                })
+              : [];
+            const inicialesCliente = (selectedCita.clienteNombre || '?')
+              .split(' ').filter(Boolean).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join('') || '?';
+            const clienteDataDetalle = selectedCita.clienteId ? clientesList.find((c: any) => c.id === selectedCita.clienteId) : null;
+            const estadoColor = getCitaColor(selectedCita.estado);
+
+            // Formato de fecha legible
+            const fechaLegible = (() => {
+              if (!selectedCita.fecha) return '—';
+              const d = new Date(selectedCita.fecha + 'T00:00:00');
+              return d.toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+            })();
+
+            return (
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar space-y-5">
+              {/* Hero header del cliente */}
+              <div className="relative bg-gradient-to-br from-gray-darker via-gray-darker to-gray-darkest border border-gray-dark/80 rounded-2xl overflow-hidden shadow-xl">
+                <div
+                  className="absolute top-0 left-0 right-0 h-1"
+                  style={{ background: `linear-gradient(90deg, ${estadoColor}, transparent)` }}
+                />
+                <div className="p-5 flex items-center gap-4">
+                  <div
+                    className="shrink-0 w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark border border-gray-dark/60 ring-2 ring-orange-primary/30 shadow-lg"
+                  >
+                    {clienteDataDetalle?.fotoPerfil ? (
+                      <img
+                        src={clienteDataDetalle.fotoPerfil}
+                        alt={selectedCita.clienteNombre}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <User className="w-7 h-7 text-gray-lightest" />
+                    )}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl text-gray-lightest font-semibold">{formatNombre(selectedCita.clienteNombre)}</h3>
+                    <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-light">
+                      {selectedCita.telefono && (
+                        <span className="flex items-center gap-1">
+                          <span className="text-orange-primary">📞</span> {selectedCita.telefono}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-2">
+                        <span className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                          {barberoDataDetalle?.fotoPerfil ? (
+                            <img
+                              src={barberoDataDetalle.fotoPerfil}
+                              alt={selectedCita.barberoNombre}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <User className="w-4 h-4 text-gray-lightest" />
+                          )}
+                        </span>
+                        <span className="text-gray-lightest">{formatNombre(selectedCita.barberoNombre)}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider shrink-0"
+                    style={{
+                      background: `${estadoColor}20`,
+                      color: estadoColor,
+                      border: `1px solid ${estadoColor}50`,
+                    }}
+                  >
+                    {getEstadoInfo(selectedCita.estado).label}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-light mb-1">Información del Cliente</h4>
-                      <p className="text-gray-lightest">{formatNombre(selectedCita.clienteNombre)}</p>
-                      <p className="text-gray-lightest text-sm">{selectedCita.telefono}</p>
+                {/* Bar inferior con horario y precio */}
+                <div className="grid grid-cols-3 gap-px bg-gray-dark/60 border-t border-gray-dark">
+                  <div className="bg-gray-darker p-3 flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-orange-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Fecha</p>
+                      <p className="text-gray-lightest text-sm truncate capitalize">{fechaLegible}</p>
+                    </div>
+                  </div>
+                  <div className="bg-gray-darker p-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-orange-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Hora · Duración</p>
+                      <p className="text-gray-lightest text-sm tabular-nums">{formatHoraStr12(selectedCita.hora)} · {selectedCita.duracion}min</p>
+                    </div>
+                  </div>
+                  <div className="bg-gray-darker p-3 flex items-center gap-2">
+                    <span className="text-orange-primary text-lg font-bold shrink-0">$</span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Total</p>
+                      <p className="text-orange-primary text-base font-bold tabular-nums">{formatearPrecio(selectedCita.precio)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección Paquete (si aplica) */}
+              {paqueteData && (
+                <div className="bg-gradient-to-br from-orange-primary/10 to-gray-darker border border-orange-primary/30 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Package className="w-4 h-4 text-orange-primary" />
+                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Paquete</h4>
+                    </div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-dark border border-orange-primary/40 flex items-center justify-center shadow-md">
+                        {(paqueteData.imagen || paqueteData.imagenUrl) ? (
+                          <ImageRenderer
+                            url={paqueteData.imagen || paqueteData.imagenUrl}
+                            alt={paqueteData.nombre}
+                            className="w-full h-full border-0 bg-transparent"
+                            showLabel={false}
+                          />
+                        ) : (
+                          <Package className="w-9 h-9 text-orange-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-lightest text-lg font-semibold">{formatNombre(paqueteData.nombre || selectedCita.paqueteNombre || '')}</p>
+                        {paqueteData.descripcion && (
+                          <p className="text-gray-light text-xs mt-0.5">{paqueteData.descripcion}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-light">
+                          {paqueteData.duracion && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {paqueteData.duracion} min
+                            </span>
+                          )}
+                          {paqueteData.precio && (
+                            <span className="text-orange-primary font-semibold tabular-nums">{formatearPrecio(paqueteData.precio)}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-light mb-1">Servicio</h4>
-                      <p className="text-gray-lightest">{formatNombre(selectedCita.servicioNombre)}</p>
-                      <p className="text-orange-primary font-semibold">{formatearPrecio(selectedCita.precio)}</p>
-                    </div>
-                    {selectedCita.productosNombres && selectedCita.productosNombres.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-light mb-1 flex items-center gap-1">
-                          <ShoppingBag className="w-3.5 h-3.5" /> Productos
-                        </h4>
-                        {selectedCita.productosNombres.map((nombre: string, i: number) => (
-                          <p key={i} className="text-gray-lightest text-sm">• {formatNombre(nombre)}</p>
-                        ))}
+                    {/* Servicios incluidos en el paquete */}
+                    {serviciosDelPaquete.length > 0 && (
+                      <div className="border-t border-orange-primary/20 pt-3">
+                        <p className="text-[10px] uppercase tracking-wider text-orange-primary/80 font-semibold mb-2 flex items-center gap-1">
+                          <Scissors className="w-3 h-3" /> Servicios incluidos ({serviciosDelPaquete.length})
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {serviciosDelPaquete.map((s: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2.5 bg-gray-darkest/50 border border-gray-dark rounded-lg p-2"
+                            >
+                              <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark flex items-center justify-center">
+                                {s.imagen ? (
+                                  <ImageRenderer
+                                    url={s.imagen}
+                                    alt={s.nombre}
+                                    className="w-full h-full border-0 bg-transparent"
+                                    showLabel={false}
+                                  />
+                                ) : (
+                                  <Scissors className="w-4 h-4 text-orange-primary/50" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-gray-lightest text-sm font-medium truncate">{formatNombre(s.nombre)}</p>
+                                {s.duracion && (
+                                  <p className="text-gray-light text-[10px]">{s.duracion} min</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
+                </div>
+              )}
 
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-light mb-1">Programación</h4>
-                      <p className="text-gray-lightest">{selectedCita.fecha}</p>
-                      <p className="text-gray-lightest">{selectedCita.hora} - {selectedCita.duracion} minutos</p>
+              {/* Servicios sueltos (si no hay paquete) */}
+              {!paqueteData && detalleServicios.length > 0 && (
+                <div className="bg-gray-darker border border-gray-dark rounded-2xl overflow-hidden shadow-lg">
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Scissors className="w-4 h-4 text-orange-primary" />
+                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Servicios ({detalleServicios.length})</h4>
                     </div>
-
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-light mb-1">Barbero Asignado</h4>
-                      <p className="text-gray-lightest">{formatNombre(selectedCita.barberoNombre)}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {detalleServicios.map((s: any, idx: number) => (
+                        <div
+                          key={s.servicioId || idx}
+                          className="flex items-center gap-3 bg-gray-darkest/60 border border-gray-dark rounded-xl p-2.5 hover:border-orange-primary/30 transition-colors"
+                        >
+                          <div className="shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                            {s.imagen ? (
+                              <ImageRenderer
+                                url={s.imagen}
+                                alt={s.nombre}
+                                className="w-full h-full border-0 bg-transparent"
+                                showLabel={false}
+                              />
+                            ) : (
+                              <Scissors className="w-5 h-5 text-orange-primary/50" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-gray-lightest font-medium text-sm truncate">{formatNombre(s.nombre)}</p>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-light">
+                              {s.duracion && <span>{s.duracion} min</span>}
+                              {s.precio && <span className="text-orange-primary font-semibold tabular-nums">{formatearPrecio(s.precio)}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
+              )}
 
-                {selectedCita.notas && (
-                  <div className="mt-6 pt-4 border-t border-gray-dark">
-                    <h4 className="text-sm font-semibold text-gray-light mb-2">Notas Especiales</h4>
-                    <p className="text-gray-lightest">{selectedCita.notas}</p>
+              {/* Productos */}
+              {detalleProductos.length > 0 && (
+                <div className="bg-gray-darker border border-gray-dark rounded-2xl overflow-hidden shadow-lg">
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShoppingBag className="w-4 h-4 text-orange-primary" />
+                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Productos ({detalleProductos.length})</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {detalleProductos.map((p: any, idx: number) => (
+                        <div
+                          key={p.productoId || idx}
+                          className="flex items-center gap-3 bg-gray-darkest/60 border border-gray-dark rounded-xl p-2.5 hover:border-orange-primary/30 transition-colors"
+                        >
+                          <div className="relative shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                            {p.imagen ? (
+                              <ImageRenderer
+                                url={p.imagen}
+                                alt={p.nombre}
+                                className="w-full h-full border-0 bg-transparent"
+                                showLabel={false}
+                              />
+                            ) : (
+                              <ShoppingBag className="w-5 h-5 text-orange-primary/50" />
+                            )}
+                            {p.cantidad > 1 && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-orange-primary text-black-primary text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center leading-none shadow-md">
+                                ×{p.cantidad}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-gray-lightest font-medium text-sm truncate">{formatNombre(p.nombre)}</p>
+                            {p.precioVenta && (
+                              <p className="text-orange-primary text-[11px] font-semibold tabular-nums mt-0.5">
+                                {formatearPrecio(p.precioVenta)} c/u
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                )}
-
-                <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-dark">
-                  <button
-                    onClick={() => setActiveTab('lista')}
-                    className="elegante-button-secondary"
-                  >
-                    Volver a Lista
-                  </button>
-                  <button
-                    onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
-                    className="elegante-button-primary"
-                    title="Marcar como Completada y generar venta"
-                  >
-                    Completar Cita
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCita(selectedCita)}
-                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center transition-all"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Eliminar Cita
-                  </button>
                 </div>
+              )}
+
+              {/* Notas */}
+              {selectedCita.notas && (
+                <div className="bg-gray-darker border border-gray-dark rounded-2xl overflow-hidden shadow-lg">
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-4 h-4 text-orange-primary" />
+                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Notas Especiales</h4>
+                    </div>
+                    <p className="text-gray-lightest text-sm leading-relaxed bg-gray-darkest/40 border-l-2 border-orange-primary/50 rounded-r p-3 italic">
+                      {selectedCita.notas}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Acciones */}
+              <div className="flex flex-wrap justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setActiveTab('lista')}
+                  className="elegante-button-secondary flex items-center gap-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Volver a Lista
+                </button>
+                <button
+                  onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
+                  className="elegante-button-primary flex items-center gap-2"
+                  title="Marcar como Completada y generar venta"
+                >
+                  <Eye className="w-4 h-4" />
+                  Completar Cita
+                </button>
+                <button
+                  onClick={() => handleDeleteCita(selectedCita)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all border border-red-500/40 shadow-md"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar Cita
+                </button>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Footer del modal */}
 
