@@ -1262,18 +1262,27 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             setClienteSearchTerm('');
                           }}
                           renderItem={(c) => (
-                            <div>
-                              <p className="text-gray-lightest text-sm">{c.nombre}</p>
-                              <p className="text-gray-lighter text-xs">{c.telefono || 'Sin teléfono'}</p>
+                            <div className="flex items-center gap-3">
+                              <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                {c.fotoPerfil ? (
+                                  <img src={c.fotoPerfil} alt={c.nombre} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                                ) : (
+                                  <User className="w-4 h-4 text-gray-lightest" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-gray-lightest text-sm truncate">{c.nombre}</p>
+                                <p className="text-gray-lighter text-xs truncate">{c.telefono || 'Sin teléfono'}</p>
+                              </div>
                             </div>
                           )}
                           isSelected={!!nuevaCita.clienteId}
                           error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
                         />
                         {nuevaCita.telefono && (
-                          <div className="mt-2">
-                            <Label className="text-xs text-gray-lighter">Teléfono</Label>
-                            <p className="text-sm text-gray-lightest">{nuevaCita.telefono}</p>
+                          <div className="mt-2 flex items-center gap-2 bg-orange-primary/10 border border-orange-primary/20 rounded-lg px-3 py-2">
+                            <span className="text-orange-primary text-sm">📞</span>
+                            <span className="text-sm text-gray-lightest">{nuevaCita.telefono}</span>
                           </div>
                         )}
                       </FormSection>
@@ -1298,11 +1307,158 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             setBarberoFormSearchTerm('');
                           }}
                           renderItem={(b) => (
-                            <p className="text-gray-lightest text-sm">{b.nombre}</p>
+                            <div className="flex items-center gap-3">
+                              <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                {b.fotoPerfil ? (
+                                  <img src={b.fotoPerfil} alt={b.nombre} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                                ) : (
+                                  <User className="w-4 h-4 text-gray-lightest" />
+                                )}
+                              </div>
+                              <p className="text-gray-lightest text-sm">{b.nombre}</p>
+                            </div>
                           )}
                           isSelected={!!nuevaCita.barberoId}
                           error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
                         />
+
+                        {/* Disponibilidad del barbero — Picker interactivo */}
+                        {nuevaCita.barberoId > 0 && (() => {
+                          const diaNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+                          const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                          const horariosBarbero = horariosList.filter((h: any) =>
+                            Number(h.barberoId) === Number(nuevaCita.barberoId) && h.estado === true
+                          );
+
+                          if (horariosBarbero.length === 0) {
+                            return (
+                              <div className="mt-3 rounded-xl border border-orange-primary/20 bg-gradient-to-br from-orange-primary/5 to-transparent p-3">
+                                <p className="text-xs text-gray-lighter italic">Este barbero no tiene horarios configurados.</p>
+                              </div>
+                            );
+                          }
+
+                          // Generar próximos 14 días donde trabaja el barbero
+                          const today = new Date(); today.setHours(0,0,0,0);
+                          const todayStr = toLocalDateString(today);
+                          const candidatos: Array<{ fechaStr: string; diaNombre: string; dia: number; mes: string; isToday: boolean; isPast: boolean }> = [];
+
+                          for (let i = 0; i < 14; i++) {
+                            const d = new Date(today);
+                            d.setDate(today.getDate() + i);
+                            const diaNombre = diaNombres[d.getDay()];
+                            if (!horariosBarbero.some((h: any) => h.dia === diaNombre)) continue;
+                            const fechaStr = toLocalDateString(d);
+                            let isPast = false;
+                            if (fechaStr === todayStr) {
+                              const hrs = getHorasDisponiblesParaDia(fechaStr, nuevaCita.barberoId, nuevaCita.duracion);
+                              if (hrs.length === 0) isPast = true;
+                            }
+                            candidatos.push({
+                              fechaStr,
+                              diaNombre,
+                              dia: d.getDate(),
+                              mes: meses[d.getMonth()],
+                              isToday: fechaStr === todayStr,
+                              isPast,
+                            });
+                          }
+
+                          const selectedDay = candidatos.find(c => c.fechaStr === nuevaCita.fecha);
+                          const visibles = selectedDay ? [selectedDay] : candidatos;
+                          const horas = selectedDay
+                            ? getHorasDisponiblesParaDia(selectedDay.fechaStr, nuevaCita.barberoId, nuevaCita.duracion)
+                            : [];
+
+                          return (
+                            <div className="mt-3 rounded-xl border border-orange-primary/20 bg-gradient-to-br from-orange-primary/5 to-transparent p-3 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                  <CalendarDays className="w-3.5 h-3.5 text-orange-primary" />
+                                  <span className="text-[11px] uppercase tracking-wider font-semibold text-orange-primary">
+                                    {selectedDay ? 'Día seleccionado' : 'Días disponibles'}
+                                  </span>
+                                </div>
+                                {selectedDay && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setNuevaCita(prev => ({ ...prev, fecha: '', hora: '' }))}
+                                    className="text-[10px] text-gray-lighter hover:text-orange-primary flex items-center gap-1 transition-colors"
+                                  >
+                                    <X className="w-3 h-3" /> Cambiar día
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Días horizontales */}
+                              <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                                {visibles.map(d => {
+                                  const isSelected = selectedDay?.fechaStr === d.fechaStr;
+                                  return (
+                                    <button
+                                      key={d.fechaStr}
+                                      type="button"
+                                      disabled={d.isPast}
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          setNuevaCita(prev => ({ ...prev, fecha: '', hora: '' }));
+                                        } else {
+                                          setNuevaCita(prev => ({ ...prev, fecha: d.fechaStr, hora: '' }));
+                                        }
+                                      }}
+                                      className={`shrink-0 flex flex-col items-center justify-center min-w-[68px] px-3 py-2 rounded-lg border transition-all ${
+                                        d.isPast
+                                          ? 'bg-black/40 border-gray-dark/40 text-gray-dark cursor-not-allowed opacity-60'
+                                          : isSelected
+                                            ? 'bg-orange-primary/25 border-orange-primary text-orange-primary shadow-md'
+                                            : 'bg-gray-darker/60 border-gray-dark/40 text-gray-lightest hover:border-orange-primary/40 hover:bg-orange-primary/10'
+                                      }`}
+                                    >
+                                      <span className="text-[10px] uppercase tracking-wider font-semibold opacity-80">
+                                        {d.isToday ? 'Hoy' : d.diaNombre.slice(0,3)}
+                                      </span>
+                                      <span className="text-base font-bold leading-tight">{d.dia}</span>
+                                      <span className="text-[9px] uppercase opacity-70">{d.mes}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Horas disponibles */}
+                              {selectedDay && (
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-2">
+                                    <Clock className="w-3.5 h-3.5 text-orange-primary" />
+                                    <span className="text-[11px] uppercase tracking-wider font-semibold text-orange-primary">Horas libres</span>
+                                  </div>
+                                  {horas.length === 0 ? (
+                                    <p className="text-xs text-red-400 italic">No hay horas libres este día.</p>
+                                  ) : (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {horas.map(h => {
+                                        const isHoraSel = nuevaCita.hora === h;
+                                        return (
+                                          <button
+                                            key={h}
+                                            type="button"
+                                            onClick={() => setNuevaCita(prev => ({ ...prev, hora: h }))}
+                                            className={`px-2.5 py-1 rounded-md border text-[11px] font-medium tabular-nums transition-all ${
+                                              isHoraSel
+                                                ? 'bg-orange-primary text-black-primary border-orange-primary shadow-md'
+                                                : 'bg-gray-darker/60 border-gray-dark/40 text-gray-lightest hover:border-orange-primary/40 hover:bg-orange-primary/10'
+                                            }`}
+                                          >
+                                            {formatHoraStr12(h)}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </FormSection>
                     </div>
                   </div>
@@ -1541,22 +1697,41 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               onChange={e => setNuevaCita(prev => ({ ...prev, fecha: e.target.value }))}
                               className="elegante-input"
                             />
+                            {nuevaCita.fecha && (() => {
+                              const d = new Date(`${nuevaCita.fecha}T12:00:00`);
+                              const diaNombre = d.toLocaleDateString('es-CO', { weekday: 'long' });
+                              return (
+                                <p className="text-[10px] text-orange-primary/70 mt-1 capitalize">{diaNombre}</p>
+                              );
+                            })()}
                             {showFormErrors && !nuevaCita.fecha && <p className="text-red-400 text-xs mt-1">Requerido</p>}
                           </div>
                           <div>
                             <Label className="text-xs text-gray-lighter">Hora</Label>
-                            {nuevaCita.barberoId && nuevaCita.fecha ? (
-                              <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita(prev => ({ ...prev, hora: v }))}>
-                                <SelectTrigger className="elegante-input">
-                                  <SelectValue placeholder="Seleccionar hora" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
-                                  {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
-                                    <SelectItem key={h} value={h} className="text-gray-lightest">{h}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
+                            {nuevaCita.barberoId && nuevaCita.fecha ? (() => {
+                              const horasDisponibles = getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
+                              if (horasDisponibles.length === 0) {
+                                return (
+                                  <div className="elegante-input flex items-center text-xs text-red-400 px-3 py-2">
+                                    Sin horas disponibles para este día
+                                  </div>
+                                );
+                              }
+                              return (
+                                <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita(prev => ({ ...prev, hora: v }))}>
+                                  <SelectTrigger className="elegante-input">
+                                    <SelectValue placeholder="Seleccionar hora">
+                                      {nuevaCita.hora ? formatHoraStr12(nuevaCita.hora) : null}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
+                                    {horasDisponibles.map(h => (
+                                      <SelectItem key={h} value={h} className="text-gray-lightest">{formatHoraStr12(h)}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              );
+                            })() : (
                               <Input
                                 type="time"
                                 value={nuevaCita.hora}
@@ -1712,14 +1887,30 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           {/* Servicios incluidos en el paquete */}
                           {paq.servicios && paq.servicios.length > 0 && (
                             <div className="mt-3 ml-6 pt-2 border-t border-gray-dark/50">
-                              <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Servicios incluidos</p>
-                              <div className="space-y-1">
-                                {paq.servicios.map((sName: string, idx: number) => (
-                                  <div key={idx} className="flex items-center gap-2">
-                                    <Scissors className="w-3 h-3 text-orange-primary/60" />
-                                    <span className="text-xs text-gray-lightest">{sName}</span>
-                                  </div>
-                                ))}
+                              <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">Servicios incluidos</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {paq.servicios.map((sName: string, idx: number) => {
+                                  const srv = serviciosList.find((s: any) =>
+                                    (s.nombre || '').toLowerCase().trim() === String(sName).toLowerCase().trim()
+                                  );
+                                  return (
+                                    <div key={idx} className="flex items-center gap-2 bg-gray-darkest/60 border border-gray-dark/40 rounded-full pl-1 pr-3 py-1">
+                                      <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-gray-dark border border-gray-dark/60 flex items-center justify-center">
+                                        {srv?.imagen ? (
+                                          <img
+                                            src={srv.imagen}
+                                            alt={sName}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                          />
+                                        ) : (
+                                          <Scissors className="w-4 h-4 text-orange-primary/60" />
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-gray-lightest">{sName}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -2394,7 +2585,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   return (
                     <div
                       key={cita.id}
-                      className="group relative bg-gradient-to-br from-gray-darker via-gray-darker to-gray-darkest border border-gray-dark/80 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:border-orange-primary/30 transition-all duration-300"
+                      onClick={() => handleViewDetail(cita)}
+                      className="group relative bg-gradient-to-br from-gray-darker via-gray-darker to-gray-darkest border border-gray-dark/80 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:border-orange-primary/30 hover:bg-orange-primary/5 transition-all duration-300 cursor-pointer"
                     >
                       {/* Franja de color de estado lateral */}
                       <div
@@ -2572,7 +2764,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Select value={cita.estado} onValueChange={(value) => handleChangeEstado(cita.id, value)}>
                               <SelectTrigger className="w-32 h-8 text-xs bg-gray-darkest border-gray-dark hover:border-orange-primary/40 transition-colors">
                                 <SelectValue />
@@ -2585,16 +2777,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 ))}
                               </SelectContent>
                             </Select>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewDetail(cita);
-                              }}
-                              className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 transition-all"
-                              title="Ver detalle"
-                            >
-                              <Eye className="w-4 h-4 text-blue-400" />
-                            </button>
 
                             {!isPasada && (
                               <button
