@@ -238,6 +238,31 @@ class ClientesService {
     return await response.json();
   }
 
+  async getSaldoDisponible(id: number): Promise<number> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/${id}/saldo-disponible`, { headers });
+    if (!response.ok) return 0;
+    const text = await response.text();
+    if (!text || !text.trim()) return 0;
+    try {
+      const data = JSON.parse(text);
+      return Number(data?.disponible ?? data?.Disponible ?? 0) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  async getSaldosDisponibles(ids: number[]): Promise<Map<number, number>> {
+    const map = new Map<number, number>();
+    if (!Array.isArray(ids) || ids.length === 0) return map;
+    const unique = Array.from(new Set(ids.filter(n => Number(n) > 0).map(Number)));
+    const results = await Promise.all(
+      unique.map(id => this.getSaldoDisponible(id).then(v => [id, v] as const).catch(() => [id, 0] as const))
+    );
+    results.forEach(([id, v]) => map.set(id, v));
+    return map;
+  }
+
   // Creación robusta: si ya tiene usuarioId usa POST /api/clientes, si no usa POST /api/Usuarios
   async createCliente(clienteData: CreateClienteData): Promise<any> {
     if (clienteData.usuarioId) {

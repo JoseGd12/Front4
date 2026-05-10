@@ -33,7 +33,6 @@ import { servicioService, Servicio } from "../../servicios/services/servicioServ
 import { productoService, ApiProducto } from "../../productos/services/productos";
 import { apiService, ApiUser, Paquete } from "../../../shared/services/api";
 import { clientesService, ClienteAPI } from "../../clientes/services/clientesService";
-import { devolucionService, Devolucion as ApiDevolucion } from "../services/devolucionService";
 import { AppRole } from "../../auth/services/authSyncService";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
@@ -186,7 +185,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         usuariosData,
         paquetesData,
         clientesData,
-        devolucionesData,
       ] = await Promise.all([
         ventaService.getVentas().catch(() => []),
         servicioService.getServicios().catch(() => []),
@@ -194,7 +192,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         apiService.getUsuarios().catch(() => []),
         apiService.getPaquetes().catch(() => []),
         clientesService.getClientes().catch(() => []),
-        devolucionService.getDevoluciones().catch(() => []),
       ]);
 
       const maxNumVenta = Array.isArray(ventasData) && ventasData.length > 0
@@ -202,31 +199,17 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         : 0;
       setVentasCount(maxNumVenta);
 
-      // Calculate saldo from devoluciones
-      const saldoPorCliente = new Map<number, number>();
-      ((devolucionesData as ApiDevolucion[]) || []).forEach((d: any) => {
-        const estado = String(d?.estado || "").trim();
-        if (
-          estado === "Activo" ||
-          estado === "Completada" ||
-          estado === "Procesado"
-        ) {
-          const cId = Number(d?.clienteId || 0);
-          if (cId > 0) {
-            const prev = saldoPorCliente.get(cId) || 0;
-            saldoPorCliente.set(cId, prev + (Number(d?.saldoAFavor) || 0));
-          }
-        }
-      });
-
-      const clientesConSaldo = (clientesData || []).map((cliente: any) => ({
-        ...cliente,
-        saldoAFavor: saldoPorCliente.get(Number(cliente.id)) || 0,
-      }));
-
-      const clientesActivos = clientesConSaldo.filter(
+      // Saldo real (devoluciones - saldoUsado en ventas) directo desde la API
+      const clientesActivosRaw = (clientesData || []).filter(
         (c: any) => c.estado === true
       );
+      const saldoMap = await clientesService.getSaldosDisponibles(
+        clientesActivosRaw.map((c: any) => Number(c.id)).filter((n: number) => n > 0)
+      );
+      const clientesActivos = clientesActivosRaw.map((cliente: any) => ({
+        ...cliente,
+        saldoAFavor: saldoMap.get(Number(cliente.id)) || 0,
+      }));
       setClientesAPI(clientesActivos);
       setServicios((serviciosData || []).filter((s) => s.estado === true));
       setPaquetes((paquetesData || []).filter((p) => p.activo === true));
@@ -929,48 +912,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
       const nuevaVentaCreada = await ventaService.createVenta(ventaData);
 
-      // Stock adjustment is now handled automatically by the backend when createVenta is called
-      // to avoid double deduction of quantities.
-
-      // Handle saldo a favor
-      if (nuevaVenta.usarSaldoAFavor && nuevaVenta.clienteId) {
-        const clienteSel = clientesDisponibles.find(
-          (c) => c.id === Number(nuevaVenta.clienteId)
-        );
-        const saldoDisponible = clienteSel?.saldoAFavor || 0;
-        const totalSinSaldo = subtotal + 0 - descuento;
-        const montoUsado = Math.min(totalSinSaldo, saldoDisponible);
-        if (montoUsado > 0) {
-          try {
-            await devolucionService.createDevolucion({
-              ventaId: Number(
-                nuevaVentaCreada.id ||
-                nuevaVentaCreada.numeroVenta ||
-                numeroVenta
-              ),
-              productoId: productosActuales[0]?.id
-                ? Number(productosActuales[0].id)
-                : 0,
-              servicioId: undefined,
-              clienteId: Number(nuevaVenta.clienteId),
-              cantidad: 0,
-              motivoCategoria: "ConsumoSaldo",
-              motivoDetalle: `Consumo de saldo por venta ${nuevaVentaCreada.numeroVenta || numeroVenta
-                }`,
-              montoDevuelto: 0,
-              saldoAFavor: -Math.abs(montoUsado),
-              usuarioId: Number(user.id),
-              observaciones:
-                "Ajuste automático al usar saldo a favor en venta",
-            });
-          } catch (e) {
-            console.warn(
-              "No se pudo registrar consumo de saldo a favor en devoluciones:",
-              e
-            );
-          }
-        }
-      }
+      // El backend descuenta el saldo a favor automáticamente al persistir
+      // Venta.SaldoAFavorUsado, así que no hace falta crear una devolución compensatoria.
 
       const ventaIdCreada = Number(
         (nuevaVentaCreada as any)?.id ??

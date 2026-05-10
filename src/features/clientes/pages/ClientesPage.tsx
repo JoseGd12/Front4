@@ -221,18 +221,15 @@ export function ClientesPage() {
       }));
       setDevoluciones(formattedDevs);
 
-      const mappedData = data.map(cliente => {
-        const c = clientesService.mapApiToComponent(cliente);
-        // Calcular saldo a favor dinámicamente si no viene de la API
-        const saldoCalculado = formattedDevs
-          .filter(d => d.clienteId === c.id && d.estado === 'Activo')
-          .reduce((total, d) => total + d.saldoAFavor, 0);
-
-        return {
-          ...c,
-          saldoAFavor: c.saldoAFavor || saldoCalculado
-        };
-      });
+      const baseClientes = data.map(cliente => clientesService.mapApiToComponent(cliente));
+      // Saldo real (devoluciones - saldoUsado) directo desde el endpoint del backend
+      const saldoMap = await clientesService.getSaldosDisponibles(
+        baseClientes.map(c => Number(c.id)).filter(n => n > 0)
+      );
+      const mappedData = baseClientes.map(c => ({
+        ...c,
+        saldoAFavor: saldoMap.get(Number(c.id)) ?? 0
+      }));
       setClientes(mappedData);
       setUsuariosAll(usuariosData || []);
       setBarberosAll((barberosData || []).map((b: any) => barberosService.mapApiToComponent(b)));
@@ -484,13 +481,6 @@ export function ClientesPage() {
   // Función para formatear moneda colombiana
   const formatCurrency = (amount: number | undefined | null): string => {
     return (amount ?? 0).toLocaleString('es-CO');
-  };
-
-  // Función para calcular el saldo a favor acumulativo de un cliente
-  const calcularSaldoAFavorCliente = (clienteId: string, devoluciones: Devolucion[]): number => {
-    return devoluciones
-      .filter(d => d.clienteId === clienteId && d.estado === 'Activo')
-      .reduce((total, d) => total + d.saldoAFavor, 0);
   };
 
   // Función para obtener el estado texto

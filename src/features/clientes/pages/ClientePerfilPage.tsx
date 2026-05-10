@@ -8,7 +8,6 @@ import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { firebaseAuthService } from "../../../shared/services/firebase";
 import { apiService } from "../../../shared/services/api";
-import { devolucionService } from "../../ventas/services/devolucionService";
 import { clientesService } from "../services/clientesService";
 
 export function ClientePerfilPage() {
@@ -53,11 +52,8 @@ export function ClientePerfilPage() {
           const allClientes = await clientesService.getClientes();
           const cliente = allClientes.find(c => (c.correo || "").toLowerCase() === user.email.toLowerCase());
           if (cliente) {
-            const devoluciones = await devolucionService.getDevolucionesByClienteId(Number(cliente.id));
-            const totalSaldo = devoluciones
-              .filter(d => d.estado === "Completada" || d.estado === "Procesada")
-              .reduce((sum, d) => sum + (d.saldoAFavor || 0), 0);
-            setSaldoAFavor(totalSaldo);
+            const disponible = await clientesService.getSaldoDisponible(Number(cliente.id));
+            setSaldoAFavor(disponible);
           }
         } catch (err) {
           console.error("Error fetching saldo:", err);
