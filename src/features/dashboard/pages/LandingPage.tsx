@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import { useInstagramFeed, type InstagramMedia } from '../../../shared/hooks/useInstagramFeed';
@@ -33,6 +34,7 @@ import {
 import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
+import { barberosService } from '../../administracion/services/barberosService';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
 import heroVideo from '../../../assets/hero-video.mp4';
@@ -212,6 +214,58 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [heroVideoReady, setHeroVideoReady] = useState(false);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
+
+  // WhatsApp Chat Widget
+  const [waChatOpen, setWaChatOpen] = useState(false);
+  const [waMessage, setWaMessage] = useState('');
+  const [waBarbers, setWaBarbers] = useState<{ nombre: string; foto: string; telefono: string; rol: string }[]>([]);
+
+  useEffect(() => {
+    const fetchWaBarbers = async () => {
+      try {
+        const barbers = await barberosService.getBarberos();
+        const activeWithPhone = barbers
+          .filter(b => b.status === 'active' && b.telefono && b.telefono.trim() !== '')
+          .map(b => {
+            let foto = imgMaicol; // fallback
+            const lowerName = b.nombre.toLowerCase();
+            if (b.fotoPerfil && b.fotoPerfil.startsWith('http')) {
+              foto = b.fotoPerfil;
+            } else if (lowerName.includes('christian')) foto = imgChristian;
+            else if (lowerName.includes('eduardo')) foto = imgEduardo;
+            else if (lowerName.includes('edwin')) foto = imgEdwin;
+            else if (lowerName.includes('juan')) foto = imgJuan;
+            else if (lowerName.includes('maicol')) foto = imgMaicol;
+
+            let formattedPhone = b.telefono.replace(/\D/g, '');
+            if (formattedPhone.length === 10) formattedPhone = '57' + formattedPhone;
+
+            return {
+              nombre: b.nombre,
+              foto: foto,
+              telefono: formattedPhone,
+              rol: b.especialidad || b.rol || 'Barbero'
+            };
+          });
+        setWaBarbers(activeWithPhone);
+      } catch (error) {
+        console.error('Error fetching barbers for WA chat:', error);
+      }
+    };
+    fetchWaBarbers();
+  }, []);
+
+  const [waSelectedBarber, setWaSelectedBarber] = useState(0);
+  const waInputRef = useRef<HTMLInputElement>(null);
+
+  const handleWaSend = useCallback(() => {
+    const barber = waBarbers[waSelectedBarber];
+    if (!barber) return;
+    const encodedMsg = encodeURIComponent(waMessage.trim() || `Hola ${barber.nombre}, me gustaría agendar una cita.`);
+    window.open(`https://wa.me/${barber.telefono}?text=${encodedMsg}`, '_blank');
+    setWaMessage('');
+  }, [waSelectedBarber, waMessage, waBarbers]);
+
 
   const [servicios, setServicios] = useState<any[]>([]);
   const [paquetes, setPaquetes] = useState<any[]>([]);
@@ -1472,18 +1526,23 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 reveal-item">
             {/* Ubicación */}
-            <div className="glass-card-dark rounded-2xl p-6 mb-8">
+            <a
+              href="https://www.google.com/maps/search/?api=1&query=Calle+79+%2352-12%2C+Barrio+El+Bosque%2C+Medell%C3%ADn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="glass-card-dark rounded-2xl p-6 mb-8 relative group transition-all duration-500 hover:border-[#d8b081]/30 block"
+            >
               <div className="flex flex-col items-center text-center gap-3">
-                <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center">
+                <div className="w-12 h-12 p-3 rounded-xl icon-float flex items-center justify-center group-hover:bg-[#d8b081]/10 transition-colors">
                   <MapPin className="w-5 h-5 text-[#d8b081]" />
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Ubicación</p>
-                  <p className="text-lg font-bold text-gray-400">Calle 79 #52-12</p>
+                  <p className="text-lg font-bold text-gray-400 group-hover:text-white transition-colors">Calle 79 #52-12</p>
                   <p className="text-sm text-gray-500 mt-0.5">Barrio El Bosque, Medellín</p>
                 </div>
               </div>
-            </div>
+            </a>
 
             {/* Contacto */}
             <div className="glass-card-dark rounded-2xl p-6 mb-8">
@@ -1494,7 +1553,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Contacto</p>
                   <p className="text-lg font-bold text-gray-400">301 483 6189</p>
-                  <p className="text-sm text-gray-500 mt-0.5">Llámanos o escríbenos</p>
+                  <p className="text-sm text-gray-500 mt-0.5">WhatsApp / Llamadas</p>
                 </div>
               </div>
             </div>
@@ -1511,7 +1570,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     <span className="text-sm font-semibold text-white">Lun — Dom</span>
                     <span className="text-sm font-bold text-gray-400">9:00 — 20:00</span>
                   </div>
-                  
                 </div>
               </div>
             </div>
@@ -1524,9 +1582,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Equipo</p>
-                  <p className="text-sm text-gray-500 leading-relaxed">
-                    5 barberos profesionales y personal administrativo a tu servicio.
-                  </p>
+                  <div className="flex -space-x-2 justify-center mb-1">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="w-6 h-6 rounded-full border border-black bg-gray-800 flex items-center justify-center overflow-hidden">
+                        <Users className="w-3 h-3 text-gray-500" />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">5 Barberos Expertos</p>
                 </div>
               </div>
             </div>
@@ -1766,7 +1829,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
         {/* CTA Banner */}
         <div className="relative border-b border-white/5">
-          <div className="content-max-width relative z-10 py-16 md:py-20 px-8 md:px-12 lg:px-16 flex flex-col md:flex-row items-center justify-between gap-7">
+          <div className="content-max-width relative z-10 px-8 md:px-12 lg:px-16 flex flex-col md:flex-row items-center justify-between gap-7" style={{ paddingTop: '60px', paddingBottom: '60px' }}>
             <div className="max-w-2xl text-center">
               <p className="text-[11px] uppercase tracking-[0.45em] text-[#d8b081] font-black mt-4">Reserva tu momento</p>
               <h3 className="text-2xl md:text-3xl font-bold font-title  text-white mb-2">¿Listo para tu próximo look?</h3>
@@ -1783,87 +1846,85 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
 
         {/* Contenido principal */}
-        <div className="content-max-width relative z-10 py-20 px-8 md:px-12 lg:px-16">
-          <div className="grid md:grid-cols-3 gap-10 lg:gap-16">
+        <div className="content-max-width relative z-10 py-40 px-8 md:px-12 lg:px-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-16 gap-x-12 lg:gap-8">
             {/* Marca */}
-            <div className="space-y-6 mt-4">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col items-center text-center space-y-6 py-12">
+              <div className="flex items-center gap-3">
                 <img src={LOGO_URL} alt="Manito Barbershop" className="w-12 h-12 rounded-full object-cover border-2 border-[#d8b081]/20" />
-                <div>
-                  <span className="text-xl font-black font-title mt-4 tracking-tight text-white uppercase block">Manito Barbershop</span>
-                  <span className="text-xs text-gray-500 uppercase tracking-widest">Medellín, Colombia</span>
+                <div className="text-left">
+                  <span className="text-lg font-black font-title tracking-tight text-white uppercase block">Manito</span>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">Barbershop</span>
                 </div>
               </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Estilo, elegancia y profesionalismo en cada corte. Más de 2 años transformando estilos en el corazón de Medellín.
+              <p className="text-gray-400 text-xs leading-relaxed max-w-[200px]">
+                Estilo y elegancia en cada corte. Más de 2 años transformando estilos en el corazón de Medellín.
               </p>
-              <div className="space-y-2 text-xs text-gray-500 leading-relaxed">
-                <p>Atención personalizada desde el primer contacto hasta el resultado final.</p>
-                <p>En cada visita buscamos que te lleves una experiencia cómoda, precisa y memorable.</p>
-              </div>
             </div>
 
-            {/* Horario */}
-            <div className="space-y-5 mt-6 mr-2">
-              <span className="text-lg  font-bold uppercase tracking-[0.3em] text-[#d8b081] block">Horario</span>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Lunes — Viernes</span>
-                  <span className="text-white font-medium">9:00 — 20:00</span>
-                </div>
-                <div className="h-px bg-white/5" />
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Sábado</span>
-                  <span className="text-white font-medium">9:00 — 20:00</span>
-                </div>
-                <div className="h-px bg-white/5" />
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Domingo</span>
-                  <span className="text-gray-600">Cerrado</span>
+            {/* Redes Sociales */}
+            <div className="flex flex-col items-center text-center space-y-5 py-12">
+              <span className="text-sm font-bold uppercase tracking-[0.3em] text-[#d8b081]">Siguenos</span>
+              <div className="flex flex-col gap-3">
+                <a href="https://instagram.com/manitobarbershop" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
+                    <Instagram className="w-3.5 h-3.5 text-[#d8b081]" />
+                  </div>
+                  <span>@manitobarbershop</span>
+                </a>
+                <div className="flex items-center gap-3 text-gray-600 text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                    <Scissors className="w-3.5 h-3.5 text-gray-600" />
+                  </div>
+                  <span>Facebook (Próximamente)</span>
                 </div>
               </div>
-              <p className="text-[11px] text-gray-600 leading-relaxed">
-                Recomendamos agendar con antelación para asegurar tu horario ideal.
-              </p>
             </div>
 
             {/* Contacto */}
-            <div className="space-y-5 mt-6 ml-5">
-              <span className="text-lg  font-bold uppercase tracking-[0.3em] text-[#d8b081] block">Contacto</span>
+            <div className="flex flex-col items-center text-center space-y-5 py-12">
+              <span className="text-sm font-bold uppercase tracking-[0.3em] text-[#d8b081]">Contacto</span>
               <div className="space-y-4">
-                <a href="tel:3014836189" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group">
-                  <div className="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
-                    <Phone className="w-4 h-4 text-[#d8b081]" />
+                <a href="tel:3014836189" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
+                    <Phone className="w-3.5 h-3.5 text-[#d8b081]" />
                   </div>
-                  <div>
-                    <span className="text-sm block">301 483 6189</span>
-                    <span className="text-[11px] text-gray-600">Llámanos o escríbenos</span>
-                  </div>
+                  <span>301 483 6189</span>
                 </a>
-
-                <a href="mailto:manitobarbershop@gmail.com" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group">
-                  <div className="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
-                    <Mail className="w-4 h-4 text-[#d8b081]" />
+                <a href="mailto:manitobarbershop@gmail.com" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
+                    <Mail className="w-3.5 h-3.5 text-[#d8b081]" />
                   </div>
-                  <div>
-                    <span className="text-sm block">manitobarbershop@gmail.com</span>
-                    <span className="text-[11px] text-gray-600">Atención por correo</span>
-                  </div>
+                  <span>Email Empresa</span>
                 </a>
-
-                <div className="flex items-center gap-3 text-gray-400">
-                  <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center">
-                    <MapPin className="w-4 h-4 text-[#d8b081]" />
-                  </div>
-                  <div>
-                    <span className="text-sm block">Calle 79 #52-12</span>
-                    <span className="text-[11px] text-gray-600">Barrio El Bosque, Medellín</span>
-                  </div>
-                </div>
               </div>
-              <p className="text-[11px] text-gray-600 leading-relaxed mb-4">
-                Si tienes dudas sobre servicios o productos, nuestro equipo te asesora sin costo.
-              </p>
+            </div>
+
+            {/* Ubicación con Mapa */}
+            <div className="flex flex-col items-center text-center space-y-5 py-12">
+              <span className="text-sm font-bold uppercase tracking-[0.3em] text-[#d8b081]">Ubicación</span>
+              <div className="w-full max-w-[280px] h-44 rounded-xl overflow-hidden border border-white/10 relative group transition-all duration-500 hover:border-[#d8b081]/40">
+                <iframe
+                  title="Ubicación Footer"
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  scrolling="no"
+                  marginHeight={0}
+                  marginWidth={0}
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3965.921974521102!2d-75.56745502586936!3d6.273989926014324!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e4428dc83181e4f%3A0x23aa0248d2178036!2sCl.%2079%20%2352-12%2C%20Aranjuez%2C%20Medell%C3%ADn%2C%20Aranjuez%2C%20Medell%C3%ADn%2C%20Antioquia!5e0!3m2!1ses!2sco!4v1778521540179!5m2!1ses!2sco"
+                  className="grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"
+                />
+                <a 
+                  href="https://www.google.com/maps/search/?api=1&query=Calle+79+%2352-12%2C+Barrio+El+Bosque%2C+Medell%C3%ADn"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3"
+                >
+                  <p className="text-[10px] text-white font-bold tracking-wide">Calle 79 #52-12</p>
+                  <p className="text-[8px] text-gray-400 uppercase tracking-tighter">Medellín, Colombia</p>
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -1881,6 +1942,244 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
       </footer>
 
+
+      {/* WhatsApp Chat Widget — portal */}
+      {typeof document !== 'undefined' && ReactDOM.createPortal(
+        <>
+          {/* Chat Panel */}
+          {waChatOpen && (
+            <div
+              style={{
+                position: 'fixed',
+                bottom: '96px',
+                right: '24px',
+                zIndex: 99998,
+                width: '460px',
+                maxWidth: 'calc(100vw - 48px)',
+                height: '420px',
+                maxHeight: 'calc(100vh - 140px)',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                display: 'flex',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
+                animation: 'waSlideUp 0.35s cubic-bezier(0.16,1,0.3,1)',
+              }}
+            >
+              {/* Sidebar — Lista de barberos */}
+              <div style={{
+                width: '140px',
+                minWidth: '140px',
+                background: 'linear-gradient(180deg, #111 0%, #0a0a0a 100%)',
+                borderRight: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflowY: 'auto',
+              }}>
+                <div style={{ padding: '14px 10px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#25D366' }}>Barberos</span>
+                </div>
+                {waBarbers.map((b, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setWaSelectedBarber(i); setTimeout(() => waInputRef.current?.focus(), 100); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px',
+                      border: 'none',
+                      background: waSelectedBarber === i ? 'rgba(37,211,102,0.12)' : 'transparent',
+                      borderLeft: waSelectedBarber === i ? '3px solid #25D366' : '3px solid transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      width: '100%',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                    onMouseLeave={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <img
+                      src={b.foto}
+                      alt={b.nombre}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: waSelectedBarber === i ? '2px solid #25D366' : '2px solid rgba(255,255,255,0.1)',
+                        transition: 'border 0.2s',
+                      }}
+                    />
+                    <div style={{ overflow: 'hidden' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: waSelectedBarber === i ? '#fff' : '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.nombre}</div>
+                      <div style={{ fontSize: '9px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{b.rol}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Chat Area */}
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'linear-gradient(180deg, #1a1a1a 0%, #111 100%)',
+              }}>
+                {/* Header */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '12px 16px',
+                  background: 'rgba(0,0,0,0.4)',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                  <img
+                    src={waBarbers[waSelectedBarber]?.foto}
+                    alt=""
+                    style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #25D366' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{waBarbers[waSelectedBarber]?.nombre}</div>
+                    <div style={{ fontSize: '10px', color: '#25D366', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#25D366', display: 'inline-block' }} />
+                      Disponible en WhatsApp
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setWaChatOpen(false)}
+                    style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '18px', padding: '4px', lineHeight: 1 }}
+                    aria-label="Cerrar chat"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Messages Area */}
+                <div style={{ flex: 1, padding: '20px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: '10px' }}>
+                  {/* Welcome message from barber */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                    <img src={waBarbers[waSelectedBarber]?.foto} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                    <div style={{
+                      background: 'rgba(255,255,255,0.07)',
+                      borderRadius: '12px 12px 12px 4px',
+                      padding: '10px 14px',
+                      maxWidth: '80%',
+                    }}>
+                      <p style={{ fontSize: '12px', color: '#ddd', margin: 0, lineHeight: 1.5 }}>
+                        ¡Hola! Soy <strong style={{ color: '#25D366' }}>{waBarbers[waSelectedBarber]?.nombre}</strong> de Manito Barbershop 💈
+                      </p>
+                      <p style={{ fontSize: '12px', color: '#ddd', margin: '4px 0 0', lineHeight: 1.5 }}>
+                        Escríbeme y te responderé por WhatsApp.
+                      </p>
+                      <span style={{ fontSize: '9px', color: '#555', display: 'block', marginTop: '4px', textAlign: 'right' }}>Ahora</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Input Area */}
+                <div style={{
+                  padding: '12px 16px',
+                  borderTop: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center',
+                }}>
+                  <input
+                    ref={waInputRef}
+                    type="text"
+                    value={waMessage}
+                    onChange={e => setWaMessage(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleWaSend(); } }}
+                    placeholder={`Escribe un mensaje a ${waBarbers[waSelectedBarber]?.nombre}...`}
+                    style={{
+                      flex: 1,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '20px',
+                      padding: '10px 16px',
+                      fontSize: '12px',
+                      color: '#fff',
+                      outline: 'none',
+                      transition: 'border 0.2s',
+                    }}
+                    onFocus={e => e.currentTarget.style.borderColor = 'rgba(37,211,102,0.4)'}
+                    onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+                  />
+                  <button
+                    onClick={handleWaSend}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: '#25D366',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      transition: 'transform 0.2s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    aria-label="Enviar mensaje"
+                  >
+                    <svg viewBox="0 0 24 24" style={{ width: '16px', height: '16px', fill: 'white', transform: 'rotate(-30deg)' }}>
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FAB Button */}
+          <button
+            onClick={() => { setWaChatOpen(prev => !prev); if (!waChatOpen) setTimeout(() => waInputRef.current?.focus(), 400); }}
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              right: '24px',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: waChatOpen ? '#333' : '#25D366',
+              boxShadow: waChatOpen ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 24px rgba(37,211,102,0.4)',
+              cursor: 'pointer',
+              border: 'none',
+              transition: 'all 0.3s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            aria-label={waChatOpen ? 'Cerrar chat' : 'Abrir chat de WhatsApp'}
+          >
+            {waChatOpen ? (
+              <svg viewBox="0 0 24 24" style={{ width: '22px', height: '22px', fill: 'white' }}>
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 32 32" style={{ width: '28px', height: '28px', fill: 'white' }}>
+                <path d="M16.004 2.667A13.28 13.28 0 0 0 2.672 15.946a13.17 13.17 0 0 0 1.782 6.632L2.667 29.333l6.98-1.83A13.3 13.3 0 0 0 16.004 29.3 13.32 13.32 0 1 0 16.004 2.667Zm0 24.31a11 11 0 0 1-5.61-1.535l-.403-.239-4.175 1.095 1.114-4.07-.263-.418a10.95 10.95 0 0 1-1.685-5.864A10.99 10.99 0 1 1 16.004 26.977Zm6.03-8.228c-.33-.166-1.956-.965-2.26-1.075-.303-.11-.524-.166-.744.166-.22.33-.855 1.075-1.048 1.296-.193.22-.386.248-.716.083-.33-.166-1.394-.514-2.656-1.638-.982-.874-1.644-1.954-1.836-2.284-.193-.33-.02-.51.145-.674.148-.148.33-.386.496-.58.166-.192.22-.33.33-.55.11-.22.055-.412-.028-.578-.083-.166-.744-1.793-1.02-2.455-.268-.644-.54-.557-.744-.567l-.634-.012a1.214 1.214 0 0 0-.882.414c-.303.33-1.158 1.131-1.158 2.758s1.186 3.2 1.352 3.42c.166.22 2.335 3.565 5.66 5 .79.342 1.408.546 1.888.699.794.252 1.517.217 2.088.131.637-.095 1.956-.8 2.232-1.573.275-.772.275-1.434.193-1.573-.083-.138-.303-.22-.634-.386Z" />
+              </svg>
+            )}
+          </button>
+
+          {/* Animation keyframes */}
+          <style>{`
+            @keyframes waSlideUp {
+              from { opacity: 0; transform: translateY(20px) scale(0.95); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+          `}</style>
+        </>,
+        document.body
+      )}
 
       {/* Modal de publicación de Instagram / galería */}
       <InstagramPostModal

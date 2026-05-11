@@ -438,24 +438,24 @@ export function ProveedoresPage() {
     const esJuridico = formData.tipoProveedor === 'Juridico';
     const missingRequired = esJuridico
       ? (
-          !formData.nombre.trim() ||
-          !formData.identificacion.trim() ||
-          !formData.telefono.trim() ||
-          !formData.correo.trim() ||
-          !formData.direccion.trim() ||
-          !formData.ciudad.trim() ||
-          !formData.departamento.trim() ||
-          !formData.representanteLegal.trim() ||
-          !formData.identificacionRepresentante.trim() ||
-          !formData.correoRepresentante.trim() ||
-          !formData.telefonoRepresentante.trim()
-        )
+        !formData.nombre.trim() ||
+        !formData.identificacion.trim() ||
+        !formData.telefono.trim() ||
+        !formData.correo.trim() ||
+        !formData.direccion.trim() ||
+        !formData.ciudad.trim() ||
+        !formData.departamento.trim() ||
+        !formData.representanteLegal.trim() ||
+        !formData.identificacionRepresentante.trim() ||
+        !formData.correoRepresentante.trim() ||
+        !formData.telefonoRepresentante.trim()
+      )
       : (
-          !formData.nombre.trim() ||
-          !formData.identificacion.trim() ||
-          !formData.telefono.trim() ||
-          !formData.correo.trim()
-        );
+        !formData.nombre.trim() ||
+        !formData.identificacion.trim() ||
+        !formData.telefono.trim() ||
+        !formData.correo.trim()
+      );
 
     if (missingRequired) {
       setShowProveedorFormErrors(true);
@@ -579,24 +579,24 @@ export function ProveedoresPage() {
     const esJuridico = formData.tipoProveedor === 'Juridico';
     const missingRequired = esJuridico
       ? (
-          !formData.nombre.trim() ||
-          !formData.identificacion.trim() ||
-          !formData.telefono.trim() ||
-          !formData.correo.trim() ||
-          !formData.direccion.trim() ||
-          !formData.ciudad.trim() ||
-          !formData.departamento.trim() ||
-          !formData.representanteLegal.trim() ||
-          !formData.identificacionRepresentante.trim() ||
-          !formData.correoRepresentante.trim() ||
-          !formData.telefonoRepresentante.trim()
-        )
+        !formData.nombre.trim() ||
+        !formData.identificacion.trim() ||
+        !formData.telefono.trim() ||
+        !formData.correo.trim() ||
+        !formData.direccion.trim() ||
+        !formData.ciudad.trim() ||
+        !formData.departamento.trim() ||
+        !formData.representanteLegal.trim() ||
+        !formData.identificacionRepresentante.trim() ||
+        !formData.correoRepresentante.trim() ||
+        !formData.telefonoRepresentante.trim()
+      )
       : (
-          !formData.nombre.trim() ||
-          !formData.identificacion.trim() ||
-          !formData.telefono.trim() ||
-          !formData.correo.trim()
-        );
+        !formData.nombre.trim() ||
+        !formData.identificacion.trim() ||
+        !formData.telefono.trim() ||
+        !formData.correo.trim()
+      );
 
     if (missingRequired) {
       setShowProveedorFormErrors(true);
@@ -686,7 +686,7 @@ export function ProveedoresPage() {
               Number(c.proveedorId) === Number(proveedor.id) ||
               (normalize(c.proveedorNombre) && normalize(c.proveedorNombre) === normalize(proveedor.nombre))
             ).length;
-          } catch {}
+          } catch { }
 
           if (comprasAsociadas > 0) {
             error(
@@ -736,29 +736,29 @@ export function ProveedoresPage() {
 
   const handleToggleStatus = async (proveedor: Proveedor) => {
     if (!proveedor.id) return;
-    
+
     const nuevoEstado = !proveedor.activo;
-    
+
     try {
       // Actualización optimista local
-      setProveedores(prev => 
+      setProveedores(prev =>
         prev.map(p => p.id === proveedor.id ? { ...p, activo: nuevoEstado, estado: nuevoEstado } : p)
       );
-      
+
       await proveedorService.cambiarEstadoProveedor(proveedor.id, nuevoEstado);
-      
+
       const accion = nuevoEstado ? 'activado' : 'desactivado';
       edited(
-        `Proveedor ${accion} ✔️`, 
+        `Proveedor ${accion} ✔️`,
         `El proveedor "${proveedor.nombre}" ha sido ${accion} exitosamente.`
       );
     } catch (err: any) {
       // Revertir cambio optimista si falla
-      setProveedores(prev => 
+      setProveedores(prev =>
         prev.map(p => p.id === proveedor.id ? { ...p, activo: !nuevoEstado, estado: !nuevoEstado } : p)
       );
       error(
-        "Error al cambiar estado", 
+        "Error al cambiar estado",
         err?.message || "No se pudo actualizar el estado del proveedor."
       );
     }
@@ -862,11 +862,10 @@ export function ProveedoresPage() {
                                   tipoIdentificacionProveedor: val === 'Juridico' ? 'NIT' : 'CC'
                                 });
                               }}
-                              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
-                                formData.tipoProveedor === tipo.value
+                              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 ${formData.tipoProveedor === tipo.value
                                   ? 'bg-orange-primary text-black shadow-[0_0_15px_rgba(216,176,129,0.3)]'
                                   : 'text-gray-lightest hover:bg-gray-dark hover:text-orange-secondary'
-                              } ${isEditDialogOpen && formData.tipoProveedor !== tipo.value ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                } ${isEditDialogOpen && formData.tipoProveedor !== tipo.value ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                               {tipo.value === 'Juridico' ? <Building className="w-4 h-4" /> : <User className="w-4 h-4" />}
                               {tipo.label}
@@ -1229,7 +1228,7 @@ export function ProveedoresPage() {
               <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">NIT/Documento</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
+                  <th className="text-left py-3 px-4 text-white-primary font-bold text-sm">Proveedor</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contacto</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
@@ -1273,7 +1272,7 @@ export function ProveedoresPage() {
                         <span className="text-sm text-gray-lighter">{proveedor.identificacion || proveedor.nit}</span>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-3 justify-center sm:justify-start">
+                        <div className="flex items-center gap-3 justify-start">
                           <div className="w-8 h-8 bg-orange-primary rounded-lg flex items-center justify-center shrink-0">
                             {proveedor.tipoProveedor === 'Juridico' ? (
                               <Building className="w-4 h-4 text-black-primary" />
@@ -1330,7 +1329,7 @@ export function ProveedoresPage() {
                           >
                             <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                           </button>
-                          
+
                           <button
                             onClick={() => handleDeleteClick(proveedor)}
                             disabled={!proveedor.activo}
