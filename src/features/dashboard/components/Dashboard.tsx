@@ -60,6 +60,7 @@ const RegistrarEntregaPage = React.lazy(() => import("../../inventario/pages/Reg
 const RolesPage = React.lazy(() => import("../../administracion/pages/RolesPage").then(m => ({ default: m.RolesPage })));
 const UsersPage = React.lazy(() => import("../../administracion/pages/UsersPage").then(m => ({ default: m.UsersPage })));
 const AdminPerfilPage = React.lazy(() => import("../pages/AdminPerfilPage").then(m => ({ default: m.AdminPerfilPage })));
+import { CitaNotificationBell } from "./CitaNotificationBell";
 import manitoLogo from "../../../assets/Manito.jpeg";
 
 type ModuleSubNavOverride = {
@@ -676,6 +677,10 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
+                <CitaNotificationBell
+                  isOnAgendamientos={activePage === "Agendamientos"}
+                  onNavigateToAgendamientos={() => setActivePage("Agendamientos")}
+                />
                 {onBackToLanding && (
                   <Tooltip>
                     <TooltipTrigger asChild>

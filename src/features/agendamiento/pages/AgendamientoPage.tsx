@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { agendamientoService } from "../services/agendamientoService";
 import { ventaService } from "../../ventas/services/ventaService";
 import { useAuth } from "../../../shared/contexts/AuthContext";
@@ -9,7 +10,7 @@ import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../services/horariosService";
 import { Input } from "../../../shared/components/ui/input";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, Plus, Minus, X } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, Plus, Minus, X, Phone } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -52,8 +53,6 @@ const formatHoraStr12 = (horaStr: string): string => {
 
 const estados = [
   { value: "Pendiente", label: "Pendiente", color: "bg-orange-primary" },
-  { value: "Confirmada", label: "Confirmada", color: "bg-orange-primary text-black-primary" },
-  { value: "En Proceso", label: "En Proceso", color: "bg-green-600" },
   { value: "Completada", label: "Completada", color: "bg-blue-600" },
   { value: "Cancelada", label: "Cancelada", color: "bg-red-600" }
 ];
@@ -83,6 +82,7 @@ interface AgendamientoPageProps {
   } | null) => void;
 }
 
+
 export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChange }: AgendamientoPageProps) {
   const { user } = useAuth();
   const { success, error, AlertContainer } = useCustomAlert();
@@ -98,7 +98,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [horariosList, setHorariosList] = useState<any[]>([]);
 
   const [currentWeek, setCurrentWeek] = useState(0);
+  const [highlightedCitaId, setHighlightedCitaId] = useState<number | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
+  // Carrusel de servicios/paquetes dentro del modal de detalle de cita
+  const [servicioCarouselPage, setServicioCarouselPage] = useState(0);
+  const SERVICIO_PAGE_SIZE = 3;
   const CAROUSEL_PAGE_SIZE = 5;
   const [lastInitialItemKey, setLastInitialItemKey] = useState("");
 
@@ -158,8 +162,19 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     }
   };
 
-  // Estados para el modal de gestión de franja horaria
+  // Estados para el popover de detalle de cita (estilo Google Calendar)
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+  const [popoverSide, setPopoverSide] = useState<'left' | 'right'>('right');
+  const [popoverPhase, setPopoverPhase] = useState<'enter' | 'open' | 'exit'>('enter');
+
+  // Estados del modal de creación/edición de citas
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [modalPosition, setModalPosition] = useState<{ top: number; left: number } | null>(null);
+  const [modalPhase, setModalPhase] = useState<'enter' | 'open' | 'exit'>('enter');
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const POPOVER_ANIM_MS = 200;
   const [selectedSlot, setSelectedSlot] = useState<{ dia: string, hora: number, fecha: string } | null>(null);
   const [slotSearchTerm, setSlotSearchTerm] = useState("");
   const [slotFilterEstado, setSlotFilterEstado] = useState("all");
@@ -213,6 +228,71 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     localStorage.setItem('dayDiscounts', JSON.stringify(dayDiscounts));
   }, [dayDiscounts]);
 
+  // Escuchar evento de scroll desde el sistema de notificaciones
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { hora, fecha, citaId } = (e as CustomEvent<{ hora: string; fecha: string; citaId?: number }>).detail || {};
+      if (!hora) return;
+
+      // Asegurarse de estar en vista calendario
+      setViewMode('calendar');
+
+      // Si viene con fecha, calcular el weekOffset para navegar a esa semana
+      if (fecha) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dayOfWeek = today.getDay();
+        const diffToMonday = dayOfWeek === 0 ? 1 : 1 - dayOfWeek;
+        const thisMonday = new Date(today);
+        thisMonday.setDate(today.getDate() + diffToMonday);
+
+        const citaDate = new Date(`${fecha}T12:00:00`);
+        citaDate.setHours(0, 0, 0, 0);
+        const citaDayOfWeek = citaDate.getDay();
+        const diffToCitaMonday = citaDayOfWeek === 0 ? 1 : 1 - citaDayOfWeek;
+        const citaMonday = new Date(citaDate);
+        citaMonday.setDate(citaDate.getDate() + diffToCitaMonday);
+
+        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+        const weekOffset = Math.round((citaMonday.getTime() - thisMonday.getTime()) / msPerWeek);
+
+        // Siempre actualizar currentWeek, incluso si weekOffset es 0:
+        // el usuario puede estar viendo otra semana y hay que volver a la actual.
+        setCurrentWeek(weekOffset);
+      }
+
+      // Calcular posición de scroll: grilla empieza en 9:00, cada slot = h-20 (80px) + gap-1 (4px) = 84px
+      const [hStr, mStr] = hora.split(':');
+      const horaDecimal = parseInt(hStr) + parseInt(mStr || '0') / 60;
+      const GRID_START = 9;
+      const SLOT_HEIGHT = 84;
+      const slotIndex = Math.max(0, Math.round((horaDecimal - GRID_START) / 0.5));
+      const slotTop = slotIndex * SLOT_HEIGHT;
+
+      // Scroll con delay aumentado para dar tiempo al re-render del calendario
+      // tras el posible cambio de semana (setCurrentWeek → re-render → DOM listo).
+      setTimeout(() => {
+        const container = document.querySelector('.module-content');
+        if (container) {
+          // Centrar la hora en el viewport: restar la mitad de la altura visible
+          // y sumar la mitad de la altura de un slot para que quede justo en el centro.
+          const halfViewport = container.clientHeight / 2;
+          const scrollTarget = Math.max(0, slotTop - halfViewport + SLOT_HEIGHT / 2);
+          container.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        }
+        // Activar highlight sobre el bloque de la cita una vez que el scroll terminó.
+        // El glow dura 2.4 s (ver globals.css → citaNotifHighlight) y luego se limpia.
+        if (citaId != null) {
+          setHighlightedCitaId(citaId);
+          setTimeout(() => setHighlightedCitaId(null), 2600);
+        }
+      }, 400);
+    };
+
+    window.addEventListener('scroll-to-cita-hora', handler);
+    return () => window.removeEventListener('scroll-to-cita-hora', handler);
+  }, []);
+
   // Estados para formulario de nueva cita
   const [nuevaCita, setNuevaCita] = useState({
     clienteId: 0,
@@ -246,18 +326,54 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [paqueteSearchTerm, setPaqueteSearchTerm] = useState('');
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [showFormErrors, setShowFormErrors] = useState(false);
+  const [tipoServicio, setTipoServicio] = useState<'individuales' | 'paquetes'>('individuales');
+  const [editingFecha, setEditingFecha] = useState(false);
+  const [editingHora, setEditingHora] = useState(false);
+
+  // Cerrar modal con animación de salida
+  const handleCloseModal = useCallback(() => {
+    setModalPhase('exit');
+    setTimeout(() => {
+      setIsCreateModalOpen(false);
+      setModalPosition(null);
+      setSelectedCita(null);
+      setShowFormErrors(false);
+      setClienteSearchTerm('');
+      setBarberoFormSearchTerm('');
+      setServicioSearchTerm('');
+      setPaqueteSearchTerm('');
+      setProductoSearchTerm('');
+      setNuevaCita({
+        clienteId: 0, cliente: '', telefono: '',
+        servicioId: null, servicioIds: [], productoCantidades: {},
+        paqueteId: null, servicio: '', barberoId: 0, barbero: '',
+        fecha: '', hora: '', duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
+      });
+    }, 200);
+  }, []);
+
+  // Cerrar modal con tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isCreateModalOpen) {
+        handleCloseModal();
+      }
+    };
+    if (isCreateModalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isCreateModalOpen, handleCloseModal]);
 
   useEffect(() => {
     if (!onSubNavChange) return;
 
-    if (viewMode === 'crear') {
+    if (isCreateModalOpen) {
       onSubNavChange({
         title: selectedCita ? 'Editar Cita' : 'Nueva Cita',
         subtitle: 'Completa la información del agendamiento',
         onBack: () => {
-          setViewMode('calendar');
-          setSelectedCita(null);
-          setShowFormErrors(false);
+          handleCloseModal();
         },
         backTitle: 'Volver al Calendario',
         icon: <CalendarDays className="w-5 h-5" />,
@@ -267,7 +383,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     }
 
     onSubNavChange(null);
-  }, [viewMode, selectedCita, onSubNavChange]);
+  }, [isCreateModalOpen, selectedCita, onSubNavChange, handleCloseModal]);
 
   const getAutoDateTime = () => {
     const now = new Date();
@@ -361,7 +477,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         });
       }
 
-      setViewMode('crear');
+      // Abrir modal con los datos pre-llenados
+      const position = {
+        top: Math.max(16, (window.innerHeight - 600) / 2),
+        left: Math.max(16, (window.innerWidth - 480) / 2)
+      };
+      setModalPosition(position);
+      setTipoServicio('individuales');
+      setEditingFecha(false);
+      setEditingHora(false);
+      setModalPhase('enter');
+      setIsCreateModalOpen(true);
+      setTimeout(() => setModalPhase('open'), 10);
       onClearInitialItem?.();
       return;
     }
@@ -418,7 +545,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       notas: ''
     });
 
-    setViewMode('crear');
+    // Abrir modal con los datos pre-llenados
+    const positionItem = {
+      top: Math.max(16, (window.innerHeight - 600) / 2),
+      left: Math.max(16, (window.innerWidth - 480) / 2)
+    };
+    setModalPosition(positionItem);
+    setTipoServicio(isPaquete ? 'paquetes' : 'individuales');
+    setEditingFecha(false);
+    setEditingHora(false);
+    setModalPhase('enter');
+    setIsCreateModalOpen(true);
+    setTimeout(() => setModalPhase('open'), 10);
     setSelectedCita(null);
     onClearInitialItem?.();
   };
@@ -470,10 +608,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const getCitasEnSlot = (dia: string, hora: number) => {
     const citasDelDia = getCitasPorDia(dia);
     return citasDelDia.filter(cita => {
+      if ((cita.estado || '').toLowerCase() === 'cancelada') return false;
       const horaSplit = (cita.hora || '').split(':');
       const horaInicio = parseInt(horaSplit[0] || '0') + (parseInt(horaSplit[1] || '0') / 60);
-      const horaFin = horaInicio + (cita.duracion || 60) / 60;
-      return horaInicio <= hora && hora < horaFin;
+      // Redondear inicio al slot de grilla hacia abajo (12:05 → 12:00)
+      const horaInicioSlot = Math.floor(horaInicio * 2) / 2;
+      const horaFinExacta = horaInicio + (cita.duracion || 60) / 60;
+      // El slot pertenece a la cita si: inicio_slot <= hora < fin_exacta
+      // Esto hace que 13:05 incluya el slot 13:00 pero no el 13:30
+      return horaInicioSlot <= hora && hora < horaFinExacta;
     }).filter(cita => {
       // Aplicar filtros de búsqueda (con null-safety en todos los campos)
       if (!slotSearchTerm) return slotFilterEstado === "all" || cita.estado === slotFilterEstado;
@@ -489,12 +632,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   const getCitaColor = (estado: string) => {
     switch (estado) {
-      case 'Confirmada': return '#d8b081';
-      case 'En Proceso': return '#22C55E';
       case 'Completada': return '#3B82F6';
       case 'Cancelada': return '#EF4444';
-      case 'Pendiente': return '#d8b081';
-      default: return '#d8b081';
+      default: return '#d8b081'; // Pendiente
     }
   };
 
@@ -642,8 +782,42 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     return estadoInfo || { value: estado, label: estado, color: "bg-gray-medium" };
   };
 
-  // Manejar clic en celda del calendario
-  const handleSlotClick = (dia: string, hora: number) => {
+  // Abrir modal de creación desde el botón "Nueva Cita" (campos vacíos, posición centrada)
+  const handleOpenCreateModal = useCallback(() => {
+    const { fecha, hora } = getAutoDateTime();
+
+    // Calcular posición centrada en pantalla
+    const position = {
+      top: Math.max(16, (window.innerHeight - 600) / 2),
+      left: Math.max(16, (window.innerWidth - 480) / 2)
+    };
+
+    setModalPosition(position);
+    setSelectedCita(null);
+    setShowFormErrors(false);
+    setClienteSearchTerm('');
+    setBarberoFormSearchTerm('');
+    setServicioSearchTerm('');
+    setPaqueteSearchTerm('');
+    setProductoSearchTerm('');
+    setNuevaCita({
+      clienteId: 0, cliente: '', telefono: '',
+      servicioId: null, servicioIds: [], productoCantidades: {},
+      paqueteId: null, servicio: '', barberoId: 0, barbero: '',
+      fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
+    });
+    setTipoServicio('individuales');
+    setEditingFecha(false);
+    setEditingHora(false);
+
+    // Inicializar animación de entrada
+    setModalPhase('enter');
+    setIsCreateModalOpen(true);
+    setTimeout(() => setModalPhase('open'), 10);
+  }, []);
+
+  // Manejar clic en celda del calendario (abre modal con fecha/hora preseleccionadas)
+  const handleSlotClick = useCallback((dia: string, hora: number) => {
     const weekDays = getCurrentWeekDays();
     const dayInfo = weekDays.find(d => d.dia === dia);
 
@@ -653,10 +827,25 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       fecha: dayInfo?.fechaCompleta || ''
     });
 
-    // Preparar formulario para nueva cita
+    // Calcular posición centrada en pantalla (cerca del slot)
+    const position = {
+      top: Math.max(16, (window.innerHeight - 600) / 2),
+      left: Math.max(16, (window.innerWidth - 480) / 2)
+    };
+
+    // Preparar formulario con fecha/hora del slot preseleccionadas
     const h = Math.floor(hora);
     const m = (hora % 1) * 60;
     const horaString = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : '30'}`;
+
+    setModalPosition(position);
+    setSelectedCita(null);
+    setShowFormErrors(false);
+    setClienteSearchTerm('');
+    setBarberoFormSearchTerm('');
+    setServicioSearchTerm('');
+    setPaqueteSearchTerm('');
+    setProductoSearchTerm('');
     setNuevaCita({
       clienteId: 0,
       cliente: '',
@@ -676,10 +865,36 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       notas: ''
     });
 
-    setActiveTab('lista');
     setSlotSearchTerm("");
     setSlotFilterEstado("all");
-    setIsSlotModalOpen(true);
+    setTipoServicio('individuales');
+    setEditingFecha(false);
+    setEditingHora(false);
+
+    // Inicializar animación de entrada
+    setModalPhase('enter');
+    setIsCreateModalOpen(true);
+    setTimeout(() => setModalPhase('open'), 10);
+  }, [getCurrentWeekDays]);
+
+  // Helper para formatear el texto de fecha/hora en la fila del formulario (Requirement 4.2)
+  const formatFechaHoraTexto = (): string => {
+    if (!nuevaCita.fecha && !nuevaCita.hora) return 'Selecciona fecha y hora';
+    const partes: string[] = [];
+    if (nuevaCita.fecha) {
+      const d = new Date(nuevaCita.fecha + 'T12:00:00');
+      partes.push(d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
+    }
+    if (nuevaCita.hora) {
+      const horaInicio = formatHoraStr12(nuevaCita.hora);
+      const [hh, mm] = nuevaCita.hora.split(':').map(Number);
+      const finMin = hh * 60 + mm + nuevaCita.duracion;
+      const finHH = Math.floor(finMin / 60).toString().padStart(2, '0');
+      const finMM = String(finMin % 60).padStart(2, '0');
+      const horaFin = formatHoraStr12(`${finHH}:${finMM}`);
+      partes.push(`${horaInicio} – ${horaFin}`);
+    }
+    return partes.join(' · ');
   };
 
   // Helper para calcular precio de productos seleccionados
@@ -836,7 +1051,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       setClienteSearchTerm('');
       setBarberoFormSearchTerm('');
       success("¡Cita creada exitosamente!", `La cita ha sido registrada.`);
-      setViewMode('calendar');
+      handleCloseModal();
     } catch (err: any) {
       console.error("Error al crear cita:", err);
       // Extraemos el mensaje de la API si existe, sino damos un mensaje genérico.
@@ -881,7 +1096,19 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
       setClienteSearchTerm(citaCompleta.clienteNombre || '');
       setBarberoFormSearchTerm(citaCompleta.barberoNombre || '');
-      setViewMode('crear');
+      setTipoServicio(citaCompleta.paqueteId ? 'paquetes' : 'individuales');
+      setEditingFecha(false);
+      setEditingHora(false);
+
+      // Abrir modal con los datos de la cita a editar
+      const editPosition = {
+        top: Math.max(16, (window.innerHeight - 600) / 2),
+        left: Math.max(16, (window.innerWidth - 480) / 2)
+      };
+      setModalPosition(editPosition);
+      setModalPhase('enter');
+      setIsCreateModalOpen(true);
+      setTimeout(() => setModalPhase('open'), 10);
       setIsSlotModalOpen(false);
     } catch (err) {
       console.error("Error al obtener la cita completa:", err);
@@ -937,7 +1164,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
       success("¡Cita actualizada exitosamente!", `Los cambios han sido guardados correctamente.`);
       setSelectedCita(null);
-      setViewMode('calendar');
+      handleCloseModal();
     } catch (err: any) {
       console.error("Error al actualizar:", err);
       const errorMsg = err?.message || err || "No se pudieron guardar los cambios en el servidor.";
@@ -1079,8 +1306,138 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   // Ver detalle de cita
   const handleViewDetail = (cita: any) => {
     setSelectedCita(cita);
+    setServicioCarouselPage(0);
     setActiveTab('detalle');
   };
+
+  const POPOVER_WIDTH = 420;
+  const openCitaPopover = useCallback((cita: any, slot: { dia: string; hora: number; fecha: string }, anchorRect: DOMRect) => {
+    setSelectedCita(cita);
+    setServicioCarouselPage(0);
+    setSelectedSlot(slot);
+    setActiveTab('detalle');
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const spaceRight = vw - anchorRect.right - 12;
+    const spaceLeft = anchorRect.left - 12;
+
+    let left: number;
+    let side: 'left' | 'right' = 'right';
+    if (spaceRight >= POPOVER_WIDTH) {
+      left = anchorRect.right + 12;
+      side = 'right';
+    } else if (spaceLeft >= POPOVER_WIDTH) {
+      left = anchorRect.left - POPOVER_WIDTH - 12;
+      side = 'left';
+    } else {
+      left = Math.max(8, (vw - POPOVER_WIDTH) / 2);
+      side = 'right';
+    }
+
+    const MAX_H = 620;
+    let top = anchorRect.top;
+    if (top + MAX_H > vh - 8) top = Math.max(8, vh - MAX_H - 8);
+    top = Math.max(8, top);
+
+    setPopoverPosition({ top, left });
+    setPopoverSide(side);
+    setPopoverPhase('enter');     // estado inicial: opacidad 0 + desplazado
+    setIsSlotModalOpen(true);
+  }, []);
+
+  // Cuando el popover monta en fase 'enter', avanzar a 'open' en el siguiente frame
+  // para que el navegador pinte primero el estado inicial y luego dispare la transición.
+  useEffect(() => {
+    if (!isSlotModalOpen || popoverPhase !== 'enter') return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setPopoverPhase('open'));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+  }, [isSlotModalOpen, popoverPhase]);
+
+  // Cierra el popover con fade-out: cambia a fase 'exit' y desmonta tras la animación.
+  const closePopover = useCallback(() => {
+    setPopoverPhase('exit');
+    window.setTimeout(() => {
+      setIsSlotModalOpen(false);
+      setPopoverPosition(null);
+      setSelectedCita(null);
+    }, POPOVER_ANIM_MS);
+  }, []);
+
+  // Cerrar popover al hacer click fuera o presionar Escape.
+  // Aplica defensa en capas para garantizar que ningún bloque del calendario
+  // quede por encima del popover, sin importar el stacking context del layout.
+  useEffect(() => {
+    if (!isSlotModalOpen) return;
+
+    // Capa 1 — Manipulación directa con inline !important.
+    // Es la prioridad MÁS ALTA en la cascada CSS (supera a cualquier stylesheet,
+    // incluso uno inyectado con !important). Elimina:
+    //   - clipPath inline (causa principal de stacking context propio)
+    //   - z-index (deja al elemento sin stacking context propio para que herede
+    //     el contexto del root, donde nuestro popover en z-[9999] siempre gana).
+    const blocks = document.querySelectorAll<HTMLElement>('.cita-calendar-block');
+    blocks.forEach((el) => {
+      el.style.setProperty('z-index', '0', 'important');
+      el.style.setProperty('clip-path', 'none', 'important');
+      el.style.setProperty('-webkit-clip-path', 'none', 'important');
+      el.style.setProperty('isolation', 'auto', 'important');
+      el.style.setProperty('transform', 'none', 'important');
+      el.style.setProperty('filter', 'none', 'important');
+      el.style.setProperty('will-change', 'auto', 'important');
+    });
+
+    // Capa 2 — Stylesheet inyectado con !important (respaldo para bloques que
+    // se monten DESPUÉS de abrir el popover, p.ej. al cambiar de semana).
+    const styleTag = document.createElement('style');
+    styleTag.id = '__cita-popover-z-suppress';
+    styleTag.textContent = `
+      .cita-calendar-block {
+        z-index: 0 !important;
+        clip-path: none !important;
+        -webkit-clip-path: none !important;
+        isolation: auto !important;
+        transform: none !important;
+        filter: none !important;
+      }
+    `;
+    document.head.appendChild(styleTag);
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        closePopover();
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closePopover();
+      }
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      // Restaurar inline styles
+      blocks.forEach((el) => {
+        el.style.removeProperty('z-index');
+        el.style.removeProperty('clip-path');
+        el.style.removeProperty('-webkit-clip-path');
+        el.style.removeProperty('isolation');
+        el.style.removeProperty('transform');
+        el.style.removeProperty('filter');
+        el.style.removeProperty('will-change');
+      });
+      document.getElementById('__cita-popover-z-suppress')?.remove();
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isSlotModalOpen]);
 
   // Stats para el dashboard (ajustadas para ignorar canceladas según solicitud)
   const isCitaActiva = (estado: string) => {
@@ -1225,800 +1582,586 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     <>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* VISTA DE CREAR / EDITAR CITA (inline, no modal) */}
+      {/* MODAL_FORMULARIO — createPortal (Nueva / Editar Cita) */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {viewMode === 'crear' && (
-        <div className="flex flex-col gap-4 h-full min-h-0 overflow-hidden">
-          {/* Master-Detail Layout */}
+      {isCreateModalOpen && modalPosition && createPortal(
+        <>
+          {/* Backdrop semi-transparente */}
           <div
-            className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 flex-1 min-h-0 overflow-hidden"
-            style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
+            className="fixed inset-0 bg-black/40"
+            style={{ zIndex: 9998 }}
+            onClick={handleCloseModal}
+          />
+
+          {/* Modal container */}
+          <div
+            ref={modalRef}
+            className="fixed flex flex-col rounded-2xl border border-gray-dark/60 bg-gray-darkest overflow-hidden"
+            style={{
+              top: modalPosition.top,
+              left: modalPosition.left,
+              width: 480,
+              maxHeight: 'calc(100vh - 32px)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)',
+              zIndex: 9999,
+              opacity: modalPhase === 'open' ? 1 : 0,
+              transform: modalPhase === 'enter' ? 'translateY(-10px) scale(0.97)' : 'translateY(0) scale(1)',
+              transition: 'opacity 200ms ease-out, transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
           >
-            {/* ── Panel Izquierdo: Formulario ── */}
-            <aside className="min-h-0 min-w-0">
-              <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-0">
-                  {/* Fila 1: Cliente y Barbero */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 border-b border-gray-dark pb-10 px-2">
-                    {/* Sección: Cliente */}
-                    <div className="space-y-0 px-2">
-                      <FormSection title="Cliente" icon={<User className="w-4 h-4 text-orange-primary" />}>
-                        <SearchField<any>
-                          label="Buscar cliente"
-                          placeholder="Nombre del cliente..."
-                          value={clienteSearchTerm}
-                          onChange={setClienteSearchTerm}
-                          items={clientesList}
-                          filterFn={(c, term) =>
-                            (c.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
-                            (c.telefono || '').includes(term)
-                          }
-                          onSelect={(c) => {
-                            setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: c.nombre, telefono: c.telefono || '' }));
-                            setClienteSearchTerm(c.nombre);
-                          }}
-                          onClear={() => {
-                            setNuevaCita(prev => ({ ...prev, clienteId: 0, cliente: '', telefono: '' }));
-                            setClienteSearchTerm('');
-                          }}
-                          renderItem={(c) => (
-                            <div className="flex items-center gap-3">
-                              <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                                {c.fotoPerfil ? (
-                                  <img src={c.fotoPerfil} alt={c.nombre} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                                ) : (
-                                  <User className="w-4 h-4 text-gray-lightest" />
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-gray-lightest text-sm truncate">{c.nombre}</p>
-                                <p className="text-gray-lighter text-xs truncate">{c.telefono || 'Sin teléfono'}</p>
-                              </div>
-                            </div>
-                          )}
-                          isSelected={!!nuevaCita.clienteId}
-                          error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
-                        />
-                        {nuevaCita.telefono && (
-                          <div className="mt-2 flex items-center gap-2 bg-orange-primary/10 border border-orange-primary/20 rounded-lg px-3 py-2">
-                            <span className="text-orange-primary text-sm">📞</span>
-                            <span className="text-sm text-gray-lightest">{nuevaCita.telefono}</span>
-                          </div>
-                        )}
-                      </FormSection>
-                    </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark bg-gray-darker/50 shrink-0">
+              <h2 className="text-lg font-semibold text-gray-lightest">
+                {selectedCita ? 'Editar Cita' : 'Nueva Cita'}
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="p-1.5 rounded-lg text-gray-lighter hover:text-white-primary hover:bg-gray-dark transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-                    {/* Sección: Barbero */}
-                    <div className="pt-8 md:pt-0 px-2">
-                      <FormSection title="Barbero" icon={<User className="w-4 h-4 text-orange-primary" />}>
-                        <SearchField<any>
-                          label="Buscar barbero"
-                          placeholder="Nombre del barbero..."
-                          value={barberoFormSearchTerm}
-                          onChange={setBarberoFormSearchTerm}
-                          items={barberosList}
-                          filterFn={(b, term) => (b.nombre || '').toLowerCase().includes(term.toLowerCase())}
-                          onSelect={(b) => {
-                            setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: b.nombre }));
-                            setBarberoFormSearchTerm(b.nombre);
-                          }}
-                          onClear={() => {
-                            setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
-                            setBarberoFormSearchTerm('');
-                          }}
-                          renderItem={(b) => (
-                            <div className="flex items-center gap-3">
-                              <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                                {b.fotoPerfil ? (
-                                  <img src={b.fotoPerfil} alt={b.nombre} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                                ) : (
-                                  <User className="w-4 h-4 text-gray-lightest" />
-                                )}
-                              </div>
-                              <p className="text-gray-lightest text-sm">{b.nombre}</p>
-                            </div>
-                          )}
-                          isSelected={!!nuevaCita.barberoId}
-                          error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
-                        />
-
-                        {/* Disponibilidad del barbero — Picker interactivo */}
-                        {nuevaCita.barberoId > 0 && (() => {
-                          const diaNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-                          const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-                          const horariosBarbero = horariosList.filter((h: any) =>
-                            Number(h.barberoId) === Number(nuevaCita.barberoId) && h.estado === true
-                          );
-
-                          if (horariosBarbero.length === 0) {
-                            return (
-                              <div className="mt-3 rounded-xl border border-orange-primary/20 bg-gradient-to-br from-orange-primary/5 to-transparent p-3">
-                                <p className="text-xs text-gray-lighter italic">Este barbero no tiene horarios configurados.</p>
-                              </div>
-                            );
-                          }
-
-                          // Generar próximos 14 días donde trabaja el barbero
-                          const today = new Date(); today.setHours(0,0,0,0);
-                          const todayStr = toLocalDateString(today);
-                          const candidatos: Array<{ fechaStr: string; diaNombre: string; dia: number; mes: string; isToday: boolean; isPast: boolean }> = [];
-
-                          for (let i = 0; i < 14; i++) {
-                            const d = new Date(today);
-                            d.setDate(today.getDate() + i);
-                            const diaNombre = diaNombres[d.getDay()];
-                            if (!horariosBarbero.some((h: any) => h.dia === diaNombre)) continue;
-                            const fechaStr = toLocalDateString(d);
-                            let isPast = false;
-                            if (fechaStr === todayStr) {
-                              const hrs = getHorasDisponiblesParaDia(fechaStr, nuevaCita.barberoId, nuevaCita.duracion);
-                              if (hrs.length === 0) isPast = true;
-                            }
-                            candidatos.push({
-                              fechaStr,
-                              diaNombre,
-                              dia: d.getDate(),
-                              mes: meses[d.getMonth()],
-                              isToday: fechaStr === todayStr,
-                              isPast,
-                            });
-                          }
-
-                          const selectedDay = candidatos.find(c => c.fechaStr === nuevaCita.fecha);
-                          const visibles = selectedDay ? [selectedDay] : candidatos;
-                          const horas = selectedDay
-                            ? getHorasDisponiblesParaDia(selectedDay.fechaStr, nuevaCita.barberoId, nuevaCita.duracion)
-                            : [];
-
-                          return (
-                            <div className="mt-3 rounded-xl border border-orange-primary/20 bg-gradient-to-br from-orange-primary/5 to-transparent p-3 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <CalendarDays className="w-3.5 h-3.5 text-orange-primary" />
-                                  <span className="text-[11px] uppercase tracking-wider font-semibold text-orange-primary">
-                                    {selectedDay ? 'Día seleccionado' : 'Días disponibles'}
-                                  </span>
-                                </div>
-                                {selectedDay && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setNuevaCita(prev => ({ ...prev, fecha: '', hora: '' }))}
-                                    className="text-[10px] text-gray-lighter hover:text-orange-primary flex items-center gap-1 transition-colors"
-                                  >
-                                    <X className="w-3 h-3" /> Cambiar día
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Días horizontales */}
-                              <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                                {visibles.map(d => {
-                                  const isSelected = selectedDay?.fechaStr === d.fechaStr;
-                                  return (
-                                    <button
-                                      key={d.fechaStr}
-                                      type="button"
-                                      disabled={d.isPast}
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          setNuevaCita(prev => ({ ...prev, fecha: '', hora: '' }));
-                                        } else {
-                                          setNuevaCita(prev => ({ ...prev, fecha: d.fechaStr, hora: '' }));
-                                        }
-                                      }}
-                                      className={`shrink-0 flex flex-col items-center justify-center min-w-[68px] px-3 py-2 rounded-lg border transition-all ${
-                                        d.isPast
-                                          ? 'bg-black/40 border-gray-dark/40 text-gray-dark cursor-not-allowed opacity-60'
-                                          : isSelected
-                                            ? 'bg-orange-primary/25 border-orange-primary text-orange-primary shadow-md'
-                                            : 'bg-gray-darker/60 border-gray-dark/40 text-gray-lightest hover:border-orange-primary/40 hover:bg-orange-primary/10'
-                                      }`}
-                                    >
-                                      <span className="text-[10px] uppercase tracking-wider font-semibold opacity-80">
-                                        {d.isToday ? 'Hoy' : d.diaNombre.slice(0,3)}
-                                      </span>
-                                      <span className="text-base font-bold leading-tight">{d.dia}</span>
-                                      <span className="text-[9px] uppercase opacity-70">{d.mes}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Horas disponibles */}
-                              {selectedDay && (
-                                <div>
-                                  <div className="flex items-center gap-1.5 mb-2">
-                                    <Clock className="w-3.5 h-3.5 text-orange-primary" />
-                                    <span className="text-[11px] uppercase tracking-wider font-semibold text-orange-primary">Horas libres</span>
-                                  </div>
-                                  {horas.length === 0 ? (
-                                    <p className="text-xs text-red-400 italic">No hay horas libres este día.</p>
-                                  ) : (
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {horas.map(h => {
-                                        const isHoraSel = nuevaCita.hora === h;
-                                        return (
-                                          <button
-                                            key={h}
-                                            type="button"
-                                            onClick={() => setNuevaCita(prev => ({ ...prev, hora: h }))}
-                                            className={`px-2.5 py-1 rounded-md border text-[11px] font-medium tabular-nums transition-all ${
-                                              isHoraSel
-                                                ? 'bg-orange-primary text-black-primary border-orange-primary shadow-md'
-                                                : 'bg-gray-darker/60 border-gray-dark/40 text-gray-lightest hover:border-orange-primary/40 hover:bg-orange-primary/10'
-                                            }`}
-                                          >
-                                            {formatHoraStr12(h)}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </FormSection>
-                    </div>
-                  </div>
-
-                  {/* Fila 2: Servicios y Paquetes */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 border-b border-gray-dark py-10 px-2">
-                    {/* Sección: Servicios */}
-                    <div className="space-y-0 px-2">
-                      <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
-                        {nuevaCita.paqueteId ? (
-                          <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
+            {/* Contenido scrollable — filas del formulario (tareas 2.2–2.8) */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {/* ── Fila: Cliente ── */}
+              <div className="flex items-start gap-0 py-3 px-2">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                  <User className="w-5 h-5 text-gray-lighter" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <SearchField<any>
+                    label="Buscar cliente"
+                    placeholder="Nombre del cliente..."
+                    value={clienteSearchTerm}
+                    onChange={setClienteSearchTerm}
+                    items={clientesList}
+                    filterFn={(c, term) =>
+                      (c.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
+                      (c.telefono || '').includes(term)
+                    }
+                    onSelect={(c) => {
+                      setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: c.nombre, telefono: c.telefono || '' }));
+                      setClienteSearchTerm(c.nombre);
+                    }}
+                    onClear={() => {
+                      setNuevaCita(prev => ({ ...prev, clienteId: 0, cliente: '', telefono: '' }));
+                      setClienteSearchTerm('');
+                    }}
+                    renderItem={(c) => (
+                      <div className="flex items-center gap-3 w-full">
+                        {/* photo + name + phone */}
+                        {c.fotoPerfil ? (
+                          <img src={c.fotoPerfil} alt={c.nombre} className="w-8 h-8 rounded-full object-cover" />
                         ) : (
-                          <>
-                            <SearchField<any>
-                              label="Buscar servicio"
-                              placeholder="Buscar servicio..."
-                              value={servicioSearchTerm}
-                              onChange={setServicioSearchTerm}
-                              items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
-                              filterFn={(s, term) =>
-                                (s.nombre || '').toLowerCase().includes(term.toLowerCase())
-                              }
-                              onSelect={(s) => {
-                                toggleServicio(s.id);
-                                setServicioSearchTerm('');
-                              }}
-                              onClear={() => setServicioSearchTerm('')}
-                              renderItem={(s) => (
-                                <div className="flex items-center gap-3">
-                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                    <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-gray-lightest text-sm truncate">{s.nombre}</p>
-                                    <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
-                                  </div>
-                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
-                                </div>
-                              )}
-                              error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
-                            />
-                          </>
-                        )}
-                        {/* Tags de servicios seleccionados */}
-                        {nuevaCita.servicioIds.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {nuevaCita.servicioIds.map(sId => {
-                              const srv = serviciosList.find(s => s.id === sId);
-                              if (!srv) return null;
-                              return (
-                                <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                  <Scissors className="w-3 h-3" />
-                                  <span>{srv.nombre}</span>
-                                  <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
-                                  {!nuevaCita.paqueteId && (
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleServicio(sId)}
-                                      className="ml-1 hover:text-red-400 transition-colors"
-                                      title="Quitar servicio"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })}
+                          <div className="w-8 h-8 rounded-full bg-gray-dark flex items-center justify-center">
+                            <User className="w-4 h-4 text-gray-lighter" />
                           </div>
                         )}
-                      </FormSection>
-                    </div>
-
-                    {/* Sección: Paquetes */}
-                    <div className="pt-8 md:pt-0 px-2">
-                      <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
-                        {nuevaCita.paqueteId ? (
-                          <div className="flex flex-wrap gap-2">
-                            {(() => {
-                              const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
-                              if (!paq) return null;
-                              return (
-                                <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                  <Package className="w-3 h-3" />
-                                  <span>{paq.nombre}</span>
-                                  <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      handlePaqueteChange('none');
-                                      setPaqueteSearchTerm('');
-                                    }}
-                                    className="ml-1 hover:text-red-400 transition-colors"
-                                    title="Quitar paquete"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          <SearchField<any>
-                            label="Buscar paquete"
-                            placeholder="Buscar paquete..."
-                            value={paqueteSearchTerm}
-                            onChange={setPaqueteSearchTerm}
-                            items={paquetesList}
-                            filterFn={(p, term) =>
-                              (p.nombre || '').toLowerCase().includes(term.toLowerCase())
-                            }
-                            onSelect={(p) => {
-                              handlePaqueteChange(`p-${p.id}`);
-                              setPaqueteSearchTerm('');
-                            }}
-                            onClear={() => setPaqueteSearchTerm('')}
-                            renderItem={(p) => (
-                              <div className="flex items-center gap-3">
-                                <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                                  <Package className="w-5 h-5 text-orange-primary/50" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-gray-lightest text-sm truncate">{p.nombre}</p>
-                                  <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
-                                </div>
-                                <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
-                              </div>
-                            )}
-                            dropUp
-                          />
-                        )}
-                      </FormSection>
-                    </div>
-                  </div>
-
-                  {/* Resto de secciones (Full width) */}
-                  <div className="divide-y divide-gray-dark">
-                    {/* Sección: Productos */}
-                    {(nuevaCita.servicioIds.length > 0 || nuevaCita.paqueteId) && productosList.length > 0 && (
-                      <div className="py-10">
-                        <FormSection title="Productos adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
-                          <SearchField<any>
-                            label="Buscar producto"
-                            placeholder="Buscar producto..."
-                            value={productoSearchTerm}
-                            onChange={setProductoSearchTerm}
-                            items={productosList}
-                            filterFn={(p, term) =>
-                              (p.nombre || '').toLowerCase().includes(term.toLowerCase())
-                            }
-                            onSelect={(p) => {
-                              addProducto(p.id);
-                              setProductoSearchTerm('');
-                            }}
-                            onClear={() => setProductoSearchTerm('')}
-                            renderItem={(p) => {
-                              const cantActual = nuevaCita.productoCantidades[p.id] || 0;
-                              return (
-                                <div className="flex items-center gap-3">
-                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                    <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-gray-lightest text-sm truncate">{p.nombre}</p>
-                                    <p className="text-gray-lighter text-xs">Stock: {p.stockVentas}{cantActual > 0 ? ` · Ya agregado: ${cantActual}` : ''}</p>
-                                  </div>
-                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
-                                </div>
-                              );
-                            }}
-                            dropUp
-                          />
-                          {/* Productos seleccionados con control de cantidad */}
-                          {Object.keys(nuevaCita.productoCantidades).length > 0 && (
-                            <div className="space-y-2 mt-2">
-                              {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
-                                const pId = Number(idStr);
-                                const prod = productosList.find(p => p.id === pId);
-                                if (!prod) return null;
-                                const precioUnit = Number(prod.precioVenta || prod.precio || 0);
-                                return (
-                                  <div key={pId} className="flex items-center gap-2 bg-orange-primary/10 border border-orange-primary/20 rounded-lg px-3 py-2">
-                                    <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                      <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-gray-lightest text-xs truncate">{prod.nombre}</p>
-                                      <p className="text-orange-primary text-[10px] font-bold">{formatearPrecio(precioUnit)} c/u</p>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => removeProducto(pId)}
-                                        className="w-6 h-6 rounded-full bg-gray-dark hover:bg-gray-darker flex items-center justify-center text-gray-lightest transition-colors"
-                                        title="Disminuir cantidad"
-                                      >
-                                        <Minus className="w-3 h-3" />
-                                      </button>
-                                      <span className="text-gray-lightest text-sm w-6 text-center">{cantidad}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => addProducto(pId)}
-                                        className="w-6 h-6 rounded-full bg-orange-primary/30 hover:bg-orange-primary/50 flex items-center justify-center text-orange-primary transition-colors"
-                                        title="Aumentar cantidad"
-                                        disabled={cantidad >= (prod.stockVentas || 99)}
-                                      >
-                                        <Plus className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                    <span className="text-orange-primary text-xs font-bold shrink-0 w-16 text-right">{formatearPrecio(precioUnit * cantidad)}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => quitarProducto(pId)}
-                                      className="ml-1 text-gray-lighter hover:text-red-400 transition-colors shrink-0"
-                                      title="Quitar producto"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </FormSection>
+                        <div>
+                          <p className="text-sm text-gray-lightest">{c.nombre}</p>
+                          <p className="text-xs text-gray-lighter">{c.telefono}</p>
+                        </div>
                       </div>
                     )}
-
-                    {/* Sección: Fecha y Hora */}
-                    <div className="py-10">
-                      <FormSection title="Fecha y Hora" icon={<CalendarDays className="w-4 h-4 text-orange-primary" />}>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                          <div>
-                            <Label className="text-xs text-gray-lighter">Fecha</Label>
-                            <Input
-                              type="date"
-                              value={nuevaCita.fecha}
-                              onChange={e => setNuevaCita(prev => ({ ...prev, fecha: e.target.value }))}
-                              className="elegante-input"
-                            />
-                            {nuevaCita.fecha && (() => {
-                              const d = new Date(`${nuevaCita.fecha}T12:00:00`);
-                              const diaNombre = d.toLocaleDateString('es-CO', { weekday: 'long' });
-                              return (
-                                <p className="text-[10px] text-orange-primary/70 mt-1 capitalize">{diaNombre}</p>
-                              );
-                            })()}
-                            {showFormErrors && !nuevaCita.fecha && <p className="text-red-400 text-xs mt-1">Requerido</p>}
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-lighter">Hora</Label>
-                            {nuevaCita.barberoId && nuevaCita.fecha ? (() => {
-                              const horasDisponibles = getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
-                              if (horasDisponibles.length === 0) {
-                                return (
-                                  <div className="elegante-input flex items-center text-xs text-red-400 px-3 py-2">
-                                    Sin horas disponibles para este día
-                                  </div>
-                                );
-                              }
-                              return (
-                                <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita(prev => ({ ...prev, hora: v }))}>
-                                  <SelectTrigger className="elegante-input">
-                                    <SelectValue placeholder="Seleccionar hora">
-                                      {nuevaCita.hora ? formatHoraStr12(nuevaCita.hora) : null}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
-                                    {horasDisponibles.map(h => (
-                                      <SelectItem key={h} value={h} className="text-gray-lightest">{formatHoraStr12(h)}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              );
-                            })() : (
-                              <Input
-                                type="time"
-                                value={nuevaCita.hora}
-                                onChange={e => setNuevaCita(prev => ({ ...prev, hora: e.target.value }))}
-                                className="elegante-input"
-                              />
-                            )}
-                            {showFormErrors && !nuevaCita.hora && <p className="text-red-400 text-xs mt-1">Requerido</p>}
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-lighter">Duración (min)</Label>
-                            <Input
-                              type="number"
-                              value={nuevaCita.duracion}
-                              onChange={e => setNuevaCita(prev => ({ ...prev, duracion: parseInt(e.target.value) || 60 }))}
-                              className="elegante-input"
-                              min={15} step={15}
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-lighter">Estado</Label>
-                            <Select value={nuevaCita.estado} onValueChange={v => setNuevaCita(prev => ({ ...prev, estado: v }))}>
-                              <SelectTrigger className="elegante-input">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-darkest border-gray-dark">
-                                {estados.map(e => (
-                                  <SelectItem key={e.value} value={e.value} className="text-gray-lightest">{e.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </FormSection>
-                    </div>
-
-                    {/* Sección: Notas */}
-                    <div className="py-10 border-b border-gray-dark">
-                      <FormSection title="Notas" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
-                        <div className="grid grid-cols-1">
-                          <Textarea
-                            value={nuevaCita.notas}
-                            onChange={e => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
-                            placeholder="Notas adicionales..."
-                            className="elegante-input min-h-[80px]"
-                          />
-                        </div>
-                      </FormSection>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer fijo con botones */}
-                <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
-                  <button
-                    onClick={() => { setViewMode('calendar'); setSelectedCita(null); setShowFormErrors(false); }}
-                    className="elegante-button-secondary py-3 px-8"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={selectedCita ? handleUpdateCita : handleCreateCita}
-                    className="elegante-button-primary py-3 px-8 flex items-center gap-2"
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    {selectedCita ? 'Actualizar Cita' : 'Crear Cita'}
-                  </button>
+                    error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
+                  />
                 </div>
               </div>
-            </aside>
+              <div className="border-t border-gray-dark/60 mx-4" />
 
-            {/* ── Panel Derecho: Resumen ── */}
-            <section className="min-h-0 min-w-0">
-              <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
-                {/* Header con gradiente */}
-                <div className="bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
-                  <h3 className="text-gray-lightest font-normal text-lg flex items-center gap-2">
-                    <Eye className="w-5 h-5 text-orange-primary" />
-                    Resumen de la Cita
-                  </h3>
-                  <p className="text-[11px] text-gray-lighter mt-1">Vista previa de los datos seleccionados</p>
+              {/* ── Fila: Switch Tipo ── */}
+              <div className="flex items-center gap-0 py-3 px-2">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center">
+                  {tipoServicio === 'paquetes' ? <Package className="w-5 h-5 text-gray-lighter" /> : <Scissors className="w-5 h-5 text-gray-lighter" />}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex gap-1 bg-gray-darker rounded-lg p-1 w-fit">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (tipoServicio !== 'individuales') {
+                          setTipoServicio('individuales');
+                          setNuevaCita(prev => ({ ...prev, paqueteId: null }));
+                          setPaqueteSearchTerm('');
+                        }
+                      }}
+                      className={tipoServicio === 'individuales'
+                        ? 'bg-gray-darkest text-orange-primary rounded-md px-3 py-1 text-sm font-medium transition-all'
+                        : 'text-gray-lighter px-3 py-1 text-sm transition-all hover:text-gray-lightest'
+                      }
+                    >
+                      Individuales
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (tipoServicio !== 'paquetes') {
+                          setTipoServicio('paquetes');
+                          setNuevaCita(prev => ({ ...prev, servicioIds: [], servicioId: null, servicio: '' }));
+                          setServicioSearchTerm('');
+                        }
+                      }}
+                      className={tipoServicio === 'paquetes'
+                        ? 'bg-gray-darkest text-orange-primary rounded-md px-3 py-1 text-sm font-medium transition-all'
+                        : 'text-gray-lighter px-3 py-1 text-sm transition-all hover:text-gray-lightest'
+                      }
+                    >
+                      Paquetes
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-gray-dark/60 mx-4" />
 
-                {/* Contenido scrollable */}
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
-                  {/* Cliente */}
-                  {nuevaCita.clienteId > 0 && (
-                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-normal mb-1">Cliente</p>
-                      <p className="text-gray-lightest text-sm">{nuevaCita.cliente}</p>
-                      {nuevaCita.telefono && <p className="text-xs text-gray-lighter">{nuevaCita.telefono}</p>}
-                    </div>
-                  )}
-
-                  {/* Servicios seleccionados */}
-                  {nuevaCita.servicioIds.length > 0 && !nuevaCita.paqueteId && (
-                    <div>
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
-                        Servicios ({nuevaCita.servicioIds.length})
-                      </p>
-                      <div className="space-y-2">
-                        {nuevaCita.servicioIds.map(sId => {
-                          const srv = serviciosList.find(s => s.id === sId);
-                          if (!srv) return null;
-                          return (
-                            <div key={sId} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center gap-3">
-                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+              {/* ── Fila: Servicio / Paquete ── */}
+              <div className="flex items-start gap-0 py-3 px-2">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                  {tipoServicio === 'paquetes' ? <Package className="w-5 h-5 text-gray-lighter" /> : <Scissors className="w-5 h-5 text-gray-lighter" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {tipoServicio === 'individuales' ? (
+                    <>
+                      <SearchField<any>
+                        label="Buscar servicio"
+                        placeholder="Buscar servicio..."
+                        value={servicioSearchTerm}
+                        onChange={setServicioSearchTerm}
+                        items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
+                        filterFn={(s, term) =>
+                          (s.nombre || '').toLowerCase().includes(term.toLowerCase())
+                        }
+                        onSelect={(s) => {
+                          toggleServicio(s.id);
+                          setServicioSearchTerm('');
+                        }}
+                        onClear={() => setServicioSearchTerm('')}
+                        renderItem={(s) => (
+                          <div className="flex items-center gap-3">
+                            <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                              <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
+                              <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                            </div>
+                            <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
+                          </div>
+                        )}
+                        isSelected={nuevaCita.servicioIds.length > 0}
+                        error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                      />
+                      {/* Servicios seleccionados: tarjeta compacta estilo Google Calendar */}
+                      {nuevaCita.servicioIds.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {nuevaCita.servicioIds.map(sId => {
+                            const srv = serviciosList.find(s => s.id === sId);
+                            if (!srv) return null;
+                            return (
+                              <div key={sId} className="flex items-center gap-3 px-1 py-1 rounded-lg group">
+                                <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-gray-dark border border-gray-dark/60 flex items-center justify-center">
                                   <ImageRenderer url={srv.imagen || ""} alt={srv.nombre} className="w-full h-full border-0 bg-transparent" />
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-gray-lightest text-sm truncate font-normal">{srv.nombre}</span>
-                                    <span className="text-orange-primary text-sm font-normal shrink-0 ml-2">{formatearPrecio(srv.precio)}</span>
-                                  </div>
-                                  {srv.descripcion && (
-                                    <p className="text-xs text-gray-lighter mt-0.5 italic truncate">{srv.descripcion}</p>
-                                  )}
-                                  <p className="text-[10px] text-gray-lighter mt-0.5">{srv.duracion || 60} min</p>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm text-gray-lightest leading-tight truncate">{srv.nombre}</p>
+                                  <p className="text-xs text-gray-lighter leading-tight">{formatearPrecio(srv.precio)} · {srv.duracion || 60} min</p>
                                 </div>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleServicio(sId)}
+                                  className="shrink-0 p-1 rounded-full text-gray-lighter hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                  title="Quitar servicio"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
                               </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {nuevaCita.paqueteId ? (
+                        <div className="flex flex-wrap gap-2">
+                          {(() => {
+                            const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                            if (!paq) return null;
+                            return (
+                              <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                <Package className="w-3 h-3" />
+                                <span>{paq.nombre}</span>
+                                <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handlePaqueteChange('none');
+                                    setPaqueteSearchTerm('');
+                                  }}
+                                  className="ml-1 hover:text-red-400 transition-colors"
+                                  title="Quitar paquete"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <SearchField<any>
+                          label="Buscar paquete"
+                          placeholder="Buscar paquete..."
+                          value={paqueteSearchTerm}
+                          onChange={setPaqueteSearchTerm}
+                          items={paquetesList}
+                          filterFn={(p, term) =>
+                            (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                          }
+                          onSelect={(p) => {
+                            handlePaqueteChange(`p-${p.id}`);
+                            setPaqueteSearchTerm('');
+                          }}
+                          onClear={() => setPaqueteSearchTerm('')}
+                          renderItem={(p) => (
+                            <div className="flex items-center gap-3">
+                              <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                <Package className="w-5 h-5 text-orange-primary/50" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                              </div>
+                              <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                             </div>
+                          )}
+                          error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="border-t border-gray-dark/60 mx-4" />
+
+              {/* ── Fila: Fecha y Hora ── */}
+              <div className="flex items-start gap-0 py-3 px-2">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                  <CalendarDays className="w-5 h-5 text-gray-lighter" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {!editingFecha && !editingHora ? (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setEditingFecha(true)}
+                        className="text-left text-sm text-gray-lightest hover:text-white-primary transition-colors w-full py-1"
+                      >
+                        {formatFechaHoraTexto()}
+                      </button>
+                      {showFormErrors && (!nuevaCita.fecha || !nuevaCita.hora) && (
+                        <p className="text-xs text-red-400 mt-1">Selecciona fecha y hora</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Picker de días disponibles del barbero */}
+                      {editingFecha && (() => {
+                        if (!nuevaCita.barberoId) {
+                          return (
+                            <p className="text-xs text-gray-lighter py-1">Selecciona un barbero primero para ver los días disponibles</p>
                           );
-                        })}
-                      </div>
+                        }
+                        // Obtener los días de la semana en que trabaja el barbero
+                        const diasTrabajados = Array.from(new Set(
+                          horariosList
+                            .filter((h: any) => Number(h.barberoId) === Number(nuevaCita.barberoId) && h.estado === true)
+                            .map((h: any) => String(h.dia))
+                        ));
+                        // Generar los próximos 14 días disponibles
+                        const diasDisponibles: { fecha: string; label: string; diaNombre: string }[] = [];
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                        for (let i = 0; i < 28 && diasDisponibles.length < 14; i++) {
+                          const d = new Date(today);
+                          d.setDate(today.getDate() + i);
+                          const diaNombre = dayNames[d.getDay()];
+                          if (diasTrabajados.includes(diaNombre)) {
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, '0');
+                            const day = String(d.getDate()).padStart(2, '0');
+                            const fechaStr = `${y}-${m}-${day}`;
+                            const label = d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+                            diasDisponibles.push({ fecha: fechaStr, label, diaNombre });
+                          }
+                        }
+                        if (diasDisponibles.length === 0) {
+                          return (
+                            <p className="text-xs text-gray-lighter py-1">No hay días disponibles para este barbero</p>
+                          );
+                        }
+                        return (
+                          <div>
+                            <p className="text-xs text-gray-lighter mb-1.5">Selecciona un día</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {diasDisponibles.map(({ fecha, label }) => (
+                                <button
+                                  key={fecha}
+                                  type="button"
+                                  onClick={() => {
+                                    setNuevaCita(prev => ({ ...prev, fecha }));
+                                    setEditingFecha(false);
+                                    setEditingHora(true);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                                    nuevaCita.fecha === fecha
+                                      ? 'bg-orange-primary text-white-primary'
+                                      : 'bg-gray-darker text-gray-lighter hover:bg-gray-dark hover:text-gray-lightest'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Picker de horas disponibles */}
+                      {editingHora && nuevaCita.fecha && nuevaCita.barberoId > 0 && (() => {
+                        const horasDisp = getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
+                        if (horasDisp.length === 0) {
+                          return (
+                            <p className="text-xs text-gray-lighter mt-2 py-1">No hay horas disponibles para este día</p>
+                          );
+                        }
+                        return (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-lighter mb-1.5">Selecciona una hora</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {horasDisp.map(h => (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  onClick={() => {
+                                    setNuevaCita(prev => ({ ...prev, hora: h }));
+                                    setEditingHora(false);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                                    nuevaCita.hora === h
+                                      ? 'bg-orange-primary text-white-primary'
+                                      : 'bg-gray-darker text-gray-lighter hover:bg-gray-dark hover:text-gray-lightest'
+                                  }`}
+                                >
+                                  {formatHoraStr12(h)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
+                </div>
+              </div>
+              <div className="border-t border-gray-dark/60 mx-4" />
 
-                  {/* Paquete seleccionado */}
-                  {nuevaCita.paqueteId && (() => {
-                    const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
-                    if (!paq) return null;
-                    return (
-                      <div>
-                        <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">Paquete</p>
-                        <div className="bg-gray-darker rounded-lg p-3 border border-orange-primary/30">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <Package className="w-4 h-4 text-orange-primary" />
-                              <span className="text-gray-lightest text-sm">{paq.nombre}</span>
-                            </div>
-                            <span className="text-orange-primary font-normal text-sm">{formatearPrecio(paq.precio)}</span>
+              {/* ── Fila: Barbero ── */}
+              <div className="flex items-start gap-0 py-3 px-2">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                  <User className="w-5 h-5 text-gray-lighter" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <SearchField<any>
+                    label="Buscar barbero"
+                    placeholder="Nombre del barbero..."
+                    value={barberoFormSearchTerm}
+                    onChange={setBarberoFormSearchTerm}
+                    items={barberosList}
+                    filterFn={(b, term) =>
+                      (b.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
+                      (b.apellido || '').toLowerCase().includes(term.toLowerCase())
+                    }
+                    onSelect={(b) => {
+                      const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
+                      setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: nombreCompleto }));
+                      setBarberoFormSearchTerm(nombreCompleto);
+                    }}
+                    onClear={() => {
+                      setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
+                      setBarberoFormSearchTerm('');
+                    }}
+                    renderItem={(b) => (
+                      <div className="flex items-center gap-3 w-full">
+                        {b.fotoPerfil ? (
+                          <img src={b.fotoPerfil} alt={b.nombre} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-dark flex items-center justify-center shrink-0">
+                            <User className="w-4 h-4 text-gray-lighter" />
                           </div>
-                          {paq.descripcion && (
-                            <p className="text-xs text-gray-lighter mt-1 ml-6 italic">{paq.descripcion}</p>
+                        )}
+                        <p className="text-sm text-gray-lightest">{`${b.nombre} ${b.apellido || ''}`.trim()}</p>
+                      </div>
+                    )}
+                    isSelected={!!nuevaCita.barberoId}
+                    error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
+                  />
+
+                  {/* Barbero seleccionado: tarjeta compacta estilo Google Calendar */}
+                  {nuevaCita.barberoId > 0 && (() => {
+                    const b = barberosList.find((x: any) => x.id === nuevaCita.barberoId);
+                    if (!b) return null;
+                    const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
+                    return (
+                      <div className="mt-2 flex items-center gap-3 px-1 py-1 rounded-lg">
+                        {b.fotoPerfil ? (
+                          <img src={b.fotoPerfil} alt={nombreCompleto} className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-dark border border-gray-dark/60 flex items-center justify-center shrink-0">
+                            <User className="w-4 h-4 text-gray-lighter" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-lightest leading-tight truncate">{nombreCompleto}</p>
+                          {b.telefono && (
+                            <p className="text-xs text-gray-lighter leading-tight truncate">{b.telefono}</p>
                           )}
-                          {paq.precioOriginal && paq.precioOriginal > paq.precio && (
-                            <p className="text-[10px] text-gray-lighter mt-1 ml-6">
-                              Precio original: <span className="line-through">{formatearPrecio(paq.precioOriginal)}</span>
-                              {' '}— Ahorras {formatearPrecio(paq.precioOriginal - paq.precio)}
-                            </p>
-                          )}
-                          {/* Servicios incluidos en el paquete */}
-                          {paq.servicios && paq.servicios.length > 0 && (
-                            <div className="mt-3 ml-6 pt-2 border-t border-gray-dark/50">
-                              <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">Servicios incluidos</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {paq.servicios.map((sName: string, idx: number) => {
-                                  const srv = serviciosList.find((s: any) =>
-                                    (s.nombre || '').toLowerCase().trim() === String(sName).toLowerCase().trim()
-                                  );
-                                  return (
-                                    <div key={idx} className="flex items-center gap-2 bg-gray-darkest/60 border border-gray-dark/40 rounded-full pl-1 pr-3 py-1">
-                                      <div className="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-gray-dark border border-gray-dark/60 flex items-center justify-center">
-                                        {srv?.imagen ? (
-                                          <img
-                                            src={srv.imagen}
-                                            alt={sName}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                                          />
-                                        ) : (
-                                          <Scissors className="w-4 h-4 text-orange-primary/60" />
-                                        )}
-                                      </div>
-                                      <span className="text-xs text-gray-lightest">{sName}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                          <p className="text-[10px] text-gray-lighter mt-1 ml-6">{paq.duracion || 60} min</p>
                         </div>
                       </div>
                     );
                   })()}
-
-                  {/* Productos seleccionados */}
-                  {Object.keys(nuevaCita.productoCantidades).length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
-                        Productos ({Object.values(nuevaCita.productoCantidades).reduce((a, b) => a + b, 0)})
-                      </p>
-                      <div className="space-y-2">
-                        {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
-                          const pId = Number(idStr);
-                          const prod = productosList.find(p => p.id === pId);
-                          if (!prod) return null;
-                          const precioUnit = Number(prod.precioVenta || prod.precio || 0);
-                          return (
-                            <div key={pId} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center gap-3">
-                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                  <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <span className="text-gray-lightest text-sm truncate block">{prod.nombre}</span>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-orange-primary text-sm font-normal">{formatearPrecio(precioUnit * cantidad)}</span>
-                                    {cantidad > 1 && (
-                                      <span className="text-gray-lighter text-[10px]">({cantidad} × {formatearPrecio(precioUnit)})</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <span className="bg-orange-primary/20 text-orange-primary text-xs font-normal px-2 py-0.5 rounded-full">{cantidad}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Barbero */}
-                  {nuevaCita.barberoId > 0 && (
-                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Barbero</p>
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-orange-primary" />
-                        <span className="text-gray-lightest text-sm">{nuevaCita.barbero}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Horario */}
-                  {(nuevaCita.fecha || nuevaCita.hora) && (
-                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Horario</p>
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="w-4 h-4 text-orange-primary" />
-                        <span className="text-gray-lightest text-sm">
-                          {nuevaCita.fecha && new Date(nuevaCita.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                          {nuevaCita.hora && ` — ${nuevaCita.hora}`}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-gray-lighter mt-1 ml-6">Duración: {nuevaCita.duracion} min</p>
-                    </div>
-                  )}
-
-                  {/* Estado */}
-                  <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                    <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Estado</p>
-                    <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getEstadoInfo(nuevaCita.estado).color} text-white`}>
-                      {getEstadoInfo(nuevaCita.estado).label}
-                    </div>
-                  </div>
-
-                  {/* Notas */}
-                  {nuevaCita.notas && (
-                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Notas</p>
-                      <p className="text-gray-lightest text-xs italic">"{nuevaCita.notas}"</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer Sticky con Total */}
-                <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90">
-                  <div
-                    className="flex justify-between items-center rounded-lg px-4 py-3"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(174,120,14,0.15) 0%, rgba(244,194,69,0.08) 100%)',
-                      border: '1px solid rgba(244,194,69,0.25)',
-                    }}
-                  >
-                    <span className="text-gray-lightest font-normal text-base tracking-wide">TOTAL</span>
-                    <span className="text-orange-primary font-normal text-2xl tabular-nums">{formatearPrecio(nuevaCita.precio)}</span>
-                  </div>
                 </div>
               </div>
-            </section>
+              <div className="border-t border-gray-dark/60 mx-4" />
+
+              {/* ── Fila: Producto ── */}
+              <div className="flex items-start gap-0 py-3 px-2">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                  <ShoppingBag className="w-5 h-5 text-gray-lighter" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? (
+                    <p className="text-gray-lighter text-sm">Selecciona un servicio o paquete para agregar productos</p>
+                  ) : (
+                    <>
+                      <SearchField<any>
+                        label="Buscar producto"
+                        placeholder="Buscar producto..."
+                        value={productoSearchTerm}
+                        onChange={setProductoSearchTerm}
+                        items={productosList}
+                        filterFn={(p, term) =>
+                          (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                        }
+                        onSelect={(p) => {
+                          addProducto(p.id);
+                          setProductoSearchTerm('');
+                        }}
+                        onClear={() => setProductoSearchTerm('')}
+                        renderItem={(p) => {
+                          const cantActual = nuevaCita.productoCantidades[p.id] || 0;
+                          return (
+                            <div className="flex items-center gap-3">
+                              <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                <ShoppingBag className="w-5 h-5 text-orange-primary/50" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                {cantActual > 0 && (
+                                  <p className="text-orange-primary text-xs">En carrito: {cantActual}</p>
+                                )}
+                              </div>
+                              <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
+                            </div>
+                          );
+                        }}
+                      />
+                      {/* Productos seleccionados con control de cantidad */}
+                      {Object.keys(nuevaCita.productoCantidades).length > 0 && (
+                        <div className="space-y-2 mt-2">
+                          {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
+                            const pId = Number(idStr);
+                            const prod = productosList.find(p => p.id === pId);
+                            if (!prod) return null;
+                            return (
+                              <div key={pId} className="flex items-center gap-2 bg-gray-darker/60 rounded-lg px-3 py-2">
+                                <span className="flex-1 text-sm text-gray-lightest truncate">{prod.nombre}</span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeProducto(pId)}
+                                    className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-gray-medium text-gray-lighter hover:text-white-primary transition-colors"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="w-6 text-center text-sm text-gray-lightest tabular-nums">{cantidad}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => addProducto(pId)}
+                                    className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-gray-medium text-gray-lighter hover:text-white-primary transition-colors"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => quitarProducto(pId)}
+                                    className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-red-600/60 text-gray-lighter hover:text-white-primary transition-colors ml-1"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="border-t border-gray-dark/60 mx-4" />
+
+              {/* ── Fila: Notas ── */}
+              <div className="flex items-start gap-0 py-3 px-2">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                  <FileText className="w-5 h-5 text-gray-lighter" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <textarea
+                    value={nuevaCita.notas}
+                    onChange={(e) => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
+                    placeholder="Agregar notas o instrucciones especiales..."
+                    className="w-full bg-transparent text-sm text-gray-lightest placeholder-gray-lighter resize-none focus:outline-none min-h-[60px]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer sticky con botones */}
+            <div className="border-t border-gray-dark bg-gray-darker/50 px-4 py-3 shrink-0">
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 text-sm font-medium text-gray-lighter hover:text-white-primary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={selectedCita ? handleUpdateCita : handleCreateCita}
+                  className="px-4 py-2 text-sm font-medium bg-orange-primary text-white-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {selectedCita ? 'Actualizar Cita' : 'Guardar'}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </>,
+        document.body
       )}
 
-      {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* VISTA DE CALENDARIO */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {viewMode === 'calendar' && (
@@ -2082,20 +2225,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   Hoy
                 </button>
                 <button
-                  onClick={() => {
-                    const { fecha, hora } = getAutoDateTime();
-                    setSelectedCita(null);
-                    setShowFormErrors(false);
-                    setClienteSearchTerm('');
-                    setBarberoFormSearchTerm('');
-                    setNuevaCita({
-                      clienteId: 0, cliente: '', telefono: '',
-                      servicioId: null, servicioIds: [], productoCantidades: {},
-                      paqueteId: null, servicio: '', barberoId: 0, barbero: '',
-                      fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
-                    });
-                    setViewMode('crear');
-                  }}
+                  onClick={handleOpenCreateModal}
                   className="btn-std-primary"
                 >
                   <Plus className="w-4 h-4" />
@@ -2131,7 +2261,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     <button
                       onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
                       disabled={carouselPage === 0 || citasSemana.length === 0}
-                      className="shrink-0 text-gray-lightest hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
+                      className={`shrink-0 transition-all rounded-lg p-2 border cursor-pointer ${
+                        carouselPage === 0 || citasSemana.length === 0
+                          ? 'bg-gray-darkest border-gray-dark/20 text-gray-dark cursor-not-allowed opacity-40'
+                          : 'bg-gray-darker border-gray-dark text-gray-lightest hover:text-orange-primary hover:border-gray-medium'
+                      }`}
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -2156,7 +2290,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           const servicio = formatNombre(cita.servicioNombre || cita.paqueteNombre || '—');
                           const subtitulo = [formatHoraStr12(cita.hora), formatNombre(cita.barberoNombre)].join(' — ');
                           const estadoColor =
-                            cita.estado === 'Completada' || cita.estado === 'Confirmada'
+                            cita.estado === 'Completada'
                                 ? 'border-l-[3px] border-l-[#7aab8a]'
                                 : cita.estado === 'Cancelada' || cita.estado === 'Anulada'
                                 ? 'border-l-[3px] border-l-[#b07070]'
@@ -2165,22 +2299,16 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               <div
                                 key={cita.id}
                                 className={`flex-1 min-w-0 bg-gray-darker/40 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-gray-dark/80 hover:border-gray-medium border border-transparent transition-all duration-200 ${estadoColor}`}
-                                onClick={() => {
-                                  setSelectedCita(cita);
-                                  // Determinar el slot para que el título del modal sea correcto
+                                onClick={(e) => {
                                   const [hStr, mStr] = (cita.hora || '09:00').split(':');
                                   const horaNum = parseInt(hStr) + (parseInt(mStr) / 60);
                                   const fechaObj = new Date(`${cita.fecha}T12:00:00`);
-                                  const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7]; // Ajuste de Domingo(0) a Lunes(0)
-                                  
-                                  setSelectedSlot({ 
-                                    dia: diaStr, 
-                                    hora: horaNum, 
-                                    fecha: cita.fecha 
-                                  });
-                                  
-                                  setActiveTab('detalle');
-                                  setIsSlotModalOpen(true);
+                                  const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
+                                  openCitaPopover(
+                                    cita,
+                                    { dia: diaStr, hora: horaNum, fecha: cita.fecha },
+                                    e.currentTarget.getBoundingClientRect()
+                                  );
                                 }}
                               >
                                 <p className="text-sm text-gray-lightest truncate leading-tight">
@@ -2207,7 +2335,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     <button
                       onClick={() => setCarouselPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={carouselPage >= totalPages - 1 || citasSemana.length === 0}
-                      className="shrink-0 text-gray-lightest hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
+                      className={`shrink-0 transition-all rounded-lg p-2 border cursor-pointer ${
+                        carouselPage >= totalPages - 1 || citasSemana.length === 0
+                          ? 'bg-gray-darkest border-gray-dark/20 text-gray-dark cursor-not-allowed opacity-40'
+                          : 'bg-gray-darker border-gray-dark text-gray-lightest hover:text-orange-primary hover:border-gray-medium'
+                      }`}
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -2225,52 +2357,41 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             })()}
           </div>
 
-          {/* Carrusel de días — citas por día de la semana */}
-          <div 
-            className="mb-0 overflow-hidden"
-            style={{ 
-              backgroundColor: 'var(--gray-darkest)', 
-              border: '1px solid var(--gray-darker)', 
-              borderRadius: '14px',
-              padding: 0 
-            }}
-          >
-            <div
-              className="grid gap-1 py-6 items-center"
-              style={{ gridTemplateColumns: calendarGridTemplate }}
-            >
-              <div />
-              {getCurrentWeekDays().map(({ dia, fecha, fechaCompleta }) => {
-                const isSelected = selectedDates.has(fechaCompleta);
-                const discount = dayDiscounts[fechaCompleta];
-                return (
-                  <div
-                    key={dia}
-                    className={`min-w-0 text-center cursor-pointer transition-all duration-200 rounded-lg py-4 px-2 border-2 flex flex-col items-center justify-center gap-1.5 ${
-                      isSelected ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent hover:bg-gray-darker'
-                    }`}
-                    onClick={() => handleDateSelect(fechaCompleta)}
-                  >
-                    <div className="flex justify-center items-center gap-1">
-                      <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-bold">{dia.slice(0, 3)}</h4>
-                      {discount > 0 && (
-                        <span className="bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                          -{discount}%
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm tracking-[0.06em] text-gray-lightest">{fecha}</p>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-
-          {/* Grid de horarios */}
+          {/* Grid de horarios + headers de días — un solo card unificado */}
           <div className="std-card mb-0 !py-0">
             <div className="w-full py-5">
               <div className="-mx-6 pl-3 pr-6">
+
+                {/* Fila de headers de días — misma estructura que las filas del grid */}
+                <div
+                  className="grid gap-1 mb-2"
+                  style={{ gridTemplateColumns: calendarGridTemplate }}
+                >
+                  <div />
+                  {getCurrentWeekDays().map(({ dia, fecha, fechaCompleta }) => {
+                    const isSelected = selectedDates.has(fechaCompleta);
+                    const discount = dayDiscounts[fechaCompleta];
+                    return (
+                      <div
+                        key={dia}
+                        className={`min-w-0 text-center cursor-pointer transition-all duration-200 rounded-lg py-3 border-2 flex flex-col items-center justify-center gap-1 ${
+                          isSelected ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent hover:bg-gray-darker'
+                        }`}
+                        onClick={() => handleDateSelect(fechaCompleta)}
+                      >
+                        <div className="flex justify-center items-center gap-1">
+                          <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-bold">{dia.slice(0, 3)}</h4>
+                          {discount > 0 && (
+                            <span className="bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                              -{discount}%
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm tracking-[0.06em] text-gray-lightest">{fecha}</p>
+                      </div>
+                    );
+                  })}
+                </div>
                 {(() => {
                   const weekDays = getCurrentWeekDays();
                   const todayStr = toLocalDateString(new Date());
@@ -2294,152 +2415,273 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           } else if (dayInfo.fechaCompleta === todayStr) {
                             const today = new Date();
                             const cur = today.getHours() * 60 + today.getMinutes();
-                            if ((hora * 60) <= cur - 30) isPastSlot = true;
+                            if ((hora * 60) <= cur) isPastSlot = true;
                           }
                         }
 
-                        const slotKey = `${dayInfo?.fechaCompleta}-${hora}`;
-                        const safeIdx =
-                          citasEnSlot.length > 0
-                            ? (slotCitaIndex[slotKey] ?? 0) % citasEnSlot.length
-                            : 0;
-                        const citaEnCurso = citasEnSlot[safeIdx] || null;
-                        const tieneMultiples = citasEnSlot.length > 1;
-                        let slotRole: 'none' | 'start' | 'middle' | 'end' = 'none';
-                        if (citaEnCurso) {
-                          const [hStr, mStr] = (citaEnCurso.hora || '').split(':');
-                          const citaInicio = parseInt(hStr) + parseInt(mStr) / 60;
-                          const citaFin = citaInicio + (citaEnCurso.duracion || 60) / 60;
-                          const isStart = Math.abs(citaInicio - hora) < 0.001;
-                          const isEnd = Math.abs(citaFin - (hora + 0.5)) < 0.001;
-                          if (isStart && isEnd) slotRole = 'start';
-                          else if (isStart) slotRole = 'start';
-                          else if (isEnd) slotRole = 'end';
-                          else slotRole = 'middle';
-                        }
+                        // --- Lógica de slot fusionado (estilo Excel) ---
+                        // Determinar si este slot es el inicio visible de una cita en la grilla.
+                        // Un slot es "inicio visible" si:
+                        //   a) La cita empieza exactamente en este slot, O
+                        //   b) La cita empieza antes de este slot pero ese slot de inicio no está en la grilla
+                        //      y este es el primer slot de la grilla que cubre la cita.
 
-                        // Si es middle/end, verificar que esta cita sigue seleccionada en su slot de inicio.
-                        // Si en su inicio hay múltiples citas y se seleccionó otra, suprimir este bloque.
-                        if ((slotRole === 'middle' || slotRole === 'end') && citaEnCurso && dayInfo) {
-                          const [cHStr, cMStr] = (citaEnCurso.hora || '09:00').split(':');
-                          const citaStartHora = parseInt(cHStr) + parseInt(cMStr || '0') / 60;
-                          const citaStartKey = `${dayInfo.fechaCompleta}-${citaStartHora}`;
-                          const citasDia = citas.filter(c => c.fecha === dayInfo.fechaCompleta);
-                          const citasEnInicio = citasDia.filter(c => {
-                            const [hh, mm] = (c.hora || '').split(':');
-                            return Math.abs((parseInt(hh) + parseInt(mm || '0') / 60) - citaStartHora) < 0.001;
-                          });
-                          if (citasEnInicio.length > 1) {
-                            const idxEnInicio = (slotCitaIndex[citaStartKey] ?? 0) % citasEnInicio.length;
-                            const citaSeleccionadaEnInicio = citasEnInicio[idxEnInicio];
-                            if (!citaSeleccionadaEnInicio || citaSeleccionadaEnInicio.id !== citaEnCurso.id) {
-                              slotRole = 'none';
+                        // Buscar la cita que "arranca" visualmente en este slot
+                        // (puede haber varias citas solapadas; usamos slotCitaIndex para navegar entre ellas)
+                        const slotKey = `${dayInfo?.fechaCompleta}-${hora}`;
+
+                        // Citas cuyo slot de inicio visible es exactamente este slot
+                        // Usamos el slot de grilla redondeado (floor al múltiplo de 0.5)
+                        // para que citas con minutos extra (ej. 12:05) caigan en el slot correcto (12:00)
+                        const citasQueArrancanAqui = citasEnSlot.filter(cita => {
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const citaInicioSlot = Math.floor(citaInicio * 2) / 2;
+                          // Arranca en este slot (redondeado)
+                          if (Math.abs(citaInicioSlot - hora) < 0.001) return true;
+                          // O arranca antes pero su slot de inicio no está en la grilla
+                          if (citaInicioSlot < hora) {
+                            const startEnGrilla = horasDelDia.some(h => Math.abs(h - citaInicioSlot) < 0.001);
+                            if (!startEnGrilla) {
+                              const primerSlotGrilla = horasDelDia.find(h => h > citaInicioSlot);
+                              return primerSlotGrilla !== undefined && Math.abs(primerSlotGrilla - hora) < 0.001;
                             }
                           }
-                        }
+                          return false;
+                        });
 
-                        // Beige claro como en la imagen de referencia
-                        const citaBg = isPastSlot ? 'rgba(220,190,130,0.25)' : '#e8d5a8';
-                        const citaBorder = isPastSlot ? 'rgba(180,140,80,0.2)' : 'rgba(160,120,60,0.4)';
-                        const citaBorderLeft = isPastSlot ? 'rgba(180,140,80,0.3)' : '#a07830';
+                        // Citas que pasan por este slot pero arrancan en un slot anterior de la grilla
+                        const citasOcupandoSlot = citasEnSlot.filter(cita => {
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const citaInicioSlot = Math.floor(citaInicio * 2) / 2;
+                          if (Math.abs(citaInicioSlot - hora) < 0.001) return false; // arranca aquí, no "ocupa"
+                          if (citaInicioSlot < hora) {
+                            const startEnGrilla = horasDelDia.some(h => Math.abs(h - citaInicioSlot) < 0.001);
+                            let slotInicioVisible: number;
+                            if (startEnGrilla) {
+                              slotInicioVisible = citaInicioSlot;
+                            } else {
+                              const primerSlotGrilla = horasDelDia.find(h => h > citaInicioSlot);
+                              if (primerSlotGrilla === undefined || primerSlotGrilla >= hora) return false;
+                              slotInicioVisible = primerSlotGrilla;
+                            }
+                            const inicioKey = `${dayInfo?.fechaCompleta}-${slotInicioVisible}`;
+                            const citasEnInicio = getCitasEnSlot(dia, slotInicioVisible).filter(c => {
+                              const [ch, cm] = (c.hora || '').split(':');
+                              const cInicio = parseInt(ch) + parseInt(cm || '0') / 60;
+                              return Math.abs(Math.floor(cInicio * 2) / 2 - slotInicioVisible) < 0.001;
+                            });
+                            if (citasEnInicio.length === 0) return false;
+                            const idxEnInicio = (slotCitaIndex[inicioKey] ?? 0) % citasEnInicio.length;
+                            return citasEnInicio[idxEnInicio]?.id === cita.id;
+                          }
+                          return false;
+                        });
+
+                        const estaOcupado = citasOcupandoSlot.length > 0 && citasQueArrancanAqui.length === 0;
+                        const tieneInicio = citasQueArrancanAqui.length > 0;
+
+                        // Para slots con inicio: seleccionar cuál cita mostrar (navegación con flechas)
+                        const safeIdx = tieneInicio
+                          ? (slotCitaIndex[slotKey] ?? 0) % citasQueArrancanAqui.length
+                          : 0;
+                        const citaEnCurso = tieneInicio ? citasQueArrancanAqui[safeIdx] : null;
+                        const tieneMultiples = citasQueArrancanAqui.length > 1;
+
+                        // Calcular altura del bloque fusionado (slots desde aquí hasta el fin de la cita)
+                        const calcBlockHeight = (cita: typeof citaEnCurso) => {
+                          if (!cita) return '100%';
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const citaFinExacta = citaInicio + (cita.duracion || 60) / 60;
+                          // Número de slots completos que ocupa la cita desde este slot
+                          // floor: no extender más allá del último slot que realmente ocupa
+                          const slotsRestantes = Math.max(1, Math.floor((citaFinExacta - hora) / 0.5));
+                          // gap-1 = 4px entre filas; cada fila h-20 = 5rem
+                          return `calc(${slotsRestantes} * 5rem + ${slotsRestantes - 1} * 4px)`;
+                        };
+
+                        const citaEstado = citaEnCurso?.estado || 'Pendiente';
+                        const citaBg = isPastSlot
+                          ? citaEstado === 'Completada'
+                              ? '#2e2e2e'
+                              : '#2c2820'
+                          : citaEstado === 'Completada'
+                              ? '#2e2e2e'
+                              : '#e8d5a8';
+                        const citaBorder = isPastSlot
+                          ? citaEstado === 'Completada'
+                              ? 'rgba(80,80,80,0.4)'
+                              : 'rgba(120,95,50,0.25)'
+                          : citaEstado === 'Completada'
+                              ? 'rgba(80,80,80,0.5)'
+                              : 'rgba(160,120,60,0.4)';
+                        const citaBorderLeft = isPastSlot
+                          ? citaEstado === 'Completada'
+                              ? 'rgba(90,90,90,0.6)'
+                              : 'rgba(130,100,55,0.45)'
+                          : citaEstado === 'Completada'
+                              ? 'rgba(100,100,100,0.7)'
+                              : '#a07830';
+                        const citaTextPrimary = isPastSlot
+                          ? citaEstado === 'Completada' ? '#555' : '#5a4a30'
+                          : citaEstado === 'Completada' ? '#666'
+                              : '#3d2000';
+                        const citaTextSecondary = isPastSlot
+                          ? citaEstado === 'Completada' ? '#484848' : '#4a3c24'
+                          : citaEstado === 'Completada' ? '#555'
+                              : '#5a3510';
+
+                        // Key que incluye los índices de navegación de los slots que afectan a esta celda
+                        // para forzar re-render cuando el usuario navega entre citas solapadas.
+                        // IMPORTANTE: usar citaInicioSlot (redondeado al slot de grilla) para que coincida
+                        // con el slotKey que usa slotCitaIndex — no el tiempo decimal exacto de la cita.
+                        const relevantKeys = citasEnSlot.map(cita => {
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const citaInicioSlot = Math.floor(citaInicio * 2) / 2;
+                          const inicioKey = `${dayInfo?.fechaCompleta}-${citaInicioSlot}`;
+                          return slotCitaIndex[inicioKey] ?? 0;
+                        }).join('-');
+
+                        // Un slot con tieneInicio pero también con citasOcupandoSlot activas
+                        // debe comportarse como ocupado visualmente (el bloque de la cita anterior lo cubre)
+                        const bloqueVisible = tieneInicio && citasOcupandoSlot.length === 0;
 
                         return (
                           <div
-                            key={`${dia}-${hora}`}
-                            className={`relative min-w-0 transition-all duration-200 ${
-                              slotRole !== 'none'
-                                ? 'cursor-pointer'
-                                : isPastSlot
-                                  ? 'rounded border bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60'
-                                  : 'rounded border bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group'
+                            key={`${dia}-${hora}-${relevantKeys}`}
+                            className={`min-w-0 transition-all duration-200 ${
+                              estaOcupado || (tieneInicio && citasOcupandoSlot.length > 0)
+                                ? 'relative' // transparente — cubierto por bloque del slot anterior
+                                : bloqueVisible
+                                  ? 'relative cursor-pointer overflow-visible'
+                                  : isPastSlot
+                                    ? 'relative rounded border bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60'
+                                    : 'relative rounded border bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group'
                             }`}
-                            style={slotRole !== 'none' ? {
-                              background: citaBg,
-                              borderLeft: `3px solid ${citaBorderLeft}`,
-                              borderRight: `1px solid ${citaBorder}`,
-                              borderTop: slotRole === 'start' ? `1px solid ${citaBorder}` : 'none',
-                              borderBottom: slotRole === 'end' ? `1px solid ${citaBorder}` : 'none',
-                              borderRadius: slotRole === 'start' ? '6px 6px 0 0' : slotRole === 'end' ? '0 0 6px 6px' : '0',
-                              marginTop: (slotRole === 'middle' || slotRole === 'end') ? '-4px' : '0',
-                              paddingTop: (slotRole === 'middle' || slotRole === 'end') ? '4px' : '0',
-                              height: (slotRole === 'middle' || slotRole === 'end') ? 'calc(100% + 4px)' : '100%',
-                              zIndex: slotRole === 'start' ? 2 : 1,
-                            } : {}}
-                            onClick={() => {
-                              if (slotRole !== 'none') {
-                                const [hStr, mStr] = (citaEnCurso!.hora || '09:00').split(':');
+                            onClick={(e) => {
+                              if (bloqueVisible && citaEnCurso) {
+                                const [hStr, mStr] = (citaEnCurso.hora || '09:00').split(':');
                                 const horaNum = parseInt(hStr) + parseInt(mStr) / 60;
                                 const fechaObj = new Date(`${dayInfo?.fechaCompleta}T12:00:00`);
                                 const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
-                                setSelectedCita(citaEnCurso!);
-                                setSelectedSlot({ dia: diaStr, hora: horaNum, fecha: dayInfo?.fechaCompleta || '' });
-                                setActiveTab('detalle');
-                                setIsSlotModalOpen(true);
-                              } else if (!isPastSlot) {
+                                openCitaPopover(
+                                  citaEnCurso,
+                                  { dia: diaStr, hora: horaNum, fecha: dayInfo?.fechaCompleta || '' },
+                                  e.currentTarget.getBoundingClientRect()
+                                );
+                              } else if (!estaOcupado && !(tieneInicio && citasOcupandoSlot.length > 0) && !isPastSlot) {
                                 handleSlotClick(dia, hora);
                               }
                             }}
                           >
-                            {slotRole === 'none' && !isPastSlot && (
+                            {/* Slot vacío hover */}
+                            {!tieneInicio && !estaOcupado && !isPastSlot && (
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-orange-primary/10 backdrop-blur-[1px] z-0 rounded">
                                 <div className="bg-orange-primary/20 p-1.5 rounded-full border border-orange-primary/30 transform scale-75 group-hover:scale-100 transition-transform duration-300">
                                   <Plus className="w-4 h-4 text-orange-primary" />
                                 </div>
                               </div>
                             )}
-                            {slotRole === 'start' && citaEnCurso && (() => {
-                              const durSlots = Math.ceil((citaEnCurso.duracion || 60) / 30);
-                              const contentH = `calc(${durSlots} * 5rem)`;
-                              return (
-                              <>
+
+                            {/* Bloque fusionado: solo se renderiza si no hay una cita de un slot anterior cubriéndolo */}
+                            {tieneInicio && citaEnCurso && citasOcupandoSlot.length === 0 && (
+                              <div
+                                className={`absolute left-0 top-0 z-10 cita-calendar-block${citaEnCurso.id === highlightedCitaId ? ' cita-notification-highlight' : ''}`}
+                                style={{
+                                  width: '100%',
+                                  height: calcBlockHeight(citaEnCurso),
+                                  overflow: 'visible',
+                                }}
+                              >
+                                {/* Fondo y borde del bloque — separado del wrapper para no recortar los botones */}
                                 <div
-                                  className="absolute left-0 right-0 top-0 flex flex-col items-center justify-center pointer-events-none px-1 gap-1"
-                                  style={{ height: contentH, zIndex: 3 }}
+                                  className="absolute inset-0 flex flex-col cursor-pointer"
+                                  style={{
+                                    background: citaBg,
+                                    border: `1px solid ${citaBorder}`,
+                                    borderLeft: `3px solid ${citaBorderLeft}`,
+                                    borderRadius: '6px',
+                                    overflow: 'hidden',
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const [hStr, mStr] = (citaEnCurso.hora || '09:00').split(':');
+                                    const horaNum = parseInt(hStr) + parseInt(mStr) / 60;
+                                    const fechaObj = new Date(`${dayInfo?.fechaCompleta}T12:00:00`);
+                                    const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
+                                    openCitaPopover(
+                                      citaEnCurso,
+                                      { dia: diaStr, hora: horaNum, fecha: dayInfo?.fechaCompleta || '' },
+                                      e.currentTarget.getBoundingClientRect()
+                                    );
+                                  }}
                                 >
-                                  <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] leading-tight text-center w-full truncate font-bold">
-                                    {formatNombre((citaEnCurso.clienteNombre || 'Cliente').split(' ')[0])}
-                                  </span>
-                                  <span style={{ color: isPastSlot ? '#a08060' : '#5a3510' }} className="text-[9px] leading-tight text-center w-full truncate">
-                                    {formatNombre(citaEnCurso.servicioNombre || citaEnCurso.paqueteNombre || (citaEnCurso.serviciosNombres?.[0]) || 'Servicio')}
-                                  </span>
+                                  {/* Texto centrado en el bloque completo */}
+                                  <div className="flex-1 flex flex-col items-center justify-center px-1 gap-0.5 min-h-0">
+                                    <span
+                                      style={{ color: citaTextPrimary }}
+                                      className="text-[10px] leading-tight text-center w-full truncate font-bold"
+                                    >
+                                      {formatNombre((citaEnCurso.clienteNombre || 'Cliente').split(' ')[0])}
+                                    </span>
+                                    <span
+                                      style={{ color: citaTextSecondary }}
+                                      className="text-[9px] leading-tight text-center w-full truncate"
+                                    >
+                                      {formatNombre(citaEnCurso.servicioNombre || citaEnCurso.paqueteNombre || (citaEnCurso.serviciosNombres?.[0]) || 'Servicio')}
+                                    </span>
+                                    {citaEnCurso.barberoNombre && (
+                                      <span
+                                        style={{ color: citaTextSecondary }}
+                                        className="text-[9px] leading-tight text-center w-full truncate"
+                                      >
+                                        {formatNombre(citaEnCurso.barberoNombre.split(' ')[0])}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {citaEnCurso.estado === 'Completada' && (
+                                    <div className="absolute bottom-0 left-0 h-0.5 bg-blue-600 w-full" />
+                                  )}
                                 </div>
+
+                                {/* Navegación entre citas solapadas — en el wrapper con overflow:visible, fuera del div con overflow:hidden */}
                                 {tieneMultiples && (
                                   <div
-                                    className="absolute top-0 right-0 z-10 flex items-center"
+                                    className="absolute top-0 right-0 z-20 flex items-center"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <button
                                       type="button"
-                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'prev', e)}
-                                      className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
-                                      style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasQueArrancanAqui.length, 'prev', e)}
+                                      className="flex items-center justify-center w-5 h-5 rounded hover:opacity-80 transition-opacity"
+                                      style={{ color: citaTextPrimary, background: citaBg, border: `1px solid ${citaBorder}` }}
                                       aria-label="Cita anterior"
                                     >
-                                      <ChevronLeft className="w-4 h-4" />
+                                      <ChevronLeft className="w-3 h-3" />
                                     </button>
                                     <span
-                                      className="text-[10px] leading-none select-none"
-                                      style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
-                                      title={`${citasEnSlot.length} citas en esta franja`}
+                                      className="text-[9px] leading-none select-none px-0.5 font-bold"
+                                      style={{ color: citaTextPrimary, background: citaBg }}
+                                      title={`${citasQueArrancanAqui.length} citas en esta franja`}
                                     >
-                                      {safeIdx + 1}/{citasEnSlot.length}
+                                      {safeIdx + 1}/{citasQueArrancanAqui.length}
                                     </span>
                                     <button
                                       type="button"
-                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'next', e)}
-                                      className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
-                                      style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
+                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasQueArrancanAqui.length, 'next', e)}
+                                      className="flex items-center justify-center w-5 h-5 rounded hover:opacity-80 transition-opacity"
+                                      style={{ color: citaTextPrimary, background: citaBg, border: `1px solid ${citaBorder}` }}
                                       aria-label="Cita siguiente"
                                     >
-                                      <ChevronRight className="w-4 h-4" />
+                                      <ChevronRight className="w-3 h-3" />
                                     </button>
                                   </div>
                                 )}
-                              </>
-                              );
-                            })()}
-                            {citaEnCurso?.estado === 'En Proceso' && slotRole === 'end' && (
-                              <div className="absolute bottom-0 left-0 h-0.5 bg-orange-primary w-full animate-pulse" />
+                              </div>
                             )}
                           </div>
                         );
@@ -2454,369 +2696,59 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         </div>
       )}
 
-      {/* Modal de Gestión de Franja Horaria */}
-      <Dialog open={isSlotModalOpen} onOpenChange={setIsSlotModalOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark w-[95vw] max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
-          <DialogHeader className="border-b border-gray-dark pb-4">
-            <DialogTitle className="text-gray-lightest text-2xl flex items-center gap-3">
-              <Clock className="w-7 h-7 text-orange-primary" />
-              {selectedSlot && `${selectedSlot.dia} - ${formatHora12(selectedSlot.hora)}`}
-            </DialogTitle>
-            <DialogDescription className="text-gray-lightest text-lg">
-              Gestiona todas las citas para esta franja horaria
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Tabs de navegación */}
-          <div className="flex items-center justify-between border-b border-gray-dark mb-6">
-            <div className="flex">
-              <button
-                onClick={() => setActiveTab('lista')}
-                className={`px-6 py-3 border-b-2 transition-colors ${activeTab === 'lista'
-                  ? 'border-orange-primary text-orange-primary'
-                  : 'border-transparent text-gray-lightest hover:text-white-primary'
-                  }`}
-              >
-                Lista de Citas
-              </button>
-              {activeTab === 'detalle' && selectedCita && (
-                <button
-                  onClick={() => setActiveTab('detalle')}
-                  className="px-6 py-3 border-b-2 border-orange-primary text-orange-primary"
-                >
-                  Detalle de Cita
-                </button>
-              )}
+      {/* Popover flotante de detalle de cita — estilo Google Calendar */}
+      {isSlotModalOpen && popoverPosition && createPortal(
+        <>
+          {/* Backdrop con pointer-events:none — permite scroll y clicks en el calendario.
+              El cierre por click fuera lo gestiona el handler mousedown a nivel document. */}
+          <div
+            className="fixed inset-0 pointer-events-none"
+            style={{ background: 'transparent', zIndex: 9998 }}
+          />
+          <div
+            ref={popoverRef}
+            className="fixed flex flex-col rounded-2xl border border-gray-dark/60 bg-gray-darkest overflow-hidden"
+            style={{
+              top: popoverPosition.top,
+              left: popoverPosition.left,
+              width: POPOVER_WIDTH,
+              maxHeight: 'calc(100vh - 16px)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)',
+              zIndex: 9999,
+              isolation: 'isolate',
+              // Animación: 'enter' arranca opaco 0 y desplazado hacia el bloque,
+              // 'open' termina en posición final con opacidad 1, 'exit' es solo fade-out.
+              opacity: popoverPhase === 'open' ? 1 : 0,
+              transform:
+                popoverPhase === 'enter'
+                  ? `translateX(${popoverSide === 'right' ? -10 : 10}px) scale(0.97)`
+                  : 'translateX(0) scale(1)',
+              transformOrigin: popoverSide === 'right' ? 'left center' : 'right center',
+              transition: `opacity ${POPOVER_ANIM_MS}ms ease-out, transform ${POPOVER_ANIM_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`,
+              willChange: 'opacity, transform',
+            }}
+          >
+          {/* Barra superior: hora del slot + botón cerrar */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark bg-gray-darker/50 shrink-0">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-orange-primary" />
+              <span className="text-sm font-semibold text-gray-lightest">
+                {selectedSlot && `${selectedSlot.dia} · ${formatHora12(selectedSlot.hora)}`}
+              </span>
             </div>
-            {(() => {
-              let slotEsPasado = false;
-              if (selectedSlot) {
-                const today = new Date();
-                const todayStr = today.toISOString().split('T')[0];
-                if (selectedSlot.fecha < todayStr) slotEsPasado = true;
-                else if (selectedSlot.fecha === todayStr && selectedSlot.hora <= today.getHours()) slotEsPasado = true;
-              }
-              if (slotEsPasado) return null;
-              return (
-                <button
-                  onClick={() => {
-                    setShowFormErrors(false);
-                    setSelectedCita(null);
-                    setNuevaCita({
-                      clienteId: 0, cliente: '', telefono: '',
-                      servicioId: null, servicioIds: [], productoCantidades: {},
-                      paqueteId: null, servicio: '', barberoId: 0, barbero: '',
-                      fecha: selectedSlot?.fecha || '', hora: selectedSlot?.hora.toString().padStart(2, '0') + ':00' || '',
-                      duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
-                    });
-                    setClienteSearchTerm('');
-                    setBarberoFormSearchTerm('');
-                    setIsSlotModalOpen(false);
-                    setViewMode('crear');
-                  }}
-                  className="elegante-button-primary flex items-center gap-2 mb-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nueva Cita
-                </button>
-              );
-            })()}
+            <button
+              type="button"
+              onClick={closePopover}
+              className="p-1.5 rounded-lg text-gray-lighter hover:text-white-primary hover:bg-gray-dark transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Contenido según tab activo */}
-          {activeTab === 'lista' && (() => {
-            const citasEnFranja = selectedSlot ? getCitasEnSlot(selectedSlot.dia, selectedSlot.hora) : [];
+          {/* Contenido scrollable */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
 
-            return (
-              <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div className="shrink-0 mb-4">
-                  <TableHeaderSection
-                    variant="dark"
-                    searchValue={slotSearchTerm}
-                    onSearchChange={setSlotSearchTerm}
-                    searchPlaceholder="Buscar por cliente, telefono o servicio..."
-                    statusFilter={{
-                      value: slotFilterEstado,
-                      onChange: setSlotFilterEstado,
-                      options: [
-                        { value: "all", label: "Todos" },
-                        ...estados.map((estado) => ({
-                          value: estado.value,
-                          label: estado.label,
-                        })),
-                      ],
-                      placeholder: "Filtrar por estado",
-                    }}
-                    recordsText={`Mostrando ${citasEnFranja.length} registros`}
-                  />
-                </div>
-
-                {/* Lista de citas */}
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar space-y-3">
-                  {citasEnFranja.map((cita) => {
-                  let isPasada = false;
-                  const today = new Date();
-                  const todayStr = today.toISOString().split('T')[0];
-                  if (cita.fecha < todayStr) {
-                    isPasada = true;
-                  } else if (cita.fecha === todayStr) {
-                    const [hh] = String(cita.hora || '0').split(':');
-                    if (parseInt(hh, 10) <= today.getHours()) {
-                      isPasada = true;
-                    }
-                  }
-
-                  // Datos enriquecidos
-                  const servicios: any[] = Array.isArray(cita.servicios) && cita.servicios.length > 0
-                    ? cita.servicios
-                    : (Array.isArray(cita.serviciosNombres) ? cita.serviciosNombres.map((n: string) => ({ nombre: n })) : []);
-                  const productos: any[] = Array.isArray(cita.productos) && cita.productos.length > 0
-                    ? cita.productos
-                    : (Array.isArray(cita.productosNombres) ? cita.productosNombres.map((n: string) => ({ nombre: n, cantidad: 1 })) : []);
-                  const paqueteData = cita.paqueteId ? paquetesList.find((p: any) => p.id === cita.paqueteId) : null;
-                  const barberoData = cita.barberoId ? barberosList.find((b: any) => b.id === cita.barberoId) : null;
-                  const clienteData = cita.clienteId ? clientesList.find((c: any) => c.id === cita.clienteId) : null;
-                  const inicialesCliente = (cita.clienteNombre || '?')
-                    .split(' ').filter(Boolean).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join('') || '?';
-                  const inicialesBarbero = (cita.barberoNombre || '?')
-                    .split(' ').filter(Boolean).slice(0, 2).map((s: string) => s[0]?.toUpperCase()).join('') || '?';
-                  const estadoColor = getCitaColor(cita.estado);
-
-                  return (
-                    <div
-                      key={cita.id}
-                      onClick={() => handleViewDetail(cita)}
-                      className="group relative bg-gradient-to-br from-gray-darker via-gray-darker to-gray-darkest border border-gray-dark/80 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:border-orange-primary/30 hover:bg-orange-primary/5 transition-all duration-300 cursor-pointer"
-                    >
-                      {/* Franja de color de estado lateral */}
-                      <div
-                        className="absolute left-0 top-0 bottom-0 w-1"
-                        style={{ background: estadoColor }}
-                      />
-
-                      <div className="p-4 pl-5">
-                        {/* Header: cliente + estado + acciones */}
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            {/* Avatar cliente */}
-                            <div
-                              className="shrink-0 w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark border border-gray-dark/60 ring-2 ring-orange-primary/20 shadow-md"
-                            >
-                              {clienteData?.fotoPerfil ? (
-                                <img
-                                  src={clienteData.fotoPerfil}
-                                  alt={cita.clienteNombre}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                                />
-                              ) : (
-                                <User className="w-5 h-5 text-gray-lightest" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-gray-lightest font-medium text-base truncate" title={cita.clienteNombre}>
-                                {formatNombre(cita.clienteNombre)}
-                              </h4>
-                              <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-light flex-wrap">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {formatHoraStr12(cita.hora)} · {cita.duracion}min
-                                </span>
-                                <span className="text-gray-dark">•</span>
-                                <span className="flex items-center gap-1.5 truncate">
-                                  <span className="shrink-0 w-6 h-6 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                                    {barberoData?.fotoPerfil ? (
-                                      <img
-                                        src={barberoData.fotoPerfil}
-                                        alt={cita.barberoNombre}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                                      />
-                                    ) : (
-                                      <User className="w-3.5 h-3.5 text-gray-lightest" />
-                                    )}
-                                  </span>
-                                  <span className="truncate text-gray-lightest">{formatNombre(cita.barberoNombre)}</span>
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span
-                              className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                              style={{
-                                background: `${estadoColor}20`,
-                                color: estadoColor,
-                                border: `1px solid ${estadoColor}40`,
-                              }}
-                            >
-                              {getEstadoInfo(cita.estado).label}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Paquete (si aplica) */}
-                        {paqueteData && (
-                          <div className="mb-3 flex items-center gap-3 bg-orange-primary/5 border border-orange-primary/20 rounded-lg p-2.5">
-                            <div className="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-gray-dark border border-orange-primary/30 flex items-center justify-center">
-                              {(paqueteData.imagen || paqueteData.imagenUrl) ? (
-                                <ImageRenderer
-                                  url={paqueteData.imagen || paqueteData.imagenUrl}
-                                  alt={paqueteData.nombre}
-                                  className="w-full h-full border-0 bg-transparent"
-                                  showLabel={false}
-                                />
-                              ) : (
-                                <Package className="w-5 h-5 text-orange-primary" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[10px] uppercase tracking-wider text-orange-primary font-semibold">Paquete</p>
-                              <p className="text-gray-lightest text-sm font-medium truncate">{formatNombre(paqueteData.nombre || cita.paqueteNombre || '')}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Servicios */}
-                        {servicios.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold mb-1.5 flex items-center gap-1">
-                              <Scissors className="w-3 h-3" /> Servicios
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {servicios.map((s: any, idx: number) => (
-                                <div
-                                  key={s.servicioId || idx}
-                                  className="flex items-center gap-2 bg-gray-darkest/60 border border-gray-dark rounded-lg px-2 py-1.5"
-                                >
-                                  <div className="shrink-0 w-7 h-7 rounded-md overflow-hidden bg-gray-dark flex items-center justify-center">
-                                    {s.imagen ? (
-                                      <ImageRenderer
-                                        url={s.imagen}
-                                        alt={s.nombre}
-                                        className="w-full h-full border-0 bg-transparent"
-                                        showLabel={false}
-                                      />
-                                    ) : (
-                                      <Scissors className="w-3.5 h-3.5 text-orange-primary/60" />
-                                    )}
-                                  </div>
-                                  <span className="text-gray-lightest text-xs font-medium">{formatNombre(s.nombre)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Productos */}
-                        {productos.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold mb-1.5 flex items-center gap-1">
-                              <ShoppingBag className="w-3 h-3" /> Productos
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {productos.map((p: any, idx: number) => (
-                                <div
-                                  key={p.productoId || idx}
-                                  className="flex items-center gap-2 bg-gray-darkest/60 border border-gray-dark rounded-lg px-2 py-1.5"
-                                >
-                                  <div className="relative shrink-0 w-7 h-7 rounded-md overflow-hidden bg-gray-dark flex items-center justify-center">
-                                    {p.imagen ? (
-                                      <ImageRenderer
-                                        url={p.imagen}
-                                        alt={p.nombre}
-                                        className="w-full h-full border-0 bg-transparent"
-                                        showLabel={false}
-                                      />
-                                    ) : (
-                                      <ShoppingBag className="w-3.5 h-3.5 text-orange-primary/60" />
-                                    )}
-                                    {p.cantidad > 1 && (
-                                      <span className="absolute -top-1 -right-1 bg-orange-primary text-black-primary text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                                        {p.cantidad}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="text-gray-lightest text-xs font-medium">{formatNombre(p.nombre)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Notas */}
-                        {cita.notas && (
-                          <div className="mb-3 bg-gray-darkest/40 border-l-2 border-orange-primary/30 rounded-r px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold mb-0.5 flex items-center gap-1">
-                              <FileText className="w-3 h-3" /> Notas
-                            </p>
-                            <p className="text-gray-lightest text-xs italic">{cita.notas}</p>
-                          </div>
-                        )}
-
-                        {/* Footer: precio + acciones */}
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-dark/60">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Total</span>
-                            <span className="text-orange-primary font-bold text-lg tabular-nums leading-tight">
-                              {formatearPrecio(cita.precio)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <Select value={cita.estado} onValueChange={(value) => handleChangeEstado(cita.id, value)}>
-                              <SelectTrigger className="w-32 h-8 text-xs bg-gray-darkest border-gray-dark hover:border-orange-primary/40 transition-colors">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-darkest border-gray-dark">
-                                {estados.map((estado) => (
-                                  <SelectItem key={estado.value} value={estado.value} className="text-gray-lightest text-xs">
-                                    {estado.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-
-                            {!isPasada && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteCita(cita);
-                                }}
-                                className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 transition-all"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-400" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                  })}
-
-                  {selectedSlot && citasEnFranja.length === 0 && (
-                    <div className="text-center py-12 bg-gray-darker/40 border border-dashed border-gray-dark rounded-2xl">
-                      <Calendar className="w-12 h-12 text-gray-medium mx-auto mb-4" />
-                      <p className="text-gray-lightest mb-1 font-medium">Sin citas en esta franja</p>
-                      <p className="text-gray-light text-xs mb-4">No hay citas registradas para este horario.</p>
-                      <button
-                        onClick={() => { setIsSlotModalOpen(false); setSelectedCita(null); setViewMode('crear'); }}
-                        className="elegante-button-primary"
-                      >
-                        <Plus className="w-4 h-4 mr-2 inline" />
-                        Crear Cita
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {activeTab === 'detalle' && selectedCita && (() => {
+          {selectedCita ? (() => {
             const detalleServicios: any[] = Array.isArray(selectedCita.servicios) && selectedCita.servicios.length > 0
               ? selectedCita.servicios
               : (Array.isArray(selectedCita.serviciosNombres) ? selectedCita.serviciosNombres.map((n: string) => ({ nombre: n })) : []);
@@ -2845,307 +2777,213 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             const fechaLegible = (() => {
               if (!selectedCita.fecha) return '—';
               const d = new Date(selectedCita.fecha + 'T00:00:00');
-              return d.toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+              const str = d.toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long' });
+              return str.charAt(0).toUpperCase() + str.slice(1);
+            })();
+
+            const horaFin = (() => {
+              if (!selectedCita.hora) return '';
+              const [hStr, mStr] = selectedCita.hora.split(':');
+              const totalMin = parseInt(hStr) * 60 + parseInt(mStr || '0') + (selectedCita.duracion || 60);
+              const hFin = Math.floor(totalMin / 60);
+              const mFin = totalMin % 60;
+              const ampm = hFin >= 12 ? 'PM' : 'AM';
+              const h12 = hFin % 12 === 0 ? 12 : hFin % 12;
+              return `${h12}:${String(mFin).padStart(2, '0')} ${ampm}`;
             })();
 
             return (
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar space-y-5">
-              {/* Hero header del cliente */}
-              <div className="relative bg-gradient-to-br from-gray-darker via-gray-darker to-gray-darkest border border-gray-dark/80 rounded-2xl overflow-hidden shadow-xl">
-                <div
-                  className="absolute top-0 left-0 right-0 h-1"
-                  style={{ background: `linear-gradient(90deg, ${estadoColor}, transparent)` }}
-                />
-                <div className="p-5 flex items-center gap-4">
+            <div className="space-y-0">
+
+              {/* ── Título: nombre del cliente con foto ── */}
+              <div className="mb-4">
+                <div className="flex items-center gap-4">
+                  {/* Avatar — más grande, a la izquierda de ambas líneas */}
                   <div
-                    className="shrink-0 w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-gray-dark border border-gray-dark/60 ring-2 ring-orange-primary/30 shadow-lg"
+                    style={{ width: 56, height: 56, minWidth: 56, minHeight: 56, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}
+                    className="bg-gray-dark border border-gray-dark/60 flex items-center justify-center"
                   >
                     {clienteDataDetalle?.fotoPerfil ? (
                       <img
                         src={clienteDataDetalle.fotoPerfil}
                         alt={selectedCita.clienteNombre}
-                        className="w-full h-full object-cover"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                       />
                     ) : (
-                      <User className="w-7 h-7 text-gray-lightest" />
+                      <User style={{ width: 24, height: 24, flexShrink: 0 }} className="text-gray-lighter" />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xl text-gray-lightest font-semibold">{formatNombre(selectedCita.clienteNombre)}</h3>
-                    <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-light">
-                      {selectedCita.telefono && (
-                        <span className="flex items-center gap-1">
-                          <span className="text-orange-primary">📞</span> {selectedCita.telefono}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-2">
-                        <span className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                          {barberoDataDetalle?.fotoPerfil ? (
-                            <img
-                              src={barberoDataDetalle.fotoPerfil}
-                              alt={selectedCita.barberoNombre}
-                              className="w-full h-full object-cover"
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          ) : (
-                            <User className="w-4 h-4 text-gray-lightest" />
-                          )}
-                        </span>
-                        <span className="text-gray-lightest">{formatNombre(selectedCita.barberoNombre)}</span>
+                  {/* Nombre + chips apilados verticalmente */}
+                  <div className="min-w-0">
+                    <h2 className="text-2xl font-normal text-gray-lightest leading-tight truncate">
+                      {formatNombre(selectedCita.clienteNombre)}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${
+                        paqueteData
+                          ? 'bg-orange-primary/15 text-orange-primary border-orange-primary/30'
+                          : 'bg-gray-darker text-gray-lightest border-gray-dark'
+                      }`}>
+                        {paqueteData ? 'Paquete' : 'Individual'}
                       </span>
-                    </div>
-                  </div>
-                  <span
-                    className="px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider shrink-0"
-                    style={{
-                      background: `${estadoColor}20`,
-                      color: estadoColor,
-                      border: `1px solid ${estadoColor}50`,
-                    }}
-                  >
-                    {getEstadoInfo(selectedCita.estado).label}
-                  </span>
-                </div>
-
-                {/* Bar inferior con horario y precio */}
-                <div className="grid grid-cols-3 gap-px bg-gray-dark/60 border-t border-gray-dark">
-                  <div className="bg-gray-darker p-3 flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4 text-orange-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Fecha</p>
-                      <p className="text-gray-lightest text-sm truncate capitalize">{fechaLegible}</p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-darker p-3 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-orange-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Hora · Duración</p>
-                      <p className="text-gray-lightest text-sm tabular-nums">{formatHoraStr12(selectedCita.hora)} · {selectedCita.duracion}min</p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-darker p-3 flex items-center gap-2">
-                    <span className="text-orange-primary text-lg font-bold shrink-0">$</span>
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider text-gray-light font-semibold">Total</p>
-                      <p className="text-orange-primary text-base font-bold tabular-nums">{formatearPrecio(selectedCita.precio)}</p>
+                      <span
+                        className="px-3 py-0.5 rounded-full text-xs font-medium border"
+                        style={{
+                          background: `${estadoColor}18`,
+                          color: estadoColor,
+                          borderColor: `${estadoColor}40`,
+                        }}
+                      >
+                        {getEstadoInfo(selectedCita.estado).label}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Sección Paquete (si aplica) */}
-              {paqueteData && (
-                <div className="bg-gradient-to-br from-orange-primary/10 to-gray-darker border border-orange-primary/30 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Package className="w-4 h-4 text-orange-primary" />
-                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Paquete</h4>
-                    </div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-dark border border-orange-primary/40 flex items-center justify-center shadow-md">
-                        {(paqueteData.imagen || paqueteData.imagenUrl) ? (
-                          <ImageRenderer
-                            url={paqueteData.imagen || paqueteData.imagenUrl}
-                            alt={paqueteData.nombre}
-                            className="w-full h-full border-0 bg-transparent"
-                            showLabel={false}
-                          />
-                        ) : (
-                          <Package className="w-9 h-9 text-orange-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-gray-lightest text-lg font-semibold">{formatNombre(paqueteData.nombre || selectedCita.paqueteNombre || '')}</p>
-                        {paqueteData.descripcion && (
-                          <p className="text-gray-light text-xs mt-0.5">{paqueteData.descripcion}</p>
-                        )}
-                        <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-light">
-                          {paqueteData.duracion && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {paqueteData.duracion} min
-                            </span>
-                          )}
-                          {paqueteData.precio && (
-                            <span className="text-orange-primary font-semibold tabular-nums">{formatearPrecio(paqueteData.precio)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+              {/* ── Separador ── */}
+              <div className="border-t border-gray-dark/60 mb-1" />
 
-                    {/* Servicios incluidos en el paquete */}
-                    {serviciosDelPaquete.length > 0 && (
-                      <div className="border-t border-orange-primary/20 pt-3">
-                        <p className="text-[10px] uppercase tracking-wider text-orange-primary/80 font-semibold mb-2 flex items-center gap-1">
-                          <Scissors className="w-3 h-3" /> Servicios incluidos ({serviciosDelPaquete.length})
-                        </p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {serviciosDelPaquete.map((s: any, idx: number) => (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-2.5 bg-gray-darkest/50 border border-gray-dark rounded-lg p-2"
-                            >
-                              <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark flex items-center justify-center">
-                                {s.imagen ? (
-                                  <ImageRenderer
-                                    url={s.imagen}
-                                    alt={s.nombre}
-                                    className="w-full h-full border-0 bg-transparent"
-                                    showLabel={false}
-                                  />
-                                ) : (
-                                  <Scissors className="w-4 h-4 text-orange-primary/50" />
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-gray-lightest text-sm font-medium truncate">{formatNombre(s.nombre)}</p>
-                                {s.duracion && (
-                                  <p className="text-gray-light text-[10px]">{s.duracion} min</p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+              {/* ── Fila: Fecha y hora ── */}
+              <div className="flex items-center gap-0 py-3">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock className="w-5 h-5 text-gray-lighter" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-lightest">
+                    {fechaLegible}
+                  </p>
+                  <p className="text-sm text-gray-lighter mt-0.5">
+                    {formatHoraStr12(selectedCita.hora)}{horaFin ? ` – ${horaFin}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* ── Fila: Barbero ── */}
+              <div className="flex items-center gap-0 py-3">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div
+                    style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}
+                    className="bg-gray-dark border border-gray-dark flex items-center justify-center"
+                  >
+                    {barberoDataDetalle?.fotoPerfil ? (
+                      <img
+                        src={barberoDataDetalle.fotoPerfil}
+                        alt={selectedCita.barberoNombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <User style={{ width: 14, height: 14 }} className="text-gray-lighter" />
                     )}
                   </div>
                 </div>
-              )}
-
-              {/* Servicios sueltos (si no hay paquete) */}
-              {!paqueteData && detalleServicios.length > 0 && (
-                <div className="bg-gray-darker border border-gray-dark rounded-2xl overflow-hidden shadow-lg">
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Scissors className="w-4 h-4 text-orange-primary" />
-                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Servicios ({detalleServicios.length})</h4>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {detalleServicios.map((s: any, idx: number) => (
-                        <div
-                          key={s.servicioId || idx}
-                          className="flex items-center gap-3 bg-gray-darkest/60 border border-gray-dark rounded-xl p-2.5 hover:border-orange-primary/30 transition-colors"
-                        >
-                          <div className="shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                            {s.imagen ? (
-                              <ImageRenderer
-                                url={s.imagen}
-                                alt={s.nombre}
-                                className="w-full h-full border-0 bg-transparent"
-                                showLabel={false}
-                              />
-                            ) : (
-                              <Scissors className="w-5 h-5 text-orange-primary/50" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-gray-lightest font-medium text-sm truncate">{formatNombre(s.nombre)}</p>
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-light">
-                              {s.duracion && <span>{s.duracion} min</span>}
-                              {s.precio && <span className="text-orange-primary font-semibold tabular-nums">{formatearPrecio(s.precio)}</span>}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <div>
+                  <p className="text-sm text-gray-lightest">
+                    {formatNombre(selectedCita.barberoNombre) || 'Sin barbero asignado'}
+                  </p>
+                  <p className="text-xs text-gray-lighter mt-0.5">Barbero</p>
                 </div>
-              )}
+              </div>
 
-              {/* Productos */}
+              {/* ── Fila: Servicios / Paquete ── */}
+              <div className="flex items-center gap-0 py-3">
+                <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Scissors className="w-5 h-5 text-gray-lighter" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {paqueteData ? (
+                    <div>
+                      <p className="text-sm text-gray-lightest font-medium">{formatNombre(paqueteData.nombre || selectedCita.paqueteNombre || '')}</p>
+                      {serviciosDelPaquete.length > 0 && (
+                        <p className="text-xs text-gray-lighter mt-0.5">
+                          {serviciosDelPaquete.map((s: any) => formatNombre(s.nombre)).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ) : detalleServicios.length > 0 ? (
+                    <div>
+                      <p className="text-sm text-gray-lightest">
+                        {detalleServicios.map((s: any) => formatNombre(s.nombre)).join(', ')}
+                      </p>
+                      {detalleServicios.some((s: any) => s.duracion) && (
+                        <p className="text-xs text-gray-lighter mt-0.5">
+                          {detalleServicios.filter((s: any) => s.duracion).map((s: any) => `${s.nombre}: ${s.duracion} min`).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-lighter">Sin servicios registrados</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Fila: Productos (si hay) ── */}
               {detalleProductos.length > 0 && (
-                <div className="bg-gray-darker border border-gray-dark rounded-2xl overflow-hidden shadow-lg">
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <ShoppingBag className="w-4 h-4 text-orange-primary" />
-                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Productos ({detalleProductos.length})</h4>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {detalleProductos.map((p: any, idx: number) => (
-                        <div
-                          key={p.productoId || idx}
-                          className="flex items-center gap-3 bg-gray-darkest/60 border border-gray-dark rounded-xl p-2.5 hover:border-orange-primary/30 transition-colors"
-                        >
-                          <div className="relative shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                            {p.imagen ? (
-                              <ImageRenderer
-                                url={p.imagen}
-                                alt={p.nombre}
-                                className="w-full h-full border-0 bg-transparent"
-                                showLabel={false}
-                              />
-                            ) : (
-                              <ShoppingBag className="w-5 h-5 text-orange-primary/50" />
-                            )}
-                            {p.cantidad > 1 && (
-                              <span className="absolute -top-1.5 -right-1.5 bg-orange-primary text-black-primary text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center leading-none shadow-md">
-                                ×{p.cantidad}
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-gray-lightest font-medium text-sm truncate">{formatNombre(p.nombre)}</p>
-                            {p.precioVenta && (
-                              <p className="text-orange-primary text-[11px] font-semibold tabular-nums mt-0.5">
-                                {formatearPrecio(p.precioVenta)} c/u
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                <div className="flex items-center gap-0 py-3">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ShoppingBag className="w-5 h-5 text-gray-lighter" />
                   </div>
-                </div>
-              )}
-
-              {/* Notas */}
-              {selectedCita.notas && (
-                <div className="bg-gray-darker border border-gray-dark rounded-2xl overflow-hidden shadow-lg">
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-orange-primary" />
-                      <h4 className="text-[11px] uppercase tracking-widest text-orange-primary font-bold">Notas Especiales</h4>
-                    </div>
-                    <p className="text-gray-lightest text-sm leading-relaxed bg-gray-darkest/40 border-l-2 border-orange-primary/50 rounded-r p-3 italic">
-                      {selectedCita.notas}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-lightest">
+                      {detalleProductos.map((p: any) =>
+                        p.cantidad > 1 ? `${formatNombre(p.nombre)} ×${p.cantidad}` : formatNombre(p.nombre)
+                      ).join(', ')}
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Acciones */}
-              <div className="flex flex-wrap justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setActiveTab('lista')}
-                  className="elegante-button-secondary flex items-center gap-2"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Volver a Lista
-                </button>
-                <button
-                  onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
-                  className="elegante-button-primary flex items-center gap-2"
-                  title="Marcar como Completada y generar venta"
-                >
-                  <Eye className="w-4 h-4" />
-                  Completar Cita
-                </button>
-                <button
-                  onClick={() => handleDeleteCita(selectedCita)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all border border-red-500/40 shadow-md"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Eliminar Cita
-                </button>
-              </div>
+              {/* ── Fila: Notas (si hay) ── */}
+              {selectedCita.notas && (
+                <div className="flex items-center gap-0 py-3">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileText className="w-5 h-5 text-gray-lighter" />
+                  </div>
+                  <p className="text-sm text-gray-lighter leading-relaxed">{selectedCita.notas}</p>
+                </div>
+              )}
+
+              {/* ── Fila: Teléfono cliente (si hay) ── */}
+              {selectedCita.telefono && (
+                <div className="flex items-center gap-0 py-3">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Phone className="w-5 h-5 text-gray-lighter" />
+                  </div>
+                  <p className="text-sm text-gray-lightest">{selectedCita.telefono}</p>
+                </div>
+              )}
+
+              {/* ── Separador ── */}
+              <div className="border-t border-gray-dark/60 mt-1" />
+
+              {/* ── Acciones ── */}
+              {selectedCita.estado !== 'Completada' && (
+                <div className="flex justify-end gap-3 pt-3">
+                  <button
+                    onClick={() => handleChangeEstado(selectedCita.id, 'Cancelada')}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-600/10 border border-transparent hover:border-red-500/30 transition-all"
+                  >
+                    Cancelar cita
+                  </button>
+                  <button
+                    onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-primary text-black-primary hover:bg-orange-primary/90 transition-all"
+                  >
+                    Completar
+                  </button>
+                </div>
+              )}
             </div>
             );
-          })()}
+          })() : null}
 
-          {/* Footer del modal */}
-
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+        </>,
+        document.body
+      )}
 
       {/* Dialog de confirmación de eliminación */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

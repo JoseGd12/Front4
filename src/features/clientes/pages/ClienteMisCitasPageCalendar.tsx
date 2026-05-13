@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Calendar,
   Clock,
@@ -76,8 +77,6 @@ const formatNombre = (nombre: string): string => {
 
 const estados = [
   { value: "Pendiente", label: "Pendiente", color: "bg-orange-primary" },
-  { value: "Confirmada", label: "Confirmada", color: "bg-orange-primary text-black-primary" },
-  { value: "En Proceso", label: "En Proceso", color: "bg-green-600" },
   { value: "Completada", label: "Completada", color: "bg-blue-600" },
   { value: "Cancelada", label: "Cancelada", color: "bg-red-600" }
 ];
@@ -90,12 +89,9 @@ const formatearPrecio = (precio: any): string => {
 
 const getCitaColor = (estado: string) => {
   switch (estado) {
-    case 'Confirmada': return '#d8b081';
-    case 'En Proceso': return '#22C55E';
     case 'Completada': return '#3B82F6';
     case 'Cancelada': return '#EF4444';
-    case 'Pendiente': return '#d8b081';
-    default: return '#d8b081';
+    default: return '#d8b081'; // Pendiente
   }
 };
 
@@ -262,8 +258,15 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [paqueteSearchTerm, setPaqueteSearchTerm] = useState('');
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [showFormErrors, setShowFormErrors] = useState(false);
+  const [tipoServicio, setTipoServicio] = useState<'individuales' | 'paquetes'>('individuales');
+  const [editingFecha, setEditingFecha] = useState(false);
+  const [editingHora, setEditingHora] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [modalPosition, setModalPosition] = useState<{ top: number; left: number } | null>(null);
+  const [modalPhase, setModalPhase] = useState<'enter' | 'open' | 'exit'>('enter');
   const [pendingProduct, setPendingProduct] = useState<any>(null);
   const [citaCarouselIndex, setCitaCarouselIndex] = useState(0);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Resetear carrusel de citas al cambiar de semana
   useEffect(() => { setCitaCarouselIndex(0); setCarouselPage(0); }, [currentWeek]);
@@ -289,7 +292,23 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         estado: 'Pendiente'
       });
       setPendingProduct(preSelectedProduct);
-      setViewMode('crear');
+      // Open the modal
+      const position = {
+        top: Math.max(16, (window.innerHeight - 600) / 2),
+        left: Math.max(16, (window.innerWidth - 480) / 2)
+      };
+      setModalPosition(position);
+      setTipoServicio('individuales');
+      setEditingFecha(false);
+      setEditingHora(false);
+      setShowFormErrors(false);
+      setBarberoFormSearchTerm('');
+      setServicioSearchTerm('');
+      setPaqueteSearchTerm('');
+      setProductoSearchTerm('');
+      setModalPhase('enter');
+      setIsCreateModalOpen(true);
+      setTimeout(() => setModalPhase('open'), 10);
       if (onClearPreSelectedProduct) onClearPreSelectedProduct();
     }
   }, [preSelectedProduct, isLoading, productosList]);
@@ -361,7 +380,22 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         });
       }
 
-      setViewMode('crear');
+      // Open modal instead of navigating to crear view
+      const position = {
+        top: Math.max(16, (window.innerHeight - 600) / 2),
+        left: Math.max(16, (window.innerWidth - 480) / 2)
+      };
+      setModalPosition(position);
+      setTipoServicio('individuales');
+      setEditingFecha(false);
+      setEditingHora(false);
+      setShowFormErrors(false);
+      setServicioSearchTerm('');
+      setPaqueteSearchTerm('');
+      setProductoSearchTerm('');
+      setModalPhase('enter');
+      setIsCreateModalOpen(true);
+      setTimeout(() => setModalPhase('open'), 10);
       if (onClearInitialItem) onClearInitialItem();
       return;
     }
@@ -431,7 +465,23 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       estado: 'Pendiente'
     });
 
-    setViewMode('crear');
+    setTipoServicio(isPaquete ? 'paquetes' : 'individuales');
+    // Open modal instead of navigating to crear view
+    const position = {
+      top: Math.max(16, (window.innerHeight - 600) / 2),
+      left: Math.max(16, (window.innerWidth - 480) / 2)
+    };
+    setModalPosition(position);
+    setEditingFecha(false);
+    setEditingHora(false);
+    setShowFormErrors(false);
+    setBarberoFormSearchTerm('');
+    setServicioSearchTerm('');
+    setPaqueteSearchTerm('');
+    setProductoSearchTerm('');
+    setModalPhase('enter');
+    setIsCreateModalOpen(true);
+    setTimeout(() => setModalPhase('open'), 10);
     if (onClearInitialItem) onClearInitialItem();
   };
 
@@ -466,11 +516,15 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const getCitasEnSlot = (diaFechaCompleta: string, hora: number) => {
     return citas.filter(cita => {
       if (cita.fecha !== diaFechaCompleta) return false;
+      if ((cita.estado || '').toLowerCase() === 'cancelada') return false;
       const horaSplit = (cita.hora || '').split(':');
       if (horaSplit.length < 2) return false;
       const horaInicio = parseInt(horaSplit[0]) + (parseInt(horaSplit[1]) / 60);
-      const horaFin = horaInicio + (cita.duracion || 60) / 60;
-      return horaInicio <= hora && hora < horaFin;
+      // Redondear inicio al slot de grilla hacia abajo (12:05 → 12:00)
+      const horaInicioSlot = Math.floor(horaInicio * 2) / 2;
+      const horaFinExacta = horaInicio + (cita.duracion || 60) / 60;
+      // Usar fin exacto: 13:05 incluye slot 13:00 pero no 13:30
+      return horaInicioSlot <= hora && hora < horaFinExacta;
     });
   };
 
@@ -588,9 +642,20 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     return [...new Set(availableSlots)].sort();
   };
 
-  const handleOpenCreate = () => {
+  // ── Funciones de control del modal ──
+
+  const handleOpenCreateModal = () => {
+    // Calcular posición centrada en pantalla
+    const position = {
+      top: Math.max(16, (window.innerHeight - 600) / 2),
+      left: Math.max(16, (window.innerWidth - 480) / 2)
+    };
+
+    setModalPosition(position);
+    setIsCreateModalOpen(true);
     setIsEditMode(false);
-    setBarberoFormSearchTerm('');
+
+    // Resetear formulario
     setNuevaCita({
       barberoId: 0,
       barbero: '',
@@ -606,7 +671,18 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       precio: 0,
       estado: 'Pendiente'
     });
-    setViewMode('crear');
+    setBarberoFormSearchTerm('');
+    setServicioSearchTerm('');
+    setPaqueteSearchTerm('');
+    setProductoSearchTerm('');
+    setShowFormErrors(false);
+    setTipoServicio('individuales');
+    setEditingFecha(false);
+    setEditingHora(false);
+
+    // Inicializar animación de entrada
+    setModalPhase('enter');
+    setTimeout(() => setModalPhase('open'), 10);
   };
 
   const handleSlotClick = (fechaCompleta: string, hora: number) => {
@@ -614,11 +690,21 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     // Evitar crear citas en días pasados
     if (fechaCompleta < todayStr) return;
 
-    setIsEditMode(false);
-    setBarberoFormSearchTerm('');
     const h = Math.floor(hora);
     const m = (hora % 1) * 60;
     const horaString = `${h.toString().padStart(2, '0')}:${m === 0 ? '00' : '30'}`;
+
+    // Calcular posición centrada en pantalla (cerca del slot no es posible sin ref al elemento)
+    const position = {
+      top: Math.max(16, (window.innerHeight - 600) / 2),
+      left: Math.max(16, (window.innerWidth - 480) / 2)
+    };
+
+    setModalPosition(position);
+    setIsCreateModalOpen(true);
+    setIsEditMode(false);
+
+    // Pre-llenar fecha y hora del slot
     setNuevaCita({
       barberoId: 0,
       barbero: '',
@@ -634,8 +720,68 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       precio: 0,
       estado: 'Pendiente'
     });
-    setViewMode('crear');
+
+    // Resetear otros estados del formulario
+    setBarberoFormSearchTerm('');
+    setServicioSearchTerm('');
+    setPaqueteSearchTerm('');
+    setProductoSearchTerm('');
+    setShowFormErrors(false);
+    setTipoServicio('individuales');
+    setEditingFecha(false);
+    setEditingHora(false);
+
+    // Inicializar animación de entrada
+    setModalPhase('enter');
+    setTimeout(() => setModalPhase('open'), 10);
   };
+
+  const handleCloseModal = () => {
+    // Iniciar animación de salida
+    setModalPhase('exit');
+    setTimeout(() => {
+      setIsCreateModalOpen(false);
+      setModalPosition(null);
+      // Resetear estados del formulario
+      setNuevaCita({
+        barberoId: 0,
+        barbero: '',
+        servicioId: null,
+        servicioIds: [],
+        productoCantidades: {},
+        paqueteId: null,
+        servicio: '',
+        fecha: '',
+        hora: '',
+        notas: '',
+        duracion: 60,
+        precio: 0,
+        estado: 'Pendiente'
+      });
+      setBarberoFormSearchTerm('');
+      setServicioSearchTerm('');
+      setPaqueteSearchTerm('');
+      setProductoSearchTerm('');
+      setShowFormErrors(false);
+      setTipoServicio('individuales');
+      setEditingFecha(false);
+      setEditingHora(false);
+    }, 200);
+  };
+
+  // Cerrar modal con tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isCreateModalOpen) {
+        handleCloseModal();
+      }
+    };
+
+    if (isCreateModalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isCreateModalOpen]);
 
   const handleOpenEdit = (cita: any) => {
     setIsEditMode(true);
@@ -662,7 +808,22 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       estado: cita.estado
     });
     setIsDetailDialogOpen(false);
-    setViewMode('crear');
+    // Open the modal
+    const position = {
+      top: Math.max(16, (window.innerHeight - 600) / 2),
+      left: Math.max(16, (window.innerWidth - 480) / 2)
+    };
+    setModalPosition(position);
+    setTipoServicio(cita.paqueteId ? 'paquetes' : 'individuales');
+    setEditingFecha(false);
+    setEditingHora(false);
+    setShowFormErrors(false);
+    setServicioSearchTerm('');
+    setPaqueteSearchTerm('');
+    setProductoSearchTerm('');
+    setModalPhase('enter');
+    setIsCreateModalOpen(true);
+    setTimeout(() => setModalPhase('open'), 10);
   };
 
   const handleSaveCita = async () => {
@@ -715,7 +876,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       }
 
       await fetchData();
-      setViewMode('calendar');
+      handleCloseModal();
     } catch (err: any) {
       error("Error", err.message || "No se pudo procesar la solicitud.");
     }
@@ -850,6 +1011,26 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     }));
   };
 
+  // Helper para formatear el texto de fecha/hora en la Fila_Formulario
+  const formatFechaHoraTexto = (): string => {
+    if (!nuevaCita.fecha && !nuevaCita.hora) return 'Selecciona fecha y hora';
+    const partes: string[] = [];
+    if (nuevaCita.fecha) {
+      const d = new Date(nuevaCita.fecha + 'T12:00:00');
+      partes.push(d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
+    }
+    if (nuevaCita.hora) {
+      partes.push(formatHoraStr12(nuevaCita.hora));
+      // Calcular hora fin
+      const [hh, mm] = nuevaCita.hora.split(':').map(Number);
+      const finMin = hh * 60 + mm + nuevaCita.duracion;
+      const finHH = Math.floor(finMin / 60).toString().padStart(2, '0');
+      const finMM = String(finMin % 60).padStart(2, '0');
+      partes[partes.length - 1] += ` – ${formatHoraStr12(`${finHH}:${finMM}`)}`;
+    }
+    return partes.join(' · ');
+  };
+
   return (
     <>
       <AlertContainer />
@@ -858,575 +1039,544 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         <div className="flex items-center justify-center h-64">
           <div className="text-orange-primary animate-pulse text-xl font-medium">Cargando tus citas...</div>
         </div>
-      ) : viewMode === 'crear' ? (
-        /* ═══════════════════════════════════════════════════════════════════ */
-        /* VISTA DE CREAR / EDITAR CITA (inline, no modal) */
-        /* ═══════════════════════════════════════════════════════════════════ */
-        <div className="flex flex-col gap-4 h-full min-h-0 overflow-hidden">
-          {/* Header con botón Volver */}
-          <div className="flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => { setViewMode('calendar'); setPendingProduct(null); }}
-                className="p-2 rounded-lg hover:bg-gray-dark text-gray-lightest hover:text-white-primary transition-colors"
-                title="Volver al Calendario"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h2 className="text-2xl font-bold text-white-primary flex items-center gap-2">
-                  <CalendarDays className="w-6 h-6 text-orange-primary" />
-                  {isEditMode ? 'Editar tu Reservación' : 'Programar Nueva Cita'}
+      ) : (
+        <>
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* MODAL_FORMULARIO — createPortal (Nueva / Editar Cita) */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {isCreateModalOpen && modalPosition && createPortal(
+          <>
+            {/* Backdrop semi-transparente */}
+            <div
+              className="fixed inset-0 bg-black/40"
+              style={{ zIndex: 9998 }}
+              onClick={handleCloseModal}
+            />
+
+            {/* Modal container */}
+            <div
+              ref={modalRef}
+              className="fixed flex flex-col rounded-2xl border border-gray-dark/60 bg-gray-darkest overflow-hidden"
+              style={{
+                top: modalPosition.top,
+                left: modalPosition.left,
+                width: 480,
+                maxHeight: 'calc(100vh - 32px)',
+                boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)',
+                zIndex: 9999,
+                opacity: modalPhase === 'open' ? 1 : 0,
+                transform: modalPhase === 'enter' ? 'translateY(-10px) scale(0.97)' : 'translateY(0) scale(1)',
+                transition: 'opacity 200ms ease-out, transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark bg-gray-darker/50 shrink-0">
+                <h2 className="text-lg font-semibold text-gray-lightest">
+                  {isEditMode || selectedCita ? 'Editar Cita' : 'Nueva Cita'}
                 </h2>
-                <p className="text-sm text-gray-lightest">Selecciona los servicios y horario de tu preferencia</p>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="p-1.5 rounded-lg text-gray-lighter hover:text-white-primary hover:bg-gray-dark transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-            </div>
-          </div>
 
-          {/* Master-Detail Layout */}
-          <div
-            className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 flex-1 min-h-0 overflow-hidden"
-            style={{ gridTemplateRows: 'minmax(0, 1fr)' }}
-          >
-            {/* ── Panel Izquierdo: Formulario ── */}
-            <aside className="min-h-0 min-w-0">
-              <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-10">
-                  {/* Sección: Barbero */}
-                  <div className="py-10">
-                    <FormSection title="Barbero de Preferencia" icon={<User className="w-4 h-4 text-orange-primary" />}>
-                      <SearchField<any>
-                        placeholder="Busca a tu barbero..."
-                        value={barberoFormSearchTerm}
-                        onChange={(val) => setBarberoFormSearchTerm(val)}
-                        onClear={() => {
-                          setBarberoFormSearchTerm('');
-                          setNuevaCita({ ...nuevaCita, barberoId: 0, barbero: '' });
-                        }}
-                        items={barberosList.filter((b: any) => {
-                          if (nuevaCita.fecha && nuevaCita.hora) {
-                            const errorDisp = validarDisponibilidad(b.id, nuevaCita.fecha, nuevaCita.hora, nuevaCita.duracion, selectedCita?.id);
-                            return !errorDisp;
-                          }
-                          return true;
-                        })}
-                        filterFn={(b: any, query: string) => {
-                          const fullName = `${b.nombre || b.nombres || ''} ${b.apellido || b.apellidos || ''}`.toLowerCase();
-                          return fullName.includes(query.toLowerCase());
-                        }}
-                        renderItem={(barbero: any) => (
-                          <p className="text-white-primary text-sm font-medium group-hover:text-orange-primary transition-colors">
-                            {barbero.nombre || barbero.nombres} {barbero.apellido || barbero.apellidos || ''}
-                          </p>
-                        )}
-                        onSelect={(barbero: any) => {
-                          const name = `${barbero.nombre || barbero.nombres || ''} ${barbero.apellido || barbero.apellidos || ''}`.trim();
-                          setNuevaCita({ ...nuevaCita, barberoId: barbero.id, barbero: name });
-                          setBarberoFormSearchTerm(name);
-                        }}
-                        error={showFormErrors && !nuevaCita.barberoId ? 'Debes seleccionar un barbero para continuar.' : undefined}
-                      />
-                    </FormSection>
+              {/* Contenido scrollable — filas del formulario (tareas 5.2–5.7) */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+
+                {/* ── Fila: Switch Tipo ── */}
+                <div className="flex items-center gap-0 py-3 px-2">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center">
+                    {tipoServicio === 'paquetes' ? <Package className="w-5 h-5 text-gray-lighter" /> : <Scissors className="w-5 h-5 text-gray-lighter" />}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex gap-1 bg-gray-darker rounded-lg p-1 w-fit">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tipoServicio !== 'individuales') {
+                            setTipoServicio('individuales');
+                            setNuevaCita(prev => ({ ...prev, paqueteId: null }));
+                            setPaqueteSearchTerm('');
+                          }
+                        }}
+                        className={tipoServicio === 'individuales'
+                          ? 'bg-gray-darkest text-orange-primary rounded-md px-3 py-1 text-sm font-medium transition-all'
+                          : 'text-gray-lighter px-3 py-1 text-sm transition-all hover:text-gray-lightest'
+                        }
+                      >
+                        Individuales
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tipoServicio !== 'paquetes') {
+                            setTipoServicio('paquetes');
+                            setNuevaCita(prev => ({ ...prev, servicioIds: [], servicioId: null, servicio: '' }));
+                            setServicioSearchTerm('');
+                          }
+                        }}
+                        className={tipoServicio === 'paquetes'
+                          ? 'bg-gray-darkest text-orange-primary rounded-md px-3 py-1 text-sm font-medium transition-all'
+                          : 'text-gray-lighter px-3 py-1 text-sm transition-all hover:text-gray-lightest'
+                        }
+                      >
+                        Paquetes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="border-t border-gray-dark/60 mx-4" />
 
-                  {/* Sección: Servicios y Paquetes (Agrupados) */}
-                  <div className="py-10 border-t border-gray-dark">
-                    <div className="flex flex-row items-start w-full" style={{ gap: '10px' }}>
-                      <div className="flex-1 min-w-0">
-                        <FormSection title="Servicios" icon={<Scissors className="w-4 h-4 text-orange-primary" />}>
-                          {nuevaCita.paqueteId ? (
-                            <p className="text-xs text-gray-lighter">Desactiva el paquete para seleccionar servicios individuales</p>
-                          ) : (
-                            <SearchField<any>
-                              label="Buscar servicio"
-                              placeholder="Buscar servicio..."
-                              value={servicioSearchTerm}
-                              onChange={setServicioSearchTerm}
-                              items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
-                              filterFn={(s, term) =>
-                                (s.nombre || '').toLowerCase().includes(term.toLowerCase())
-                              }
-                              onSelect={(s) => {
-                                toggleServicio(s.id);
-                                setServicioSearchTerm('');
-                              }}
-                              onClear={() => setServicioSearchTerm('')}
-                              renderItem={(s) => (
-                                <div className="flex items-center gap-3">
-                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                    <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
-                                    <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
-                                  </div>
-                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
-                                </div>
-                              )}
-                              error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
-                            />
-                          )}
-                          {/* Tags de servicios seleccionados */}
-                          {nuevaCita.servicioIds.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {nuevaCita.servicioIds.map(sId => {
-                                const srv = serviciosList.find(s => s.id === sId);
-                                if (!srv) return null;
-                                return (
-                                  <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                    <Scissors className="w-3 h-3" />
-                                    <span>{srv.nombre}</span>
-                                    <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
-                                    {!nuevaCita.paqueteId && (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleServicio(sId)}
-                                        className="ml-1 hover:text-red-400 transition-colors"
-                                        title="Quitar servicio"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                {/* ── Fila: Servicio / Paquete ── */}
+                <div className="flex items-start gap-0 py-3 px-2">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                    {tipoServicio === 'paquetes' ? <Package className="w-5 h-5 text-gray-lighter" /> : <Scissors className="w-5 h-5 text-gray-lighter" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {tipoServicio === 'individuales' ? (
+                      <>
+                        <SearchField<any>
+                          label="Buscar servicio"
+                          placeholder="Buscar servicio..."
+                          value={servicioSearchTerm}
+                          onChange={setServicioSearchTerm}
+                          items={serviciosList.filter(s => !nuevaCita.servicioIds.includes(s.id))}
+                          filterFn={(s, term) =>
+                            (s.nombre || '').toLowerCase().includes(term.toLowerCase())
+                          }
+                          onSelect={(s) => {
+                            toggleServicio(s.id);
+                            setServicioSearchTerm('');
+                          }}
+                          onClear={() => setServicioSearchTerm('')}
+                          renderItem={(s) => (
+                            <div className="flex items-center gap-3">
+                              <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
+                                <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                              </div>
+                              <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
                             </div>
                           )}
-                        </FormSection>
-                      </div>
+                          isSelected={nuevaCita.servicioIds.length > 0}
+                          error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                        />
+                        {/* Tags de servicios seleccionados */}
+                        {nuevaCita.servicioIds.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {nuevaCita.servicioIds.map(sId => {
+                              const srv = serviciosList.find(s => s.id === sId);
+                              if (!srv) return null;
+                              return (
+                                <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                  <Scissors className="w-3 h-3" />
+                                  <span>{srv.nombre}</span>
+                                  <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleServicio(sId)}
+                                    className="ml-1 hover:text-red-400 transition-colors"
+                                    title="Quitar servicio"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {nuevaCita.paqueteId ? (
+                          <div className="flex flex-wrap gap-2">
+                            {(() => {
+                              const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                              if (!paq) return null;
+                              return (
+                                <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
+                                  <Package className="w-3 h-3" />
+                                  <span>{paq.nombre}</span>
+                                  <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handlePaqueteChange('none');
+                                      setPaqueteSearchTerm('');
+                                    }}
+                                    className="ml-1 hover:text-red-400 transition-colors"
+                                    title="Quitar paquete"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <SearchField<any>
+                            label="Buscar paquete"
+                            placeholder="Buscar paquete..."
+                            value={paqueteSearchTerm}
+                            onChange={setPaqueteSearchTerm}
+                            items={paquetesList}
+                            filterFn={(p, term) =>
+                              (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                            }
+                            onSelect={(p) => {
+                              handlePaqueteChange(`p-${p.id}`);
+                              setPaqueteSearchTerm('');
+                            }}
+                            onClear={() => setPaqueteSearchTerm('')}
+                            renderItem={(p) => (
+                              <div className="flex items-center gap-3">
+                                <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                  <Package className="w-5 h-5 text-orange-primary/50" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                  <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                                </div>
+                                <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
+                              </div>
+                            )}
+                            error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="border-t border-gray-dark/60 mx-4" />
 
-                      <div className="flex-1 min-w-0">
-                        <FormSection title="Paquetes" icon={<Package className="w-4 h-4 text-orange-primary" />}>
-                          {nuevaCita.paqueteId ? (
-                            <div className="flex flex-wrap gap-2">
-                              {(() => {
-                                const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
-                                if (!paq) return null;
-                                return (
-                                  <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                    <Package className="w-3 h-3" />
-                                    <span>{paq.nombre}</span>
-                                    <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                {/* ── Fila: Fecha y Hora ── */}
+                <div className="flex items-start gap-0 py-3 px-2">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                    <CalendarDays className="w-5 h-5 text-gray-lighter" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {!editingFecha && !editingHora ? (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingFecha(true)}
+                          className="text-left text-sm text-gray-lightest hover:text-white-primary transition-colors w-full py-1"
+                        >
+                          {formatFechaHoraTexto()}
+                        </button>
+                        {showFormErrors && (!nuevaCita.fecha || !nuevaCita.hora) && (
+                          <p className="text-xs text-red-400 mt-1">Selecciona fecha y hora</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        {/* Picker de días disponibles del barbero */}
+                        {editingFecha && (() => {
+                          if (!nuevaCita.barberoId) {
+                            return (
+                              <p className="text-xs text-gray-lighter py-1">Selecciona un barbero primero para ver los días disponibles</p>
+                            );
+                          }
+                          // Obtener los días de la semana en que trabaja el barbero
+                          const diasTrabajados = Array.from(new Set(
+                            horariosList
+                              .filter((h: any) => Number(h.barberoId) === Number(nuevaCita.barberoId) && h.estado === true)
+                              .map((h: any) => String(h.dia))
+                          ));
+                          // Generar los próximos 14 días disponibles
+                          const diasDisponibles: { fecha: string; label: string; diaNombre: string }[] = [];
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                          for (let i = 0; i < 28 && diasDisponibles.length < 14; i++) {
+                            const d = new Date(today);
+                            d.setDate(today.getDate() + i);
+                            const diaNombre = dayNames[d.getDay()];
+                            if (diasTrabajados.includes(diaNombre)) {
+                              const y = d.getFullYear();
+                              const m = String(d.getMonth() + 1).padStart(2, '0');
+                              const day = String(d.getDate()).padStart(2, '0');
+                              const fechaStr = `${y}-${m}-${day}`;
+                              const label = d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+                              diasDisponibles.push({ fecha: fechaStr, label, diaNombre });
+                            }
+                          }
+                          if (diasDisponibles.length === 0) {
+                            return (
+                              <p className="text-xs text-gray-lighter py-1">No hay días disponibles para este barbero</p>
+                            );
+                          }
+                          return (
+                            <div>
+                              <p className="text-xs text-gray-lighter mb-1.5">Selecciona un día</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {diasDisponibles.map(({ fecha, label }) => (
+                                  <button
+                                    key={fecha}
+                                    type="button"
+                                    onClick={() => {
+                                      setNuevaCita(prev => ({ ...prev, fecha }));
+                                      setEditingFecha(false);
+                                      setEditingHora(true);
+                                    }}
+                                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                                      nuevaCita.fecha === fecha
+                                        ? 'bg-orange-primary text-white-primary'
+                                        : 'bg-gray-darker text-gray-lighter hover:bg-gray-dark hover:text-gray-lightest'
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Picker de horas disponibles */}
+                        {editingHora && nuevaCita.fecha && nuevaCita.barberoId > 0 && (() => {
+                          const horasDisp = getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
+                          if (horasDisp.length === 0) {
+                            return (
+                              <p className="text-xs text-gray-lighter mt-2 py-1">No hay horas disponibles para este día</p>
+                            );
+                          }
+                          return (
+                            <div className="mt-2">
+                              <p className="text-xs text-gray-lighter mb-1.5">Selecciona una hora</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {horasDisp.map(h => (
+                                  <button
+                                    key={h}
+                                    type="button"
+                                    onClick={() => {
+                                      setNuevaCita(prev => ({ ...prev, hora: h }));
+                                      setEditingHora(false);
+                                    }}
+                                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                                      nuevaCita.hora === h
+                                        ? 'bg-orange-primary text-white-primary'
+                                        : 'bg-gray-darker text-gray-lighter hover:bg-gray-dark hover:text-gray-lightest'
+                                    }`}
+                                  >
+                                    {formatHoraStr12(h)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="border-t border-gray-dark/60 mx-4" />
+
+                {/* ── Fila: Barbero ── */}
+                <div className="flex items-start gap-0 py-3 px-2">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                    <User className="w-5 h-5 text-gray-lighter" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <SearchField<any>
+                      label="Buscar barbero"
+                      placeholder="Nombre del barbero..."
+                      value={barberoFormSearchTerm}
+                      onChange={setBarberoFormSearchTerm}
+                      items={barberosList}
+                      filterFn={(b, term) =>
+                        (b.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
+                        (b.apellido || '').toLowerCase().includes(term.toLowerCase())
+                      }
+                      onSelect={(b) => {
+                        const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
+                        setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: nombreCompleto }));
+                        setBarberoFormSearchTerm(nombreCompleto);
+                      }}
+                      onClear={() => {
+                        setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
+                        setBarberoFormSearchTerm('');
+                      }}
+                      renderItem={(b) => (
+                        <div className="flex items-center gap-3 w-full">
+                          {b.fotoPerfil ? (
+                            <img src={b.fotoPerfil} alt={b.nombre} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gray-dark flex items-center justify-center shrink-0">
+                              <User className="w-4 h-4 text-gray-lighter" />
+                            </div>
+                          )}
+                          <p className="text-sm text-gray-lightest">{`${b.nombre} ${b.apellido || ''}`.trim()}</p>
+                        </div>
+                      )}
+                      isSelected={!!nuevaCita.barberoId}
+                      error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
+                    />
+
+                    {/* Disponibilidad del barbero: horas disponibles para el día seleccionado */}
+                    {nuevaCita.barberoId > 0 && nuevaCita.fecha && (() => {
+                      const horasDisp = getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
+                      if (horasDisp.length === 0) return null;
+                      return (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-lighter mb-1.5">Horas disponibles</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {horasDisp.map(h => (
+                              <button
+                                key={h}
+                                type="button"
+                                onClick={() => setNuevaCita(prev => ({ ...prev, hora: h }))}
+                                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                                  nuevaCita.hora === h
+                                    ? 'bg-orange-primary text-white-primary'
+                                    : 'bg-gray-darker text-gray-lighter hover:bg-gray-dark hover:text-gray-lightest'
+                                }`}
+                              >
+                                {formatHoraStr12(h)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+                <div className="border-t border-gray-dark/60 mx-4" />
+
+                {/* ── Fila: Producto ── */}
+                <div className="flex items-start gap-0 py-3 px-2">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                    <ShoppingBag className="w-5 h-5 text-gray-lighter" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? (
+                      <p className="text-gray-lighter text-sm">Selecciona un servicio o paquete para agregar productos</p>
+                    ) : (
+                      <>
+                        <SearchField<any>
+                          label="Buscar producto"
+                          placeholder="Buscar producto..."
+                          value={productoSearchTerm}
+                          onChange={setProductoSearchTerm}
+                          items={productosList}
+                          filterFn={(p, term) =>
+                            (p.nombre || '').toLowerCase().includes(term.toLowerCase())
+                          }
+                          onSelect={(p) => {
+                            addProducto(p.id);
+                            setProductoSearchTerm('');
+                          }}
+                          onClear={() => setProductoSearchTerm('')}
+                          renderItem={(p) => {
+                            const cantActual = nuevaCita.productoCantidades[p.id] || 0;
+                            return (
+                              <div className="flex items-center gap-3">
+                                <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
+                                  <ShoppingBag className="w-5 h-5 text-orange-primary/50" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
+                                  {cantActual > 0 && (
+                                    <p className="text-orange-primary text-xs">En carrito: {cantActual}</p>
+                                  )}
+                                </div>
+                                <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
+                              </div>
+                            );
+                          }}
+                        />
+                        {/* Productos seleccionados con control de cantidad */}
+                        {Object.keys(nuevaCita.productoCantidades).length > 0 && (
+                          <div className="space-y-2 mt-2">
+                            {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
+                              const pId = Number(idStr);
+                              const prod = productosList.find(p => p.id === pId);
+                              if (!prod) return null;
+                              return (
+                                <div key={pId} className="flex items-center gap-2 bg-gray-darker/60 rounded-lg px-3 py-2">
+                                  <span className="flex-1 text-sm text-gray-lightest truncate">{prod.nombre}</span>
+                                  <div className="flex items-center gap-1 shrink-0">
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        handlePaqueteChange('none');
-                                        setPaqueteSearchTerm('');
-                                      }}
-                                      className="ml-1 hover:text-red-400 transition-colors"
-                                      title="Quitar paquete"
+                                      onClick={() => removeProducto(pId)}
+                                      className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-gray-medium text-gray-lighter hover:text-white-primary transition-colors"
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </button>
+                                    <span className="w-6 text-center text-sm text-gray-lightest tabular-nums">{cantidad}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => addProducto(pId)}
+                                      className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-gray-medium text-gray-lighter hover:text-white-primary transition-colors"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => quitarProducto(pId)}
+                                      className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-red-600/60 text-gray-lighter hover:text-white-primary transition-colors ml-1"
                                     >
                                       <X className="w-3 h-3" />
                                     </button>
                                   </div>
-                                );
-                              })()}
-                            </div>
-                          ) : (
-                            <SearchField<any>
-                              label="Buscar paquete"
-                              placeholder="Buscar paquete..."
-                              value={paqueteSearchTerm}
-                              onChange={setPaqueteSearchTerm}
-                              items={paquetesList}
-                              filterFn={(p, term) =>
-                                (p.nombre || '').toLowerCase().includes(term.toLowerCase())
-                              }
-                              onSelect={(p) => {
-                                handlePaqueteChange(`p-${p.id}`);
-                                setPaqueteSearchTerm('');
-                              }}
-                              onClear={() => setPaqueteSearchTerm('')}
-                              renderItem={(p) => (
-                                <div className="flex items-center gap-3">
-                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                                    <Package className="w-5 h-5 text-orange-primary/50" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                                    <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
-                                  </div>
-                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                                 </div>
-                              )}
-                            />
-                          )}
-                        </FormSection>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sección: Productos adicionales */}
-                  {productosList.length > 0 && (
-                    <div className="py-10">
-                      <FormSection title="Productos Adicionales" icon={<ShoppingBag className="w-4 h-4 text-orange-primary" />}>
-                        {(nuevaCita.servicioIds.length > 0 || !!nuevaCita.paqueteId) ? (
-                          <>
-                            <SearchField<any>
-                              label="Buscar producto"
-                              placeholder="Buscar producto..."
-                              value={productoSearchTerm}
-                              onChange={setProductoSearchTerm}
-                              items={productosList.filter(p => !nuevaCita.productoCantidades[p.id])}
-                              filterFn={(p, term) =>
-                                (p.nombre || '').toLowerCase().includes(term.toLowerCase())
-                              }
-                              onSelect={(p) => {
-                                addProducto(p.id);
-                                setProductoSearchTerm('');
-                              }}
-                              onClear={() => setProductoSearchTerm('')}
-                              renderItem={(p) => (
-                                <div className="flex items-center gap-3">
-                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                    <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" fallbackVariant="product" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                                    <p className="text-gray-lighter text-xs">Stock: {p.stockVentas ?? p.stockTotal ?? 0}</p>
-                                  </div>
-                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta || p.precio || 0)}</span>
-                                </div>
-                              )}
-                            />
-                            {/* Lista de productos seleccionados con cantidades */}
-                            {Object.entries(nuevaCita.productoCantidades).length > 0 && (
-                              <div className="space-y-2 mt-3">
-                                {Object.entries(nuevaCita.productoCantidades).map(([pId, cant]) => {
-                                  const prod = productosList.find(p => p.id === Number(pId));
-                                  if (!prod) return null;
-                                  return (
-                                    <div key={pId} className="flex items-center justify-between gap-3 bg-gray-darker/60 border border-gray-dark rounded-xl p-3 group hover:border-orange-primary/30 transition-all duration-300">
-                                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className="shrink-0 w-8 h-8 rounded-lg overflow-hidden bg-gray-dark border border-gray-dark/50">
-                                          <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent object-cover" fallbackVariant="product" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-white-primary text-sm font-medium truncate">{prod.nombre}</p>
-                                          <p className="text-orange-primary text-xs font-bold">{formatearPrecio(prod.precioVenta || prod.precio || 0)}</p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2 bg-gray-darkest rounded-lg border border-gray-dark px-1 py-1">
-                                          <button
-                                            type="button"
-                                            onClick={() => removeProducto(Number(pId))}
-                                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-gray-light hover:text-white transition-colors"
-                                          >
-                                            <Minus className="w-3.5 h-3.5" />
-                                          </button>
-                                          <span className="text-white-primary font-bold text-sm w-4 text-center tabular-nums">{cant}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => addProducto(Number(pId))}
-                                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-dark text-orange-primary hover:text-orange-secondary transition-colors"
-                                          >
-                                            <Plus className="w-3.5 h-3.5" />
-                                          </button>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => quitarProducto(Number(pId))}
-                                          className="p-2 rounded-lg hover:bg-red-500/10 text-gray-lighter hover:text-red-400 transition-all duration-300 border border-transparent hover:border-red-500/20"
-                                          title="Quitar"
-                                        >
-                                          <X className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="space-y-2">
-                            {pendingProduct && (
-                              <div className="flex items-center gap-2 p-2 rounded-lg border border-orange-primary/40 bg-orange-primary/10">
-                                <ShoppingBag className="w-4 h-4 text-orange-primary shrink-0" />
-                                <p className="text-xs text-orange-primary font-medium">
-                                  <strong>{pendingProduct.nombre}</strong> se agregará automáticamente al seleccionar un servicio o paquete.
-                                </p>
-                              </div>
-                            )}
-                            <p className="text-xs text-gray-lighter italic">
-                              Selecciona al menos un servicio o paquete para agregar productos.
-                            </p>
+                              );
+                            })}
                           </div>
                         )}
-                      </FormSection>
-                    </div>
-                  )}
-
-                  {/* Sección: Fecha y Hora */}
-                  <div className="py-10">
-                    <FormSection title="Fecha y Hora" icon={<Calendar className="w-4 h-4 text-orange-primary" />}>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-gray-lightest text-xs">Fecha *</Label>
-                          <DatePicker
-                            value={nuevaCita.fecha}
-                            onChange={(val) => setNuevaCita({ ...nuevaCita, fecha: val })}
-                            min={new Date().toISOString().split('T')[0]}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-gray-lightest text-xs">Hora *</Label>
-                          {nuevaCita.barberoId && nuevaCita.fecha ? (
-                            <Select value={nuevaCita.hora} onValueChange={v => setNuevaCita({ ...nuevaCita, hora: v })}>
-                              <SelectTrigger className="elegante-input h-11">
-                                <SelectValue placeholder="Seleccionar hora" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-darkest border-gray-dark max-h-52">
-                                {getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion).map(h => (
-                                  <SelectItem key={h} value={h} className="text-white-primary">{h}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              type="time"
-                              value={nuevaCita.hora}
-                              onChange={(e) => setNuevaCita({ ...nuevaCita, hora: e.target.value })}
-                              className="elegante-input h-11"
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </FormSection>
+                      </>
+                    )}
                   </div>
+                </div>
+                <div className="border-t border-gray-dark/60 mx-4" />
 
-                  {/* Sección: Notas */}
-                  <div className="py-10">
-                    <FormSection title="Notas Adicionales" icon={<FileText className="w-4 h-4 text-orange-primary" />}>
-                      <Textarea
-                        value={nuevaCita.notas}
-                        onChange={(e) => setNuevaCita({ ...nuevaCita, notas: e.target.value })}
-                        placeholder="¿Algún detalle especial que debamos saber?"
-                        className="elegante-input min-h-[80px] resize-none pt-3"
-                      />
-                    </FormSection>
+                {/* ── Fila: Notas ── */}
+                <div className="flex items-start gap-0 py-3 px-2">
+                  <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+                    <FileText className="w-5 h-5 text-gray-lighter" />
                   </div>
-
-                  {/* Sección: Estado (solo edición) */}
-                  {isEditMode && selectedCita && (
-                    <FormSection title="Estado" icon={<CheckCircle2 className="w-4 h-4 text-orange-primary" />}>
-                      <Select value={nuevaCita.estado} onValueChange={(v) => setNuevaCita({ ...nuevaCita, estado: v })}>
-                        <SelectTrigger className="elegante-input h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-darkest border-gray-dark">
-                          <SelectItem value={selectedCita.estado} className="text-white-primary">{selectedCita.estado}</SelectItem>
-                          {selectedCita.estado !== 'Cancelada' && (
-                            <SelectItem value="Cancelada" className="text-white-primary text-red-500">Cancelar Cita</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FormSection>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <textarea
+                      value={nuevaCita.notas}
+                      onChange={(e) => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
+                      placeholder="Agregar notas o instrucciones especiales..."
+                      className="w-full bg-transparent text-sm text-gray-lightest placeholder-gray-lighter resize-none focus:outline-none min-h-[60px]"
+                    />
+                  </div>
                 </div>
 
-                {/* Footer fijo con botones */}
-                <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
-                  <button
-                    onClick={() => { setViewMode('calendar'); setPendingProduct(null); }}
-                    className="elegante-button-secondary py-3 px-8"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSaveCita}
-                    className="elegante-button-primary py-3 px-8 shadow-lg shadow-orange-primary/10 flex items-center gap-2"
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    {isEditMode ? 'Guardar Cambios' : 'Confirmar Reservación'}
-                  </button>
-                </div>
               </div>
-            </aside>
 
-            {/* ── Panel Derecho: Resumen ── */}
-            <section className="min-h-0 min-w-0">
-              <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col p-0">
-                {/* Header con gradiente */}
-                <div className="sticky top-0 z-10 bg-gradient-to-r from-orange-primary/20 to-orange-primary/5 border-b border-gray-dark px-5 py-4">
-                  <h3 className="text-white-primary font-bold text-lg flex items-center gap-2">
-                    <Eye className="w-5 h-5 text-orange-primary" />
-                    Resumen de Reservación
-                  </h3>
-                  <p className="text-xs text-gray-lighter mt-1">Vista previa de tu cita</p>
-                </div>
-
-                {/* Contenido scrollable */}
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
-                  {/* Barbero */}
-                  {nuevaCita.barberoId > 0 && (
-                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Barbero</p>
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-orange-primary" />
-                        <span className="text-white-primary font-medium text-sm">{nuevaCita.barbero}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Servicios */}
-                  {nuevaCita.servicioIds.length > 0 && !nuevaCita.paqueteId && (
-                    <div>
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
-                        Servicios ({nuevaCita.servicioIds.length})
-                      </p>
-                      <div className="space-y-2">
-                        {nuevaCita.servicioIds.map(id => {
-                          const s = serviciosList.find((sv: any) => sv.id === id);
-                          if (!s) return null;
-                          return (
-                            <div key={id} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center gap-3">
-                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                  <ImageRenderer url={s.imagen || ""} alt={s.nombre} className="w-full h-full border-0 bg-transparent" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-white-primary text-sm font-medium truncate">{s.nombre}</span>
-                                    <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(s.precio)}</span>
-                                  </div>
-                                  {s.descripcion && (
-                                    <p className="text-xs text-gray-lighter mt-0.5 italic truncate">{s.descripcion}</p>
-                                  )}
-                                  <p className="text-[10px] text-gray-lighter mt-0.5">{s.duracion || 60} min</p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Paquete */}
-                  {nuevaCita.paqueteId && (() => {
-                    const paq = paquetesList.find((p: any) => p.id === nuevaCita.paqueteId);
-                    if (!paq) return null;
-                    return (
-                      <div>
-                        <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">Paquete</p>
-                        <div className="bg-gray-darker rounded-lg p-3 border border-orange-primary/30">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <Package className="w-4 h-4 text-orange-primary" />
-                              <span className="text-white-primary font-semibold text-sm">{paq.nombre}</span>
-                            </div>
-                            <span className="text-orange-primary font-bold text-sm">{formatearPrecio(paq.precio)}</span>
-                          </div>
-                          {paq.descripcion && (
-                            <p className="text-xs text-gray-lighter mt-1 ml-6 italic">{paq.descripcion}</p>
-                          )}
-                          {/* Servicios incluidos en el paquete */}
-                          {paq.servicios && paq.servicios.length > 0 && (
-                            <div className="mt-3 ml-6 pt-2 border-t border-gray-dark/50">
-                              <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Servicios incluidos</p>
-                              <div className="space-y-1">
-                                {paq.servicios.map((sName: string, idx: number) => (
-                                  <div key={idx} className="flex items-center gap-2">
-                                    <Scissors className="w-3 h-3 text-orange-primary/60" />
-                                    <span className="text-xs text-gray-lightest">{sName}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <p className="text-[10px] text-gray-lighter mt-2 ml-6">{paq.duracion || 60} min</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Productos */}
-                  {Object.entries(nuevaCita.productoCantidades).length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-2">
-                        Productos ({Object.values(nuevaCita.productoCantidades).reduce((a, b) => a + b, 0)})
-                      </p>
-                      <div className="space-y-2">
-                        {Object.entries(nuevaCita.productoCantidades).map(([id, cant]) => {
-                          const p = productosList.find((pr: any) => pr.id === Number(id));
-                          if (!p) return null;
-                          return (
-                            <div key={id} className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                              <div className="flex items-center gap-3">
-                                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
-                                  <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent object-cover" fallbackVariant="product" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-white-primary text-sm font-medium truncate">{p.nombre}</span>
-                                    <span className="text-orange-primary text-sm font-bold shrink-0 ml-2">{formatearPrecio(Number(p.precioVenta || 0) * cant)}</span>
-                                  </div>
-                                  <p className="text-[10px] text-gray-lighter mt-0.5">Cantidad: {cant} x {formatearPrecio(p.precioVenta)}</p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Horario */}
-                  {(nuevaCita.fecha || nuevaCita.hora) && (
-                    <div className="bg-gray-darker rounded-lg p-3 border border-gray-dark">
-                      <p className="text-[10px] text-gray-lighter uppercase tracking-widest font-bold mb-1">Horario</p>
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="w-4 h-4 text-orange-primary" />
-                        <span className="text-white-primary text-sm">
-                          {nuevaCita.fecha && new Date(nuevaCita.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                          {nuevaCita.hora && ` — ${nuevaCita.hora}`}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-gray-lighter mt-1 ml-6">Duración: {nuevaCita.duracion} min</p>
-                    </div>
-                  )}
-
-                  {/* Estado vacío */}
-                  {nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !nuevaCita.barberoId && (
-                    <div className="py-8 text-center">
-                      <CalendarDays className="w-10 h-10 text-gray-dark mx-auto mb-2" />
-                      <p className="text-sm text-gray-lightest">
-                        Selecciona servicios para ver el resumen
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Disclaimer */}
-                  {nuevaCita.precio > 0 && (
-                    <p className="text-gray-lightest text-[10px] italic leading-relaxed">
-                      * El precio puede variar ligeramente según el detalle final del servicio en la barbería.
-                    </p>
-                  )}
-                </div>
-
-                {/* Footer Sticky con Total */}
-                <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90">
-                  <div
-                    className="flex justify-between items-center rounded-lg px-4 py-3"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(174,120,14,0.15) 0%, rgba(244,194,69,0.08) 100%)',
-                      border: '1px solid rgba(244,194,69,0.25)',
-                    }}
-                  >
-                    <span className="text-white-primary font-bold text-base tracking-wide">TOTAL ESTIMADO</span>
-                    <span className="text-orange-primary font-bold text-2xl tabular-nums">
-                      {formatearPrecio(nuevaCita.precio)}
-                    </span>
-                  </div>
-                </div>
+              {/* Footer sticky con botones */}
+              <div className="border-t border-gray-dark/60 px-4 py-3 flex justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 text-sm font-medium text-gray-lighter hover:text-white-primary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveCita}
+                  className="px-4 py-2 text-sm font-medium bg-orange-primary text-white-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  Guardar
+                </button>
               </div>
-            </section>
-          </div>
-        </div>
-      ) : (
+            </div>
+          </>,
+          document.body
+        )}
+
+        {/* VISTA DE CALENDARIO */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
         <div className="p-2">
 
           {/* Navegación de Semana */}
@@ -1468,7 +1618,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   Hoy
                 </button>
                 <button
-                  onClick={handleOpenCreate}
+                  onClick={handleOpenCreateModal}
                   className="btn-std-primary"
                 >
                   <Plus className="w-4 h-4" />
@@ -1503,7 +1653,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     <button
                       onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
                       disabled={carouselPage === 0 || citasSemana.length === 0}
-                      className="shrink-0 text-white-primary hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
+                      className={`shrink-0 transition-all rounded-lg p-2 border ${
+                        carouselPage === 0 || citasSemana.length === 0
+                          ? 'bg-gray-darkest border-gray-dark/20 text-gray-dark cursor-not-allowed opacity-40'
+                          : 'bg-gray-darker border-gray-dark text-white-primary hover:text-orange-primary hover:border-gray-medium cursor-pointer'
+                      }`}
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -1517,7 +1671,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                             const servicio = formatNombre(cita.servicioNombre || cita.paqueteNombre || '—');
                             const subtitulo = [formatHoraStr12(cita.hora), formatNombre(cita.barberoNombre)].join(' — ');
                             const estadoColor =
-                              cita.estado === 'Completada' || cita.estado === 'Confirmada'
+                              cita.estado === 'Completada'
                                 ? 'border-l-[3px] border-l-[#7aab8a]'
                                 : cita.estado === 'Cancelada' || cita.estado === 'Anulada'
                                 ? 'border-l-[3px] border-l-[#b07070]'
@@ -1553,7 +1707,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     <button
                       onClick={() => setCarouselPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={carouselPage >= totalPages - 1 || citasSemana.length === 0}
-                      className="shrink-0 text-white-primary hover:text-orange-primary transition-colors disabled:opacity-20 disabled:cursor-not-allowed bg-gray-darker border border-gray-dark hover:border-gray-medium rounded-lg p-2"
+                      className={`shrink-0 transition-all rounded-lg p-2 border ${
+                        carouselPage >= totalPages - 1 || citasSemana.length === 0
+                          ? 'bg-gray-darkest border-gray-dark/20 text-gray-dark cursor-not-allowed opacity-40'
+                          : 'bg-gray-darker border-gray-dark text-white-primary hover:text-orange-primary hover:border-gray-medium cursor-pointer'
+                      }`}
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -1570,37 +1728,40 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             })()}
           </div>
 
-          {/* Encabezado de días */}
-          <div className="std-card mb-0">
-            <div
-              className="grid gap-1 py-3"
-              style={{ gridTemplateColumns: calendarGridTemplate }}
-            >
-              <div />
-              {weekDays.map(({ dia, fecha }) => (
-                <div
-                  key={dia}
-                  className="min-w-0 text-center rounded-lg py-3 px-2 border-2 border-transparent"
-                >
-                  <div className="flex justify-center items-center gap-1">
-                    <h4 className="text-sm font-bold tracking-[0.06em] uppercase text-gray-lightest">{dia.slice(0, 3)}</h4>
-                  </div>
-                  <p className="text-sm font-bold tracking-[0.06em] text-gray-lightest">{fecha}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Grid de horarios */}
-          <div className="std-card mb-0">
-            <div className="w-full pb-4 pt-3">
+          {/* Grid de horarios + headers de días — un solo card unificado */}
+          <div className="std-card mb-0 !py-0">
+            <div className="w-full py-5">
               <div className="-mx-6 pl-3 pr-6">
+
+                {/* Fila de headers de días */}
+                <div
+                  className="grid gap-1 mb-2"
+                  style={{ gridTemplateColumns: calendarGridTemplate }}
+                >
+                  <div />
+                  {weekDays.map(({ dia, fecha, fechaCompleta }) => {
+                    const isToday = fechaCompleta === toLocalDateString(new Date());
+                    return (
+                      <div
+                        key={dia}
+                        className={`min-w-0 text-center rounded-lg py-3 border-2 flex flex-col items-center justify-center gap-1 ${
+                          isToday ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent'
+                        }`}
+                      >
+                        <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-bold">{dia.slice(0, 3)}</h4>
+                        <p className="text-sm tracking-[0.06em] text-gray-lightest">{fecha}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Filas de horarios */}
                 {(() => {
                   const todayStr = toLocalDateString(new Date());
                   return horasDelDia.map((hora) => (
                     <div
                       key={hora}
-                      className="grid gap-1 h-14"
+                      className="grid gap-1 h-20"
                       style={{ gridTemplateColumns: calendarGridTemplate }}
                     >
                       <div className="flex h-full items-center justify-center text-center text-[11px] font-semibold tracking-[0.04em] text-gray-lightest whitespace-nowrap">
@@ -1615,144 +1776,219 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                         } else if (dayInfo.fechaCompleta === todayStr) {
                           const today = new Date();
                           const cur = today.getHours() * 60 + today.getMinutes();
-                          if ((hora * 60) <= cur - 30) isPastSlot = true;
+                          if ((hora * 60) <= cur) isPastSlot = true;
                         }
 
                         const slotKey = `${dayInfo.fechaCompleta}-${hora}`;
-                        const safeIdx =
-                          citasEnSlot.length > 0
-                            ? (slotCitaIndex[slotKey] ?? 0) % citasEnSlot.length
-                            : 0;
-                        const citaEnCurso = citasEnSlot[safeIdx] || null;
-                        const tieneMultiples = citasEnSlot.length > 1;
-                        let slotRole: 'none' | 'start' | 'middle' | 'end' = 'none';
-                        if (citaEnCurso) {
-                          const [hStr, mStr] = (citaEnCurso.hora || '').split(':');
-                          const citaInicio = parseInt(hStr) + parseInt(mStr) / 60;
-                          const citaFin = citaInicio + (citaEnCurso.duracion || 60) / 60;
-                          const isStart = Math.abs(citaInicio - hora) < 0.001;
-                          const isEnd = Math.abs(citaFin - (hora + 0.5)) < 0.001;
-                          if (isStart && isEnd) slotRole = 'start';
-                          else if (isStart) slotRole = 'start';
-                          else if (isEnd) slotRole = 'end';
-                          else slotRole = 'middle';
-                        }
 
-                        // Si es middle/end, verificar que esta cita sigue seleccionada en su slot de inicio.
-                        if ((slotRole === 'middle' || slotRole === 'end') && citaEnCurso) {
-                          const [cHStr, cMStr] = (citaEnCurso.hora || '09:00').split(':');
-                          const citaStartHora = parseInt(cHStr) + parseInt(cMStr || '0') / 60;
-                          const citaStartKey = `${dayInfo.fechaCompleta}-${citaStartHora}`;
-                          const citasDia = citas.filter(c => c.fecha === dayInfo.fechaCompleta);
-                          const citasEnInicio = citasDia.filter(c => {
-                            const [hh, mm] = (c.hora || '').split(':');
-                            return Math.abs((parseInt(hh) + parseInt(mm || '0') / 60) - citaStartHora) < 0.001;
-                          });
-                          if (citasEnInicio.length > 1) {
-                            const idxEnInicio = (slotCitaIndex[citaStartKey] ?? 0) % citasEnInicio.length;
-                            const citaSeleccionadaEnInicio = citasEnInicio[idxEnInicio];
-                            if (!citaSeleccionadaEnInicio || citaSeleccionadaEnInicio.id !== citaEnCurso.id) {
-                              slotRole = 'none';
+                        // Citas cuyo inicio visible es este slot
+                        // Usamos el slot de grilla redondeado (floor al múltiplo de 0.5)
+                        const citasQueArrancanAqui = citasEnSlot.filter(cita => {
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const citaInicioSlot = Math.floor(citaInicio * 2) / 2;
+                          if (Math.abs(citaInicioSlot - hora) < 0.001) return true;
+                          if (citaInicioSlot < hora) {
+                            const startEnGrilla = horasDelDia.some(h => Math.abs(h - citaInicioSlot) < 0.001);
+                            if (!startEnGrilla) {
+                              const primerSlotGrilla = horasDelDia.find(h => h > citaInicioSlot);
+                              return primerSlotGrilla !== undefined && Math.abs(primerSlotGrilla - hora) < 0.001;
                             }
                           }
-                        }
+                          return false;
+                        });
 
-                        // Beige claro como en el diseño admin
-                        const citaBg = isPastSlot ? 'rgba(220,190,130,0.25)' : '#e8d5a8';
-                        const citaBorder = isPastSlot ? 'rgba(180,140,80,0.2)' : 'rgba(160,120,60,0.4)';
-                        const citaBorderLeft = isPastSlot ? 'rgba(180,140,80,0.3)' : '#a07830';
+                        // Citas que pasan por este slot pero arrancan en un slot anterior
+                        const citasOcupandoSlot = citasEnSlot.filter(cita => {
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const citaInicioSlot = Math.floor(citaInicio * 2) / 2;
+                          if (Math.abs(citaInicioSlot - hora) < 0.001) return false;
+                          if (citaInicioSlot < hora) {
+                            const startEnGrilla = horasDelDia.some(h => Math.abs(h - citaInicioSlot) < 0.001);
+                            let slotInicioVisible: number;
+                            if (startEnGrilla) {
+                              slotInicioVisible = citaInicioSlot;
+                            } else {
+                              const primerSlotGrilla = horasDelDia.find(h => h > citaInicioSlot);
+                              if (primerSlotGrilla === undefined || primerSlotGrilla >= hora) return false;
+                              slotInicioVisible = primerSlotGrilla;
+                            }
+                            const inicioKey = `${dayInfo.fechaCompleta}-${slotInicioVisible}`;
+                            const citasEnInicio = getCitasEnSlot(dayInfo.fechaCompleta, slotInicioVisible).filter(c => {
+                              const [ch, cm] = (c.hora || '').split(':');
+                              const cInicio = parseInt(ch) + parseInt(cm || '0') / 60;
+                              return Math.abs(Math.floor(cInicio * 2) / 2 - slotInicioVisible) < 0.001;
+                            });
+                            if (citasEnInicio.length === 0) return false;
+                            const idxEnInicio = (slotCitaIndex[inicioKey] ?? 0) % citasEnInicio.length;
+                            return citasEnInicio[idxEnInicio]?.id === cita.id;
+                          }
+                          return false;
+                        });
+
+                        const estaOcupado = citasOcupandoSlot.length > 0 && citasQueArrancanAqui.length === 0;
+                        const tieneInicio = citasQueArrancanAqui.length > 0;
+
+                        const safeIdx = tieneInicio
+                          ? (slotCitaIndex[slotKey] ?? 0) % citasQueArrancanAqui.length
+                          : 0;
+                        const citaEnCurso = tieneInicio ? citasQueArrancanAqui[safeIdx] : null;
+                        const tieneMultiples = citasQueArrancanAqui.length > 1;
+
+                        const calcBlockHeight = (cita: typeof citaEnCurso) => {
+                          if (!cita) return '100%';
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const citaInicioSlot = Math.floor(citaInicio * 2) / 2;
+                          const citaFin = citaInicio + (cita.duracion || 60) / 60;
+                          // floor: no extender más allá del último slot que realmente ocupa
+                          const slotsRestantes = Math.max(1, Math.floor((citaFin - hora) / 0.5));
+                          return `calc(${slotsRestantes} * 5rem + ${slotsRestantes - 1} * 4px)`;
+                        };
+
+                        const citaEstado = citaEnCurso?.estado || 'Pendiente';
+                        const citaBg = isPastSlot
+                          ? citaEstado === 'Completada'
+                              ? '#383838'
+                              : '#4a3f2e'
+                          : citaEstado === 'Completada'
+                              ? '#383838'
+                              : '#e8d5a8';
+                        const citaBorder = isPastSlot
+                          ? citaEstado === 'Completada'
+                              ? '#4a4a4a'
+                              : 'rgba(160,120,60,0.3)'
+                          : citaEstado === 'Completada'
+                              ? '#4a4a4a'
+                              : 'rgba(160,120,60,0.4)';
+                        const citaBorderLeft = isPastSlot
+                          ? citaEstado === 'Completada'
+                              ? '#555'
+                              : 'rgba(160,120,60,0.6)'
+                          : citaEstado === 'Completada'
+                              ? '#555'
+                              : '#a07830';
+                        const citaTextPrimary = isPastSlot
+                          ? citaEstado === 'Completada' ? '#777' : '#6b5030'
+                          : citaEstado === 'Completada' ? '#777'
+                              : '#3d2000';
+                        const citaTextSecondary = isPastSlot
+                          ? citaEstado === 'Completada' ? '#666' : '#8a6840'
+                          : citaEstado === 'Completada' ? '#666'
+                              : '#5a3510';
+
+                        const relevantKeys = citasEnSlot.map(cita => {
+                          const [hh, mm] = (cita.hora || '').split(':');
+                          const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                          const inicioKey = `${dayInfo.fechaCompleta}-${citaInicio}`;
+                          return slotCitaIndex[inicioKey] ?? 0;
+                        }).join('-');
+
+                        const bloqueVisible = tieneInicio && citasOcupandoSlot.length === 0;
 
                         return (
                           <div
-                            key={`${dayInfo.dia}-${hora}`}
-                            className={`relative min-w-0 transition-all duration-200 ${
-                              slotRole !== 'none'
-                                ? 'cursor-pointer'
-                                : isPastSlot
-                                  ? 'rounded border bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60'
-                                  : 'rounded border bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group'
+                            key={`${dayInfo.dia}-${hora}-${relevantKeys}`}
+                            className={`min-w-0 transition-all duration-200 ${
+                              estaOcupado || (tieneInicio && citasOcupandoSlot.length > 0)
+                                ? 'relative'
+                                : bloqueVisible
+                                  ? 'relative cursor-pointer overflow-visible'
+                                  : isPastSlot
+                                    ? 'relative rounded border bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60'
+                                    : 'relative rounded border bg-gray-darker border-gray-dark hover:bg-gray-dark hover:border-orange-primary/50 cursor-pointer group'
                             }`}
-                            style={slotRole !== 'none' ? {
-                              background: citaBg,
-                              borderLeft: `3px solid ${citaBorderLeft}`,
-                              borderRight: `1px solid ${citaBorder}`,
-                              borderTop: slotRole === 'start' ? `1px solid ${citaBorder}` : 'none',
-                              borderBottom: slotRole === 'end' ? `1px solid ${citaBorder}` : 'none',
-                              borderRadius: slotRole === 'start' ? '6px 6px 0 0' : slotRole === 'end' ? '0 0 6px 6px' : '0',
-                              marginTop: (slotRole === 'middle' || slotRole === 'end') ? '-4px' : '0',
-                              paddingTop: (slotRole === 'middle' || slotRole === 'end') ? '4px' : '0',
-                              height: (slotRole === 'middle' || slotRole === 'end') ? 'calc(100% + 4px)' : '100%',
-                              zIndex: slotRole === 'start' ? 2 : 1,
-                            } : {}}
+                            style={undefined}
                             onClick={() => {
-                              if (slotRole !== 'none' && citaEnCurso) {
+                              if (bloqueVisible && citaEnCurso) {
                                 setSelectedCita(citaEnCurso);
                                 setIsDetailDialogOpen(true);
-                              } else if (!isPastSlot) {
+                              } else if (!estaOcupado && !(tieneInicio && citasOcupandoSlot.length > 0) && !isPastSlot) {
                                 handleSlotClick(dayInfo.fechaCompleta, hora);
                               }
                             }}
                           >
-                            {slotRole === 'none' && !isPastSlot && (
+                            {/* Slot vacío hover */}
+                            {!tieneInicio && !estaOcupado && !isPastSlot && (
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-orange-primary/10 backdrop-blur-[1px] z-0 rounded">
                                 <div className="bg-orange-primary/20 p-1.5 rounded-full border border-orange-primary/30 transform scale-75 group-hover:scale-100 transition-transform duration-300">
                                   <Plus className="w-4 h-4 text-orange-primary" />
                                 </div>
                               </div>
                             )}
-                            {slotRole === 'start' && citaEnCurso && (() => {
-                              const durSlots = Math.ceil((citaEnCurso.duracion || 60) / 30);
-                              const contentH = `calc(${durSlots} * 3.5rem)`;
-                              return (
-                                <>
-                                  <div
-                                    className={`absolute left-0 right-0 top-0 flex flex-col items-center justify-center pointer-events-none px-1 gap-0.5 ${tieneMultiples ? 'pt-5' : ''}`}
-                                    style={{ height: contentH, zIndex: 3 }}
+
+                            {/* Bloque fusionado */}
+                            {tieneInicio && citaEnCurso && citasOcupandoSlot.length === 0 && (
+                              <div
+                                className="absolute left-0 top-0 z-10 flex flex-col cursor-pointer"
+                                style={{
+                                  width: '100%',
+                                  height: calcBlockHeight(citaEnCurso),
+                                  background: citaBg,
+                                  border: `1px solid ${citaBorder}`,
+                                  borderLeft: `3px solid ${citaBorderLeft}`,
+                                  borderRadius: '6px',
+                                  overflow: 'visible',
+                                  clipPath: 'inset(0 0 0 0 round 6px)',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCita(citaEnCurso);
+                                  setIsDetailDialogOpen(true);
+                                }}
+                              >
+                                <div className="flex-1 flex flex-col items-center justify-center px-1 gap-0.5 min-h-0">
+                                  <span
+                                    style={{ color: citaTextPrimary }}
+                                    className="text-[10px] leading-tight text-center w-full truncate font-bold"
                                   >
-                                    <span style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }} className="text-[10px] font-bold leading-tight text-center w-full truncate">
-                                      {formatNombre(citaEnCurso.servicioNombre || citaEnCurso.paqueteNombre || (citaEnCurso.serviciosNombres?.[0]) || 'Servicio')}
-                                    </span>
-                                    <span style={{ color: isPastSlot ? '#a08060' : '#5a3510' }} className="text-[9px] leading-tight text-center w-full truncate">
-                                      {formatNombre(citaEnCurso.barberoNombre || 'Barbero')}
-                                    </span>
-                                  </div>
-                                  {tieneMultiples && (
-                                    <div
-                                      className="absolute top-0 right-0 z-10 flex items-center"
-                                      onClick={(e) => e.stopPropagation()}
+                                    {formatNombre(citaEnCurso.servicioNombre || citaEnCurso.paqueteNombre || (citaEnCurso.serviciosNombres?.[0]) || 'Servicio')}
+                                  </span>
+                                  <span
+                                    style={{ color: citaTextSecondary }}
+                                    className="text-[9px] leading-tight text-center w-full truncate"
+                                  >
+                                    {formatNombre(citaEnCurso.barberoNombre || 'Barbero')}
+                                  </span>
+                                </div>
+
+                                {tieneMultiples && (
+                                  <div
+                                    className="absolute top-0 right-0 z-20 flex items-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasQueArrancanAqui.length, 'prev', e)}
+                                      className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
+                                      style={{ color: citaTextPrimary }}
+                                      aria-label="Cita anterior"
                                     >
-                                      <button
-                                        type="button"
-                                        onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'prev', e)}
-                                        className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
-                                        style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
-                                        aria-label="Cita anterior"
-                                      >
-                                        <ChevronLeft className="w-4 h-4" />
-                                      </button>
-                                      <span
-                                        className="text-[10px] font-bold leading-none select-none"
-                                        style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
-                                        title={`${citasEnSlot.length} citas en esta franja`}
-                                      >
-                                        {safeIdx + 1}/{citasEnSlot.length}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => navegarCitaEnSlot(slotKey, citasEnSlot.length, 'next', e)}
-                                        className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
-                                        style={{ color: isPastSlot ? '#8a7050' : '#3d2000' }}
-                                        aria-label="Cita siguiente"
-                                      >
-                                        <ChevronRight className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            {citaEnCurso?.estado === 'En Proceso' && slotRole === 'end' && (
-                              <div className="absolute bottom-0 left-0 h-0.5 bg-orange-primary w-full animate-pulse" />
+                                      <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <span
+                                      className="text-[10px] leading-none select-none"
+                                      style={{ color: citaTextPrimary }}
+                                    >
+                                      {safeIdx + 1}/{citasQueArrancanAqui.length}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => navegarCitaEnSlot(slotKey, citasQueArrancanAqui.length, 'next', e)}
+                                      className="flex items-center justify-center w-6 h-6 hover:text-orange-primary"
+                                      style={{ color: citaTextPrimary }}
+                                      aria-label="Cita siguiente"
+                                    >
+                                      <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                )}
+
+                                {citaEnCurso.estado === 'Completada' && (
+                                  <div className="absolute bottom-0 left-0 h-0.5 bg-blue-600 w-full" />
+                                )}
+                              </div>
                             )}
                           </div>
                         );
@@ -1765,6 +2001,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
           </div>
 
         </div>
+        </>
       )}
 
       {/* Modal Detalle Cita */}
@@ -1802,8 +2039,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                 </div>
                 <div className="flex flex-col items-end">
                   <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${selectedCita.estado === 'Pendiente' ? 'bg-orange-primary/10 text-orange-primary border-orange-primary/30' :
-                    selectedCita.estado === 'Confirmada' ? 'bg-green-500/10 text-green-500 border-green-500/30' :
-                      selectedCita.estado === 'Completada' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' :
+                    selectedCita.estado === 'Completada' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' :
                         'bg-red-500/10 text-red-500 border-red-500/30'
                     }`}>
                     {selectedCita.estado}

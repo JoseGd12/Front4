@@ -124,13 +124,28 @@ class AgendamientoService {
         let hora = '';
 
         if (fechaHoraStr) {
-            // Parsear como fecha local para evitar desfase de zona horaria
-            const dt = new Date(fechaHoraStr);
-            const y = dt.getFullYear();
-            const mo = String(dt.getMonth() + 1).padStart(2, '0');
-            const d = String(dt.getDate()).padStart(2, '0');
-            fecha = `${y}-${mo}-${d}`;
-            hora = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+            // Parsear directamente del string para evitar desfases de zona horaria.
+            // El backend devuelve "YYYY-MM-DDTHH:MM:SS" — extraemos los componentes sin
+            // pasar por new Date() que convertiría UTC a local y añadiría minutos extra.
+            const match = fechaHoraStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+            if (match) {
+                fecha = `${match[1]}-${match[2]}-${match[3]}`;
+                // Redondear minutos al múltiplo de 30 más cercano para evitar
+                // que minutos residuales del servidor desplacen la cita de su franja
+                const hh = parseInt(match[4]);
+                const mm = parseInt(match[5]);
+                const mmRedondeado = mm < 15 ? 0 : mm < 45 ? 30 : 0;
+                const hhAjustado = mm >= 45 ? hh + 1 : hh;
+                hora = `${String(hhAjustado).padStart(2, '0')}:${String(mmRedondeado).padStart(2, '0')}`;
+            } else {
+                // Fallback: parsear con Date solo si el string no tiene formato esperado
+                const dt = new Date(fechaHoraStr);
+                const y = dt.getFullYear();
+                const mo = String(dt.getMonth() + 1).padStart(2, '0');
+                const d = String(dt.getDate()).padStart(2, '0');
+                fecha = `${y}-${mo}-${d}`;
+                hora = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+            }
         }
 
         // Extraer duración numérica (de "60 minutos" a 60)
