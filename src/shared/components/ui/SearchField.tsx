@@ -1,7 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
 import { Search, X, ChevronDown } from "lucide-react";
-import { Input } from "./input";
 
 interface SearchFieldProps<T> {
   placeholder: string;
@@ -20,6 +19,8 @@ interface SearchFieldProps<T> {
   shakeClass?: string;
   onFocus?: () => void;
   dropUp?: boolean;
+  /** Modo Google Calendar: muestra placeholder como texto hasta que el usuario hace click */
+  ghostMode?: boolean;
 }
 
 export function SearchField<T>({
@@ -37,18 +38,22 @@ export function SearchField<T>({
   shakeClass = "",
   onFocus,
   dropUp = false,
+  ghostMode = false,
 }: SearchFieldProps<T>) {
   const [showResults, setShowResults] = useState(false);
+  const [isActive, setIsActive] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [portalStyle, setPortalStyle] = useState<React.CSSProperties>({});
 
-  // When there's a search query, filter items; when empty, show all items
+  // En ghostMode, solo muestra ghost si nunca se ha activado Y no hay valor
+  const showAsGhost = ghostMode && !isActive && !value;
+
   const filteredResults = value.trim()
     ? items.filter((item) => filterFn(item, value)).slice(0, maxResults)
     : items.slice(0, maxResults);
 
-  // Recalculate fixed position for dropUp portal whenever it's shown
   const updatePortalPosition = useCallback(() => {
     if (!dropUp || !wrapperRef.current) return;
     const rect = wrapperRef.current.getBoundingClientRect();
@@ -68,12 +73,25 @@ export function SearchField<T>({
   }, [dropUp, showResults, updatePortalPosition]);
 
   const handleBlur = () => {
-    timeoutRef.current = setTimeout(() => setShowResults(false), 120);
+    timeoutRef.current = setTimeout(() => {
+      setShowResults(false);
+      // No volver a ghost una vez activado — el input permanece visible
+    }, 120);
   };
 
   const handleSelect = (item: T) => {
     onSelect(item);
     setShowResults(false);
+    // En ghostMode, volver al estado ghost tras seleccionar para permitir agregar más
+    if (ghostMode) setIsActive(false);
+  };
+
+  const handleGhostClick = () => {
+    setIsActive(true);
+    setShowResults(true);
+    onFocus?.();
+    // Focus el input real en el siguiente frame
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const dropdownContent = (
@@ -101,47 +119,59 @@ export function SearchField<T>({
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
-        <Input
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setShowResults(true);
-          }}
-          onFocus={() => { setShowResults(true); onFocus?.(); }}
-          onBlur={handleBlur}
-          className={`elegante-input pl-11 pr-8 w-full ${error ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}
-        />
-        {value ? (
-          <button
-            type="button"
-            onClick={() => {
-              onClear();
-              setShowResults(false);
+      {/* Ghost state: placeholder como texto corriente */}
+      {showAsGhost ? (
+        <button
+          type="button"
+          onClick={handleGhostClick}
+          className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-sm cursor-pointer"
+        >
+          {placeholder}
+        </button>
+      ) : (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
+          <input
+            ref={inputRef}
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setShowResults(true);
             }}
-            title="Limpiar búsqueda"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        ) : (
-          <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none transition-transform duration-200 ${dropUp ? (showResults ? "" : "rotate-180") : (showResults ? "rotate-180" : "")}`} />
-        )}
+            onFocus={() => { setShowResults(true); setIsActive(true); onFocus?.(); }}
+            onBlur={handleBlur}
+            className={`elegante-input pl-11 pr-8 w-full ${error ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}
+          />
+          {value ? (
+            <button
+              type="button"
+              onClick={() => {
+                onClear();
+                setShowResults(false);
+                if (ghostMode) setIsActive(false);
+              }}
+              title="Limpiar búsqueda"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none transition-transform duration-200 ${dropUp ? (showResults ? "" : "rotate-180") : (showResults ? "rotate-180" : "")}`} />
+          )}
 
-        {/* Normal dropdown (opens downward, stays inside the component) */}
-        {showResults && !dropUp && (
-          <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
-            {dropdownContent}
-          </div>
-        )}
-      </div>
+          {showResults && !dropUp && (
+            <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
+              {dropdownContent}
+            </div>
+          )}
+        </div>
+      )}
+
       {error && (
         <p className="text-xs text-red-400 mt-1">{error}</p>
       )}
 
-      {/* DropUp dropdown: rendered via portal at body level to escape overflow containers */}
       {showResults && dropUp && ReactDOM.createPortal(
         <div
           className="bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200"

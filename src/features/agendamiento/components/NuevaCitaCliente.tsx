@@ -49,7 +49,7 @@ const productosDisponibles = [
 
 const horariosDisponibles = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const dayNames = ["D", "L", "M", "M", "J", "V", "S"];
 
 interface NuevaCita {
   servicio: string;
@@ -246,8 +246,8 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: an
                   <button onClick={nextMonth} className="p-2 bg-gray-dark rounded-lg hover:text-orange-primary"><ChevronRight className="w-4 h-4" /></button>
                 </div>
               </div>
-              <div className="grid grid-cols-7 gap-2">
-                {dayNames.map(d => <div key={d} className="text-center text-[10px] font-black text-orange-primary/50 uppercase py-2">{d}</div>)}
+              <div className="grid grid-cols-7 gap-1">
+                {dayNames.map((d, idx) => <div key={idx} className="text-center text-[9px] font-black text-orange-primary/50 uppercase py-2">{d}</div>)}
                 {Array.from({ length: getFirstDayOfMonth(currentMonth) }).map((_, i) => <div key={i}></div>)}
                 {Array.from({ length: getDaysInMonth(currentMonth) }).map((_, i) => {
                   const d = i + 1;
@@ -258,7 +258,7 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: an
                     <button
                       key={d}
                       onClick={() => { if (isAvailable) { setSelectedDate(date); setNuevaCita(prev => ({ ...prev, fecha: formatDate(date) })); } }}
-                      className={`aspect-square rounded-xl text-sm font-bold transition-all ${isSelected ? 'bg-orange-primary text-black-primary' : isAvailable ? 'text-white hover:bg-gray-medium/50' : 'text-gray-darker cursor-not-allowed'}`}
+                      className={`size-9 flex items-center justify-center rounded-full text-[11px] font-bold transition-all ${isSelected ? 'bg-orange-primary text-black-primary shadow-lg shadow-orange-primary/20' : isAvailable ? 'text-white hover:bg-gray-medium/50' : 'text-gray-darker cursor-not-allowed'}`}
                       disabled={!isAvailable}
                     >{d}</button>
                   );

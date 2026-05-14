@@ -754,8 +754,8 @@ export function NuevaCitaComponent({ isOpen, onClose }: NuevaCitaComponentProps)
 
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                  {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
-                    <div key={day} className="p-2 text-center text-sm font-semibold text-gray-light">
+                  {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, idx) => (
+                    <div key={idx} className="p-2 text-center text-[0.7rem] font-bold text-gray-light uppercase">
                       {day}
                     </div>
                   ))}
@@ -783,8 +783,8 @@ export function NuevaCitaComponent({ isOpen, onClose }: NuevaCitaComponentProps)
                           setSelectedDate(date);
                           setNuevaCita(prev => ({ ...prev, fecha: dateString }));
                         }}
-                        className={`p-3 text-center rounded-lg transition-all duration-200 ${isSelected
-                          ? 'bg-orange-primary text-black-primary font-bold'
+                        className={`size-9 flex items-center justify-center rounded-full text-[0.75rem] transition-all duration-200 ${isSelected
+                          ? 'bg-orange-primary text-black-primary font-bold shadow-lg shadow-orange-primary/20'
                           : isAvailable
                             ? 'bg-gray-darkest hover:bg-gray-darker text-white-primary border border-gray-medium'
                             : 'bg-gray-medium text-gray-light cursor-not-allowed'
