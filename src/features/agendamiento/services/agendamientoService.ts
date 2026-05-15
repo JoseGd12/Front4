@@ -25,6 +25,7 @@ export interface Agendamiento {
     clienteId: number;
     clienteNombre: string;
     clienteTelefono: string;
+    clienteFotoPerfil: string | null;
     barberoId: number;
     barberoNombre: string;
     servicioId: number | null;
@@ -229,6 +230,7 @@ class AgendamientoService {
             clienteId: Number(api.clienteId || api.ClienteId || 0),
             clienteNombre: clienteNom,
             clienteTelefono: api.clienteTelefono || api.ClienteTelefono || api.cliente?.telefono || api.Cliente?.Telefono || '',
+            clienteFotoPerfil: api.clienteFotoPerfil || api.ClienteFotoPerfil || api.cliente?.fotoPerfil || api.Cliente?.FotoPerfil || null,
             barberoId: Number(api.barberoId || api.BarberoId || 0),
             barberoNombre: barberoNom,
             servicioId: api.servicioId || api.ServicioId ? Number(api.servicioId || api.ServicioId) : null,
@@ -252,7 +254,7 @@ class AgendamientoService {
 
     private getDefaultAgendamiento(): Agendamiento {
         return {
-            id: 0, clienteId: 0, clienteNombre: 'Desconocido', clienteTelefono: '',
+            id: 0, clienteId: 0, clienteNombre: 'Desconocido', clienteTelefono: '', clienteFotoPerfil: null,
             barberoId: 0, barberoNombre: 'Desconocido', servicioId: 0, servicioIds: [], servicioNombre: 'Servicio', serviciosNombres: [],
             paqueteId: null, paqueteNombre: null, productoIds: [], productosNombres: [],
             productos: [], servicios: [],

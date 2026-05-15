@@ -1070,7 +1070,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark bg-gray-darker/50 shrink-0">
+              <div className="flex items-center justify-between px-4 pt-5 pb-3 bg-gray-darker/50 shrink-0">
                 <h2 className="text-lg font-semibold text-gray-lightest">
                   {isEditMode || selectedCita ? 'Editar Cita' : 'Nueva Cita'}
                 </h2>
@@ -1084,7 +1084,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               </div>
 
               {/* Contenido scrollable — filas del formulario (tareas 5.2–5.7) */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
 
                 {/* ── Fila: Switch Tipo ── */}
                 <div className="flex items-center gap-0 py-3 px-2">
@@ -1128,7 +1128,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     </div>
                   </div>
                 </div>
-                <div className="border-t border-gray-dark/60 mx-4" />
 
                 {/* ── Fila: Servicio / Paquete ── */}
                 <div className="flex items-start gap-0 py-3 px-2">

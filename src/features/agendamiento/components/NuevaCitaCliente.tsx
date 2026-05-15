@@ -246,9 +246,9 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: an
                   <button onClick={nextMonth} className="p-2 bg-gray-dark rounded-lg hover:text-orange-primary"><ChevronRight className="w-4 h-4" /></button>
                 </div>
               </div>
-              <div className="grid grid-cols-7 gap-1">
-                {dayNames.map((d, idx) => <div key={idx} className="text-center text-[9px] font-black text-orange-primary/50 uppercase py-2">{d}</div>)}
-                {Array.from({ length: getFirstDayOfMonth(currentMonth) }).map((_, i) => <div key={i}></div>)}
+              <div className="grid grid-cols-7 gap-0.5">
+                {dayNames.map((d, idx) => <div key={idx} className="text-center text-[0.6rem] font-medium text-orange-primary/50 uppercase py-1">{d}</div>)}
+                {Array.from({ length: getFirstDayOfMonth(currentMonth) }).map((_, i) => <div key={i} className="size-7"></div>)}
                 {Array.from({ length: getDaysInMonth(currentMonth) }).map((_, i) => {
                   const d = i + 1;
                   const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d);
@@ -258,7 +258,7 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: an
                     <button
                       key={d}
                       onClick={() => { if (isAvailable) { setSelectedDate(date); setNuevaCita(prev => ({ ...prev, fecha: formatDate(date) })); } }}
-                      className={`size-9 flex items-center justify-center rounded-full text-[11px] font-bold transition-all ${isSelected ? 'bg-orange-primary text-black-primary shadow-lg shadow-orange-primary/20' : isAvailable ? 'text-white hover:bg-gray-medium/50' : 'text-gray-darker cursor-not-allowed'}`}
+                      className={`size-7 flex items-center justify-center rounded-full text-[0.65rem] font-medium transition-all ${isSelected ? 'bg-orange-primary text-black-primary shadow-lg shadow-orange-primary/20' : isAvailable ? 'text-white hover:bg-gray-medium/50' : 'text-gray-darker cursor-not-allowed'}`}
                       disabled={!isAvailable}
                     >{d}</button>
                   );

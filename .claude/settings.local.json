@@ -33,7 +33,14 @@
       "Bash(python scripts/office/pack.py \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_unpacked/\" \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Contrato_Edwins_Barberia.docx\" --original \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\")",
       "Bash(PYTHONIOENCODING=utf-8 python scripts/office/pack.py \"C:\\\\Users\\\\Jose\\\\Downloads\\\\contrato_unpacked/\" \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Contrato_Edwins_Barberia.docx\" --original \"C:\\\\Users\\\\Jose\\\\Downloads\\\\Modelo Contrato Informático.docx\" --validate false)",
       "Bash(xargs grep:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(winget upgrade:*)",
+      "Skill(ui-ux-pro-max)",
+      "Bash(python skills/ui-ux-pro-max/scripts/search.py \"barbershop SaaS dashboard notification panel dark mode professional\" --design-system -p \"Barbershop Admin\")",
+      "Bash(py --version)"
     ]
+  },
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true
   }
 }

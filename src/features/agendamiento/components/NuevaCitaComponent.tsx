@@ -737,34 +737,34 @@ export function NuevaCitaComponent({ isOpen, onClose }: NuevaCitaComponentProps)
                 <div className="flex items-center justify-between mb-4">
                   <button
                     onClick={prevMonth}
-                    className="p-2 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
+                    className="p-1.5 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
                   >
-                    <ChevronLeft className="w-5 h-5 text-white-primary" />
+                    <ChevronLeft className="w-4 h-4 text-white-primary" />
                   </button>
-                  <h4 className="text-lg font-bold text-white-primary">
+                  <h4 className="text-sm font-semibold text-white-primary capitalize">
                     {currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
                   </h4>
                   <button
                     onClick={nextMonth}
-                    className="p-2 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
+                    className="p-1.5 rounded-lg bg-gray-darker hover:bg-gray-medium border border-gray-medium transition-colors"
                   >
-                    <ChevronRight className="w-5 h-5 text-white-primary" />
+                    <ChevronRight className="w-4 h-4 text-white-primary" />
                   </button>
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1 mb-2">
+                <div className="grid grid-cols-7 gap-0.5 mb-1">
                   {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, idx) => (
-                    <div key={idx} className="p-2 text-center text-[0.7rem] font-bold text-gray-light uppercase">
+                    <div key={idx} className="p-0.5 text-center text-[0.6rem] font-medium text-gray-light uppercase">
                       {day}
                     </div>
                   ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid grid-cols-7 gap-0.5">
                   {/* Empty cells for days before the first day of the month */}
                   {[...Array(getFirstDayOfMonth(currentMonth))].map((_, index) => (
-                    <div key={index} className="p-3" />
+                    <div key={index} className="size-7" />
                   ))}
 
                   {/* Days of the month */}
@@ -783,7 +783,7 @@ export function NuevaCitaComponent({ isOpen, onClose }: NuevaCitaComponentProps)
                           setSelectedDate(date);
                           setNuevaCita(prev => ({ ...prev, fecha: dateString }));
                         }}
-                        className={`size-9 flex items-center justify-center rounded-full text-[0.75rem] transition-all duration-200 ${isSelected
+                        className={`size-7 flex items-center justify-center rounded-full text-[0.65rem] transition-all duration-200 ${isSelected
                           ? 'bg-orange-primary text-black-primary font-bold shadow-lg shadow-orange-primary/20'
                           : isAvailable
                             ? 'bg-gray-darkest hover:bg-gray-darker text-white-primary border border-gray-medium'
