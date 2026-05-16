@@ -217,15 +217,14 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
         });
       });
 
-      // El backend ya cubre todas las citas que empezaron y no fueron completadas.
-      // El frontend solo agrega las de hoy que están EN CURSO y aún no aparecieron en el backend
-      // (latencia de cache del backend de ~1 min) para mostrar minutosRestantes en tiempo real.
+      // El backend cubre citas ya terminadas. El frontend cubre únicamente
+      // las que están en los últimos 10 minutos antes de terminar (ventana en tiempo real).
       todasCitas.forEach((cita) => {
         if (cita.estado === "Cancelada" || cita.estado === "Completada") return;
         if (cita.fecha !== todayStr) return;
         const notifId = `cita-${cita.id}`;
         if (actionedRef.current.has(notifId)) return;
-        if (notifMap.has(notifId)) return; // backend ya la tiene
+        if (notifMap.has(notifId)) return;
 
         const [hStr, mStr] = (cita.hora || "00:00").split(":");
         const citaStartMin = parseInt(hStr) * 60 + parseInt(mStr || "0");
@@ -233,8 +232,8 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
         const citaEndMin = citaStartMin + duracion;
         const minutosRestantes = citaEndMin - currentMinutes;
 
-        // Mostrar desde que empieza hasta que termina (currentMinutes >= citaStartMin)
-        if (currentMinutes >= citaStartMin && minutosRestantes > 0) {
+        // Mostrar solo cuando falten 10 minutos (o menos) para terminar
+        if (minutosRestantes > 0 && minutosRestantes <= 10) {
           if (!createdAtMap[notifId]) { createdAtMap[notifId] = Date.now(); createdAtChanged = true; }
           notifMap.set(notifId, {
             id: notifId,
@@ -475,32 +474,43 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
                                 : "Pendiente"}
                           </span>
                           <div className="flex gap-2">
-                            <button
-                              disabled={isLoading}
-                              onClick={() => handleAction(notif.citaId, "Completada", notif.id)}
-                              aria-label="Completar cita"
-                              title="Completar"
-                              className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-600/20 border border-green-500/40 text-green-400 hover:bg-green-600/30 hover:border-green-500/60 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                              type="button"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              disabled={isLoading}
-                              onClick={() => {
-                                const fullCita = citasMapRef.current.get(notif.citaId);
-                                if (fullCita) {
-                                  setCitaParcialActual(fullCita);
-                                  setShowModalParcial(true);
-                                }
-                              }}
-                              aria-label="Completar parcialmente"
-                              title="Completar parcialmente"
-                              className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-primary/15 border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/25 hover:border-orange-primary/60 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                              type="button"
-                            >
-                              <ListChecks className="w-4 h-4" />
-                            </button>
+                            {notif.minutosRestantes <= 0 && (
+                              <>
+                                <button
+                                  disabled={isLoading}
+                                  onClick={() => handleAction(notif.citaId, "Completada", notif.id)}
+                                  aria-label="Completar cita"
+                                  title="Completar"
+                                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-600/20 border border-green-500/40 text-green-400 hover:bg-green-600/30 hover:border-green-500/60 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                  type="button"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  disabled={isLoading}
+                                  onClick={async () => {
+                                    let fullCita = citasMapRef.current.get(notif.citaId);
+                                    if (!fullCita) {
+                                      try {
+                                        fullCita = await agendamientoService.getAgendamientoById(notif.citaId);
+                                        if (fullCita?.id) citasMapRef.current.set(fullCita.id, fullCita);
+                                      } catch {
+                                        toast.error("Error", { description: "No se pudo cargar la cita." });
+                                        return;
+                                      }
+                                    }
+                                    setCitaParcialActual(fullCita);
+                                    setShowModalParcial(true);
+                                  }}
+                                  aria-label="Completar parcialmente"
+                                  title="Completar parcialmente"
+                                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-primary/15 border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/25 hover:border-orange-primary/60 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                  type="button"
+                                >
+                                  <ListChecks className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                             <button
                               disabled={isLoading}
                               onClick={() => handleAction(notif.citaId, "Cancelada", notif.id)}

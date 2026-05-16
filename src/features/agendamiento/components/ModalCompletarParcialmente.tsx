@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { toast } from '../../../shared/components/ui/notify';
 
 interface ModalCompletarParcialmenteProps {
@@ -92,14 +93,14 @@ export function ModalCompletarParcialmente({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <>
       <div
-        className="fixed inset-0 bg-black/40 z-40"
+        className="fixed inset-0 bg-black/60 z-[10000] backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-96 bg-gray-darkest rounded-2xl border border-gray-dark shadow-2xl z-50 flex flex-col max-h-96 overflow-hidden">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-md bg-gray-darkest rounded-2xl border border-gray-dark shadow-2xl z-[10001] flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-dark/60 bg-gray-darker/50 shrink-0">
           <h2 className="text-lg font-semibold text-white-primary">
@@ -251,6 +252,7 @@ export function ModalCompletarParcialmente({
         </div>
 
       </div>
-    </>
+    </>,
+    document.body
   );
 }

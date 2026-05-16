@@ -2910,7 +2910,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             style={{
               top: popoverPosition.top,
               left: popoverPosition.left,
-              width: POPOVER_WIDTH,
+              width: `min(${POPOVER_WIDTH}px, calc(100vw - 32px))`,
               maxHeight: 'calc(100vh - 16px)',
               boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)',
               zIndex: 9999,
@@ -3158,47 +3158,41 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               <div className="border-t border-gray-dark/60 mt-1" />
 
               {/* ── Acciones ── */}
-              {selectedCita.estado !== 'Completada' && (
-                <div className="flex justify-end gap-3 pt-3">
-                  <button
-                    onClick={() => handleChangeEstado(selectedCita.id, 'Cancelada')}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-600/10 border border-transparent hover:border-red-500/30 transition-all"
-                  >
-                    Cancelar cita
-                  </button>
-                  <button
-                    onClick={() => setShowModalParcial(true)}
-                    className="px-4 py-2 rounded-lg text-sm font-medium border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/10 transition-all"
-                  >
-                    Completar Parcialmente
-                  </button>
-                  <button
-                    onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-primary text-black-primary hover:bg-orange-primary/90 transition-all"
-                  >
-                    Completar
-                  </button>
-                </div>
-              )}
-              <ModalCompletarParcialmente
-                isOpen={showModalParcial}
-                cita={selectedCita}
-                onClose={() => setShowModalParcial(false)}
-                onComplete={async (servicios, productos) => {
-                  await agendamientoService.completarParcialmente(selectedCita.id, {
-                    serviciosCompletados: servicios,
-                    productosCompletados: productos,
-                    estado: "Completada"
-                  });
-                  setCitas(citas.map(c =>
-                    c.id === selectedCita.id ? { ...c, estado: 'Completada' } : c
-                  ));
-                  window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId: selectedCita.id, estado: "Completada" } }));
-                  setSelectedCita({ ...selectedCita, estado: 'Completada' });
-                  setShowModalParcial(false);
-                  success("Cita completada", "Completada parcialmente con venta generada.");
-                }}
-              />
+              {selectedCita.estado !== 'Completada' && (() => {
+                // No permitir completar citas futuras (que aún no han terminado)
+                const [h, m] = (selectedCita.hora || '00:00').split(':');
+                const citaStart = new Date(selectedCita.fecha + 'T' + h.padStart(2, '0') + ':' + m.padStart(2, '0'));
+                const duracion = Number(selectedCita.duracion || 60);
+                const citaEnd = new Date(citaStart.getTime() + (duracion * 60000));
+                const isFuture = citaEnd > new Date();
+
+                return (
+                  <div className="flex flex-wrap justify-end gap-2 sm:gap-3 pt-3">
+                    <button
+                      onClick={() => handleChangeEstado(selectedCita.id, 'Cancelada')}
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-600/10 border border-transparent hover:border-red-500/30 transition-all"
+                    >
+                      Cancelar cita
+                    </button>
+                    {!isFuture && (
+                      <>
+                        <button
+                          onClick={() => setShowModalParcial(true)}
+                          className="px-4 py-2 rounded-lg text-sm font-medium border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/10 transition-all"
+                        >
+                          Completar Parcialmente
+                        </button>
+                        <button
+                          onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
+                          className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-primary text-black-primary hover:bg-orange-primary/90 transition-all"
+                        >
+                          Completar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             );
           })() : null}
@@ -3207,6 +3201,28 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         </div>
         </>,
         document.body
+      )}
+
+      {showModalParcial && selectedCita && (
+        <ModalCompletarParcialmente
+          isOpen={true}
+          cita={selectedCita}
+          onClose={() => setShowModalParcial(false)}
+          onComplete={async (servicios, productos) => {
+            await agendamientoService.completarParcialmente(selectedCita.id, {
+              serviciosCompletados: servicios,
+              productosCompletados: productos,
+              estado: "Completada"
+            });
+            setCitas(citas.map(c =>
+              c.id === selectedCita.id ? { ...c, estado: 'Completada' } : c
+            ));
+            window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId: selectedCita.id, estado: "Completada" } }));
+            setSelectedCita({ ...selectedCita, estado: 'Completada' });
+            setShowModalParcial(false);
+            success("Cita completada", "Completada parcialmente con venta generada.");
+          }}
+        />
       )}
 
       {/* Dialog de confirmación de eliminación */}
