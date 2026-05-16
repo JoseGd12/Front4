@@ -24,7 +24,6 @@ interface CitaNotificationBellProps {
   onNavigateToAgendamientos: () => void;
 }
 
-const STORAGE_KEY = "cita_notifications_pending";
 const ACTIONED_KEY = "cita_notifications_actioned";
 const CREATED_AT_KEY = "cita_notifications_created_at";
 const CACHE_KEY = "cita_notifications_cache";
@@ -104,23 +103,6 @@ const tierStyles: Record<
   },
 };
 
-const loadPersistedIds = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
-};
-
-const savePersistedIds = (ids: Set<string>) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
-  } catch {}
-};
-
 const loadActionedIds = (): Set<string> => {
   try {
     const raw = localStorage.getItem(ACTIONED_KEY);
@@ -185,118 +167,97 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
 
   const checkCitas = useCallback(async () => {
     try {
-      const citas = await agendamientoService.getAgendamientos();
+      const [porTerminar, todasCitas] = await Promise.all([
+        agendamientoService.getCitasPorTerminar(),
+        agendamientoService.getAgendamientos(),
+      ]);
+
       const newCitasMap = new Map<number, Agendamiento>();
-      citas.forEach((c: Agendamiento) => { if (c.id) newCitasMap.set(c.id, c); });
+      [...porTerminar, ...todasCitas].forEach((c) => { if (c.id) newCitasMap.set(c.id, c); });
       citasMapRef.current = newCitasMap;
+
       const now = new Date();
       const todayStr = toLocalDateString(now);
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-      const persistedIds = loadPersistedIds();
       const actionedIds = loadActionedIds();
-      const apiCitaIds = new Set(citas.map((c: any) => `cita-${c.id}`));
-
       const createdAtMap = loadCreatedAtMap();
       let createdAtChanged = false;
 
-      let persistedChanged = false;
-      for (const id of [...persistedIds]) {
-        if (!apiCitaIds.has(id)) {
-          persistedIds.delete(id);
-          persistedChanged = true;
-          if (id in createdAtMap) { delete createdAtMap[id]; createdAtChanged = true; }
-        }
-      }
-      if (persistedChanged) savePersistedIds(persistedIds);
-
-      let actionedChanged = false;
+      const allApiIds = new Set([
+        ...porTerminar.map((c) => `cita-${c.id}`),
+        ...todasCitas.map((c) => `cita-${c.id}`),
+      ]);
       for (const id of [...actionedIds]) {
-        if (!apiCitaIds.has(id)) {
+        if (!allApiIds.has(id)) {
           actionedIds.delete(id);
           actionedRef.current.delete(id);
-          actionedChanged = true;
           if (id in createdAtMap) { delete createdAtMap[id]; createdAtChanged = true; }
         }
       }
-      if (actionedChanged) saveActionedIds(actionedIds);
-      if (createdAtChanged) saveCreatedAtMap(createdAtMap);
+      saveActionedIds(actionedIds);
 
-      const incoming: CitaNotification[] = [];
+      const notifMap = new Map<string, CitaNotification>();
 
-      citas.forEach((cita: any) => {
+      porTerminar.forEach((cita) => {
         const notifId = `cita-${cita.id}`;
-        const wasPersisted = persistedIds.has(notifId);
+        if (actionedRef.current.has(notifId)) return;
+        if (!createdAtMap[notifId]) { createdAtMap[notifId] = Date.now(); createdAtChanged = true; }
+        notifMap.set(notifId, {
+          id: notifId,
+          citaId: cita.id,
+          clienteId: cita.clienteId,
+          clienteNombre: cita.clienteNombre || "Cliente",
+          clienteFotoPerfil: clientesFotoMap.get(cita.clienteId) || null,
+          servicioNombre: cita.servicioNombre || cita.paqueteNombre || "Servicio",
+          barberoNombre: cita.barberoNombre || "Barbero",
+          hora: cita.hora,
+          fecha: cita.fecha,
+          minutosRestantes: 0,
+          createdAt: createdAtMap[notifId] ?? Date.now(),
+        });
+      });
 
-        if (cita.estado === "Cancelada" || cita.estado === "Completada") {
-          if (wasPersisted) {
-            persistedIds.delete(notifId);
-            savePersistedIds(persistedIds);
-          }
-          if (actionedIds.has(notifId)) {
-            actionedIds.delete(notifId);
-            actionedRef.current.delete(notifId);
-            saveActionedIds(actionedIds);
-          }
-          return;
-        }
-
-        if (!wasPersisted && cita.fecha !== todayStr) return;
+      // El backend ya cubre todas las citas que empezaron y no fueron completadas.
+      // El frontend solo agrega las de hoy que están EN CURSO y aún no aparecieron en el backend
+      // (latencia de cache del backend de ~1 min) para mostrar minutosRestantes en tiempo real.
+      todasCitas.forEach((cita) => {
+        if (cita.estado === "Cancelada" || cita.estado === "Completada") return;
+        if (cita.fecha !== todayStr) return;
+        const notifId = `cita-${cita.id}`;
+        if (actionedRef.current.has(notifId)) return;
+        if (notifMap.has(notifId)) return; // backend ya la tiene
 
         const [hStr, mStr] = (cita.hora || "00:00").split(":");
         const citaStartMin = parseInt(hStr) * 60 + parseInt(mStr || "0");
         const duracion = Number(cita.duracion || 60);
         const citaEndMin = citaStartMin + duracion;
+        const minutosRestantes = citaEndMin - currentMinutes;
 
-        let minutosRestantes = 0;
-        let inWindow = false;
-        if (cita.fecha === todayStr) {
-          minutosRestantes = citaEndMin - currentMinutes;
-          inWindow = minutosRestantes > 0 && minutosRestantes <= 10 && currentMinutes >= citaStartMin;
-        }
-
-        if ((inWindow || wasPersisted) && !actionedRef.current.has(notifId)) {
-          if (inWindow && !wasPersisted) {
-            persistedIds.add(notifId);
-            savePersistedIds(persistedIds);
-          }
-          if (!createdAtMap[notifId]) {
-            createdAtMap[notifId] = Date.now();
-            saveCreatedAtMap(createdAtMap);
-          }
-
-          incoming.push({
+        // Mostrar desde que empieza hasta que termina (currentMinutes >= citaStartMin)
+        if (currentMinutes >= citaStartMin && minutosRestantes > 0) {
+          if (!createdAtMap[notifId]) { createdAtMap[notifId] = Date.now(); createdAtChanged = true; }
+          notifMap.set(notifId, {
             id: notifId,
             citaId: cita.id,
-            clienteId: Number(cita.clienteId),
+            clienteId: cita.clienteId,
             clienteNombre: cita.clienteNombre || "Cliente",
-            clienteFotoPerfil: clientesFotoMap.get(Number(cita.clienteId)) || null,
+            clienteFotoPerfil: clientesFotoMap.get(cita.clienteId) || null,
             servicioNombre: cita.servicioNombre || cita.paqueteNombre || "Servicio",
             barberoNombre: cita.barberoNombre || "Barbero",
             hora: cita.hora,
             fecha: cita.fecha,
-            minutosRestantes: inWindow ? Math.ceil(minutosRestantes) : 0,
+            minutosRestantes: Math.ceil(minutosRestantes),
             createdAt: createdAtMap[notifId] ?? Date.now(),
           });
         }
       });
 
-      setNotifications((prev) => {
-        const incomingMap = new Map(incoming.map((n) => [n.id, n]));
-        const updated = prev
-          .filter((n) => !actionedRef.current.has(n.id))
-          .map((n) => {
-            const fresh = incomingMap.get(n.id);
-            return fresh ? { ...n, minutosRestantes: fresh.minutosRestantes } : n;
-          });
-        const existingIds = new Set(updated.map((n) => n.id));
-        const added = incoming.filter((n) => !existingIds.has(n.id));
-        const next = [...updated, ...added];
-        saveNotificationsCache(next);
-        return next;
-      });
+      if (createdAtChanged) saveCreatedAtMap(createdAtMap);
+      const next = [...notifMap.values()];
+      saveNotificationsCache(next);
+      setNotifications(next);
     } catch {
-      // API caída — no tocar estado ni cache, notifs del cache siguen visibles
+      // API down — keep cached notifications visible
     }
   }, [clientesFotoMap]);
 
@@ -312,9 +273,6 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
     const actionedIds = loadActionedIds();
     actionedIds.add(id);
     saveActionedIds(actionedIds);
-    const persistedIds = loadPersistedIds();
-    persistedIds.delete(id);
-    savePersistedIds(persistedIds);
     const createdAtMap = loadCreatedAtMap();
     delete createdAtMap[id];
     saveCreatedAtMap(createdAtMap);
@@ -510,7 +468,11 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
                         {/* Bottom row: tiempo restante izq + acciones der */}
                         <div className="flex justify-between items-center px-3 pb-3">
                           <span className={`text-[10px] font-medium ${notif.minutosRestantes > 0 ? "text-orange-primary" : "text-gray-lighter"}`}>
-                            {notif.minutosRestantes > 0 ? `Termina en ${notif.minutosRestantes} min` : "Pendiente"}
+                            {notif.minutosRestantes > 0
+                              ? `Termina en ${notif.minutosRestantes} min`
+                              : notif.fecha !== toLocalDateString(new Date())
+                                ? `Pendiente del ${notif.fecha.split("-").reverse().join("/")}`
+                                : "Pendiente"}
                           </span>
                           <div className="flex gap-2">
                             <button

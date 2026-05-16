@@ -446,6 +446,19 @@ class AgendamientoService {
         }
     }
 
+    async getCitasPorTerminar(): Promise<Agendamiento[]> {
+        const response = await this.request('/Agendamientos/por-terminar');
+        const text = await response.text();
+        if (!text || !text.trim()) return [];
+        try {
+            const raw = JSON.parse(text);
+            const data = Array.isArray(raw) ? raw : [];
+            return data.map(item => this.mapApiToComponent(item));
+        } catch {
+            return [];
+        }
+    }
+
     async updateAgendamientoStatus(id: number, estado: string): Promise<any> {
         const response = await this.request(`/Agendamientos/${id}/estado`, {
             method: 'PATCH',
