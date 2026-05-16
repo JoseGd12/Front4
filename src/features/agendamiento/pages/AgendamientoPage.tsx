@@ -25,6 +25,7 @@ import { FormSection } from "../../../shared/components/ui/FormSection";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import { ModalCompletarParcialmente } from "../components/ModalCompletarParcialmente";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
@@ -240,6 +241,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [selectedCita, setSelectedCita] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'crear'>('calendar');
   const [ventasPorCita, setVentasPorCita] = useState<Record<number, number>>({});
+  const [showModalParcial, setShowModalParcial] = useState(false);
   // Índice de la cita activa cuando hay varias en una misma franja (pestañas; key: `${fecha}-${hora}`)
   const [slotCitaIndex, setSlotCitaIndex] = useState<Record<string, number>>({});
 
@@ -3165,6 +3167,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     Cancelar cita
                   </button>
                   <button
+                    onClick={() => setShowModalParcial(true)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/10 transition-all"
+                  >
+                    Completar Parcialmente
+                  </button>
+                  <button
                     onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
                     className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-primary text-black-primary hover:bg-orange-primary/90 transition-all"
                   >
@@ -3172,6 +3180,25 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   </button>
                 </div>
               )}
+              <ModalCompletarParcialmente
+                isOpen={showModalParcial}
+                cita={selectedCita}
+                onClose={() => setShowModalParcial(false)}
+                onComplete={async (servicios, productos) => {
+                  await agendamientoService.completarParcialmente(selectedCita.id, {
+                    serviciosCompletados: servicios,
+                    productosCompletados: productos,
+                    estado: "Completada"
+                  });
+                  setCitas(citas.map(c =>
+                    c.id === selectedCita.id ? { ...c, estado: 'Completada' } : c
+                  ));
+                  window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId: selectedCita.id, estado: "Completada" } }));
+                  setSelectedCita({ ...selectedCita, estado: 'Completada' });
+                  setShowModalParcial(false);
+                  success("Cita completada", "Completada parcialmente con venta generada.");
+                }}
+              />
             </div>
             );
           })() : null}

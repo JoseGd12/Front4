@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, Check, X, Clock, User, Scissors, CalendarDays } from "lucide-react";
-import { agendamientoService } from "../../agendamiento/services/agendamientoService";
+import { Bell, Check, X, Clock, User, Scissors, CalendarDays, ListChecks } from "lucide-react";
+import { agendamientoService, type Agendamiento } from "../../agendamiento/services/agendamientoService";
 import { clientesService } from "../../clientes/services/clientesService";
 import { toast } from "../../../shared/components/ui/notify";
+import { ModalCompletarParcialmente } from "../../agendamiento/components/ModalCompletarParcialmente";
 
 interface CitaNotification {
   id: string;
@@ -146,6 +147,9 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
   });
   const [open, setOpen] = useState(false);
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [showModalParcial, setShowModalParcial] = useState(false);
+  const [citaParcialActual, setCitaParcialActual] = useState<Agendamiento | null>(null);
+  const citasMapRef = useRef<Map<number, Agendamiento>>(new Map());
   const [clientesFotoMap, setClientesFotoMap] = useState<Map<number, string>>(new Map());
   // _tick fuerza re-render cada 60s para actualizar "Hace X min" en tiempo real
   const [_tick, setTick] = useState(0);
@@ -182,6 +186,9 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
   const checkCitas = useCallback(async () => {
     try {
       const citas = await agendamientoService.getAgendamientos();
+      const newCitasMap = new Map<number, Agendamiento>();
+      citas.forEach((c: Agendamiento) => { if (c.id) newCitasMap.set(c.id, c); });
+      citasMapRef.current = newCitasMap;
       const now = new Date();
       const todayStr = toLocalDateString(now);
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -518,6 +525,22 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
                             </button>
                             <button
                               disabled={isLoading}
+                              onClick={() => {
+                                const fullCita = citasMapRef.current.get(notif.citaId);
+                                if (fullCita) {
+                                  setCitaParcialActual(fullCita);
+                                  setShowModalParcial(true);
+                                }
+                              }}
+                              aria-label="Completar parcialmente"
+                              title="Completar parcialmente"
+                              className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-primary/15 border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/25 hover:border-orange-primary/60 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                              type="button"
+                            >
+                              <ListChecks className="w-4 h-4" />
+                            </button>
+                            <button
+                              disabled={isLoading}
                               onClick={() => handleAction(notif.citaId, "Cancelada", notif.id)}
                               aria-label="Cancelar cita"
                               title="Cancelar"
@@ -540,6 +563,26 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
             )}
           </div>
         </div>
+      )}
+      {showModalParcial && citaParcialActual && (
+        <ModalCompletarParcialmente
+          isOpen={showModalParcial}
+          cita={citaParcialActual}
+          onClose={() => {
+            setShowModalParcial(false);
+            setCitaParcialActual(null);
+          }}
+          onComplete={async (servicios, productos) => {
+            await agendamientoService.completarParcialmente(citaParcialActual.id, {
+              serviciosCompletados: servicios,
+              productosCompletados: productos,
+              estado: "Completada"
+            });
+            removeAfterAction(`cita-${citaParcialActual.id}`);
+            window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId: citaParcialActual.id, estado: "Completada" } }));
+            toast.success("Cita completada parcialmente");
+          }}
+        />
       )}
     </div>
   );

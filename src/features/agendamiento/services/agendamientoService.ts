@@ -423,6 +423,29 @@ class AgendamientoService {
         return this.mapApiToComponent(result);
     }
 
+    async completarParcialmente(
+        id: number,
+        data: {
+            serviciosCompletados: number[];
+            productosCompletados: number[];
+            estado: string;
+        }
+    ): Promise<any> {
+        const response = await this.request(
+            `/Agendamientos/${id}/completar-parcialmente`,
+            {
+                method: 'POST',
+                body: JSON.stringify(data)
+            }
+        );
+        const text = await response.text();
+        try {
+            return text ? JSON.parse(text) : {};
+        } catch {
+            throw new Error('No se pudo procesar la respuesta del servidor');
+        }
+    }
+
     async updateAgendamientoStatus(id: number, estado: string): Promise<any> {
         const response = await this.request(`/Agendamientos/${id}/estado`, {
             method: 'PATCH',
