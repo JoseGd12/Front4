@@ -377,31 +377,28 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell button */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-label="Notificaciones de citas"
-        aria-expanded={open}
-        type="button"
-        className={`relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-200 cursor-pointer ${
-          activeCount > 0
-            ? "bg-orange-primary/10 border-orange-primary/40 hover:bg-orange-primary/15 hover:border-orange-primary/60"
-            : "bg-gray-darker border-gray-dark hover:border-gray-lighter/30 hover:bg-gray-dark"
-        }`}
-      >
-        <Bell
-          className={`w-4 h-4 transition-colors duration-200 ${
-            activeCount > 0 ? "text-orange-primary" : "text-gray-lightest"
-          }`}
-        />
+      <div className="relative inline-flex">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Notificaciones de citas"
+          aria-expanded={open}
+          type="button"
+          className="flex items-center justify-center p-1 transition-colors duration-200 cursor-pointer"
+        >
+          <Bell
+            className={`w-8 h-8 transition-colors duration-200 ${
+              activeCount > 0
+                ? "text-orange-primary fill-orange-primary"
+                : "text-gray-lighter hover:text-gray-lightest"
+            }`}
+          />
+        </button>
         {activeCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-primary opacity-50" />
-            <span className="relative flex items-center justify-center w-4 h-4 rounded-full bg-orange-primary text-black text-[9px] font-black leading-none">
-              {activeCount > 9 ? "9+" : activeCount}
-            </span>
+          <span className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold leading-none pointer-events-none z-10 border-2 border-gray-darkest">
+            {activeCount > 9 ? "9+" : activeCount}
           </span>
         )}
-      </button>
+      </div>
 
       {/* Dropdown */}
       {open && (
@@ -417,10 +414,8 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark/60 bg-gray-darker/40">
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/20 shrink-0">
-                <Clock className="w-3.5 h-3.5 text-orange-primary" />
-              </div>
+            <div className="flex items-center gap-4">
+              <Clock className="w-5 h-5 text-orange-primary shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-white-primary leading-none">Citas por terminar</p>
                 {activeCount > 0 && (

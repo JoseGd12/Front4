@@ -2374,12 +2374,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
                   <FileText className="w-5 h-5 text-gray-lighter" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 border-b border-transparent focus-within:border-orange-primary/60 transition-colors pb-1">
                   <textarea
                     value={nuevaCita.notas}
                     onChange={(e) => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
                     placeholder="Agregar notas o instrucciones especiales..."
-                    className="w-full bg-transparent text-sm text-gray-lightest placeholder-gray-lighter resize-none focus:outline-none min-h-[60px]"
+                    className="w-full bg-transparent text-sm text-gray-lightest placeholder-gray-lighter resize-none focus:outline-none focus:ring-0 focus:shadow-none min-h-[60px]"
+                    style={{ outline: 'none', boxShadow: 'none' }}
                   />
                 </div>
               </div>
