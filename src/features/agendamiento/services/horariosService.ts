@@ -9,16 +9,25 @@ export interface HorarioBarbero {
     horaInicio: string; // "HH:mm"
     horaFin: string; // "HH:mm"
     estado?: boolean;
+    horarioSemanalId?: number;
 }
 
-// DTOs internos para comunicación con API
-interface HorarioBarberoApi {
+export interface HorarioSemanalApi {
     id: number;
     barberoId: number;
+    barberoNombre: string | null;
+    fechaInicioSemana: string;
+    fechaFinSemana: string;
+    estado: string; // "Activo", "Pendiente", "Finalizado"
+    detalles: DetalleHorarioDiaApi[];
+}
+
+export interface DetalleHorarioDiaApi {
+    id: number;
+    horarioSemanalId: number;
     diaSemana: number; // 1=Lunes, 7=Domingo
-    horaInicio: string; // "HH:mm:ss"
-    horaFin: string; // "HH:mm:ss"
-    estado: boolean;
+    horaInicio: string; // "HH:mm"
+    horaFin: string; // "HH:mm"
 }
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -53,115 +62,173 @@ class HorariosService {
         }
     }
 
-    private mapApiToLocal(apiData: any): HorarioBarbero {
-        const diaNum = apiData.diaSemana ?? apiData.DiaSemana;
-        const diaNombre = apiData.dia ?? apiData.Dia;
-        let diaStr = "Desconocido";
-        if (typeof diaNombre === 'string' && diaNombre.trim()) {
-            diaStr = String(diaNombre);
-        } else if (typeof diaNum === 'number') {
-            // API: 1=Lunes..6=Sábado, 7 u 0=Domingo
-            if (diaNum === 7 || diaNum === 0) diaStr = "Domingo";
-            else if (diaNum >= 1 && diaNum <= 6) diaStr = DIAS[diaNum];
+    private parseItems(raw: any): any[] {
+        if (Array.isArray(raw)) return raw;
+        if (raw && typeof raw === 'object') {
+            if (Array.isArray(raw.items)) return raw.items;
+            if (Array.isArray(raw.data)) return raw.data;
+            if (Array.isArray(raw.$values)) return raw.$values;
+            const firstArray = Object.values(raw).find((v: any) => Array.isArray(v));
+            return (firstArray as any[]) || [];
         }
-        if (diaStr !== "Desconocido") {
-            diaStr = normalizeDiaNombre(diaStr);
-        }
-        const hIniRaw = apiData.horaInicio ?? apiData.HoraInicio ?? "00:00";
-        const hFinRaw = apiData.horaFin ?? apiData.HoraFin ?? "00:00";
-        const hInicio = String(hIniRaw).substring(0, 5);
-        const hFin = String(hFinRaw).substring(0, 5);
-        return {
-            id: apiData.id ?? apiData.Id,
-            barberoId: apiData.barberoId ?? apiData.BarberoId,
-            dia: diaStr,
-            horaInicio: hInicio,
-            horaFin: hFin,
-            estado: (apiData.estado ?? apiData.Estado ?? true)
-        };
+        return [];
     }
 
-    private mapLocalToApiCreate(local: HorarioBarbero): any {
-        let diaInt = DIAS.indexOf(local.dia);
-        if (local.dia === "Domingo") diaInt = 7;
-
-        return {
-            BarberoId: local.barberoId,
-            DiaSemana: diaInt,
-            HoraInicio: local.horaInicio.length === 5 ? `${local.horaInicio}:00` : local.horaInicio,
-            HoraFin: local.horaFin.length === 5 ? `${local.horaFin}:00` : local.horaFin
-        };
+    private diaSemanaToNombre(diaSemana: number): string {
+        if (diaSemana === 7 || diaSemana === 0) return "Domingo";
+        if (diaSemana >= 1 && diaSemana <= 6) return DIAS[diaSemana];
+        return "Desconocido";
     }
 
-    private mapLocalToApiUpdate(local: HorarioBarbero): any {
-        let diaInt = DIAS.indexOf(local.dia);
-        if (local.dia === "Domingo") diaInt = 7;
-
-        return {
-            BarberoId: local.barberoId,
-            DiaSemana: diaInt,
-            HoraInicio: local.horaInicio.length === 5 ? `${local.horaInicio}:00` : local.horaInicio,
-            HoraFin: local.horaFin.length === 5 ? `${local.horaFin}:00` : local.horaFin,
-            Estado: local.estado ?? true
-        };
+    private diaNumFromNombre(dia: string): number {
+        const normalizado = normalizeDiaNombre(dia);
+        const idx = DIAS.indexOf(normalizado);
+        if (idx === 0) return 7; // Domingo
+        return idx > 0 ? idx : 0;
     }
+
+    private flattenSemanalToHorarioBarbero(semanal: HorarioSemanalApi): HorarioBarbero[] {
+        const estadoActivo = semanal.estado === "Activo";
+        return semanal.detalles.map(d => ({
+            id: d.id,
+            barberoId: semanal.barberoId,
+            dia: normalizeDiaNombre(this.diaSemanaToNombre(d.diaSemana)),
+            horaInicio: String(d.horaInicio).substring(0, 5),
+            horaFin: String(d.horaFin).substring(0, 5),
+            estado: estadoActivo,
+            horarioSemanalId: semanal.id
+        }));
+    }
+
+    // ── Métodos que devuelven la estructura plana (compatibilidad) ──
 
     async getHorarios(): Promise<HorarioBarbero[]> {
-        const response = await this.request('/HorariosBarberos?page=1&pageSize=100');
+        const response = await this.request('/HorariosBarberos?page=1&pageSize=200');
         const text = await response.text();
         const raw = text ? JSON.parse(text) : [];
-        let items: any[] = [];
-        if (Array.isArray(raw)) {
-            items = raw;
-        } else if (raw && typeof raw === 'object') {
-            if (Array.isArray(raw.items)) items = raw.items;
-            else if (Array.isArray(raw.data)) items = raw.data;
-            else if (Array.isArray(raw.$values)) items = raw.$values;
-            else {
-                const firstArray = Object.values(raw).find((v: any) => Array.isArray(v));
-                items = firstArray || [];
-            }
-        }
-        return items.map(d => this.mapApiToLocal(d));
+        const items: HorarioSemanalApi[] = this.parseItems(raw);
+        return items.flatMap(s => this.flattenSemanalToHorarioBarbero(s));
     }
 
     async getHorariosByBarberoId(barberoId: number): Promise<HorarioBarbero[]> {
-        const response = await this.request(`/HorariosBarberos/barbero/${barberoId}?page=1&pageSize=100`);
+        const response = await this.request(`/HorariosBarberos/barbero/${barberoId}?page=1&pageSize=200`);
         const text = await response.text();
         const raw = text ? JSON.parse(text) : [];
-        const data = Array.isArray(raw)
-            ? raw
-            : (raw && typeof raw === 'object' && Array.isArray((raw.items ?? raw.data ?? raw.$values))) ? (raw.items ?? raw.data ?? raw.$values) : [];
-        return data.map(d => this.mapApiToLocal(d));
+        const items: HorarioSemanalApi[] = this.parseItems(raw);
+        return items.flatMap(s => this.flattenSemanalToHorarioBarbero(s));
     }
 
-    async createHorario(horario: HorarioBarbero): Promise<HorarioBarbero> {
-        const payload = this.mapLocalToApiCreate(horario);
+    // ── Métodos que devuelven la estructura semanal ──
+
+    async getHorariosSemanales(): Promise<HorarioSemanalApi[]> {
+        const response = await this.request('/HorariosBarberos?page=1&pageSize=200');
+        const text = await response.text();
+        const raw = text ? JSON.parse(text) : [];
+        return this.parseItems(raw);
+    }
+
+    async getHorariosSemanalesByBarbero(barberoId: number): Promise<HorarioSemanalApi[]> {
+        const response = await this.request(`/HorariosBarberos/barbero/${barberoId}?page=1&pageSize=200`);
+        const text = await response.text();
+        const raw = text ? JSON.parse(text) : [];
+        return this.parseItems(raw);
+    }
+
+    async getHorarioSemanalById(id: number): Promise<HorarioSemanalApi> {
+        const response = await this.request(`/HorariosBarberos/${id}`);
+        const text = await response.text();
+        return text ? JSON.parse(text) : null;
+    }
+
+    // ── CRUD Semanal ──
+
+    async createHorarioSemanal(input: {
+        barberoId: number;
+        fechaInicioSemana: string;
+        fechaFinSemana: string;
+        detalles: Array<{ diaSemana: number; horaInicio: string; horaFin: string }>;
+    }): Promise<HorarioSemanalApi | null> {
+        const payload = {
+            barberoId: input.barberoId,
+            fechaInicioSemana: input.fechaInicioSemana,
+            fechaFinSemana: input.fechaFinSemana,
+            detalles: input.detalles.map(d => ({
+                diaSemana: d.diaSemana,
+                horaInicio: d.horaInicio.length === 5 ? `${d.horaInicio}:00` : d.horaInicio,
+                horaFin: d.horaFin.length === 5 ? `${d.horaFin}:00` : d.horaFin
+            }))
+        };
         const response = await this.request('/HorariosBarberos', {
             method: 'POST',
             body: JSON.stringify(payload),
         });
         const text = await response.text();
-        const data: HorarioBarberoApi = text ? JSON.parse(text) : {};
-        return this.mapApiToLocal(data);
+        return text ? JSON.parse(text) : null;
     }
 
-    async updateHorario(id: number, horario: HorarioBarbero): Promise<HorarioBarbero> {
-        const payload = this.mapLocalToApiUpdate(horario);
+    async updateHorarioSemanal(id: number, input: {
+        fechaInicioSemana?: string;
+        fechaFinSemana?: string;
+        estado?: string;
+        detalles?: Array<{ diaSemana: number; horaInicio: string; horaFin: string }>;
+    }): Promise<HorarioSemanalApi | null> {
+        const payload: any = {};
+        if (input.fechaInicioSemana) payload.fechaInicioSemana = input.fechaInicioSemana;
+        if (input.fechaFinSemana) payload.fechaFinSemana = input.fechaFinSemana;
+        if (input.estado) payload.estado = input.estado;
+        if (input.detalles) {
+            payload.detalles = input.detalles.map(d => ({
+                diaSemana: d.diaSemana,
+                horaInicio: d.horaInicio.length === 5 ? `${d.horaInicio}:00` : d.horaInicio,
+                horaFin: d.horaFin.length === 5 ? `${d.horaFin}:00` : d.horaFin
+            }));
+        }
         const response = await this.request(`/HorariosBarberos/${id}`, {
             method: 'PUT',
             body: JSON.stringify(payload),
         });
         const text = await response.text();
-        const data: HorarioBarberoApi = text ? JSON.parse(text) : {};
-        return this.mapApiToLocal(data);
+        return text ? JSON.parse(text) : null;
     }
 
-    async deleteHorario(id: number): Promise<void> {
+    async deleteHorarioSemanal(id: number): Promise<void> {
         await this.request(`/HorariosBarberos/${id}`, {
             method: 'DELETE',
         });
     }
+
+    // ── Compatibilidad: adaptar edición de un día individual ──
+
+    async updateHorario(detalleId: number, horario: HorarioBarbero): Promise<HorarioBarbero> {
+        const semanalId = horario.horarioSemanalId;
+        if (!semanalId) {
+            throw new Error("horarioSemanalId requerido para actualizar un detalle individual");
+        }
+        const semanal = await this.getHorarioSemanalById(semanalId);
+        if (!semanal) throw new Error("HorarioSemanal no encontrado");
+
+        const diaSemanaNum = this.diaNumFromNombre(horario.dia);
+        const nuevosDetalles = semanal.detalles.map(d => {
+            if (d.id === detalleId) {
+                return {
+                    diaSemana: diaSemanaNum || d.diaSemana,
+                    horaInicio: horario.horaInicio,
+                    horaFin: horario.horaFin
+                };
+            }
+            return {
+                diaSemana: d.diaSemana,
+                horaInicio: String(d.horaInicio).substring(0, 5),
+                horaFin: String(d.horaFin).substring(0, 5)
+            };
+        });
+
+        const updated = await this.updateHorarioSemanal(semanalId, { detalles: nuevosDetalles });
+        const flatList = this.flattenSemanalToHorarioBarbero(updated);
+        return flatList.find(h => h.dia === normalizeDiaNombre(horario.dia)) || flatList[0] || horario;
+    }
+
+    // ── Estado y cancelación ──
 
     async toggleEstado(id: number, estado: boolean, options?: {
         usuarioSolicitanteId?: number;
@@ -169,9 +236,7 @@ class HorariosService {
         motivo?: string;
         cantidadSugerencias?: number;
     }): Promise<any> {
-        const payload: any = {
-            estado
-        };
+        const payload: any = { estado };
 
         if (!estado) {
             if (options?.usuarioSolicitanteId) {
@@ -216,6 +281,12 @@ class HorariosService {
         });
         const text = await response.text();
         return text ? JSON.parse(text) : {};
+    }
+
+    // ── Helpers para la página de horarios ──
+
+    diaNumeroFromNombre(dia: string): number {
+        return this.diaNumFromNombre(dia);
     }
 }
 

@@ -50,7 +50,7 @@ import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-st
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
-import { horariosService, HorarioBarbero } from "../../agendamiento/services/horariosService";
+import { horariosService, HorarioSemanalApi } from "../../agendamiento/services/horariosService";
 import { agendamientoService } from "../../agendamiento/services/agendamientoService";
 import { emailJsService } from "../../../shared/services/emailJsService";
 
@@ -87,15 +87,17 @@ interface BloqueHorario {
 
 // Tipo para un horario completo (un solo registro con múltiples bloques)
 interface HorarioSemanal {
-  id: number;
+  id: number; // ID del HorarioSemanal en la API
   barberoId: number;
   barbero: string;
   documento?: string;
   tipoDocumento?: string;
-  activo: boolean; // Estado derivado
+  activo: boolean; // Estado derivado de "Activo"
   bloques: BloqueHorario[];
   notas?: string;
   fotoPerfil?: string;
+  fechaInicioSemana?: string;
+  fechaFinSemana?: string;
 }
 
 interface HorariosPageProps {
@@ -167,15 +169,16 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     loadData();
   }, []);
 
+  const DIAS_MAP: Record<number, string> = { 1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado", 7: "Domingo" };
+
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [barberosData, horariosData] = await Promise.all([
+      const [barberosData, semanalesData] = await Promise.all([
         barberosService.getBarberos(),
-        horariosService.getHorarios()
+        horariosService.getHorariosSemanales()
       ]);
 
-      // Mapear barberos de API a formato local para evitar problemas de nombres de propiedades
       const barberosMapeados = barberosData.map(b => ({
         id: b.id,
         nombre: (b as any).nombres || b.nombre,
@@ -188,37 +191,27 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
 
       setBarberos(barberosMapeados as any);
 
-      // Agrupar horarios por barberoId
-      const horariosPorBarbero: Record<number, HorarioBarbero[]> = {};
-      horariosData.forEach(h => {
-        if (!horariosPorBarbero[h.barberoId]) {
-          horariosPorBarbero[h.barberoId] = [];
-        }
-        horariosPorBarbero[h.barberoId]!.push(h);
-      });
-
-      // Mapear a la estructura de la vista
-      const horariosMapeados: HorarioSemanal[] = barberosMapeados
-        .filter(b => b.id !== undefined && b.estado === true && horariosPorBarbero[b.id] && horariosPorBarbero[b.id].length > 0)
-        .map(b => {
-          const bloquesBarbero = horariosPorBarbero[b.id!] || [];
-          // El estado activo del horario depende de si tiene al menos un bloque activo
-          const representsActivo = bloquesBarbero.some(h => h.estado !== false);
-
+      const horariosMapeados: HorarioSemanal[] = semanalesData
+        .filter(s => s.estado !== "Finalizado")
+        .map(s => {
+          const barberoInfo = barberosMapeados.find(b => b.id === s.barberoId);
+          const nombre = s.barberoNombre || (barberoInfo ? `${barberoInfo.nombre} ${barberoInfo.apellido}` : "Barbero");
           return {
-            id: b.id!,
-            barberoId: b.id!,
-            barbero: `${b.nombre} ${b.apellido}`,
-            documento: b.documento || '',
-            tipoDocumento: b.tipoDocumento || 'CC',
-            activo: representsActivo,
-            fotoPerfil: b.fotoPerfil,
-            bloques: bloquesBarbero.map(h => ({
-              id: h.id,
-              dia: h.dia,
-              horaInicio: h.horaInicio,
-              horaFin: h.horaFin,
-              estado: h.estado ?? true
+            id: s.id,
+            barberoId: s.barberoId,
+            barbero: nombre,
+            documento: barberoInfo?.documento || '',
+            tipoDocumento: barberoInfo?.tipoDocumento || 'CC',
+            activo: s.estado === "Activo",
+            fotoPerfil: barberoInfo?.fotoPerfil,
+            fechaInicioSemana: s.fechaInicioSemana,
+            fechaFinSemana: s.fechaFinSemana,
+            bloques: s.detalles.map(d => ({
+              id: d.id,
+              dia: DIAS_MAP[d.diaSemana] || "Desconocido",
+              horaInicio: String(d.horaInicio).substring(0, 5),
+              horaFin: String(d.horaFin).substring(0, 5),
+              estado: s.estado === "Activo"
             }))
           };
         });
@@ -343,26 +336,42 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   const confirmCreateHorario = async () => {
     try {
       const barberoIdNum = parseInt(nuevoHorario.barberoId);
-      const promises = nuevoHorario.bloques.map(bloque => {
-        const horarioData: HorarioBarbero = {
-          barberoId: barberoIdNum,
-          dia: bloque.dia,
-          horaInicio: bloque.horaInicio,
-          horaFin: bloque.horaFin,
-          estado: true
-        };
-        return horariosService.createHorario(horarioData);
-      });
 
-      await Promise.all(promises);
+      // Calcular inicio de semana (lunes) y fin (domingo)
+      const today = new Date();
+      const dayOfWeek = today.getDay() || 7; // domingo=7
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - (dayOfWeek - 1));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const DIAS_NOMBRE_TO_NUM: Record<string, number> = {
+        "Lunes": 1, "Martes": 2, "Miércoles": 3, "Jueves": 4,
+        "Viernes": 5, "Sábado": 6, "Domingo": 7
+      };
+
+      const detalles = nuevoHorario.bloques.map(bloque => ({
+        diaSemana: DIAS_NOMBRE_TO_NUM[bloque.dia] || 1,
+        horaInicio: bloque.horaInicio,
+        horaFin: bloque.horaFin
+      }));
+
+      await horariosService.createHorarioSemanal({
+        barberoId: barberoIdNum,
+        fechaInicioSemana: formatDate(monday),
+        fechaFinSemana: formatDate(sunday),
+        detalles
+      });
 
       resetFormulario();
       setIsDialogOpen(false);
       await loadData(true);
       success("¡Horario creado!", "Se han registrado los horarios correctamente.");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      error("Error", "No se pudieron crear los horarios.");
+      error("Error", err?.message || "No se pudieron crear los horarios.");
     }
   };
 
@@ -393,45 +402,18 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     if (!editingHorario) return;
 
     try {
-      const barberoIdNum = parseInt(nuevoHorario.barberoId);
+      const DIAS_NOMBRE_TO_NUM: Record<string, number> = {
+        "Lunes": 1, "Martes": 2, "Miércoles": 3, "Jueves": 4,
+        "Viernes": 5, "Sábado": 6, "Domingo": 7
+      };
 
-      // Bloques actuales en BD (traídos en loadData y guardados en editingHorario)
-      const bloquesActuales = editingHorario.bloques;
-
-      // Bloques en el formulario
-      const bloquesNuevos = nuevoHorario.bloques;
-
-      // 1. Eliminar los que ya no están
-      // Un bloque se elimina si tiene ID y ese ID no está en la lista nueva
-      const idsNuevos = new Set(bloquesNuevos.map(b => b.id).filter(id => id !== undefined));
-      const bloquesAEliminar = bloquesActuales.filter(b => b.id !== undefined && !idsNuevos.has(b.id));
-
-      // 2. Crear los nuevos (no tienen ID)
-      const bloquesACrear = bloquesNuevos.filter(b => b.id === undefined);
-
-      // 3. Actualizar los existentes (tienen ID)
-      const bloquesAActualizar = bloquesNuevos.filter(b => b.id !== undefined);
-
-      const deletePromises = bloquesAEliminar.map(b => horariosService.deleteHorario(b.id!));
-
-      const createPromises = bloquesACrear.map(b => horariosService.createHorario({
-        barberoId: barberoIdNum,
-        dia: b.dia,
+      const detalles = nuevoHorario.bloques.map(b => ({
+        diaSemana: DIAS_NOMBRE_TO_NUM[b.dia] || 1,
         horaInicio: b.horaInicio,
-        horaFin: b.horaFin,
-        estado: true
+        horaFin: b.horaFin
       }));
 
-      const updatePromises = bloquesAActualizar.map(b => horariosService.updateHorario(b.id!, {
-        id: b.id,
-        barberoId: barberoIdNum,
-        dia: b.dia,
-        horaInicio: b.horaInicio,
-        horaFin: b.horaFin,
-        estado: true
-      }));
-
-      await Promise.all([...deletePromises, ...createPromises, ...updatePromises]);
+      await horariosService.updateHorarioSemanal(editingHorario.id, { detalles });
 
       setEditingHorario(null);
       resetFormulario();
@@ -440,9 +422,9 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       await loadData(true);
 
       success("¡Horario actualizado!", "Los cambios han sido guardados exitosamente.");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      error("Error", "Ocurrió un error al actualizar los horarios.");
+      error("Error", err?.message || "Ocurrió un error al actualizar los horarios.");
     }
   };
 
@@ -454,10 +436,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   const handleConfirmDelete = async () => {
     if (horarioToDelete) {
       try {
-        const promises = horarioToDelete.bloques.map(b =>
-          b.id ? horariosService.deleteHorario(b.id) : Promise.resolve()
-        );
-        await Promise.all(promises);
+        await horariosService.deleteHorarioSemanal(horarioToDelete.id);
 
         setIsDeleteDialogOpen(false);
         setHorarioToDelete(null);
@@ -554,61 +533,37 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
         }
 
         const motivo = "Horario desactivado desde el panel de gestión.";
-        
-        // Deactivamos TODOS los bloques activos de este barbero
-        const bloquesAProcesar = horario.bloques.filter(b => b.estado !== false && !!b.id);
-        
-        if (bloquesAProcesar.length > 0) {
-          const resultados = await Promise.all(
-            bloquesAProcesar.map(b => {
-                const fechaRef = formatDateLocal(getDateForThisWeek(b.dia));
-                return horariosService.toggleEstado(b.id!, false, {
-                  usuarioSolicitanteId,
-                  fechaReferencia: fechaRef,
-                  motivo,
-                  cantidadSugerencias: 3
-                });
-            })
-          );
+        const fechaRef = formatDateLocal(new Date());
 
-          let totalCanceladas = 0;
-          const allDetalles: any[] = [];
+        const resultado = await horariosService.toggleEstado(horario.id, false, {
+          usuarioSolicitanteId,
+          fechaReferencia: fechaRef,
+          motivo,
+          cantidadSugerencias: 3
+        });
 
-          resultados.forEach(res => {
-            totalCanceladas += Number(res?.citasCanceladas || 0);
-            if (Array.isArray(res?.detalle)) {
-                allDetalles.push(...res.detalle);
+        const totalCanceladas = Number(resultado?.citasCanceladas || 0);
+        const allDetalles = Array.isArray(resultado?.detalle) ? resultado.detalle : [];
+
+        if (allDetalles.length > 0) {
+          allDetalles.forEach((item: any) => {
+            if (item?.clienteCorreo) {
+              emailJsService.notificarCancelacion({
+                cliente_nombre: item.clienteNombre || "Cliente",
+                cliente_email: item.clienteCorreo,
+                barbero_nombre: item.barberoNombre || "Tu barbero",
+                fecha_original: item.fechaHoraOriginal ? new Date(item.fechaHoraOriginal).toLocaleString('es-CO') : "Fecha no especificada",
+                motivo_cancelacion: motivo,
+                sugerencias_reprogramacion: Array.isArray(item.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : []
+              });
             }
           });
-
-          // --- NOTIFICACIÓN VÍA EMAILJS ---
-          if (allDetalles.length > 0) {
-            allDetalles.forEach(item => {
-              if (item?.clienteCorreo) {
-                emailJsService.notificarCancelacion({
-                  cliente_nombre: item.clienteNombre || "Cliente",
-                  cliente_email: item.clienteCorreo,
-                  barbero_nombre: item.barberoNombre || "Tu barbero",
-                  fecha_original: item.fechaHoraOriginal ? new Date(item.fechaHoraOriginal).toLocaleString('es-CO') : "Fecha no especificada",
-                  motivo_cancelacion: motivo,
-                  sugerencias_reprogramacion: Array.isArray(item.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : []
-                });
-              }
-            });
-          }
-
-          await loadData(true);
-          success("Horario desactivado", `Se han desactivado ${bloquesAProcesar.length} turnos y cancelado ${totalCanceladas} citas. Los correos de notificación han sido enviados.`);
-        } else {
-            // Si por alguna razón no hay bloques marcados como activos pero el toggle decía activo
-            await loadData(true);
-            success("Estado actualizado", "El horario ya no está operativo.");
         }
+
+        await loadData(true);
+        success("Horario desactivado", `Horario finalizado y ${totalCanceladas} cita(s) cancelada(s).`);
       } else {
-        // ACTIVAR: Activamos todos los bloques que estén inactivos
-        const bloquesInactivos = horario.bloques.filter(b => !!b.id && b.estado === false);
-        const promises = bloquesInactivos.map(b => horariosService.toggleEstado(b.id!, true));
-        await Promise.all(promises);
+        await horariosService.toggleEstado(horario.id, true);
         await loadData(true);
         success("Estado actualizado", `El horario de ${horario.barbero} ahora está activo`);
       }
@@ -620,31 +575,25 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     }
   };
 
-  // Desactivar/activar solo los bloques de un día específico
+  // Cancelar citas de un día específico para un barbero
   const toggleEstadoDia = async (horario: HorarioSemanal, dia: string) => {
-    const bloquesDelDia = horario.bloques.filter(b => b.dia === dia && !!b.id);
-    if (bloquesDelDia.length === 0) return;
-    const hayActivos = bloquesDelDia.some(b => b.estado !== false);
-    const nuevoEstado = !hayActivos;
     try {
       setTogglingId(horario.id);
-      if (!nuevoEstado) {
-        const usuarioSolicitanteId = obtenerUsuarioSolicitanteId();
-        if (!usuarioSolicitanteId) { error("Sesión inválida", "No se pudo identificar el usuario."); return; }
-        await Promise.all(bloquesDelDia.map(b => horariosService.toggleEstado(b.id!, false, {
-          usuarioSolicitanteId,
-          fechaReferencia: formatDateLocal(getDateForThisWeek(b.dia)),
-          motivo: "Día desactivado desde el panel de gestión.",
-          cantidadSugerencias: 3
-        })));
-        success("Día desactivado", `Los bloques del ${dia} han sido desactivados.`);
-      } else {
-        await Promise.all(bloquesDelDia.map(b => horariosService.toggleEstado(b.id!, true)));
-        success("Día activado", `Los bloques del ${dia} han sido activados.`);
-      }
+      const usuarioSolicitanteId = obtenerUsuarioSolicitanteId();
+      if (!usuarioSolicitanteId) { error("Sesión inválida", "No se pudo identificar el usuario."); return; }
+
+      const fechaRef = formatDateLocal(getDateForThisWeek(dia));
+      await horariosService.cancelarDiaPorBarbero(horario.barberoId, {
+        usuarioSolicitanteId,
+        fechaReferencia: fechaRef,
+        motivo: "Día desactivado desde el panel de gestión.",
+        cantidadSugerencias: 3
+      });
+
       await loadData(true);
+      success("Día cancelado", `Las citas del ${dia} han sido canceladas.`);
     } catch (err) {
-      error("Error", "No se pudo cambiar el estado del día.");
+      error("Error", "No se pudo cancelar el día.");
     } finally {
       setTogglingId(null);
     }
@@ -835,69 +784,33 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
 
       for (const fecha of fechasUnicas) {
         const diaSemanaNombre = diasJs[fecha.getDay()];
-        const bloquesDelDia = selectedHorario.bloques.filter(
-          b => !!b.id && b.dia === diaSemanaNombre && b.estado !== false
-        );
         const fechaStr = formatDateLocal(fecha);
 
-        if (bloquesDelDia.length === 0) {
-          try {
-            const resultadoDirecto = await horariosService.cancelarDiaPorBarbero(selectedHorario.barberoId, {
-              usuarioSolicitanteId,
-              fechaReferencia: fechaStr,
-              motivo: (cancelMotive || "").trim() || "Día desactivado por administración.",
-              cantidadSugerencias: 3
+        try {
+          const resultado = await horariosService.cancelarDiaPorBarbero(selectedHorario.barberoId, {
+            usuarioSolicitanteId,
+            fechaReferencia: fechaStr,
+            motivo: (cancelMotive || "").trim() || "Día desactivado por administración.",
+            cantidadSugerencias: 3
+          });
+          totalCanceladas += Number(resultado?.citasCanceladas) || 0;
+          const detalle = Array.isArray(resultado?.detalle) ? resultado.detalle : [];
+          detalle.forEach((item: any) => {
+            const sug = Array.isArray(item?.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : [];
+            collectedReprogram.push({
+              citaId: Number(item?.citaId || 0),
+              clienteId: Number(item?.clienteId || 0),
+              barberoId: Number(item?.barberoId || 0),
+              sugerencias: sug.map((s: any) => String(s)),
+              clienteNombre: item?.clienteNombre,
+              clienteCorreo: item?.clienteCorreo,
+              barberoNombre: item?.barberoNombre,
+              fechaHoraOriginal: item?.fechaHoraOriginal
             });
-            totalCanceladas += Number(resultadoDirecto?.citasCanceladas) || 0;
-            const detalle = Array.isArray(resultadoDirecto?.detalle) ? resultadoDirecto.detalle : [];
-            detalle.forEach((item: any) => {
-              const sug = Array.isArray(item?.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : [];
-              collectedReprogram.push({
-                citaId: Number(item?.citaId || 0),
-                clienteId: Number(item?.clienteId || 0),
-                barberoId: Number(item?.barberoId || 0),
-                sugerencias: sug.map((s: any) => String(s)),
-                clienteNombre: item?.clienteNombre,
-                clienteCorreo: item?.clienteCorreo,
-                barberoNombre: item?.barberoNombre,
-                fechaHoraOriginal: item?.fechaHoraOriginal
-              });
-            });
-            continue;
-          } catch (apiError: any) {
-            const detalle = apiError?.message ? String(apiError.message) : "Error desconocido";
-            erroresApi.push(`${fechaStr} (${diaSemanaNombre}): ${detalle}`);
-            continue;
-          }
-        }
-
-        for (const bloque of bloquesDelDia) {
-          try {
-            const resultado = await horariosService.toggleEstado(bloque.id!, false, {
-              usuarioSolicitanteId,
-              fechaReferencia: fechaStr,
-              motivo: (cancelMotive || "").trim() || "Día desactivado por administración.",
-              cantidadSugerencias: 3
-            });
-            totalCanceladas += Number(resultado?.citasCanceladas) || 0;
-            const detalle = Array.isArray(resultado?.detalle) ? resultado.detalle : [];
-            detalle.forEach((item: any) => {
-              const sug = Array.isArray(item?.sugerenciasReprogramacion) ? item.sugerenciasReprogramacion : [];
-              collectedReprogram.push({
-                citaId: Number(item?.citaId || 0),
-                clienteId: Number(item?.clienteId || 0),
-                barberoId: Number(item?.barberoId || 0),
-                sugerencias: sug.map((s: any) => String(s)),
-                clienteNombre: item?.clienteNombre,
-                clienteCorreo: item?.clienteCorreo,
-                barberoNombre: item?.barberoNombre,
-                fechaHoraOriginal: item?.fechaHoraOriginal
-              });
-            });
-          } catch (apiError: any) {
-            const detalle = apiError?.message ? String(apiError.message) : "Error desconocido";
-            erroresApi.push(`${fechaStr} (${diaSemanaNombre}): ${detalle}`);
-          }
+          });
+        } catch (apiError: any) {
+          const detalle = apiError?.message ? String(apiError.message) : "Error desconocido";
+          erroresApi.push(`${fechaStr} (${diaSemanaNombre}): ${detalle}`);
         }
       }
 
