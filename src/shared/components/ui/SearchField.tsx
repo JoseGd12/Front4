@@ -124,7 +124,7 @@ export function SearchField<T>({
         <button
           type="button"
           onClick={handleGhostClick}
-          className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-sm cursor-pointer"
+          className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-base cursor-pointer"
         >
           {placeholder}
         </button>

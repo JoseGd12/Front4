@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Calendar,
@@ -44,9 +44,19 @@ import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../../agendamiento/services/horariosService";
+import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../../agendamiento/constants";
+import {
+  getHorariosBarberoParaDia,
+  getHorasDisponiblesParaDia as calcularHorasDisponibles,
+  horarioEstaActivo,
+  normalizeDiaNombre,
+  parseHoraAMinutos,
+  toLocalDateString,
+  CALENDAR_SLOT_HOURS,
+} from "../../agendamiento/utils/scheduleUtils";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
+const horasDelDia = CALENDAR_SLOT_HOURS;
 const calendarGridTemplate = "clamp(64px, 6vw, 78px) repeat(7, minmax(0, 1fr))";
 
 const formatHora12 = (hora: number): string => {
@@ -541,22 +551,23 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
     if (fecha === todayStr) {
       const current = today.getHours() * 60 + today.getMinutes();
-      // Desactivar si el slot ya pasó por más de 30 minutos (gracia) o requiere 30 min de preaviso
-      if (startNueva <= current + 30) return "Debes agendar con al menos 30 minutos de anticipación.";
+      if (startNueva <= current + MIN_ANTICIPACION_AGENDA_MINUTOS) {
+        return `Debes agendar con al menos ${MIN_ANTICIPACION_AGENDA_MINUTOS} minutos de anticipación.`;
+      }
     }
 
-    // Verificar horario laboral
-    const dateObj = new Date(`${fecha}T12:00:00`);
-    const dayIndex = dateObj.getDay();
-    const dayStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayIndex];
-    const turnos = horariosList.filter((h: any) => h.barberoId === barberoId && h.dia === dayStr && h.estado);
-
-    if (turnos.length === 0) return `${barberosList.find(b => b.id === barberoId)?.nombre} no trabaja los ${dayStr}.`;
+    const turnos = getHorariosBarberoParaDia(horariosList, barberoId, fecha);
+    if (turnos.length === 0) {
+      const dayStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][
+        new Date(`${fecha}T12:00:00`).getDay()
+      ];
+      return `${barberosList.find(b => b.id === barberoId)?.nombre} no trabaja los ${dayStr}.`;
+    }
 
     const enHorario = turnos.some((h: any) => {
-      const [hIh, hIm] = h.horaInicio.split(':').map(Number);
-      const [hFh, hFm] = h.horaFin.split(':').map(Number);
-      return startNueva >= (hIh * 60 + hIm) && endNueva <= (hFh * 60 + hFm);
+      const start = parseHoraAMinutos(h.horaInicio || '00:00');
+      const end = parseHoraAMinutos(h.horaFin || '23:59');
+      return startNueva >= start && endNueva <= end;
     });
 
     if (!enHorario) return "La hora está fuera del horario laboral del barbero.";
@@ -582,65 +593,17 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     return null;
   };
 
-  const getHorasDisponiblesParaDia = (fechaStr: string, barberoId: number, duracion: number) => {
-    if (!fechaStr || !barberoId) return [];
-
-    // Obtener el día de la semana
-    const fechaObj = new Date(`${fechaStr}T12:00:00`);
-    const dayIndex = fechaObj.getDay(); // 0=Domingo..6=Sábado
-    const diaStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayIndex];
-
-    // Obtener horarios para ese día
-    const horariosBarbero = horariosList.filter((h: any) => Number(h.barberoId) === Number(barberoId) && String(h.dia) === diaStr && h.estado === true);
-
-    if (horariosBarbero.length === 0) return [];
-
-    let availableSlots: string[] = [];
-
-    // Para cada franja horaria de este día
-    horariosBarbero.forEach((h: any) => {
-      const [hIniH, hIniM] = String(h.horaInicio || '00:00').split(':').map((x: string) => parseInt(x || '0', 10));
-      const [hFinH, hFinM] = String(h.horaFin || '23:59').split(':').map((x: string) => parseInt(x || '0', 10));
-
-      const startH = hIniH * 60 + hIniM;
-      const endH = hFinH * 60 + hFinM;
-
-      // Generar slots cada 30 minutos (ajustable)
-      for (let time = startH; time + duracion <= endH; time += 30) {
-        const hh = Math.floor(time / 60);
-        const mm = time % 60;
-        const horaStr = `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
-
-        // Verificar si está en el pasado
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        if (fechaStr === todayStr) {
-          const currentMinutesWithLead = today.getHours() * 60 + today.getMinutes() + 30;
-          if (time <= currentMinutesWithLead) continue;
-        }
-
-        // Verificar si solapa con alguna cita existente
-        const solapa = citas.find((cita: any) => {
-          if (cita.fecha !== fechaStr) return false;
-          if (Number(cita.barberoId) !== Number(barberoId)) return false;
-          if (isEditMode && selectedCita && cita.id === selectedCita.id) return false;
-          if (cita.estado === 'Cancelada') return false;
-
-          const [ch, cm] = String(cita.hora || '').split(':').map(Number);
-          const startExist = (ch * 60) + cm;
-          const endExist = startExist + (cita.duracion || 60);
-
-          return time < endExist && startExist < (time + duracion);
-        });
-
-        if (!solapa) {
-          availableSlots.push(horaStr);
-        }
-      }
+  const getHorasDisponiblesParaDia = (fechaStr: string, barberoId: number, duracion: number) =>
+    calcularHorasDisponibles({
+      fechaStr,
+      barberoId,
+      duracionMinutos: duracion,
+      horariosList,
+      citas,
+      ignoreCitaId: isEditMode && selectedCita ? selectedCita.id : undefined,
+      minAnticipacionMinutos: MIN_ANTICIPACION_AGENDA_MINUTOS,
+      slotHours: horasDelDia,
     });
-
-    return [...new Set(availableSlots)].sort();
-  };
 
   // ── Funciones de control del modal ──
 
@@ -1285,8 +1248,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                           // Obtener los días de la semana en que trabaja el barbero
                           const diasTrabajados = Array.from(new Set(
                             horariosList
-                              .filter((h: any) => Number(h.barberoId) === Number(nuevaCita.barberoId) && h.estado === true)
-                              .map((h: any) => String(h.dia))
+                              .filter((h: any) => Number(h.barberoId) === Number(nuevaCita.barberoId) && horarioEstaActivo(h))
+                              .map((h: any) => normalizeDiaNombre(String(h.dia)))
                           ));
                           // Generar los próximos 14 días disponibles
                           const diasDisponibles: { fecha: string; label: string; diaNombre: string }[] = [];

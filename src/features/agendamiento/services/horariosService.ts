@@ -1,3 +1,5 @@
+import { normalizeDiaNombre } from '../utils/scheduleUtils';
+
 const API_BASE_URL = '/api';
 
 export interface HorarioBarbero {
@@ -58,8 +60,12 @@ class HorariosService {
         if (typeof diaNombre === 'string' && diaNombre.trim()) {
             diaStr = String(diaNombre);
         } else if (typeof diaNum === 'number') {
-            if (diaNum === 7) diaStr = "Domingo";
+            // API: 1=Lunes..6=Sábado, 7 u 0=Domingo
+            if (diaNum === 7 || diaNum === 0) diaStr = "Domingo";
             else if (diaNum >= 1 && diaNum <= 6) diaStr = DIAS[diaNum];
+        }
+        if (diaStr !== "Desconocido") {
+            diaStr = normalizeDiaNombre(diaStr);
         }
         const hIniRaw = apiData.horaInicio ?? apiData.HoraInicio ?? "00:00";
         const hFinRaw = apiData.horaFin ?? apiData.HoraFin ?? "00:00";

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { agendamientoService } from "../services/agendamientoService";
 import { ventaService } from "../../ventas/services/ventaService";
@@ -9,6 +9,19 @@ import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../services/horariosService";
+import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../constants";
+import {
+  barberoTrabajaEnFecha,
+  filtrarBarberosDisponibles,
+  getHorariosBarberoParaDia,
+  getHorasDisponiblesParaDia as calcularHorasDisponibles,
+  horarioEstaActivo,
+  normalizeDiaNombre,
+  normalizarFechaCita,
+  parseHoraAMinutos,
+  toLocalDateString,
+  CALENDAR_SLOT_HOURS,
+} from "../utils/scheduleUtils";
 import { Input } from "../../../shared/components/ui/input";
 import { Calendar as UICalendar } from "../../../shared/components/ui/calendar";
 import { format, parseISO } from "date-fns";
@@ -28,7 +41,7 @@ import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModalCompletarParcialmente } from "../components/ModalCompletarParcialmente";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const horasDelDia = Array.from({ length: 29 }, (_, i) => 9 + i * 0.5); // 9:00 AM a 11:00 PM
+const horasDelDia = CALENDAR_SLOT_HOURS; // 9:00 – 23:00, franjas de 30 min (sync con scheduleUtils)
 const calendarGridTemplate = "clamp(64px, 6vw, 78px) repeat(7, minmax(0, 1fr))";
 
 /** Hover en celdas del grid: fondo más claro + borde suave (captura); el + va en blanco sobre círculo fino */
@@ -133,6 +146,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   // Carruseles del formulario de creación de citas
   const [formServicioPage, setFormServicioPage] = useState(0);
   const [formProductoPage, setFormProductoPage] = useState(0);
+  const [formPaqueteServicioPage, setFormPaqueteServicioPage] = useState(0);
   const FORM_CAROUSEL_SIZE = 3;
   const [lastInitialItemKey, setLastInitialItemKey] = useState("");
 
@@ -175,9 +189,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       setCitas(citasData);
       // Solo mostrar barberos activos que tengan al menos un horario activo
       const barberosConHorarioActivo = new Set(
-        horariosData.filter(h => h.estado === true).map(h => h.barberoId)
+        horariosData.filter(horarioEstaActivo).map(h => Number(h.barberoId))
       );
-      setBarberosList(barberosData.filter(b => b.estado === true && barberosConHorarioActivo.has(b.id)));
+      setBarberosList(barberosData.filter(b => b.estado === true && barberosConHorarioActivo.has(Number(b.id))));
       setServiciosList(serviciosData.filter(s => s.estado === true));
       setClientesList(clientesData.filter(c => c.estado === true));
       setPaquetesList(paquetesData.filter(p => p.activo === true));
@@ -227,12 +241,16 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [modalPosition, setModalPosition] = useState<{ top: number; left: number } | null>(null);
   const [modalPhase, setModalPhase] = useState<'enter' | 'open' | 'exit'>('enter');
-  const [modalHeight, setModalHeight] = useState<number>(Math.round(window.innerHeight * 0.75));
+  const MODAL_HEIGHT = Math.min(580, window.innerHeight - 32);
+  const MODAL_MIN_HEIGHT = 220;
+  const MODAL_DOCKED_TOP = window.innerHeight - 16 - MODAL_HEIGHT;
+  const [modalHeight, setModalHeight] = useState<number>(MODAL_HEIGHT);
+  const [modalTop, setModalTop] = useState<number>(MODAL_DOCKED_TOP);
   const [modalLeft, setModalLeft] = useState<number | null>(null);
   const [isModalDragging, setIsModalDragging] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ dragging: boolean; startY: number; startX: number; startHeight: number; startLeft: number }>({ dragging: false, startY: 0, startX: 0, startHeight: 0, startLeft: 0 });
+  const dragState = useRef<{ dragging: boolean; startY: number; startX: number; startHeight: number; startTop: number; startLeft: number }>({ dragging: false, startY: 0, startX: 0, startHeight: MODAL_HEIGHT, startTop: MODAL_DOCKED_TOP, startLeft: 0 });
   const POPOVER_ANIM_MS = 200;
   const [selectedSlot, setSelectedSlot] = useState<{ dia: string, hora: number, fecha: string } | null>(null);
   const [slotSearchTerm, setSlotSearchTerm] = useState("");
@@ -380,6 +398,40 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const datePickerRef = useRef<HTMLDivElement>(null);
   const hourPickerRef = useRef<HTMLDivElement>(null);
 
+  /** Barberos filtrados por fecha/hora del formulario (turno laboral + disponibilidad). */
+  const barberosParaFormulario = useMemo(
+    () =>
+      filtrarBarberosDisponibles(barberosList, horariosList, {
+        fechaStr: nuevaCita.fecha,
+        hora: nuevaCita.hora || undefined,
+        duracionMinutos: nuevaCita.duracion,
+        citas,
+        ignoreCitaId: selectedCita?.id,
+        minAnticipacionMinutos: MIN_ANTICIPACION_AGENDA_MINUTOS,
+        slotHours: horasDelDia,
+      }),
+    [
+      barberosList,
+      horariosList,
+      nuevaCita.fecha,
+      nuevaCita.hora,
+      nuevaCita.duracion,
+      citas,
+      selectedCita?.id,
+    ]
+  );
+
+  useEffect(() => {
+    if (!nuevaCita.barberoId || !nuevaCita.fecha) return;
+    const sigueDisponible = barberosParaFormulario.some(
+      (b) => Number(b.id) === Number(nuevaCita.barberoId)
+    );
+    if (!sigueDisponible) {
+      setNuevaCita((prev) => ({ ...prev, barberoId: 0, barbero: '' }));
+      setBarberoFormSearchTerm('');
+    }
+  }, [barberosParaFormulario, nuevaCita.barberoId, nuevaCita.fecha]);
+
   // Cerrar dropdowns al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -427,6 +479,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
+  }, [isCreateModalOpen, handleCloseModal]);
+
+  // Cerrar modal al hacer click fuera (sin bloquear scroll del calendario)
+  useEffect(() => {
+    if (!isCreateModalOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (modalRef.current && !e.composedPath().includes(modalRef.current)) {
+        handleCloseModal();
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [isCreateModalOpen, handleCloseModal]);
 
   useEffect(() => {
@@ -550,6 +614,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       setTipoServicio('individuales');
       setEditingFecha(false);
       setEditingHora(false);
+      setModalHeight(MODAL_HEIGHT);
+      setModalTop(MODAL_DOCKED_TOP);
+      setModalLeft(null);
       setModalPhase('enter');
       setIsCreateModalOpen(true);
       setTimeout(() => setModalPhase('open'), 10);
@@ -618,6 +685,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setTipoServicio(isPaquete ? 'paquetes' : 'individuales');
     setEditingFecha(false);
     setEditingHora(false);
+    setModalHeight(MODAL_HEIGHT);
+    setModalLeft(null);
     setModalPhase('enter');
     setIsCreateModalOpen(true);
     setTimeout(() => setModalPhase('open'), 10);
@@ -637,14 +706,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     return monday;
   };
 
-  // Formato local YYYY-MM-DD sin conversión UTC
-  const toLocalDateString = (date: Date): string => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-
   // Funciones auxiliares para el calendario
   const getCurrentWeekDays = () => {
     const monday = getMondayOfWeek(currentWeek);
@@ -658,10 +719,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       };
     });
   };
-
-  /** YYYY-MM-DD aunque la API envíe ISO con hora (evita citas “huérfanas” en el calendario). */
-  const normalizarFechaCita = (fecha: string | undefined | null): string =>
-    String(fecha || '').trim().slice(0, 10);
 
   const getCitasPorDia = (dia: string) => {
     const monday = getMondayOfWeek(currentWeek);
@@ -731,28 +788,26 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     // Validar hora pasada si es el día de hoy
     if (nuevaCita.fecha === todayStr) {
       const currentMinutes = today.getHours() * 60 + today.getMinutes();
-      if (startNueva <= currentMinutes + 30) {
-        return "Debes agendar con al menos 30 minutos de anticipación.";
+      if (startNueva <= currentMinutes + MIN_ANTICIPACION_AGENDA_MINUTOS) {
+        return `Debes agendar con al menos ${MIN_ANTICIPACION_AGENDA_MINUTOS} minutos de anticipación.`;
       }
     }
 
     const endNueva = startNueva + durNueva;
 
     // Obtener las citas del día para este barbero, para considerarlo en el error
-    const fechaObj = new Date(`${nuevaCita.fecha}T12:00:00`); // 12:00 pm para evitar desfases
-    const dayIndex = fechaObj.getDay(); // 0=Domingo..6=Sábado
-    const diaStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayIndex];
-    const horariosBarbero = horariosList.filter((h: any) => Number(h.barberoId) === Number(barberoId) && String(h.dia) === diaStr && h.estado === true);
+    const horariosBarbero = getHorariosBarberoParaDia(horariosList, barberoId, nuevaCita.fecha);
 
     if (horariosBarbero.length === 0) {
+      const diaStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][
+        new Date(`${nuevaCita.fecha}T12:00:00`).getDay()
+      ];
       return `El barbero no trabaja los días ${diaStr}.`;
     }
 
     const dentroHorario = horariosBarbero.some((h: any) => {
-      const [hIniH, hIniM] = String(h.horaInicio || '00:00').split(':').map((x: string) => parseInt(x || '0', 10));
-      const [hFinH, hFinM] = String(h.horaFin || '23:59').split(':').map((x: string) => parseInt(x || '0', 10));
-      const startH = hIniH * 60 + hIniM;
-      const endH = hFinH * 60 + hFinM;
+      const startH = parseHoraAMinutos(h.horaInicio || '00:00');
+      const endH = parseHoraAMinutos(h.horaFin || '23:59');
       return startNueva >= startH && endNueva <= endH;
     });
 
@@ -763,7 +818,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     }
 
     const solapa = citas.find((cita: any) => {
-      if (cita.fecha !== nuevaCita.fecha) return false;
+      if (normalizarFechaCita(cita.fecha) !== nuevaCita.fecha) return false;
       if (Number(cita.barberoId) !== Number(barberoId)) return false;
       // Ignorar la propia cita cuando estamos editando
       if (selectedCita && cita.id === selectedCita.id) return false;
@@ -785,73 +840,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     return null; // Todo correcto
   };
 
-  const getHorasDisponiblesParaDia = (fechaStr: string, barberoId: number, duracion: number) => {
-    if (!fechaStr || !barberoId) return [];
-
-    // Obtener el día de la semana
-    const fechaObj = new Date(`${fechaStr}T12:00:00`);
-    const dayIndex = fechaObj.getDay(); // 0=Domingo..6=Sábado
-    const diaStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayIndex];
-
-    // Obtener horarios para ese día
-    const horariosBarbero = horariosList.filter((h: any) => Number(h.barberoId) === Number(barberoId) && String(h.dia) === diaStr && h.estado === true);
-
-    if (horariosBarbero.length === 0) return [];
-
-    let availableSlots: string[] = [];
-
-    // Para cada franja horaria de este día
-    horariosBarbero.forEach((h: any) => {
-      const [hIniH, hIniM] = String(h.horaInicio || '00:00').split(':').map((x: string) => parseInt(x || '0', 10));
-      const [hFinH, hFinM] = String(h.horaFin || '23:59').split(':').map((x: string) => parseInt(x || '0', 10));
-
-      const startH = hIniH * 60 + hIniM;
-      const endH = hFinH * 60 + hFinM;
-
-      const intervaloMinutos = 30; // Mostrar intervalos de 30 minutos
-
-      const today = new Date();
-      const todayStr = toLocalDateString(today);
-      const isToday = fechaStr === todayStr;
-      const currentMinutes = today.getHours() * 60 + today.getMinutes();
-
-      for (let currentSlotStart = startH; currentSlotStart + duracion <= endH; currentSlotStart += intervaloMinutos) {
-        // Omitir bloques que ya pasaron si es el día de hoy
-        if (isToday && currentSlotStart <= currentMinutes + 30) {
-          continue;
-        }
-
-        // Verificar solapamiento
-        const solapa = citas.find((cita: any) => {
-          if (cita.fecha !== fechaStr) return false;
-          if (Number(cita.barberoId) !== Number(barberoId)) return false;
-          // Ignorar la propia cita cuando estamos editando
-          if (selectedCita && cita.id === selectedCita.id) return false;
-          // Ignorar canceladas
-          const estado = String(cita.estado || '');
-          if (estado.toLowerCase() === 'cancelada') return false;
-
-          const [ch, cm = '0'] = String(cita.hora || '').split(':');
-          const startExist = (parseInt(ch || '0', 10) * 60) + (parseInt(cm || '0', 10));
-          const durExist = Number(cita.duracion || 60);
-          const endExist = startExist + durExist;
-
-          const endCurrentSlot = currentSlotStart + duracion;
-
-          // Se solapan si inician antes de que termine la otra y terminan después de que empiece
-          return currentSlotStart < endExist && startExist < endCurrentSlot;
-        });
-
-        if (!solapa) {
-          const hhStr = String(Math.floor(currentSlotStart / 60)).padStart(2, '0');
-          const mmStr = String(currentSlotStart % 60).padStart(2, '0');
-          availableSlots.push(`${hhStr}:${mmStr}`);
-        }
-      }
+  const getHorasDisponiblesParaDia = (fechaStr: string, barberoId: number, duracion: number) =>
+    calcularHorasDisponibles({
+      fechaStr,
+      barberoId,
+      duracionMinutos: duracion,
+      horariosList,
+      citas,
+      ignoreCitaId: selectedCita?.id,
+      minAnticipacionMinutos: MIN_ANTICIPACION_AGENDA_MINUTOS,
+      slotHours: horasDelDia,
     });
-
-    return Array.from(new Set(availableSlots)).sort();
-  };
 
   const getEstadoInfo = (estado: string) => {
     const estadoInfo = estados.find(e => e.value === estado);
@@ -887,6 +886,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setEditingHora(false);
 
     // Inicializar animación de entrada
+    setModalHeight(MODAL_HEIGHT);
+    setModalLeft(null);
     setModalPhase('enter');
     setIsCreateModalOpen(true);
     setTimeout(() => setModalPhase('open'), 10);
@@ -948,6 +949,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setEditingHora(false);
 
     // Inicializar animación de entrada
+    setModalHeight(MODAL_HEIGHT);
+    setModalLeft(null);
     setModalPhase('enter');
     setIsCreateModalOpen(true);
     setTimeout(() => setModalPhase('open'), 10);
@@ -1182,6 +1185,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         left: Math.max(16, (window.innerWidth - 480) / 2)
       };
       setModalPosition(editPosition);
+      setModalHeight(MODAL_HEIGHT);
+      setModalTop(MODAL_DOCKED_TOP);
+      setModalLeft(null);
       setModalPhase('enter');
       setIsCreateModalOpen(true);
       setTimeout(() => setModalPhase('open'), 10);
@@ -1664,11 +1670,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {isCreateModalOpen && modalPosition && createPortal(
         <>
-          {/* Backdrop semi-transparente */}
+          {/* Backdrop semi-transparente — pointer-events-none para no bloquear scroll */}
           <div
-            className="fixed inset-0 bg-black/40"
+            className="fixed inset-0 bg-black/40 pointer-events-none"
             style={{ zIndex: 9998 }}
-            onClick={handleCloseModal}
           />
 
           {/* Modal container */}
@@ -1676,7 +1681,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             ref={modalRef}
             className="fixed flex flex-col rounded-2xl border border-gray-dark/60 bg-gray-darkest overflow-hidden"
             style={{
-              bottom: 16,
+              top: Math.max(16, Math.min(window.innerHeight - modalHeight - 16, modalTop)),
               left: modalLeft ?? modalPosition.left,
               width: 480,
               height: modalHeight,
@@ -1693,15 +1698,36 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               onMouseDown={(e) => {
                 if ((e.target as HTMLElement).closest('button')) return;
                 const currentLeft = modalLeft ?? modalPosition.left;
-                dragState.current = { dragging: true, startY: e.clientY, startX: e.clientX, startHeight: modalHeight, startLeft: currentLeft };
+                dragState.current = { dragging: true, startY: e.clientY, startX: e.clientX, startHeight: modalHeight, startTop: modalTop, startLeft: currentLeft };
                 setIsModalDragging(true);
                 const onMove = (ev: MouseEvent) => {
                   if (!dragState.current.dragging) return;
-                  const deltaY = dragState.current.startY - ev.clientY;
+                  const deltaY = ev.clientY - dragState.current.startY;
                   const deltaX = ev.clientX - dragState.current.startX;
-                  const nextH = Math.min(window.innerHeight - 32, Math.max(200, dragState.current.startHeight + deltaY));
+                  const { startHeight, startTop } = dragState.current;
+
+                  // "virtual" = how far above minimum state we are
+                  // [0 .. MODAL_HEIGHT-MIN] = height range (docked)
+                  // [MODAL_HEIGHT-MIN .. MAX] = move-up range (full height)
+                  const moveUpMax = MODAL_DOCKED_TOP - 16;
+                  const startMoveUp = Math.max(0, MODAL_DOCKED_TOP - startTop);
+                  const startVirtual = (startHeight - MODAL_MIN_HEIGHT) + startMoveUp;
+                  const newVirtual = Math.max(0, Math.min((MODAL_HEIGHT - MODAL_MIN_HEIGHT) + moveUpMax, startVirtual - deltaY));
+
+                  const heightRange = MODAL_HEIGHT - MODAL_MIN_HEIGHT;
+                  if (newVirtual <= heightRange) {
+                    // Phase 1: height adjustment, docked
+                    const nextH = MODAL_MIN_HEIGHT + newVirtual;
+                    setModalHeight(nextH);
+                    setModalTop(window.innerHeight - 16 - nextH);
+                  } else {
+                    // Phase 2: move modal up at full height
+                    const movedUp = newVirtual - heightRange;
+                    setModalHeight(MODAL_HEIGHT);
+                    setModalTop(MODAL_DOCKED_TOP - movedUp);
+                  }
+
                   const nextL = Math.min(window.innerWidth - 480, Math.max(0, dragState.current.startLeft + deltaX));
-                  setModalHeight(nextH);
                   setModalLeft(nextL);
                 };
                 const onUp = () => {
@@ -1719,7 +1745,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               <div className="flex justify-center pt-2 pb-0.5">
                 <div className="w-8 h-1 rounded-full bg-gray-dark/80" />
               </div>
-              <div className="flex items-center justify-between" style={{ paddingLeft: 80, paddingRight: 20, paddingTop: 10, paddingBottom: 12 }}>
+              <div className="flex items-center justify-between" style={{ paddingLeft: 67, paddingRight: 20, paddingTop: 10, paddingBottom: 12 }}>
                 <h2 className="text-lg font-semibold text-gray-lightest">
                   {selectedCita ? 'Editar Cita' : 'Nueva Cita'}
                 </h2>
@@ -1737,8 +1763,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
             {/* Cliente fijo — fuera del scroll */}
             <div className="shrink-0 pr-6">
-              <div className="flex items-center gap-0 py-3 px-2">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center">
+              <div className="flex items-center gap-0 py-1 px-2.5 px-2">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                   <User className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1818,9 +1844,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-6">
 
               {/* ── Fila: Switch Tipo ── */}
-              <div className="flex items-center gap-0 py-2 px-2">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} />
-                <div className="flex gap-5">
+              <div className="flex items-center gap-0 py-1 px-2 mt-2">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} />
+                <div className="flex gap-5 ml-3">
                     <button
                       type="button"
                       onClick={() => {
@@ -1857,8 +1883,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Fecha y Hora ── */}
-              <div className="flex items-start gap-0 py-3 px-2">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+              <div className="flex items-center gap-0 py-1 px-2.5 px-2">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                   <CalendarDays className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div className="flex-1 min-w-0 relative">
@@ -1869,21 +1895,21 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       <button
                         type="button"
                         onClick={() => { setEditingFecha(prev => !prev); setEditingHora(false); }}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
+                        className={`px-3 py-1.5 rounded-lg text-base transition-colors duration-150 ${
                           editingFecha
                             ? 'bg-orange-primary text-white-primary'
                             : 'bg-gray-dark/70 hover:bg-gray-dark text-gray-lightest hover:text-white-primary'
                         }`}
                       >
                         {nuevaCita.fecha
-                          ? format(parseISO(`${nuevaCita.fecha}T12:00:00`), "EEEE, d 'de' MMMM", { locale: es })
+                          ? (() => { const s = format(parseISO(`${nuevaCita.fecha}T12:00:00`), "EEEE, d 'de' MMMM", { locale: es }); return s.charAt(0).toUpperCase() + s.slice(1); })()
                           : 'Selecciona fecha'}
                       </button>
                       {/* Chip hora inicio */}
                       <button
                         type="button"
                         onClick={() => { setEditingHora(prev => !prev); setEditingFecha(false); }}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
+                        className={`px-3 py-1.5 rounded-lg text-base transition-colors duration-150 ${
                           editingHora
                             ? 'bg-orange-primary text-white-primary'
                             : 'bg-gray-dark/70 hover:bg-gray-dark text-gray-lightest hover:text-white-primary'
@@ -1891,31 +1917,34 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       >
                         {nuevaCita.hora ? formatHoraStr12(nuevaCita.hora) : 'Hora inicio'}
                       </button>
-                      {/* Separador */}
-                      <span className="text-gray-lighter text-sm select-none">–</span>
-                      {/* Chip hora fin (calculada, solo lectura) */}
-                      <div
-                        className="px-3 py-1.5 rounded-lg bg-gray-dark/40 text-sm text-gray-lighter transition-colors duration-150 font-medium cursor-default"
-                      >
-                        {(() => {
-                          if (!nuevaCita.hora) return 'Hora fin';
-                          const [hs, ms = '0'] = nuevaCita.hora.split(':');
-                          const startMin = parseInt(hs || '0', 10) * 60 + parseInt(ms || '0', 10);
-                          const endMin = startMin + (Number(nuevaCita.duracion) || 60);
-                          const hFin = Math.floor(endMin / 60) % 24;
-                          const mFin = endMin % 60;
-                          const ampm = hFin >= 12 ? 'PM' : 'AM';
-                          const h12 = hFin % 12 === 0 ? 12 : hFin % 12;
-                          return `${h12}:${String(mFin).padStart(2, '0')} ${ampm}`;
-                        })()}
-                      </div>
+                      {/* Separador y hora fin — solo si hay servicio o paquete */}
+                      {(nuevaCita.servicioIds.length > 0 || !!nuevaCita.paqueteId) && (
+                        <>
+                          <span className="text-gray-lighter text-sm select-none">–</span>
+                          <div
+                            className="px-3 py-1.5 rounded-lg bg-gray-dark/40 text-base text-gray-lighter transition-colors duration-150 cursor-default"
+                          >
+                            {(() => {
+                              if (!nuevaCita.hora) return 'Hora fin';
+                              const [hs, ms = '0'] = nuevaCita.hora.split(':');
+                              const startMin = parseInt(hs || '0', 10) * 60 + parseInt(ms || '0', 10);
+                              const endMin = startMin + (Number(nuevaCita.duracion) || 60);
+                              const hFin = Math.floor(endMin / 60) % 24;
+                              const mFin = endMin % 60;
+                              const ampm = hFin >= 12 ? 'PM' : 'AM';
+                              const h12 = hFin % 12 === 0 ? 12 : hFin % 12;
+                              return `${h12}:${String(mFin).padStart(2, '0')} ${ampm}`;
+                            })()}
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : (
                     /* Ghost: placeholder hasta que el usuario interactúa */
                     <button
                       type="button"
                       onClick={() => setEditingFecha(true)}
-                      className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-sm cursor-pointer"
+                      className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-base cursor-pointer"
                     >
                       Selecciona fecha y hora
                     </button>
@@ -1960,14 +1989,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
                            // Desactivar si el barbero no trabaja ese día
                            if (nuevaCita.barberoId) {
-                             const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                             const diaNombre = dayNames[date.getDay()];
-                             const trabajaEseDia = horariosList.some((h: any) => 
-                               Number(h.barberoId) === Number(nuevaCita.barberoId) && 
-                               h.estado === true && 
-                               String(h.dia) === diaNombre
-                             );
-                             return !trabajaEseDia;
+                             const y = date.getFullYear();
+                             const m = String(date.getMonth() + 1).padStart(2, '0');
+                             const d = String(date.getDate()).padStart(2, '0');
+                             const fechaStr = `${y}-${m}-${d}`;
+                             return !barberoTrabajaEnFecha(horariosList, nuevaCita.barberoId, fechaStr);
                            }
                            return false;
                          }}
@@ -2022,8 +2048,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Servicio / Paquete ── */}
-              <div className="flex items-start gap-0 py-3 px-2">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+              <div className="flex items-start gap-0 py-1.5 px-2">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center pt-2">
                   {tipoServicio === 'paquetes' ? <Package className="w-5 h-5 text-gray-lighter" /> : <Scissors className="w-5 h-5 text-gray-lighter" />}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2059,13 +2085,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         isSelected={nuevaCita.servicioIds.length > 0}
                         error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
                       />
-                      {/* Servicios seleccionados: carrusel horizontal */}
+                      {/* Servicios seleccionados: carrusel horizontal (mismo diseño que paquete) */}
                       {nuevaCita.servicioIds.length > 0 && (() => {
-                        const totalSrvPages = Math.ceil(nuevaCita.servicioIds.length / FORM_CAROUSEL_SIZE);
+                        const formServicioPageSize = 2;
+                        const totalSrvPages = Math.ceil(nuevaCita.servicioIds.length / formServicioPageSize);
                         const safeSrvPage = Math.min(formServicioPage, totalSrvPages - 1);
-                        const pageSrvIds = nuevaCita.servicioIds.slice(safeSrvPage * FORM_CAROUSEL_SIZE, (safeSrvPage + 1) * FORM_CAROUSEL_SIZE);
+                        const pageSrvIds = nuevaCita.servicioIds.slice(safeSrvPage * formServicioPageSize, (safeSrvPage + 1) * formServicioPageSize);
                         return (
-                          <div className="mt-3 flex items-center gap-2">
+                          <div className="flex items-center gap-1 mt-2">
                             <button
                               type="button"
                               onClick={() => setFormServicioPage(p => Math.max(0, p - 1))}
@@ -2074,35 +2101,37 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             >
                               <ChevronLeft className="w-4 h-4" />
                             </button>
-                            <div className="flex-1 flex gap-2 min-w-0">
+                            <div className="flex gap-1 flex-1 min-w-0">
                               {pageSrvIds.map(sId => {
                                 const srv = serviciosList.find(s => s.id === sId);
                                 if (!srv) return null;
                                 return (
-                                  <div key={sId} className="flex-1 min-w-0 group bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent hover:border-gray-dark transition-all">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
-                                        <ImageRenderer url={srv.imagen || ""} alt={srv.nombre} className="w-full h-full border-0 bg-transparent" />
+                                  <div key={sId} className="flex-1 min-w-0 group bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div
+                                        className="rounded-lg overflow-hidden shrink-0"
+                                        style={{ width: 48, height: 48, minWidth: 48, minHeight: 48, maxWidth: 48, maxHeight: 48 }}
+                                      >
+                                        <ImageRenderer url={srv.imagen || ""} alt={srv.nombre} className="!w-full !h-full !max-w-[48px] !max-h-[48px] !rounded-lg border-0 bg-transparent" />
                                       </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-gray-lightest font-medium truncate leading-tight">{srv.nombre}</p>
-                                        <p className="text-gray-lighter leading-tight truncate" style={{ fontSize: '9px' }}>{formatearPrecio(srv.precio)}</p>
-                                        <p className="text-gray-lighter leading-tight truncate" style={{ fontSize: '9px' }}>{srv.duracion || 60} min</p>
+                                      <div className="flex-1 min-w-0 space-y-0.5">
+                                        <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
+                                        <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
+                                        <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
                                       </div>
                                       <button
                                         type="button"
                                         onClick={() => { toggleServicio(sId); if (safeSrvPage > 0 && pageSrvIds.length === 1) setFormServicioPage(p => p - 1); }}
-                                        className="shrink-0 text-gray-dark hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                        className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
+                                        title="Quitar servicio"
                                       >
-                                        <X className="w-3 h-3" />
+                                        <X className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
                                   </div>
                                 );
                               })}
-                              {pageSrvIds.length < FORM_CAROUSEL_SIZE && Array.from({ length: FORM_CAROUSEL_SIZE - pageSrvIds.length }).map((_, i) => (
-                                <div key={`srv-empty-${i}`} className="flex-1 min-w-0" />
-                              ))}
+                              {pageSrvIds.length < formServicioPageSize && <div className="flex-1 min-w-0" />}
                             </div>
                             <button
                               type="button"
@@ -2119,30 +2148,86 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   ) : (
                     <>
                       {nuevaCita.paqueteId ? (
-                        <div className="flex flex-wrap gap-2">
+                        <>
+                          {/* Card paquete seleccionado — estilo cliente */}
                           {(() => {
                             const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
                             if (!paq) return null;
                             return (
-                              <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                <Package className="w-3 h-3" />
-                                <span>{paq.nombre}</span>
-                                <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                              <div className="flex items-center justify-between py-1.5 px-3 bg-gray-dark/20 rounded-lg group animate-in fade-in slide-in-from-left-2 duration-200">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-8 h-8 rounded-md bg-gray-dark flex items-center justify-center border border-gray-dark/60 shadow-sm shrink-0">
+                                    <Package className="w-4 h-4 text-orange-primary" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm text-gray-lightest leading-tight truncate">{paq.nombre}</p>
+                                    <p className="text-xs text-gray-lighter leading-tight">{paq.duracion || 60} min · {formatearPrecio(paq.precio)}</p>
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    handlePaqueteChange('none');
-                                    setPaqueteSearchTerm('');
-                                  }}
-                                  className="ml-1 hover:text-red-400 transition-colors"
+                                  onClick={() => { handlePaqueteChange('none'); setPaqueteSearchTerm(''); setFormPaqueteServicioPage(0); }}
+                                  className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-white-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
                                   title="Quitar paquete"
                                 >
-                                  <X className="w-3 h-3" />
+                                  <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             );
                           })()}
-                        </div>
+                          {/* Servicios del paquete — read-only carousel */}
+                          {(() => {
+                            const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                            if (!paq || !paq.servicios?.length) return null;
+                            const srvs: any[] = (paq.servicios as string[])
+                              .map((nombre) => serviciosList.find((s: any) => s.nombre === nombre))
+                              .filter(Boolean);
+                            const pageSize = 2;
+                            const totalPages = Math.ceil(srvs.length / pageSize);
+                            const safePage = Math.min(formPaqueteServicioPage, Math.max(0, totalPages - 1));
+                            const pageSrvs = srvs.slice(safePage * pageSize, (safePage + 1) * pageSize);
+                            return (
+                              <div className="flex items-center gap-1 mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormPaqueteServicioPage(p => Math.max(0, p - 1))}
+                                  disabled={safePage === 0}
+                                  className={`shrink-0 transition-colors cursor-pointer ${safePage === 0 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                >
+                                  <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <div className="flex gap-1 flex-1 min-w-0">
+                                  {pageSrvs.map((srv: any) => (
+                                    <div key={srv.id} className="flex-1 min-w-0 bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div
+                                          className="rounded-lg overflow-hidden shrink-0"
+                                          style={{ width: 48, height: 48, minWidth: 48, minHeight: 48, maxWidth: 48, maxHeight: 48 }}
+                                        >
+                                          <ImageRenderer url={srv.imagen || ""} alt={srv.nombre} className="!w-full !h-full !max-w-[48px] !max-h-[48px] !rounded-lg border-0 bg-transparent" />
+                                        </div>
+                                        <div className="flex-1 min-w-0 space-y-0.5">
+                                          <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
+                                          <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
+                                          <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {pageSrvs.length < pageSize && <div className="flex-1 min-w-0" />}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormPaqueteServicioPage(p => Math.min(totalPages - 1, p + 1))}
+                                  disabled={safePage >= totalPages - 1}
+                                  className={`shrink-0 transition-colors cursor-pointer ${safePage >= totalPages - 1 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                >
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              </div>
+                            );
+                          })()}
+                        </>
                       ) : (
                         <SearchField<any>
                           label="Buscar paquete"
@@ -2180,8 +2265,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Barbero ── */}
-              <div className="flex items-start gap-0 py-3 px-2">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+              <div className="flex items-center gap-0 py-1 px-2.5 px-2">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                   <User className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2207,7 +2292,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         <button
                           type="button"
                           onClick={() => {
-                            setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '', fecha: '', hora: '' }));
+                            setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
                             setBarberoFormSearchTerm('');
                           }}
                           className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-white-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
@@ -2220,11 +2305,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   })() : (
                     <SearchField<any>
                       label="Buscar barbero"
-                      placeholder="Nombre del barbero..."
+                      placeholder={
+                        !nuevaCita.fecha
+                          ? 'Selecciona fecha y hora primero'
+                          : barberosParaFormulario.length === 0
+                            ? 'Ningún barbero disponible en este horario'
+                            : 'Nombre del barbero...'
+                      }
                       value={barberoFormSearchTerm}
                       onChange={setBarberoFormSearchTerm}
                       ghostMode={true}
-                      items={barberosList}
+                      items={nuevaCita.fecha ? barberosParaFormulario : []}
                       filterFn={(b, term) =>
                         (b.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
                         (b.apellido || '').toLowerCase().includes(term.toLowerCase())
@@ -2250,20 +2341,26 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           <p className="text-sm text-gray-lightest">{`${b.nombre} ${b.apellido || ''}`.trim()}</p>
                         </div>
                       )}
-                      error={showFormErrors && !nuevaCita.barberoId ? 'Selecciona un barbero' : undefined}
+                      error={
+                        showFormErrors && !nuevaCita.barberoId
+                          ? 'Selecciona un barbero'
+                          : nuevaCita.fecha && barberosParaFormulario.length === 0
+                            ? 'No hay barberos con horario para esta fecha y hora'
+                            : undefined
+                      }
                     />
                   )}
                 </div>
               </div>
 
               {/* ── Fila: Producto ── */}
-              <div className="flex items-start gap-0 py-3 px-2">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+              <div className="flex items-start gap-0 py-1.5 px-2">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center pt-2">
                   <ShoppingBag className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div className="flex-1 min-w-0">
                   {nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? (
-                    <p className="text-gray-lighter text-sm">Selecciona un servicio o paquete para agregar productos</p>
+                    <p className="text-gray-lighter text-base py-1.5 px-3">Selecciona un servicio o paquete para agregar productos</p>
                   ) : (
                     <>
                       <SearchField<any>
@@ -2372,16 +2469,26 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Notas ── */}
-              <div className="flex items-start gap-0 py-3 px-2">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0 }} className="flex items-center justify-center pt-2">
+              <div className="flex items-start gap-0 py-1.5 px-2 mt-3">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center pt-1">
                   <FileText className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div className="flex-1 min-w-0 border-b border-transparent focus-within:border-orange-primary/60 transition-colors pb-1">
                   <textarea
                     value={nuevaCita.notas}
-                    onChange={(e) => setNuevaCita(prev => ({ ...prev, notas: e.target.value }))}
+                    rows={1}
+                    ref={(el) => {
+                      if (!el) return;
+                      el.style.height = 'auto';
+                      el.style.height = el.scrollHeight + 'px';
+                    }}
+                    onChange={(e) => {
+                      setNuevaCita(prev => ({ ...prev, notas: e.target.value }));
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
                     placeholder="Agregar notas o instrucciones especiales..."
-                    className="w-full bg-transparent text-sm text-gray-lightest placeholder-gray-lighter resize-none focus:outline-none focus:ring-0 focus:shadow-none min-h-[60px]"
+                    className="w-full bg-transparent text-base text-gray-lightest placeholder-gray-lighter resize-none focus:outline-none focus:ring-0 focus:shadow-none overflow-hidden px-3"
                     style={{ outline: 'none', boxShadow: 'none' }}
                   />
                 </div>
@@ -3046,7 +3153,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Fila: Fecha y hora ── */}
               <div className="flex items-center gap-0 py-3">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Clock className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div>
@@ -3061,7 +3168,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Fila: Barbero ── */}
               <div className="flex items-center gap-0 py-3">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div
                     style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}
                     className="bg-gray-dark border border-gray-dark flex items-center justify-center"
@@ -3088,7 +3195,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Fila: Servicios / Paquete ── */}
               <div className="flex items-center gap-0 py-3">
-                <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Scissors className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -3121,7 +3228,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               {/* ── Fila: Productos (si hay) ── */}
               {detalleProductos.length > 0 && (
                 <div className="flex items-center gap-0 py-3">
-                  <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <ShoppingBag className="w-5 h-5 text-gray-lighter" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -3137,7 +3244,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               {/* ── Fila: Notas (si hay) ── */}
               {selectedCita.notas && (
                 <div className="flex items-center gap-0 py-3">
-                  <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <FileText className="w-5 h-5 text-gray-lighter" />
                   </div>
                   <p className="text-sm text-gray-lighter leading-relaxed">{selectedCita.notas}</p>
@@ -3147,7 +3254,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               {/* ── Fila: Teléfono cliente (si hay) ── */}
               {selectedCita.telefono && (
                 <div className="flex items-center gap-0 py-3">
-                  <div style={{ width: 72, minWidth: 72, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Phone className="w-5 h-5 text-gray-lighter" />
                   </div>
                   <p className="text-sm text-gray-lightest">{selectedCita.telefono}</p>
@@ -3335,11 +3442,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       return dayLabels[date.getDay()];
                     });
 
-                    const barberosEnDias = barberosList.filter(b => {
-                      return horariosList.some(h => 
-                        h.barberoId === b.id && h.estado && diasSeleccionadosList.includes(h.dia)
-                      );
-                    });
+                    const barberosEnDias = barberosList.filter(b =>
+                      horariosList.some(h =>
+                        Number(h.barberoId) === Number(b.id) &&
+                        horarioEstaActivo(h) &&
+                        diasSeleccionadosList.includes(normalizeDiaNombre(String(h.dia)))
+                      )
+                    );
 
                     if (barberosEnDias.length === 0) {
                       return (
@@ -3366,7 +3475,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                            <p className="text-white-primary font-semibold text-base truncate">{barbero.nombre}</p>
                            <p className="text-xs text-gray-lighter mb-2">Haz clic en un horario para editarlo</p>
                            <div className="mt-1 space-y-1.5">
-                             {horariosList.filter(h => h.barberoId === barbero.id && h.estado && diasSeleccionadosList.includes(h.dia)).map((h, i) => (
+                             {horariosList.filter(h => Number(h.barberoId) === Number(barbero.id) && horarioEstaActivo(h) && diasSeleccionadosList.includes(normalizeDiaNombre(String(h.dia)))).map((h, i) => (
                                <button
                                  key={i}
                                  onClick={() => handleOpenEditHorario(barbero, h)}
