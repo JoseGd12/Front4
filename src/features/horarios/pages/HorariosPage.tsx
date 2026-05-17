@@ -667,11 +667,12 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             try {
               const clienteData = await (await import('../../clientes/services/clientesService')).clientesService.getClienteById(Number(cita.clienteId));
               if (clienteData?.correo) {
+                const horaFmt = String(cita.hora || '').substring(0, 5);
                 emailJsService.notificarCancelacion({
                   cliente_nombre: cita.clienteNombre || 'Cliente',
                   cliente_email: clienteData.correo,
                   barbero_nombre: selectedHorario.barbero,
-                  fecha_original: `${cancelFechaDia}T${cita.hora}:00`,
+                  fecha_original: horaFmt ? `${cancelFechaDia}T${horaFmt}:00` : cancelFechaDia,
                   motivo_cancelacion: cancelMotive || 'Cancelación por cambio de horario.',
                 });
               }
@@ -713,11 +714,12 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             try {
               const clienteData = await (await import('../../clientes/services/clientesService')).clientesService.getClienteById(Number(cita.clienteId));
               if (clienteData?.correo) {
+                const horaFmt = String(cita.hora || '').substring(0, 5);
                 emailJsService.notificarCancelacion({
                   cliente_nombre: cita.clienteNombre || 'Cliente',
                   cliente_email: clienteData.correo,
                   barbero_nombre: selectedHorario.barbero,
-                  fecha_original: `${cancelFechaDia}T${cita.hora}:00`,
+                  fecha_original: horaFmt ? `${cancelFechaDia}T${horaFmt}:00` : cancelFechaDia,
                   motivo_cancelacion: cancelMotive || 'Cancelación del día.',
                 });
               }
