@@ -926,7 +926,7 @@ export function NuevaCitaComponent({ isOpen, onClose }: NuevaCitaComponentProps)
               <Button
                 onClick={handleSubmit}
                 disabled={!nuevaCita.hora}
-                className="elegante-button-primary flex items-center space-x-2"
+                className="elegante-button-primary flex items-center space-x-2 text-black-primary"
               >
                 <Check className="w-4 h-4" />
                 <span>Confirmar Cita</span>

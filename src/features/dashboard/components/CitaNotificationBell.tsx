@@ -313,6 +313,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
     try {
       await agendamientoService.updateAgendamientoStatus(citaId, estado);
       removeAfterAction(notifId);
+      window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId, estado } }));
       if (estado === "Completada") {
         toast.success("Cita completada", { description: "Registrada como venta correctamente." });
       } else {

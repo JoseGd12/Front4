@@ -10,6 +10,8 @@ export interface HorarioBarbero {
     horaFin: string; // "HH:mm"
     estado?: boolean;
     horarioSemanalId?: number;
+    fechaInicioSemana?: string; // ISO date "YYYY-MM-DD"
+    fechaFinSemana?: string;    // ISO date "YYYY-MM-DD"
 }
 
 export interface HorarioSemanalApi {
@@ -96,7 +98,9 @@ class HorariosService {
             horaInicio: String(d.horaInicio).substring(0, 5),
             horaFin: String(d.horaFin).substring(0, 5),
             estado: estadoActivo,
-            horarioSemanalId: semanal.id
+            horarioSemanalId: semanal.id,
+            fechaInicioSemana: String(semanal.fechaInicioSemana || '').slice(0, 10) || undefined,
+            fechaFinSemana: String(semanal.fechaFinSemana || '').slice(0, 10) || undefined,
         }));
     }
 

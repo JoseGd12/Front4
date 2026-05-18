@@ -357,7 +357,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     await logout();
   };
 
-  const [allowedModules, setAllowedModules] = useState<string[]>([]);
+  const [allowedModules, setAllowedModules] = useState<string[]>(() => getFallbackModulesForRole(user?.role));
   const [loadingModules, setLoadingModules] = useState(true);
 
   useEffect(() => {

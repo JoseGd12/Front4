@@ -121,6 +121,73 @@ interface AgendamientoPageProps {
   } | null) => void;
 }
 
+type NuevaCitaFormState = {
+  clienteId: number;
+  cliente: string;
+  telefono: string;
+  servicioId: number | null;
+  servicioIds: number[];
+  productoCantidades: Record<number, number>;
+  paqueteId: number | null;
+  servicio: string;
+  barberoId: number;
+  barbero: string;
+  fecha: string;
+  hora: string;
+  duracion: number;
+  precio: number;
+  estado: string;
+  notas: string;
+};
+
+type FormSnapshot = {
+  cita: NuevaCitaFormState;
+  tipoServicio: 'individuales' | 'paquetes';
+  clienteSearchTerm: string;
+  barberoFormSearchTerm: string;
+  servicioSearchTerm: string;
+  paqueteSearchTerm: string;
+  productoSearchTerm: string;
+};
+
+const DISCARD_DIALOG_Z = 200000;
+
+const buildFormSnapshot = (
+  cita: NuevaCitaFormState,
+  extras: Omit<FormSnapshot, 'cita'>
+): FormSnapshot => ({
+  cita: JSON.parse(JSON.stringify(cita)) as NuevaCitaFormState,
+  ...extras,
+});
+
+const isSnapshotDirty = (current: FormSnapshot, initial: FormSnapshot): boolean => {
+  const c = current.cita;
+  const i = initial.cita;
+  return (
+    c.clienteId !== i.clienteId ||
+    (c.telefono || '') !== (i.telefono || '') ||
+    (c.cliente || '') !== (i.cliente || '') ||
+    c.barberoId !== i.barberoId ||
+    (c.barbero || '') !== (i.barbero || '') ||
+    c.servicioId !== i.servicioId ||
+    JSON.stringify(c.servicioIds) !== JSON.stringify(i.servicioIds) ||
+    c.paqueteId !== i.paqueteId ||
+    (c.servicio || '') !== (i.servicio || '') ||
+    JSON.stringify(c.productoCantidades) !== JSON.stringify(i.productoCantidades) ||
+    c.fecha !== i.fecha ||
+    c.hora !== i.hora ||
+    c.duracion !== i.duracion ||
+    c.precio !== i.precio ||
+    (c.notas || '').trim() !== (i.notas || '').trim() ||
+    current.tipoServicio !== initial.tipoServicio ||
+    current.clienteSearchTerm !== initial.clienteSearchTerm ||
+    current.barberoFormSearchTerm !== initial.barberoFormSearchTerm ||
+    current.servicioSearchTerm !== initial.servicioSearchTerm ||
+    current.paqueteSearchTerm !== initial.paqueteSearchTerm ||
+    current.productoSearchTerm !== initial.productoSearchTerm
+  );
+};
+
 
 export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChange }: AgendamientoPageProps) {
   const { user } = useAuth();
@@ -175,35 +242,73 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   const fetchData = async () => {
     setIsLoading(true);
-    try {
-      const [citasData, barberosData, serviciosData, clientesData, paquetesData, horariosData, productosData] = await Promise.all([
-        agendamientoService.getAgendamientos(),
-        barberosService.getBarberos(),
-        servicioService.getServicios(),
-        clientesService.getClientes(),
-        apiService.getPaquetes(),
-        horariosService.getHorarios(),
-        productoService.getProductos().catch(() => [])
-      ]);
 
-      setCitas(citasData);
-      // Solo mostrar barberos activos que tengan al menos un horario activo
+    const [
+      citasResult,
+      barberosResult,
+      serviciosResult,
+      clientesResult,
+      paquetesResult,
+      horariosResult,
+      productosResult,
+    ] = await Promise.allSettled([
+      agendamientoService.getAgendamientos(),
+      barberosService.getBarberos(),
+      servicioService.getServicios(),
+      clientesService.getClientes(),
+      apiService.getPaquetes(),
+      horariosService.getHorarios(),
+      productoService.getProductos(),
+    ]);
+
+    const getVal = <T,>(r: PromiseSettledResult<T>): T | null =>
+      r.status === 'fulfilled' ? r.value : null;
+
+    const citasData     = getVal(citasResult);
+    const barberosData  = getVal(barberosResult);
+    const serviciosData = getVal(serviciosResult);
+    const clientesData  = getVal(clientesResult);
+    const paquetesData  = getVal(paquetesResult);
+    const horariosData  = getVal(horariosResult);
+    const productosData = getVal(productosResult) ?? [];
+
+    // Actualizar estado solo para peticiones exitosas (las fallidas conservan estado previo)
+    if (citasData !== null)     setCitas(citasData);
+    if (serviciosData !== null) setServiciosList((serviciosData as any[]).filter((s: any) => s.estado === true));
+    if (clientesData !== null)  setClientesList((clientesData as any[]).filter((c: any) => c.estado === true));
+    if (paquetesData !== null)  setPaquetesList((paquetesData as any[]).filter((p: any) => p.activo === true));
+    setProductosList((productosData as any[]).filter((p: any) => p.activo !== false && (p.stockVentas > 0 || p.stockTotal > 0)));
+
+    if (horariosData !== null) {
       const barberosConHorarioActivo = new Set(
-        horariosData.filter(horarioEstaActivo).map(h => Number(h.barberoId))
+        (horariosData as any[]).filter(horarioEstaActivo).map((h: any) => Number(h.barberoId))
       );
-      setBarberosList(barberosData.filter(b => b.estado === true && barberosConHorarioActivo.has(Number(b.id))));
-      setServiciosList(serviciosData.filter(s => s.estado === true));
-      setClientesList(clientesData.filter(c => c.estado === true));
-      setPaquetesList(paquetesData.filter(p => p.activo === true));
-      setProductosList(productosData.filter((p: any) => p.activo !== false && (p.stockVentas > 0 || p.stockTotal > 0)));
-      setHorariosList(horariosData || []);
-    } catch (err) {
-      console.error("Error al cargar datos:", err);
-      // Fallback a los datos estáticos si hay error (opcional, pero mejor mostrar error)
-      error("Error de conexión", "No se pudieron cargar los datos desde el servidor.");
-    } finally {
-      setIsLoading(false);
+      if (barberosData !== null) {
+        setBarberosList((barberosData as any[]).filter((b: any) => b.estado === true && barberosConHorarioActivo.has(Number(b.id))));
+      }
+      setHorariosList(horariosData as any[]);
+    } else if (barberosData !== null) {
+      setBarberosList((barberosData as any[]).filter((b: any) => b.estado === true));
     }
+
+    // Alerta solo cuando TODAS las peticiones críticas fallaron (falla de conexión real).
+    // Un fallo parcial conserva datos previos — no se alerta al usuario.
+    const criticalResults = [citasResult, barberosResult, serviciosResult, clientesResult, horariosResult];
+    const failedCount = criticalResults.filter(r => r.status === 'rejected').length;
+
+    if (failedCount === criticalResults.length) {
+      error("Error de conexión", "No se pudieron cargar los datos desde el servidor.");
+      console.error("Fallo total al cargar datos:", (citasResult as PromiseRejectedResult).reason);
+    } else if (failedCount > 0) {
+      console.warn(
+        `${failedCount} petición(es) fallaron (se mantienen datos previos):`,
+        criticalResults
+          .filter(r => r.status === 'rejected')
+          .map(r => (r as PromiseRejectedResult).reason)
+      );
+    }
+
+    setIsLoading(false);
   };
 
   // Estados para el popover de detalle de cita (estilo Google Calendar)
@@ -248,8 +353,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [modalTop, setModalTop] = useState<number>(MODAL_DOCKED_TOP);
   const [modalLeft, setModalLeft] = useState<number | null>(null);
   const [isModalDragging, setIsModalDragging] = useState(false);
+  const [isSavingCita, setIsSavingCita] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const initialFormSnapshotRef = useRef<FormSnapshot | null>(null);
+  const showDiscardDialogRef = useRef(false);
   const dragState = useRef<{ dragging: boolean; startY: number; startX: number; startHeight: number; startTop: number; startLeft: number }>({ dragging: false, startY: 0, startX: 0, startHeight: MODAL_HEIGHT, startTop: MODAL_DOCKED_TOP, startLeft: 0 });
   const POPOVER_ANIM_MS = 200;
   const [selectedSlot, setSelectedSlot] = useState<{ dia: string, hora: number, fecha: string } | null>(null);
@@ -260,6 +368,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [viewMode, setViewMode] = useState<'calendar' | 'crear'>('calendar');
   const [ventasPorCita, setVentasPorCita] = useState<Record<number, number>>({});
   const [showModalParcial, setShowModalParcial] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   // Índice de la cita activa cuando hay varias en una misma franja (pestañas; key: `${fecha}-${hora}`)
   const [slotCitaIndex, setSlotCitaIndex] = useState<Record<string, number>>({});
 
@@ -308,14 +417,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const dayOfWeek = today.getDay();
-        const diffToMonday = dayOfWeek === 0 ? 1 : 1 - dayOfWeek;
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
         const thisMonday = new Date(today);
         thisMonday.setDate(today.getDate() + diffToMonday);
 
         const citaDate = new Date(`${fecha}T12:00:00`);
         citaDate.setHours(0, 0, 0, 0);
         const citaDayOfWeek = citaDate.getDay();
-        const diffToCitaMonday = citaDayOfWeek === 0 ? 1 : 1 - citaDayOfWeek;
+        const diffToCitaMonday = citaDayOfWeek === 0 ? -6 : 1 - citaDayOfWeek;
         const citaMonday = new Date(citaDate);
         citaMonday.setDate(citaDate.getDate() + diffToCitaMonday);
 
@@ -359,6 +468,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     return () => window.removeEventListener('scroll-to-cita-hora', handler);
   }, []);
 
+  // Sincronizar cambios de estado hechos desde notificaciones externas (ej. bell)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { citaId, estado } = (e as CustomEvent<{ citaId: number; estado: string }>).detail || {};
+      if (!citaId || !estado) return;
+      setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado } : c));
+      setSelectedCita(prev => prev?.id === citaId ? { ...prev, estado } : prev);
+    };
+    window.addEventListener('cita-estado-changed', handler);
+    return () => window.removeEventListener('cita-estado-changed', handler);
+  }, []);
+
   // Estados para formulario de nueva cita
   const [nuevaCita, setNuevaCita] = useState({
     clienteId: 0,
@@ -392,6 +513,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [paqueteSearchTerm, setPaqueteSearchTerm] = useState('');
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
   const [showFormErrors, setShowFormErrors] = useState(false);
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
   const [tipoServicio, setTipoServicio] = useState<'individuales' | 'paquetes'>('individuales');
   const [editingFecha, setEditingFecha] = useState(false);
   const [editingHora, setEditingHora] = useState(false);
@@ -446,8 +568,51 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getCurrentFormSnapshot = useCallback((): FormSnapshot => (
+    buildFormSnapshot(nuevaCita, {
+      tipoServicio,
+      clienteSearchTerm,
+      barberoFormSearchTerm,
+      servicioSearchTerm,
+      paqueteSearchTerm,
+      productoSearchTerm,
+    })
+  ), [
+    nuevaCita,
+    tipoServicio,
+    clienteSearchTerm,
+    barberoFormSearchTerm,
+    servicioSearchTerm,
+    paqueteSearchTerm,
+    productoSearchTerm,
+  ]);
+
+  const commitFormSnapshot = useCallback((snapshot: FormSnapshot) => {
+    initialFormSnapshotRef.current = snapshot;
+  }, []);
+
+  const beginCreateModalOpen = useCallback((snapshot: FormSnapshot) => {
+    commitFormSnapshot(snapshot);
+    setShowDiscardDialog(false);
+    setModalPhase('enter');
+    setIsCreateModalOpen(true);
+    setTimeout(() => setModalPhase('open'), 10);
+  }, [commitFormSnapshot]);
+
+  const isFormDirtyNow = useCallback((): boolean => {
+    const init = initialFormSnapshotRef.current;
+    if (!init) return false;
+    return isSnapshotDirty(getCurrentFormSnapshot(), init);
+  }, [getCurrentFormSnapshot]);
+
   // Cerrar modal con animación de salida
-  const handleCloseModal = useCallback(() => {
+  const handleCloseModal = useCallback((skipDirty = false) => {
+    if (!skipDirty && isFormDirtyNow()) {
+      setShowDiscardDialog(true);
+      return;
+    }
+    setShowDiscardDialog(false);
+    initialFormSnapshotRef.current = null;
     setModalPhase('exit');
     setTimeout(() => {
       setIsCreateModalOpen(false);
@@ -466,31 +631,57 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         fecha: '', hora: '', duracion: 60, precio: 0, estado: 'Pendiente', notas: ''
       });
     }, 200);
-  }, []);
+  }, [isFormDirtyNow]);
+
+  useEffect(() => {
+    showDiscardDialogRef.current = showDiscardDialog;
+  }, [showDiscardDialog]);
+
+  useEffect(() => {
+    if (!isCreateModalOpen) {
+      initialFormSnapshotRef.current = null;
+    }
+  }, [isCreateModalOpen]);
 
   // Cerrar modal con tecla ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isCreateModalOpen) {
+      if (e.key !== 'Escape') return;
+      if (showDiscardDialogRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowDiscardDialog(false);
+        return;
+      }
+      if (isCreateModalOpen) {
+        e.preventDefault();
         handleCloseModal();
       }
     };
-    if (isCreateModalOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
+    if (isCreateModalOpen || showDiscardDialog) {
+      document.addEventListener('keydown', handleKeyDown, true);
+      return () => document.removeEventListener('keydown', handleKeyDown, true);
     }
-  }, [isCreateModalOpen, handleCloseModal]);
+  }, [isCreateModalOpen, showDiscardDialog, handleCloseModal]);
 
   // Cerrar modal al hacer click fuera (sin bloquear scroll del calendario)
   useEffect(() => {
     if (!isCreateModalOpen) return;
     const handleMouseDown = (e: MouseEvent) => {
-      if (modalRef.current && !e.composedPath().includes(modalRef.current)) {
+      if (showDiscardDialogRef.current) return;
+      const path = e.composedPath();
+      if (path.some((el) => el instanceof HTMLElement && el.closest('[data-discard-dialog-root]'))) {
+        return;
+      }
+      if (path.some((el) => el instanceof Element && el.getAttribute('data-modal-portal') === 'true')) {
+        return;
+      }
+      if (modalRef.current && !path.includes(modalRef.current)) {
         handleCloseModal();
       }
     };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousedown', handleMouseDown, true);
+    return () => document.removeEventListener('mousedown', handleMouseDown, true);
   }, [isCreateModalOpen, handleCloseModal]);
 
   useEffect(() => {
@@ -617,9 +808,34 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       setModalHeight(MODAL_HEIGHT);
       setModalTop(MODAL_DOCKED_TOP);
       setModalLeft(null);
-      setModalPhase('enter');
-      setIsCreateModalOpen(true);
-      setTimeout(() => setModalPhase('open'), 10);
+      beginCreateModalOpen(buildFormSnapshot(
+        barberoMatch
+          ? {
+              clienteId: 0, cliente: '', telefono: '',
+              servicioId: null, servicioIds: [], productoCantidades: {},
+              paqueteId: null, servicio: '',
+              barberoId: barberoMatch.id,
+              barbero: `${barberoMatch.nombre} ${barberoMatch.apellido || ''}`.trim(),
+              fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: '',
+            }
+          : {
+              clienteId: 0, cliente: '', telefono: '',
+              servicioId: null, servicioIds: [], productoCantidades: {},
+              paqueteId: null, servicio: '',
+              barberoId: 0, barbero: item.nombre || '',
+              fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: '',
+            },
+        {
+          tipoServicio: 'individuales',
+          clienteSearchTerm: '',
+          barberoFormSearchTerm: barberoMatch
+            ? `${barberoMatch.nombre} ${barberoMatch.apellido || ''}`.trim()
+            : (item.nombre || ''),
+          servicioSearchTerm: '',
+          paqueteSearchTerm: '',
+          productoSearchTerm: '',
+        }
+      ));
       onClearInitialItem?.();
       return;
     }
@@ -687,9 +903,26 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setEditingHora(false);
     setModalHeight(MODAL_HEIGHT);
     setModalLeft(null);
-    setModalPhase('enter');
-    setIsCreateModalOpen(true);
-    setTimeout(() => setModalPhase('open'), 10);
+    beginCreateModalOpen(buildFormSnapshot(
+      {
+        clienteId: 0, cliente: '', telefono: '',
+        servicioId: isPaquete ? null : itemId,
+        servicioIds: isPaquete ? [] : [itemId],
+        productoCantidades: {},
+        paqueteId: isPaquete ? itemId : null,
+        servicio: String(item.nombre || ''),
+        barberoId: 0, barbero: '',
+        fecha, hora, duracion, precio, estado: 'Pendiente', notas: '',
+      },
+      {
+        tipoServicio: isPaquete ? 'paquetes' : 'individuales',
+        clienteSearchTerm: '',
+        barberoFormSearchTerm: '',
+        servicioSearchTerm: '',
+        paqueteSearchTerm: '',
+        productoSearchTerm: '',
+      }
+    ));
     setSelectedCita(null);
     onClearInitialItem?.();
   };
@@ -698,8 +931,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const getMondayOfWeek = (weekOffset: number) => {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=Dom, 1=Lun...6=Sáb
-    // Si hoy es domingo (0), ir +1 al próximo lunes; si no, retroceder al lunes de esta semana
-    const diffToMonday = dayOfWeek === 0 ? 1 : 1 - dayOfWeek;
+    // Domingo (0) → retroceder 6 días al lunes anterior; resto → retroceder al lunes de la semana
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const monday = new Date(today);
     monday.setDate(today.getDate() + diffToMonday + (weekOffset * 7));
     monday.setHours(0, 0, 0, 0);
@@ -885,13 +1118,25 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setEditingFecha(false);
     setEditingHora(false);
 
-    // Inicializar animación de entrada
     setModalHeight(MODAL_HEIGHT);
     setModalLeft(null);
-    setModalPhase('enter');
-    setIsCreateModalOpen(true);
-    setTimeout(() => setModalPhase('open'), 10);
-  }, []);
+    beginCreateModalOpen(buildFormSnapshot(
+      {
+        clienteId: 0, cliente: '', telefono: '',
+        servicioId: null, servicioIds: [], productoCantidades: {},
+        paqueteId: null, servicio: '', barberoId: 0, barbero: '',
+        fecha, hora, duracion: 60, precio: 0, estado: 'Pendiente', notas: '',
+      },
+      {
+        tipoServicio: 'individuales',
+        clienteSearchTerm: '',
+        barberoFormSearchTerm: '',
+        servicioSearchTerm: '',
+        paqueteSearchTerm: '',
+        productoSearchTerm: '',
+      }
+    ));
+  }, [beginCreateModalOpen]);
 
   // Manejar clic en celda del calendario (abre modal con fecha/hora preseleccionadas)
   const handleSlotClick = useCallback((dia: string, hora: number) => {
@@ -948,13 +1193,27 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setEditingFecha(false);
     setEditingHora(false);
 
-    // Inicializar animación de entrada
     setModalHeight(MODAL_HEIGHT);
     setModalLeft(null);
-    setModalPhase('enter');
-    setIsCreateModalOpen(true);
-    setTimeout(() => setModalPhase('open'), 10);
-  }, [getCurrentWeekDays]);
+    beginCreateModalOpen(buildFormSnapshot(
+      {
+        clienteId: 0, cliente: '', telefono: '',
+        servicioId: null, servicioIds: [], productoCantidades: {},
+        paqueteId: null, servicio: '', barberoId: 0, barbero: '',
+        fecha: dayInfo?.fechaCompleta || '',
+        hora: horaString,
+        duracion: 60, precio: 0, estado: 'Pendiente', notas: '',
+      },
+      {
+        tipoServicio: 'individuales',
+        clienteSearchTerm: '',
+        barberoFormSearchTerm: '',
+        servicioSearchTerm: '',
+        paqueteSearchTerm: '',
+        productoSearchTerm: '',
+      }
+    ));
+  }, [getCurrentWeekDays, beginCreateModalOpen]);
 
   // Helper para formatear el texto de fecha/hora en la fila del formulario (Requirement 4.2)
   const formatFechaHoraTexto = (): string => {
@@ -1098,6 +1357,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const handleCreateCita = async () => {
     if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
+      setDismissedErrors(new Set());
       return;
     }
     setShowFormErrors(false);
@@ -1108,6 +1368,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       return;
     }
 
+    setIsSavingCita(true);
     try {
       await agendamientoService.createAgendamiento({
         clienteId: nuevaCita.clienteId,
@@ -1130,14 +1391,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       setClienteSearchTerm('');
       setBarberoFormSearchTerm('');
       success("¡Cita creada exitosamente!", `La cita ha sido registrada.`);
-      handleCloseModal();
+      handleCloseModal(true);
     } catch (err: any) {
       console.error("Error al crear cita:", err);
-      // Extraemos el mensaje de la API si existe, sino damos un mensaje genérico.
       const errorMsg = err?.message || err || "No se pudo conectar con el servidor.";
-      // Si el message tiene "Error 400: ", lo limpiamos para que se lea mejor en la alerta
       const displayMsg = errorMsg.toString().replace("Error 400: ", "").replace("Error 500: ", "");
       error("No se pudo crear la cita", displayMsg);
+    } finally {
+      setIsSavingCita(false);
     }
   };
 
@@ -1188,9 +1449,37 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       setModalHeight(MODAL_HEIGHT);
       setModalTop(MODAL_DOCKED_TOP);
       setModalLeft(null);
-      setModalPhase('enter');
-      setIsCreateModalOpen(true);
-      setTimeout(() => setModalPhase('open'), 10);
+      const editCita: NuevaCitaFormState = {
+        clienteId: citaCompleta.clienteId,
+        cliente: citaCompleta.clienteNombre,
+        telefono: citaCompleta.clienteTelefono || '',
+        servicioId: citaCompleta.servicioId,
+        servicioIds: (citaCompleta.servicioIds && citaCompleta.servicioIds.length > 0)
+          ? citaCompleta.servicioIds
+          : (citaCompleta.servicioId ? [citaCompleta.servicioId] : []),
+        productoCantidades: ((citaCompleta.productoIds || []) as number[]).reduce((acc: Record<number, number>, id: number) => {
+          acc[id] = (acc[id] || 0) + 1;
+          return acc;
+        }, {} as Record<number, number>),
+        paqueteId: citaCompleta.paqueteId,
+        servicio: citaCompleta.servicioNombre || citaCompleta.paqueteNombre || '',
+        barberoId: citaCompleta.barberoId,
+        barbero: citaCompleta.barberoNombre,
+        fecha: citaCompleta.fecha,
+        hora: citaCompleta.hora,
+        duracion: citaCompleta.duracion,
+        precio: citaCompleta.precio,
+        estado: citaCompleta.estado,
+        notas: citaCompleta.notas,
+      };
+      beginCreateModalOpen(buildFormSnapshot(editCita, {
+        tipoServicio: citaCompleta.paqueteId ? 'paquetes' : 'individuales',
+        clienteSearchTerm: citaCompleta.clienteNombre || '',
+        barberoFormSearchTerm: citaCompleta.barberoNombre || '',
+        servicioSearchTerm: '',
+        paqueteSearchTerm: '',
+        productoSearchTerm: '',
+      }));
       setIsSlotModalOpen(false);
     } catch (err) {
       console.error("Error al obtener la cita completa:", err);
@@ -1202,6 +1491,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const handleUpdateCita = async () => {
     if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
+      setDismissedErrors(new Set());
       return;
     }
     setShowFormErrors(false);
@@ -1225,6 +1515,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       }
     }
 
+    setIsSavingCita(true);
     try {
       await agendamientoService.updateAgendamiento(selectedCita.id, {
         clienteId: nuevaCita.clienteId,
@@ -1246,12 +1537,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
       success("¡Cita actualizada exitosamente!", `Los cambios han sido guardados correctamente.`);
       setSelectedCita(null);
-      handleCloseModal();
+      handleCloseModal(true);
     } catch (err: any) {
       console.error("Error al actualizar:", err);
       const errorMsg = err?.message || err || "No se pudieron guardar los cambios en el servidor.";
       const displayMsg = errorMsg.toString().replace("Error 400: ", "").replace("Error 500: ", "");
       error("Error al actualizar", displayMsg);
+    } finally {
+      setIsSavingCita(false);
     }
   };
 
@@ -1751,7 +2044,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 </h2>
                 <button
                   type="button"
-                  onClick={handleCloseModal}
+                  onClick={() => handleCloseModal()}
                   className="p-2.5 rounded-full text-gray-lighter hover:text-white-primary hover:bg-gray-dark/80 bg-gray-dark/40 transition-all cursor-pointer flex items-center justify-center"
                   style={{ cursor: 'default' }}
                   title="Cerrar"
@@ -1763,7 +2056,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
             {/* Cliente fijo — fuera del scroll */}
             <div className="shrink-0 pr-6">
-              <div className="flex items-center gap-0 py-1 px-2.5 px-2">
+              <div
+                className="flex items-center gap-0 py-1 px-2.5 px-2"
+                style={showFormErrors && !nuevaCita.clienteId && !dismissedErrors.has('cliente') ? { marginBottom: '1.25rem' } : {}}
+              >
                 <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                   <User className="w-5 h-5 text-gray-lighter" />
                 </div>
@@ -1832,7 +2128,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           </div>
                         </div>
                       )}
-                      error={showFormErrors && !nuevaCita.clienteId ? 'Selecciona un cliente' : undefined}
+                      error={showFormErrors && !nuevaCita.clienteId && !dismissedErrors.has('cliente') ? 'Selecciona un cliente' : undefined}
+                      onFocus={() => setDismissedErrors(prev => new Set(prev).add('cliente'))}
                     />
                   )}
                 </div>
@@ -1894,7 +2191,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       {/* Chip fecha */}
                       <button
                         type="button"
-                        onClick={() => { setEditingFecha(prev => !prev); setEditingHora(false); }}
+                        onClick={() => { setEditingFecha(prev => !prev); setEditingHora(false); setDismissedErrors(prev => new Set(prev).add('fechaHora')); }}
                         className={`px-3 py-1.5 rounded-lg text-base transition-colors duration-150 ${
                           editingFecha
                             ? 'bg-orange-primary text-white-primary'
@@ -1908,7 +2205,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       {/* Chip hora inicio */}
                       <button
                         type="button"
-                        onClick={() => { setEditingHora(prev => !prev); setEditingFecha(false); }}
+                        onClick={() => { setEditingHora(prev => !prev); setEditingFecha(false); setDismissedErrors(prev => new Set(prev).add('fechaHora')); }}
                         className={`px-3 py-1.5 rounded-lg text-base transition-colors duration-150 ${
                           editingHora
                             ? 'bg-orange-primary text-white-primary'
@@ -1943,15 +2240,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     /* Ghost: placeholder hasta que el usuario interactúa */
                     <button
                       type="button"
-                      onClick={() => setEditingFecha(true)}
+                      onClick={() => { setEditingFecha(true); setDismissedErrors(prev => new Set(prev).add('fechaHora')); }}
                       className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-base cursor-pointer"
                     >
                       Selecciona fecha y hora
                     </button>
                   )}
 
-                  {showFormErrors && (!nuevaCita.fecha || !nuevaCita.hora) && (
-                    <p className="text-xs text-red-400 mt-1">Selecciona fecha y hora</p>
+                  {showFormErrors && (!nuevaCita.fecha || !nuevaCita.hora) && !dismissedErrors.has('fechaHora') && (
+                    <p className="text-sm text-red-400 mt-1 px-3">Selecciona fecha y hora</p>
                   )}
 
                   {/* ── Selector de Fecha (Calendario Flotante tipo Google) ── */}
@@ -2048,8 +2345,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Servicio / Paquete ── */}
-              <div className="flex items-start gap-0 py-1.5 px-2">
-                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center pt-2">
+              <div
+                className="flex items-center gap-0 py-1.5 px-2"
+                style={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? { marginBottom: '1.25rem' } : {}}
+              >
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                   {tipoServicio === 'paquetes' ? <Package className="w-5 h-5 text-gray-lighter" /> : <Scissors className="w-5 h-5 text-gray-lighter" />}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2083,7 +2383,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           </div>
                         )}
                         isSelected={nuevaCita.servicioIds.length > 0}
-                        error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                        error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? 'Selecciona al menos un servicio o paquete' : undefined}
+                        onFocus={() => setDismissedErrors(prev => new Set(prev).add('servicio'))}
                       />
                       {/* Servicios seleccionados: carrusel horizontal (mismo diseño que paquete) */}
                       {nuevaCita.servicioIds.length > 0 && (() => {
@@ -2256,7 +2557,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                             </div>
                           )}
-                          error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                          error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? 'Selecciona al menos un servicio o paquete' : undefined}
+                          onFocus={() => setDismissedErrors(prev => new Set(prev).add('servicio'))}
                         />
                       )}
                     </>
@@ -2265,7 +2567,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Barbero ── */}
-              <div className="flex items-center gap-0 py-1 px-2.5 px-2">
+              <div
+                className="flex items-center gap-0 py-1 px-2.5 px-2"
+                style={(showFormErrors && !nuevaCita.barberoId && !dismissedErrors.has('barbero')) || (nuevaCita.fecha && barberosParaFormulario.length === 0) ? { marginBottom: '1.25rem' } : {}}
+              >
                 <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                   <User className="w-5 h-5 text-gray-lighter" />
                 </div>
@@ -2275,7 +2580,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     if (!b) return null;
                     const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
                     return (
-                      <div className="flex items-center gap-3 px-1 py-1 rounded-lg group">
+                      <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg group">
                         {b.fotoPerfil ? (
                           <img src={b.fotoPerfil} alt={nombreCompleto} className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                         ) : (
@@ -2342,12 +2647,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         </div>
                       )}
                       error={
-                        showFormErrors && !nuevaCita.barberoId
+                        showFormErrors && !nuevaCita.barberoId && !dismissedErrors.has('barbero')
                           ? 'Selecciona un barbero'
                           : nuevaCita.fecha && barberosParaFormulario.length === 0
                             ? 'No hay barberos con horario para esta fecha y hora'
                             : undefined
                       }
+                      onFocus={() => setDismissedErrors(prev => new Set(prev).add('barbero'))}
                     />
                   )}
                 </div>
@@ -2500,7 +2806,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={handleCloseModal}
+                  onClick={() => handleCloseModal()}
                   className="px-4 py-2 text-sm font-medium text-gray-lighter hover:text-white-primary transition-colors"
                 >
                   Cancelar
@@ -2508,9 +2814,20 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 <button
                   type="button"
                   onClick={selectedCita ? handleUpdateCita : handleCreateCita}
-                  className="px-4 py-2 text-sm font-medium bg-orange-primary text-white-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 transition-colors"
+                  disabled={isSavingCita}
+                  className="relative px-4 py-2 text-sm font-semibold bg-orange-primary text-black-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                 >
-                  {selectedCita ? 'Actualizar Cita' : 'Guardar'}
+                  <span className={isSavingCita ? 'opacity-0' : ''}>
+                    {selectedCita ? 'Actualizar Cita' : 'Guardar'}
+                  </span>
+                  {isSavingCita && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-20" cx="12" cy="12" r="10" stroke="#212020" strokeWidth="4" />
+                        <path fill="#555555" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
@@ -3370,6 +3687,55 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Diálogo de descarte: siempre montado (evita onOpenChange de Radix al montar condicional) */}
+      {createPortal(
+        <div
+          data-discard-dialog-root
+          className={`fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-150 ${
+            showDiscardDialog ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          style={{ zIndex: DISCARD_DIALOG_Z }}
+          aria-hidden={!showDiscardDialog}
+        >
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setShowDiscardDialog(false)}
+          />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="discard-dialog-title"
+            aria-describedby="discard-dialog-desc"
+            className="relative w-full max-w-md rounded-lg border border-gray-dark bg-gray-darkest p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="discard-dialog-title" className="text-lg font-semibold text-white-primary">
+              ¿Descartar cambios?
+            </h2>
+            <p id="discard-dialog-desc" className="mt-2 text-sm text-gray-lightest">
+              Tienes cambios sin guardar. Si cierras el formulario, se perderán.
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="elegante-button-secondary"
+                onClick={() => setShowDiscardDialog(false)}
+              >
+                Seguir editando
+              </button>
+              <button
+                type="button"
+                className="rounded-md bg-orange-primary px-4 py-2 text-sm font-medium text-black-primary hover:opacity-90"
+                onClick={() => handleCloseModal(true)}
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Dialog para configurar descuentos de días */}
       <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>

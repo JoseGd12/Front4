@@ -18,6 +18,10 @@ export interface HorarioLike {
   horaInicio?: string;
   horaFin?: string;
   estado?: boolean | number | string | null;
+  /** ISO date string — start of the weekly schedule this slot belongs to */
+  fechaInicioSemana?: string;
+  /** ISO date string — end of the weekly schedule this slot belongs to */
+  fechaFinSemana?: string;
 }
 
 export interface CitaHorarioLike {
@@ -92,11 +96,16 @@ export const getHorariosBarberoParaDia = (
   fechaStr: string
 ): HorarioLike[] => {
   const diaStr = diaSemanaDesdeFecha(fechaStr);
+  const fecha = fechaStr.slice(0, 10);
   return horariosList.filter(
     (h) =>
       Number(h.barberoId) === Number(barberoId) &&
       horarioEstaActivo(h) &&
-      normalizeDiaNombre(String(h.dia || '')) === diaStr
+      normalizeDiaNombre(String(h.dia || '')) === diaStr &&
+      // Only include if the weekly schedule covers the requested date
+      // (fall through when dates are absent for backwards-compat)
+      (!h.fechaInicioSemana || fecha >= h.fechaInicioSemana.slice(0, 10)) &&
+      (!h.fechaFinSemana   || fecha <= h.fechaFinSemana.slice(0, 10))
   );
 };
 

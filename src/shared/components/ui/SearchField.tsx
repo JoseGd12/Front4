@@ -23,6 +23,8 @@ interface SearchFieldProps<T> {
   ghostMode?: boolean;
 }
 
+const DROPDOWN_MAX_HEIGHT = 320;
+
 export function SearchField<T>({
   placeholder,
   value,
@@ -37,15 +39,19 @@ export function SearchField<T>({
   className = "",
   shakeClass = "",
   onFocus,
-  dropUp = false,
+  dropUp,
   ghostMode = false,
 }: SearchFieldProps<T>) {
   const [showResults, setShowResults] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const [computedDropUp, setComputedDropUp] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [portalStyle, setPortalStyle] = useState<React.CSSProperties>({});
+
+  const shouldDropUp = dropUp !== undefined ? dropUp : computedDropUp;
 
   // En ghostMode, solo muestra ghost si nunca se ha activado Y no hay valor
   const showAsGhost = ghostMode && !isActive && !value;
@@ -54,9 +60,28 @@ export function SearchField<T>({
     ? items.filter((item) => filterFn(item, value)).slice(0, maxResults)
     : items.slice(0, maxResults);
 
-  const updatePortalPosition = useCallback(() => {
-    if (!dropUp || !wrapperRef.current) return;
+  const detectDirection = useCallback(() => {
+    if (!wrapperRef.current) return;
     const rect = wrapperRef.current.getBoundingClientRect();
+    const scrollParent = wrapperRef.current.closest('[class*="overflow-y"]') || wrapperRef.current.closest('[style*="overflow"]');
+    let spaceBelow: number;
+    let spaceAbove: number;
+    if (scrollParent) {
+      const parentRect = scrollParent.getBoundingClientRect();
+      spaceBelow = parentRect.bottom - rect.bottom;
+      spaceAbove = rect.top - parentRect.top;
+    } else {
+      spaceBelow = window.innerHeight - rect.bottom;
+      spaceAbove = rect.top;
+    }
+    setComputedDropUp(spaceBelow < DROPDOWN_MAX_HEIGHT && spaceAbove > spaceBelow);
+  }, []);
+
+  const updatePortalPosition = useCallback(() => {
+    if (!shouldDropUp) return;
+    const target = (ghostMode && innerRef.current) ? innerRef.current : wrapperRef.current;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
     setPortalStyle({
       position: "fixed",
       left: rect.left,
@@ -64,13 +89,19 @@ export function SearchField<T>({
       bottom: window.innerHeight - rect.top + 8,
       zIndex: 9999,
     });
-  }, [dropUp]);
+  }, [shouldDropUp, ghostMode]);
 
   useLayoutEffect(() => {
-    if (dropUp && showResults) {
+    if (showResults) {
+      detectDirection();
+    }
+  }, [showResults, detectDirection]);
+
+  useLayoutEffect(() => {
+    if (shouldDropUp && showResults) {
       updatePortalPosition();
     }
-  }, [dropUp, showResults, updatePortalPosition]);
+  }, [shouldDropUp, showResults, updatePortalPosition]);
 
   const handleBlur = () => {
     timeoutRef.current = setTimeout(() => {
@@ -124,13 +155,16 @@ export function SearchField<T>({
         <button
           type="button"
           onClick={handleGhostClick}
-          className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-base cursor-pointer"
+          className="w-full text-left text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-lg transition-colors duration-150 cursor-pointer"
+          style={{ padding: '0.5rem 0.75rem', border: '1px solid transparent' }}
         >
           {placeholder}
         </button>
       ) : (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
+        <div ref={innerRef} className="relative" style={ghostMode ? { marginLeft: '0.25rem' } : {}}>
+          {!ghostMode && (
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
+          )}
           <input
             ref={inputRef}
             placeholder={placeholder}
@@ -142,6 +176,7 @@ export function SearchField<T>({
             onFocus={() => { setShowResults(true); setIsActive(true); onFocus?.(); }}
             onBlur={handleBlur}
             className={`elegante-input pl-11 pr-8 w-full ${error ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}
+            style={ghostMode ? { paddingLeft: '0.5rem' } : {}}
           />
           {value ? (
             <button
@@ -157,10 +192,10 @@ export function SearchField<T>({
               <X className="w-4 h-4" />
             </button>
           ) : (
-            <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none transition-transform duration-200 ${dropUp ? (showResults ? "" : "rotate-180") : (showResults ? "rotate-180" : "")}`} />
+            <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none transition-transform duration-200 ${shouldDropUp ? (showResults ? "" : "rotate-180") : (showResults ? "rotate-180" : "")}`} />
           )}
 
-          {showResults && !dropUp && (
+          {showResults && !shouldDropUp && (
             <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
               {dropdownContent}
             </div>
@@ -169,13 +204,26 @@ export function SearchField<T>({
       )}
 
       {error && (
-        <p className="text-xs text-red-400 mt-1">{error}</p>
+        <p
+          className="text-sm text-red-400"
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            width: '100%',
+            paddingLeft: ghostMode ? '0.75rem' : '2.75rem',
+            paddingTop: '0.125rem',
+            pointerEvents: 'none',
+          }}
+        >{error}</p>
       )}
 
-      {showResults && dropUp && ReactDOM.createPortal(
+      {showResults && shouldDropUp && ReactDOM.createPortal(
         <div
+          data-modal-portal="true"
           className="bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200"
           style={portalStyle}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           {dropdownContent}
         </div>,
