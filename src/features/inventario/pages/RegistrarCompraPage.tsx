@@ -160,6 +160,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
 
   // Discount input
   const [porcentajeDescuentoInput, setPorcentajeDescuentoInput] = useState("");
+  const [showDiscountWarning, setShowDiscountWarning] = useState(false);
 
   // Validation
   const [showCompraFormErrors, setShowCompraFormErrors] = useState(false);
@@ -327,24 +328,34 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
   };
 
   const handlePorcentajeDescuentoInputChange = (valor: string) => {
-    setPorcentajeDescuentoInput(valor);
     if (valor.trim() === "") {
+      setPorcentajeDescuentoInput("");
       setNuevaCompra({ ...nuevaCompra, porcentajeDescuento: 0 });
       return;
     }
     const numero = Number(valor);
     if (!Number.isNaN(numero)) {
-      const clamped = Math.min(100, Math.max(0, numero));
-      setNuevaCompra({ ...nuevaCompra, porcentajeDescuento: clamped });
+      if (numero > 100) {
+        setPorcentajeDescuentoInput("100");
+        setNuevaCompra({ ...nuevaCompra, porcentajeDescuento: 100 });
+        setShowDiscountWarning(true);
+      } else {
+        setPorcentajeDescuentoInput(valor);
+        setNuevaCompra({ ...nuevaCompra, porcentajeDescuento: Math.max(0, numero) });
+        setShowDiscountWarning(false);
+      }
+    } else {
+      setPorcentajeDescuentoInput(valor);
+      setShowDiscountWarning(false);
     }
   };
 
   // --- Product management ---
   const agregarProducto = () => {
     try {
-      const cantidadAgregar = stockVentas + stockInsumos;
+      const cantidadAgregar = 1;
 
-      if (!productoSeleccionado || cantidadAgregar <= 0) {
+      if (!productoSeleccionado) {
         setShowAddProductoErrors(true);
         setCompraValidationAttempt((prev) => prev + 1);
         return;
@@ -359,8 +370,8 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
 
       const productosActuales = nuevaCompra.productos || [];
       const existeProducto = productosActuales.find((p) => p.id === producto.id);
-      const stockVentasAgregar = esSoloVentaSeleccionado ? cantidadAgregar : stockVentas;
-      const stockInsumosAgregar = esSoloVentaSeleccionado ? 0 : stockInsumos;
+      const stockVentasAgregar = 1;
+      const stockInsumosAgregar = 0;
       const precioCompraInicial = precioUnitario > 0 ? precioUnitario : getPrecioCompra(producto);
 
       if (existeProducto) {
@@ -583,24 +594,24 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     const producto = productosActuales.find((p) => p.id === productId);
     if (!producto) return;
 
-    const cantidadTotal = Math.max(0, Math.floor(producto.cantidad));
-    let clampedVentas = Math.max(0, Math.min(Math.floor(nuevoStock), cantidadTotal));
-    let clampedInsumos = cantidadTotal - clampedVentas;
+    let nuevoVentas = Math.floor(nuevoStock);
+    let nuevoInsumos = producto.stockInsumos;
 
     if (isSaleOnly(producto as any)) {
-      clampedVentas = cantidadTotal;
-      clampedInsumos = 0;
+      nuevoInsumos = 0;
     }
+
+    const nuevaCantidad = nuevoVentas + nuevoInsumos;
 
     setNuevaCompra({
       ...nuevaCompra,
       productos: productosActuales.map((p) =>
-        p.id === productId ? { ...p, stockVentas: clampedVentas, stockInsumos: clampedInsumos } : p
+        p.id === productId ? { ...p, cantidad: nuevaCantidad, stockVentas: nuevoVentas, stockInsumos: nuevoInsumos } : p
       ),
     });
     setTarjetaInputs((prev) => ({
       ...prev,
-      [productId]: { ...prev[productId], stockVentas: String(clampedVentas), stockInsumos: String(clampedInsumos) },
+      [productId]: { ...prev[productId], cantidad: String(nuevaCantidad), stockVentas: String(nuevoVentas), stockInsumos: String(nuevoInsumos) },
     }));
   };
 
@@ -610,24 +621,24 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     const producto = productosActuales.find((p) => p.id === productId);
     if (!producto) return;
 
-    const cantidadTotal = Math.max(0, Math.floor(producto.cantidad));
-    let clampedInsumos = Math.max(0, Math.min(Math.floor(nuevoStock), cantidadTotal));
-    let clampedVentas = cantidadTotal - clampedInsumos;
-
     if (isSaleOnly(producto as any)) {
-      clampedInsumos = 0;
-      clampedVentas = cantidadTotal;
+      return;
     }
+
+    let nuevoInsumos = Math.floor(nuevoStock);
+    let nuevoVentas = producto.stockVentas;
+
+    const nuevaCantidad = nuevoVentas + nuevoInsumos;
 
     setNuevaCompra({
       ...nuevaCompra,
       productos: productosActuales.map((p) =>
-        p.id === productId ? { ...p, stockInsumos: clampedInsumos, stockVentas: clampedVentas } : p
+        p.id === productId ? { ...p, cantidad: nuevaCantidad, stockVentas: nuevoVentas, stockInsumos: nuevoInsumos } : p
       ),
     });
     setTarjetaInputs((prev) => ({
       ...prev,
-      [productId]: { ...prev[productId], stockInsumos: String(clampedInsumos), stockVentas: String(clampedVentas) },
+      [productId]: { ...prev[productId], cantidad: String(nuevaCantidad), stockVentas: String(nuevoVentas), stockInsumos: String(nuevoInsumos) },
     }));
   };
 
@@ -931,12 +942,15 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                       }
                     }}
                     onFocus={clearValidationErrors}
-                    className="elegante-input no-spin"
+                    className={`elegante-input no-spin ${showDiscountWarning ? "border-red-500 ring-1 ring-red-500" : ""}`}
                     min="0"
                     max="100"
                     step="0.1"
                     placeholder="0"
                   />
+                  {showDiscountWarning && (
+                    <p className="text-xs text-red-400 mt-1">el descuento no puede ser superior a 100</p>
+                  )}
                 </div>
               </div>
             </FormSection>
@@ -949,126 +963,71 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
               style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
             >
               <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="space-y-1 md:col-span-2">
-                    <Label className="text-gray-lightest text-xs">Producto *</Label>
-                    <SearchField
-                      placeholder="Escribe para buscar un producto..."
-                      value={productSearchTerm}
-                      onChange={(val) => setProductSearchTerm(val)}
-                      onClear={() => {
-                        setProductSearchTerm("");
-                        setProductoSeleccionado("");
-                        setPrecioUnitario(0);
-                        setStockVentas(0);
-                        setStockInsumos(0);
-                        setStockVentasInput("");
-                        setStockInsumosInput("");
-                      }}
-                      items={productos}
-                      filterFn={(p, query) => {
-                        const q = normalizeSearchText(query);
-                        const searchable = normalizeSearchText(
-                          [p.id, p.nombre, getCategoriaNombre(p)].join(" ")
-                        );
-                        return searchable.includes(q);
-                      }}
-                      renderItem={(producto) => (
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
-                              {producto.nombre}
-                            </p>
-                            <p className="text-[10px] text-gray-lightest">
-                              ${formatCurrency(getPrecioCompra(producto as any))}
-                            </p>
-                            <p className="text-[10px] text-gray-400">
-                              {getCategoriaNombre(producto) || "Sin categoría"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="flex flex-col items-end gap-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] text-gray-lightest leading-none">Stock ventas</span>
-                                <span className={`text-xs font-bold ${((producto as any).stockVentas ?? 0) > 0 ? "text-green-400" : "text-red-400"}`}>
-                                  {Number((producto as any).stockVentas ?? 0)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] text-gray-lightest leading-none">Stock insumos</span>
-                                <span className={`text-xs font-bold ${((producto as any).stockInsumos ?? (producto as any).stock ?? 0) > 0 ? "text-blue-400" : "text-red-400"}`}>
-                                  {Number((producto as any).stockInsumos ?? (producto as any).stock ?? 0)}
-                                </span>
-                              </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-lightest text-xs">Producto *</Label>
+                  <SearchField
+                    placeholder="Escribe para buscar un producto..."
+                    value={productSearchTerm}
+                    onChange={(val) => setProductSearchTerm(val)}
+                    onClear={() => {
+                      setProductSearchTerm("");
+                      setProductoSeleccionado("");
+                      setPrecioUnitario(0);
+                      setStockVentas(0);
+                      setStockInsumos(0);
+                      setStockVentasInput("");
+                      setStockInsumosInput("");
+                    }}
+                    items={productos}
+                    filterFn={(p, query) => {
+                      const q = normalizeSearchText(query);
+                      const searchable = normalizeSearchText(
+                        [p.id, p.nombre, getCategoriaNombre(p)].join(" ")
+                      );
+                      return searchable.includes(q);
+                    }}
+                    renderItem={(producto) => (
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-white-primary font-medium text-sm group-hover:text-orange-secondary transition-colors">
+                            {producto.nombre}
+                          </p>
+                          <p className="text-[10px] text-gray-lightest">
+                            ${formatCurrency(getPrecioCompra(producto as any))}
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            {getCategoriaNombre(producto) || "Sin categoría"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-gray-lightest leading-none">Stock ventas</span>
+                              <span className={`text-xs font-bold ${((producto as any).stockVentas ?? 0) > 0 ? "text-green-400" : "text-red-400"}`}>
+                                {Number((producto as any).stockVentas ?? 0)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-gray-lightest leading-none">Stock insumos</span>
+                              <span className={`text-xs font-bold ${((producto as any).stockInsumos ?? (producto as any).stock ?? 0) > 0 ? "text-blue-400" : "text-red-400"}`}>
+                                {Number((producto as any).stockInsumos ?? (producto as any).stock ?? 0)}
+                              </span>
                             </div>
                           </div>
                         </div>
-                      )}
-                      onSelect={(producto) => {
-                        setProductoSeleccionado(producto.id.toString());
-                        setProductSearchTerm(producto.nombre);
-                        if (showAddProductoErrors) setShowAddProductoErrors(false);
-                      }}
-                      error={showProductoSelectorError ? "Debes seleccionar un producto del buscador." : undefined}
-                      shakeClass={shakeClass}
-                      maxResults={20}
-                      onFocus={clearValidationErrors}
-                      dropUp
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-gray-lightest text-xs">Stock para Ventas *</Label>
-                    <Input
-                      type="number"
-                      value={stockVentasInput}
-                      onKeyDown={(e) => {
-                        if (e.key === "-" || e.key === "e" || e.key === "+" || e.key === ".") e.preventDefault();
-                      }}
-                      onPaste={(e) => {
-                        const text = e.clipboardData?.getData("text") || "";
-                        if (/[^\d]/.test(text) || text.length > 4) {
-                          e.preventDefault();
-                          handleStockVentasInputChange(text.replace(/\D+/g, "").slice(0, 4));
-                        }
-                      }}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D+/g, "").slice(0, 4);
-                        handleStockVentasInputChange(val);
-                      }}
-                      onFocus={clearValidationErrors}
-                      className={`elegante-input no-spin ${showStockVentasError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}
-                      min="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-gray-lightest text-xs">Stock para Insumos *</Label>
-                    <Input
-                      type="number"
-                      value={stockInsumosInput}
-                      disabled={esSoloVentaSeleccionado}
-                      onKeyDown={(e) => {
-                        if (e.key === "-" || e.key === "e" || e.key === "+" || e.key === ".") e.preventDefault();
-                      }}
-                      onPaste={(e) => {
-                        if (esSoloVentaSeleccionado) {
-                          e.preventDefault();
-                          return;
-                        }
-                        const text = e.clipboardData?.getData("text") || "";
-                        if (/[^\d]/.test(text) || text.length > 4) {
-                          e.preventDefault();
-                          handleStockInsumosInputChange(text.replace(/\D+/g, "").slice(0, 4));
-                        }
-                      }}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D+/g, "").slice(0, 4);
-                        handleStockInsumosInputChange(val);
-                      }}
-                      onFocus={clearValidationErrors}
-                      className={`elegante-input no-spin ${showStockInsumosError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""} ${esSoloVentaSeleccionado ? "bg-gray-medium cursor-not-allowed" : ""}`}
-                      min="0"
-                    />
-                  </div>
+                      </div>
+                    )}
+                    onSelect={(producto) => {
+                      setProductoSeleccionado(producto.id.toString());
+                      setProductSearchTerm(producto.nombre);
+                      if (showAddProductoErrors) setShowAddProductoErrors(false);
+                    }}
+                    error={showProductoSelectorError ? "Debes seleccionar un producto del buscador." : undefined}
+                    shakeClass={shakeClass}
+                    maxResults={20}
+                    onFocus={clearValidationErrors}
+                    dropUp
+                  />
                 </div>
 
                 <div className="flex justify-end">
@@ -1080,20 +1039,8 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                   </button>
                 </div>
 
-                {showStockCantidadError && (
-                  <p className="text-xs text-red-400">
-                    Ingresa al menos una unidad en stock para ventas o insumos.
-                  </p>
-                )}
-
-                {esSoloVentaSeleccionado && (
-                  <p className="text-xs text-gray-lightest">
-                    Este producto es solo para venta, por lo que el stock para insumos permanece en 0.
-                  </p>
-                )}
-
                 {(showCompraFormErrors || showAddProductoErrors) && noProductosAgregados && (
-                  <p className="text-xs text-red-400">Debes agregar al menos un producto.</p>
+                  <p className="text-xs text-red-400">Debes seleccionar y agregar al menos un producto.</p>
                 )}
               </div>
             </FormSection>

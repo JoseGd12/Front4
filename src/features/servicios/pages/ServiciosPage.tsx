@@ -757,22 +757,6 @@ export function ServiciosPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
-                  Estado
-                </Label>
-                <div className="flex items-center space-x-3">
-                  <Switch
-                    checked={!!nuevoServicio.estado}
-                    onCheckedChange={(checked) => setNuevoServicio({ ...nuevoServicio, estado: !!checked })}
-                    className="data-[state=checked]:bg-orange-primary"
-                  />
-                  <span className={`text-sm ${nuevoServicio.estado ? 'text-orange-primary' : 'text-gray-lightest'}`}>
-                    {nuevoServicio.estado ? 'Activo' : 'Inactivo'}
-                  </span>
-                </div>
-              </div>
-
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
                 <button onClick={() => setIsDialogOpen(false)} className="elegante-button-secondary px-6">
                   Cancelar
