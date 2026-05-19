@@ -388,20 +388,6 @@ export function CategoriasPage() {
                         rows={7}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-gray-lightest">Estado</Label>
-                      <div className="flex items-center space-x-3">
-                        <Switch
-                          checked={nuevaCategoria.estado}
-                          onCheckedChange={(checked) => setNuevaCategoria({ ...nuevaCategoria, estado: checked })}
-                          className="data-[state=checked]:bg-orange-primary"
-                        />
-                        <span className={`text-sm font-medium ${nuevaCategoria.estado ? 'text-orange-primary' : 'text-gray-lightest'}`}>
-                          {nuevaCategoria.estado ? 'Activa' : 'Inactiva'}
-                        </span>
-                      </div>
-                    </div>
-
                     <div className="text-xs text-gray-lightest">
                       * Campos obligatorios
                     </div>

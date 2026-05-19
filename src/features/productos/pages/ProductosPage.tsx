@@ -1019,6 +1019,30 @@ export function ProductosPage() {
                               className="elegante-input h-9 text-sm"
                             />
                           </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                              <Package className="w-3.5 h-3.5 text-orange-primary" />
+                              Tipo de producto *
+                            </Label>
+                            <Select
+                              value={usoProductoValue}
+                              onValueChange={(val) =>
+                                setNuevoProducto({ ...nuevoProducto, usoProducto: val as any })
+                              }
+                            >
+                              <SelectTrigger className="elegante-input h-9 text-sm">
+                                <SelectValue placeholder="Selecciona el tipo" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-darkest border-gray-dark">
+                                <SelectItem value="venta_e_insumo" className="text-gray-lightest hover:bg-gray-dark focus:bg-gray-dark focus:text-white-primary">
+                                  Venta e Insumo
+                                </SelectItem>
+                                <SelectItem value="solo_venta" className="text-gray-lightest hover:bg-gray-dark focus:bg-gray-dark focus:text-white-primary">
+                                  Solo Venta
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between gap-2 h-9">
@@ -1268,27 +1292,6 @@ export function ProductosPage() {
                           </div>
                         </div>
                       )}
-
-                      <div className="grid grid-cols-1 gap-4 border-t border-gray-dark pt-4 mt-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-gray-lightest text-xs flex items-center gap-1.5">
-                            <Info className="w-3.5 h-3.5 text-orange-primary" />
-                            Estado
-                          </Label>
-                          <div className="flex items-center space-x-3 h-9">
-                            <Switch
-                              checked={!!(nuevoProducto as any).activo}
-                              onCheckedChange={(checked) =>
-                                setNuevoProducto({ ...nuevoProducto, activo: !!checked })
-                              }
-                              className="data-[state=checked]:bg-orange-primary"
-                            />
-                            <span className={`text-sm font-normal ${nuevoProducto.activo ? 'text-orange-primary' : 'text-gray-lightest'}`}>
-                              {nuevoProducto.activo ? 'Activo' : 'Inactivo'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
 
                     <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
                       <button onClick={() => setIsDialogOpen(false)} className="elegante-button-secondary px-6">
@@ -1629,6 +1632,15 @@ export function ProductosPage() {
                         </Label>
                         <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
                           {selectedProducto.marca || 'Sin marca'}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                          Tipo
+                        </Label>
+                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                          {esProductoSoloVenta(selectedProducto) ? 'Solo Venta' : 'Venta e Insumo'}
                         </div>
                       </div>
                     </div>

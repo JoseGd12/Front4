@@ -109,6 +109,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   const { success, error, AlertContainer } = useCustomAlert();
   const [horarios, setHorarios] = useState<HorarioSemanal[]>([]);
   const [barberos, setBarberos] = useState<Barbero[]>([]);
+  const [agendamientos, setAgendamientos] = useState<import("../../agendamiento/services/agendamientoService").Agendamiento[]>([]);
   const [loading, setLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -130,10 +131,17 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   const [isProcessingSpecialCancel, setIsProcessingSpecialCancel] = useState(false);
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [reprogramItems, setReprogramItems] = useState<Array<{ citaId: number; clienteId: number; barberoId: number; sugerencias: string[] }>>([]);
-  const [cancelTab, setCancelTab] = useState<'hora' | 'dia' | 'dias' | 'semanal'>('dias');
+  const [cancelTab, setCancelTab] = useState<'hora' | 'dia' | 'dias'>('dias');
   const [cancelHoraStart, setCancelHoraStart] = useState("");
   const [cancelHoraEnd, setCancelHoraEnd] = useState("");
   const [cancelFechaDia, setCancelFechaDia] = useState("");
+  const [cancelFechaInicio, setCancelFechaInicio] = useState("");
+  const [cancelFechaFin, setCancelFechaFin] = useState("");
+  const [calendarBaseDate, setCalendarBaseDate] = useState<Date>(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [showRangeCalendar, setShowRangeCalendar] = useState(false);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -174,9 +182,10 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [barberosData, semanalesData] = await Promise.all([
+      const [barberosData, semanalesData, agendamientosData] = await Promise.all([
         barberosService.getBarberos(),
-        horariosService.getHorariosSemanales()
+        horariosService.getHorariosSemanales(),
+        agendamientoService.getAgendamientos()
       ]);
 
       const barberosMapeados = barberosData.map(b => ({
@@ -217,6 +226,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
         });
 
       setHorarios(horariosMapeados);
+      setAgendamientos(agendamientosData);
     } catch (err) {
       console.error("Error cargando horarios:", err);
       error("Error de conexión", "No se pudieron cargar los horarios de los barberos.");
@@ -263,7 +273,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     }
 
     // Filtrar días que ya están en el horario para evitar duplicados
-    const diasSinDuplicados = diasSeleccionados.filter(dia => 
+    const diasSinDuplicados = diasSeleccionados.filter(dia =>
       !nuevoHorario.bloques.some(b => b.dia === dia)
     );
 
@@ -506,6 +516,39 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     return new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "2-digit" }).format(date);
   };
 
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    const day = new Date(year, month, 1).getDay();
+    return day === 0 ? 6 : day - 1;
+  };
+
+  const handleDateClick = (dateStr: string) => {
+    if (!cancelFechaInicio || (cancelFechaInicio && cancelFechaFin)) {
+      setCancelFechaInicio(dateStr);
+      setCancelFechaFin("");
+    } else {
+      if (dateStr < cancelFechaInicio) {
+        setCancelFechaInicio(dateStr);
+      } else {
+        setCancelFechaFin(dateStr);
+        setTimeout(() => {
+          setShowRangeCalendar(false);
+        }, 200);
+      }
+    }
+  };
+
+  const navigateMonths = (offset: number) => {
+    setCalendarBaseDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + offset);
+      return newDate;
+    });
+  };
+
   const getWeekLabel = (offset: number): string => {
     if (offset === 0) return "Semana actual";
     if (offset === 1) return "Próxima semana";
@@ -606,13 +649,17 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     setCancelMotive("Día cancelado por administración.");
     setCancelTab('dia');
     // Calcular la fecha del próximo día de la semana correspondiente
-    const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const targetDow = diasSemana.indexOf(dia);
     const hoy = new Date();
     const diff = (targetDow - hoy.getDay() + 7) % 7;
     const fecha = new Date(hoy);
     fecha.setDate(hoy.getDate() + (diff === 0 ? 0 : diff));
-    setCancelFechaDia(formatDateLocal(fecha));
+    const targetStr = formatDateLocal(fecha);
+    setCancelFechaDia(targetStr);
+    setCancelFechaInicio(targetStr);
+    setCancelFechaFin(targetStr);
+    setShowRangeCalendar(false);
     setIsSpecialCancelDialogOpen(true);
   };
 
@@ -628,7 +675,11 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     const yyyy = hoy.getFullYear();
     const mm = String(hoy.getMonth() + 1).padStart(2, '0');
     const dd = String(hoy.getDate()).padStart(2, '0');
-    setCancelFechaDia(`${yyyy}-${mm}-${dd}`);
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    setCancelFechaDia(todayStr);
+    setCancelFechaInicio(todayStr);
+    setCancelFechaFin(todayStr);
+    setShowRangeCalendar(false);
     setIsSpecialCancelDialogOpen(true);
   };
 
@@ -646,7 +697,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
         const [shH, shM] = cancelHoraStart.split(':').map(Number);
         const [ehH, ehM] = cancelHoraEnd.split(':').map(Number);
         const startMin = (shH || 0) * 60 + (shM || 0);
-        const endMin   = (ehH || 0) * 60 + (ehM || 0);
+        const endMin = (ehH || 0) * 60 + (ehM || 0);
 
         const todasCitas = await agendamientoService.getAgendamientos();
         const afectadas = todasCitas.filter(c => {
@@ -737,23 +788,29 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       return;
     }
 
-    // ── MODO SEMANAL ───────────────────────────────────────────────────────────
-    // Selecciona automáticamente todos los días de la semana elegida y cae al modo 'dias'
-    let datesToProcess = selectedDates;
-    if (cancelTab === 'semanal') {
-      const semanaFechas = diasSemana.map(dia => getDateForWeek(dia, weekOffset));
-      const todayStr = formatDateLocal(new Date());
-      datesToProcess = semanaFechas.filter(d => {
-        const ds = formatDateLocal(d);
-        return weekOffset > 0 || ds >= todayStr; // solo días desde hoy si es semana actual
-      });
-      if (datesToProcess.length === 0) {
-        error("Sin días disponibles", "No quedan días válidos en la semana seleccionada.");
+    // ── MODO DÍAS (varios) ──────────────────────────────────────────
+    let datesToProcess: Date[] = [];
+    if (cancelTab === 'dias') {
+      if (!cancelFechaInicio || !cancelFechaFin) {
+        error("Datos incompletos", "Por favor selecciona el rango de fechas.");
         return;
       }
+      if (cancelFechaInicio > cancelFechaFin) {
+        error("Rango inválido", "La fecha de inicio debe ser anterior o igual a la fecha de fin.");
+        return;
+      }
+
+      const start = new Date(`${cancelFechaInicio}T00:00:00`);
+      const end = new Date(`${cancelFechaFin}T00:00:00`);
+      const current = new Date(start);
+      while (current <= end) {
+        datesToProcess.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+    } else {
+      datesToProcess = selectedDates;
     }
 
-    // ── MODO DÍAS (varios) y SEMANAL ──────────────────────────────────────────
     if (datesToProcess.length === 0) {
       error("Datos incompletos", "Por favor selecciona al menos una fecha.");
       return;
@@ -773,10 +830,10 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       const erroresApi: string[] = [];
       const fechasUnicas = Array.from(new Set(datesToProcess.map((d) => formatDateLocal(d))))
         .map((value) => new Date(`${value}T00:00:00`));
-      const collectedReprogram: Array<{ 
-        citaId: number; 
-        clienteId: number; 
-        barberoId: number; 
+      const collectedReprogram: Array<{
+        citaId: number;
+        clienteId: number;
+        barberoId: number;
         sugerencias: string[];
         clienteNombre?: string;
         clienteCorreo?: string;
@@ -821,7 +878,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       setReprogramItems(collectedReprogram);
       if (collectedReprogram.length > 0) {
         setIsReprogramDialogOpen(true);
-        
+
         // --- ENVÍO DE CORREOS VÍA EMAILJS ---
         // Notificamos de manera asíncrona sin bloquear la UI
         const motivo = (cancelMotive || "").trim() || "Día desactivado por administración.";
@@ -838,7 +895,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
           }
         });
       }
-      
+
       if (fechasFallidas.length > 0 && fechasFallidas.length === fechasUnicas.length && erroresApi.length === 0) {
         error("Error en todas las fechas", "No se encontró horario activo para ninguna de las fechas seleccionadas.");
       } else {
@@ -849,7 +906,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             `Citas canceladas: ${totalCanceladas}. Errores: ${resumenErrores}${erroresApi.length > 3 ? " ..." : ""}`
           );
         } else {
-          const msg = fechasFallidas.length > 0 
+          const msg = fechasFallidas.length > 0
             ? `Se procesaron las fechas. Citas canceladas: ${totalCanceladas}. Omitidas: ${fechasFallidas.join(", ")}`
             : `Se cancelaron los horarios para ${fechasUnicas.length} días. Citas canceladas: ${totalCanceladas}.`;
           success("Cancelación completada", msg);
@@ -994,109 +1051,109 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
           {/* Tabla */}
           <div className="std-table-wrapper">
             <table className="std-table">
-                <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
-                  <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-gray-lightest font-normal text-sm">Barbero</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Horas</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Días Trabajo</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="std-tbody">
-                  {loading ? (
-                    <TableLoadingStateRow colSpan={6} title="Cargando horarios..." />
-                  ) : displayedHorarios.length > 0 ? displayedHorarios.map((horario) => {
-                    const isExpanded = expandedId === horario.id;
-                    // Agrupar bloques por día
-                    const diasOrden = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-                    const diasUnicos = diasOrden.filter(d => horario.bloques.some(b => b.dia === d && b.estado !== false));
-                    const calcHoras = (b: BloqueHorario) => {
-                      const [hI, mI] = b.horaInicio.split(':').map(Number);
-                      const [hF, mF] = b.horaFin.split(':').map(Number);
-                      return ((hF * 60 + mF) - (hI * 60 + mI)) / 60;
-                    };
+              <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
+                <tr className="border-b border-gray-dark">
+                  <th className="text-left py-3 px-4 text-gray-lightest font-normal text-sm">Barbero</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Horas</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Días Trabajo</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="std-tbody">
+                {loading ? (
+                  <TableLoadingStateRow colSpan={6} title="Cargando horarios..." />
+                ) : displayedHorarios.length > 0 ? displayedHorarios.map((horario) => {
+                  const isExpanded = expandedId === horario.id;
+                  // Agrupar bloques por día
+                  const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+                  const diasUnicos = diasOrden.filter(d => horario.bloques.some(b => b.dia === d && b.estado !== false));
+                  const calcHoras = (b: BloqueHorario) => {
+                    const [hI, mI] = b.horaInicio.split(':').map(Number);
+                    const [hF, mF] = b.horaFin.split(':').map(Number);
+                    return ((hF * 60 + mF) - (hI * 60 + mI)) / 60;
+                  };
 
-                    return (
-                      <>
-                        {/* Fila principal */}
-                        <tr
-                          key={`row-${horario.id}`}
-                          className={`border-b border-gray-dark transition-colors cursor-pointer ${isExpanded ? 'bg-orange-primary/5' : 'hover:bg-gray-darker'}`}
-                          onClick={() => setExpandedId(isExpanded ? null : horario.id)}
-                        >
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-gray-dark border-2 border-gray-medium overflow-hidden flex items-center justify-center shrink-0">
-                                {horario.fotoPerfil ? (
-                                  <img src={horario.fotoPerfil} alt={horario.barbero} className="w-full h-full object-cover" />
-                                ) : (
-                                  <UserIcon className="w-4 h-4 text-gray-lightest" />
-                                )}
-                              </div>
-                              <span className="text-gray-lightest font-normal">{horario.barbero}</span>
+                  return (
+                    <>
+                      {/* Fila principal */}
+                      <tr
+                        key={`row-${horario.id}`}
+                        className={`border-b border-gray-dark transition-colors cursor-pointer ${isExpanded ? 'bg-orange-primary/5' : 'hover:bg-gray-darker'}`}
+                        onClick={() => setExpandedId(isExpanded ? null : horario.id)}
+                      >
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gray-dark border-2 border-gray-medium overflow-hidden flex items-center justify-center shrink-0">
+                              {horario.fotoPerfil ? (
+                                <img src={horario.fotoPerfil} alt={horario.barbero} className="w-full h-full object-cover" />
+                              ) : (
+                                <UserIcon className="w-4 h-4 text-gray-lightest" />
+                              )}
                             </div>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="text-gray-lighter text-sm">{horario.tipoDocumento} {horario.documento || '—'}</span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="text-gray-lighter text-sm">
-                              {horario.bloques.length > 0 ? `${formatHoraStr12(horario.bloques[0].horaInicio)} - ${formatHoraStr12(horario.bloques[0].horaFin)}` : '—'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="px-2 py-1 rounded bg-gray-medium text-gray-lighter text-sm">
-                              {[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length} día{[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length !== 1 ? 's' : ''}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className={`std-badge ${horario.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
-                              {horario.activo ? 'Activo' : 'Inactivo'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                className="p-1.5 rounded-lg transition-colors text-gray-lightest hover:text-orange-primary hover:bg-gray-darker"
-                                title={isExpanded ? 'Cerrar detalle' : 'Ver días'}
-                                onClick={() => setExpandedId(isExpanded ? null : horario.id)}
-                              >
-                                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-orange-primary' : ''}`} />
-                              </button>
-                              <button
-                                onClick={() => toggleEstadoHorario(horario)}
-                                disabled={togglingId === horario.id}
-                                className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-                                title={horario.activo ? 'Desactivar horario' : 'Activar horario'}
-                              >
-                                {togglingId === horario.id ? (
-                                  <Loader2 className="w-4 h-4 text-orange-primary animate-spin" />
-                                ) : horario.activo ? (
-                                  <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
-                                ) : (
-                                  <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                                )}
-                              </button>
-                              <button onClick={() => handleOpenSpecialCancel(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
-                                <CalendarX className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
-                              </button>
-                              <button onClick={() => handleEditHorario(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
-                                <Edit className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                              </button>
-                              <button onClick={() => handleDeleteHorario(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
-                                <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                            <span className="text-gray-lightest font-normal">{horario.barbero}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-gray-lighter text-sm">{horario.tipoDocumento} {horario.documento || '—'}</span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-gray-lighter text-sm">
+                            {horario.bloques.length > 0 ? `${formatHoraStr12(horario.bloques[0].horaInicio)} - ${formatHoraStr12(horario.bloques[0].horaFin)}` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="px-2 py-1 rounded bg-gray-medium text-gray-lighter text-sm">
+                            {[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length} día{[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length !== 1 ? 's' : ''}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className={`std-badge ${horario.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                            {horario.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-center" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              className="p-1.5 rounded-lg transition-colors text-gray-lightest hover:text-orange-primary hover:bg-gray-darker"
+                              title={isExpanded ? 'Cerrar detalle' : 'Ver días'}
+                              onClick={() => setExpandedId(isExpanded ? null : horario.id)}
+                            >
+                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-orange-primary' : ''}`} />
+                            </button>
+                            <button
+                              onClick={() => toggleEstadoHorario(horario)}
+                              disabled={togglingId === horario.id}
+                              className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={horario.activo ? 'Desactivar horario' : 'Activar horario'}
+                            >
+                              {togglingId === horario.id ? (
+                                <Loader2 className="w-4 h-4 text-orange-primary animate-spin" />
+                              ) : horario.activo ? (
+                                <ToggleRight className="w-4 h-4 text-gray-lightest group-hover:text-green-400" />
+                              ) : (
+                                <ToggleLeft className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                              )}
+                            </button>
+                            <button onClick={() => handleOpenSpecialCancel(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
+                              <CalendarX className="w-4 h-4 text-gray-lightest group-hover:text-red-500" />
+                            </button>
+                            <button onClick={() => handleEditHorario(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
+                              <Edit className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                            </button>
+                            <button onClick={() => handleDeleteHorario(horario)} disabled={!horario.activo} className="p-1.5 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed">
+                              <Trash2 className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
 
-                        {/* Fila expandible — días del barbero */}
-                        <tr key={`expand-${horario.id}`} className={isExpanded ? 'border-b border-orange-primary/20' : ''}>
-                          <td colSpan={6} style={{ padding: 0 }}>
-                            <div className={`row-accordion-wrap${isExpanded ? ' open' : ''}`}>
-                              <div className="row-accordion-inner">
+                      {/* Fila expandible — días del barbero */}
+                      <tr key={`expand-${horario.id}`} className={isExpanded ? 'border-b border-orange-primary/20' : ''}>
+                        <td colSpan={6} style={{ padding: 0 }}>
+                          <div className={`row-accordion-wrap${isExpanded ? ' open' : ''}`}>
+                            <div className="row-accordion-inner">
                               <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
                                 {/* Etiqueta */}
                                 <div className="px-6 py-2 bg-orange-primary/5 border-b border-gray-darker">
@@ -1114,7 +1171,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                       <tr style={{ background: 'rgba(17,17,17,0.5)', borderBottom: '1px solid #2a2a2a' }}>
                                         <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '52px' }}>Día</th>
                                         <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horario</th>
-                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bloques</th>
+                                        <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Citas</th>
                                         <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</th>
                                         <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Acciones</th>
                                       </tr>
@@ -1126,6 +1183,20 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                         const horaInicio = bloquesDelDia.reduce((min, b) => b.horaInicio < min ? b.horaInicio : min, bloquesDelDia[0]?.horaInicio || '—');
                                         const horaFin = bloquesDelDia.reduce((max, b) => b.horaFin > max ? b.horaFin : max, bloquesDelDia[0]?.horaFin || '—');
 
+                                        // Calcular fecha de ese día en la semana actual
+                                        const diasJs = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                        const targetDow = diasJs.indexOf(dia);
+                                        const hoy = new Date();
+                                        const diff = (targetDow - hoy.getDay() + 7) % 7;
+                                        const fechaDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + diff);
+                                        const fechaDiaStr = `${fechaDia.getFullYear()}-${String(fechaDia.getMonth() + 1).padStart(2, '0')}-${String(fechaDia.getDate()).padStart(2, '0')}`;
+                                        const citasDelDia = agendamientos.filter(c => {
+                                          if (Number(c.barberoId) !== Number(horario.barberoId)) return false;
+                                          if (c.fecha !== fechaDiaStr) return false;
+                                          const est = String(c.estado || '').toLowerCase();
+                                          return est !== 'cancelada' && est !== 'completada';
+                                        }).length;
+
                                         return (
                                           <tr key={dia} style={{ borderBottom: '1px solid rgba(42,42,42,0.8)', background: '#111111', transition: 'background 0.12s' }}
                                             onMouseEnter={e => (e.currentTarget.style.background = '#1a1919')}
@@ -1133,13 +1204,21 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                           >
                                             <td style={{ padding: '12px 16px', paddingLeft: '52px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'left', verticalAlign: 'middle' }}>
                                               <span style={{ fontWeight: 400 }}>{dia}</span>
+                                              <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--gray-lighter)', fontWeight: 400 }}>
+                                                {`${String(fechaDia.getDate()).padStart(2, '0')}/${String(fechaDia.getMonth() + 1).padStart(2, '0')}`}
+                                              </span>
                                             </td>
                                             <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'center', verticalAlign: 'middle' }}>
                                               {formatHoraStr12(horaInicio)} — {formatHoraStr12(horaFin)}
                                             </td>
-                                            <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'center', verticalAlign: 'middle' }}>
-                                              <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 400, background: 'rgba(216,176,129,0.1)', color: '#d8b081', border: '1px solid rgba(216,176,129,0.2)' }}>
-                                                {bloquesDelDia.length} bloque{bloquesDelDia.length !== 1 ? 's' : ''}
+                                            <td style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                              <span style={{
+                                                display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 400,
+                                                background: citasDelDia > 0 ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.05)',
+                                                color: citasDelDia > 0 ? '#60a5fa' : 'var(--gray-lightest)',
+                                                border: `1px solid ${citasDelDia > 0 ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)'}`
+                                              }}>
+                                                {citasDelDia} cita{citasDelDia !== 1 ? 's' : ''}
                                               </span>
                                             </td>
                                             <td style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'center', verticalAlign: 'middle' }}>
@@ -1171,21 +1250,21 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                 )}
                               </div>
                             </div>
-                            </div>
-                          </td>
-                        </tr>
-                      </>
-                    );
-                  }) : (
-                    <TableEmptyStateRow
-                      colSpan={6}
-                      title="No se encontraron horarios"
-                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                      onReload={loadData}
-                    />
-                  )}
-                </tbody>
-              </table>
+                          </div>
+                        </td>
+                      </tr>
+                    </>
+                  );
+                }) : (
+                  <TableEmptyStateRow
+                    colSpan={6}
+                    title="No se encontraron horarios"
+                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                    onReload={loadData}
+                  />
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Paginación */}
@@ -1301,7 +1380,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                         {diasSemana.map((dia) => {
                           const isSelected = diasSeleccionados.includes(dia);
                           const isAlreadyAdded = nuevoHorario.bloques.some(b => b.dia === dia);
-                          
+
                           return (
                             <button
                               key={dia}
@@ -1453,38 +1532,39 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
 
       {/* Dialog de Cancelación Especial (Múltiples Días) */}
       <Dialog open={isSpecialCancelDialogOpen} onOpenChange={setIsSpecialCancelDialogOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-dark">
-            <DialogTitle className="text-white-primary flex items-center gap-2">
-              <CalendarX className="w-5 h-5 text-red-500" />
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-3xl overflow-visible flex flex-col">
+          <DialogHeader className="px-6 pt-4 pb-1">
+            <DialogTitle className="text-white-primary flex items-center gap-2 text-lg font-bold">
+              <CalendarX className="w-4 h-4 text-red-500" />
               Cancelación Especial de Días
             </DialogTitle>
-            <DialogDescription className="text-gray-lightest mt-1.5">
+            <DialogDescription className="text-gray-lightest mt-0.5 text-xs">
               Selecciona una o varias fechas para desactivar el horario de{" "}
               <span className="text-white-primary font-semibold">
                 {selectedHorario?.barbero}
-              </span>. 
-              Esto cancelará automáticamente todas las citas de esos días y enviará notificaciones a los clientes.
+              </span>.
+              Esto cancelará automáticamente todas las citas y notificará a los clientes.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+          <div className="flex-1 overflow-visible px-6 py-2">
             {/* Tabs de modalidad */}
-            <div className="flex border-b border-gray-dark mb-6">
+            <div className="flex border-b border-gray-dark mb-4">
               {([
                 { key: 'hora', label: '⏰ Por Hora' },
                 { key: 'dia', label: '📅 Un Día' },
                 { key: 'dias', label: '🗓 Varios Días' },
-                { key: 'semanal', label: '📆 Semana' },
               ] as const).map(tab => (
                 <button
                   key={tab.key}
-                  onClick={() => setCancelTab(tab.key)}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
-                    cancelTab === tab.key
-                      ? 'border-red-500 text-red-400 bg-red-500/5'
+                  onClick={() => {
+                    setCancelTab(tab.key);
+                    setShowRangeCalendar(false);
+                  }}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${cancelTab === tab.key
+                      ? 'border-orange-primary text-orange-primary bg-orange-primary/5'
                       : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -1493,34 +1573,34 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
 
             {/* HORA */}
             {cancelTab === 'hora' && (
-              <div className="space-y-5">
-                <p className="text-gray-lightest text-sm">Cancela todas las citas de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> que estén dentro de un rango de horas.</p>
+              <div className="space-y-3">
+                <p className="text-gray-lightest text-xs">Cancela todas las citas de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> que estén dentro de un rango de horas.</p>
 
                 {/* Fecha auto-seleccionada: hoy */}
-                <div className="flex items-center gap-3 bg-gray-dark/60 border border-gray-dark rounded-lg px-4 py-3">
-                  <span className="text-orange-primary text-lg">📅</span>
+                <div className="flex items-center gap-2 bg-gray-dark/60 border border-gray-dark rounded-lg px-3.5 py-2">
+                  <span className="text-orange-primary text-base">📅</span>
                   <div>
-                    <p className="text-xs text-gray-lighter">Fecha seleccionada automáticamente</p>
-                    <p className="text-white-primary font-semibold">
+                    <p className="text-[10px] text-gray-lighter">Fecha seleccionada automáticamente</p>
+                    <p className="text-white-primary font-semibold text-xs">
                       {new Date(cancelFechaDia + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-lightest text-sm">Hora inicio *</Label>
-                    <Input type="time" value={cancelHoraStart} onChange={e => setCancelHoraStart(e.target.value)} className="elegante-input w-full" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Hora inicio *</Label>
+                    <Input type="time" value={cancelHoraStart} onChange={e => setCancelHoraStart(e.target.value)} className="elegante-input w-full py-1 text-xs" />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-lightest text-sm">Hora fin *</Label>
-                    <Input type="time" value={cancelHoraEnd} onChange={e => setCancelHoraEnd(e.target.value)} className="elegante-input w-full" />
+                  <div className="space-y-1">
+                    <Label className="text-gray-lightest text-xs">Hora fin *</Label>
+                    <Input type="time" value={cancelHoraEnd} onChange={e => setCancelHoraEnd(e.target.value)} className="elegante-input w-full py-1 text-xs" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-lightest text-sm">Motivo *</Label>
-                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[80px] text-sm" />
+                <div className="space-y-1">
+                  <Label className="text-gray-lightest text-xs">Motivo *</Label>
+                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[60px] text-xs" />
                 </div>
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-xs text-orange-200/80">
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-2 text-[10px] text-orange-200/80">
                   ⚠️ Solo se cancelarán las citas activas de ese barbero cuya hora esté dentro del rango indicado.
                 </div>
               </div>
@@ -1528,133 +1608,516 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
 
             {/* DIA */}
             {cancelTab === 'dia' && (
-              <div className="space-y-5">
-                <p className="text-gray-lightest text-sm">Cancela <strong>todas las citas</strong> de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> en una fecha específica.</p>
-                <div className="space-y-2">
-                  <Label className="text-gray-lightest text-sm">Fecha *</Label>
-                  <Input type="date" value={cancelFechaDia} onChange={e => setCancelFechaDia(e.target.value)} className="elegante-input w-full" />
+              <div className="space-y-3">
+                <p className="text-gray-lightest text-xs">Cancela <strong>todas las citas</strong> de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> en una fecha específica.</p>
+                
+                <div className="space-y-2 relative">
+                  <Label className="text-gray-lightest text-xs block">Selecciona la fecha a cancelar:</Label>
+                  
+                  {/* Trigger Button - Símil al de rango */}
+                  <div 
+                    onClick={() => setShowRangeCalendar(!showRangeCalendar)}
+                    className={`border rounded-xl p-2.5 flex flex-col items-center justify-center text-center cursor-pointer transition-all max-w-xs mx-auto ${
+                      showRangeCalendar 
+                        ? "border-orange-primary bg-gray-dark bg-opacity-40 ring-2 ring-orange-primary/20" 
+                        : "border-gray-dark bg-gray-darker hover:bg-gray-dark/30"
+                    }`}
+                  >
+                    <span className="block text-[10px] font-semibold text-gray-lighter uppercase tracking-wider mb-0.5 select-none">
+                      Día a Cancelar
+                    </span>
+                    <div className="flex items-center justify-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-orange-primary shrink-0" />
+                      <span className="text-white-primary text-sm font-medium select-none">
+                        {cancelFechaDia ? new Date(cancelFechaDia + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' }) : 'Selecciona fecha'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Calendario Popover para un Día */}
+                  {showRangeCalendar && (
+                    <>
+                      {/* Overlay */}
+                      <div 
+                        className="fixed inset-0 z-30" 
+                        onClick={() => setShowRangeCalendar(false)} 
+                      />
+                      
+                      {/* Contenido del Calendario */}
+                      <div className="absolute top-[85px] left-1/2 -translate-x-1/2 z-40 border border-gray-dark bg-gray-darkest shadow-2xl rounded-2xl p-5 space-y-4 w-[540px] md:w-[560px]">
+                        <div className="flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); navigateMonths(-1); }}
+                            className="p-1.5 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark text-gray-lightest hover:text-white transition-colors"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          
+                          <span className="text-xs text-gray-lighter font-medium uppercase tracking-widest select-none">
+                            Selecciona una fecha
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); navigateMonths(1); }}
+                            className="p-1.5 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark text-gray-lightest hover:text-white transition-colors"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="flex flex-row gap-8 justify-center animate-in fade-in zoom-in-95 duration-200">
+                          {/* Primer Mes */}
+                          {(() => {
+                            const monthNames = [
+                              "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                              "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+                            ];
+                            const year = calendarBaseDate.getFullYear();
+                            const month = calendarBaseDate.getMonth();
+                            const daysInMonth = getDaysInMonth(year, month);
+                            const firstDay = getFirstDayOfMonth(year, month);
+                            const todayStr = formatDateLocal(new Date());
+
+                            const daySlots = [];
+                            for (let i = 0; i < firstDay; i++) {
+                              daySlots.push(<div key={`empty-1-${i}`} className="w-8 h-8" />);
+                            }
+
+                            for (let d = 1; d <= daysInMonth; d++) {
+                              const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                              const isSelected = cancelFechaDia === dateStr;
+                              const isPast = dateStr < todayStr;
+
+                              let cellClass = "w-8 h-8 flex items-center justify-center text-xs font-normal transition-all duration-150 select-none rounded-lg ";
+                              if (isSelected) {
+                                cellClass += "bg-orange-primary text-black-primary font-bold shadow-[0_0_12px_rgba(216,176,129,0.5)] z-10 cursor-pointer";
+                              } else if (isPast) {
+                                cellClass += "text-gray-500 opacity-25 cursor-not-allowed";
+                              } else {
+                                cellClass += "text-gray-lightest hover:bg-gray-dark hover:text-white cursor-pointer";
+                              }
+
+                              daySlots.push(
+                                <button
+                                  key={`day-1-${dateStr}`}
+                                  type="button"
+                                  disabled={isPast}
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setCancelFechaDia(dateStr);
+                                    setShowRangeCalendar(false);
+                                  }}
+                                  className={cellClass}
+                                >
+                                  {d}
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <div className="w-[240px]">
+                                <h4 className="text-white-primary font-semibold text-center text-sm mb-3">
+                                  {monthNames[month]} {year}
+                                </h4>
+                                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                                  {["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"].map((day) => (
+                                    <div key={day} className="text-[10px] font-semibold text-gray-lighter py-1 select-none">
+                                      {day}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="grid grid-cols-7 gap-1">
+                                  {daySlots}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Segundo Mes */}
+                          {(() => {
+                            const monthNames = [
+                              "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                              "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+                            ];
+                            const nextMonth = new Date(calendarBaseDate);
+                            nextMonth.setMonth(nextMonth.getMonth() + 1);
+                            const year = nextMonth.getFullYear();
+                            const month = nextMonth.getMonth();
+                            const daysInMonth = getDaysInMonth(year, month);
+                            const firstDay = getFirstDayOfMonth(year, month);
+                            const todayStr = formatDateLocal(new Date());
+
+                            const daySlots = [];
+                            for (let i = 0; i < firstDay; i++) {
+                              daySlots.push(<div key={`empty-2-${i}`} className="w-8 h-8" />);
+                            }
+
+                            for (let d = 1; d <= daysInMonth; d++) {
+                              const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                              const isSelected = cancelFechaDia === dateStr;
+                              const isPast = dateStr < todayStr;
+
+                              let cellClass = "w-8 h-8 flex items-center justify-center text-xs font-normal transition-all duration-150 select-none rounded-lg ";
+                              if (isSelected) {
+                                cellClass += "bg-orange-primary text-black-primary font-bold shadow-[0_0_12px_rgba(216,176,129,0.5)] z-10 cursor-pointer";
+                              } else if (isPast) {
+                                cellClass += "text-gray-500 opacity-25 cursor-not-allowed";
+                              } else {
+                                cellClass += "text-gray-lightest hover:bg-gray-dark hover:text-white cursor-pointer";
+                              }
+
+                              daySlots.push(
+                                <button
+                                  key={`day-2-${dateStr}`}
+                                  type="button"
+                                  disabled={isPast}
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setCancelFechaDia(dateStr);
+                                    setShowRangeCalendar(false);
+                                  }}
+                                  className={cellClass}
+                                >
+                                  {d}
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <div className="w-[240px]">
+                                <h4 className="text-white-primary font-semibold text-center text-sm mb-3">
+                                  {monthNames[month]} {year}
+                                </h4>
+                                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                                  {["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"].map((day) => (
+                                    <div key={day} className="text-[10px] font-semibold text-gray-lighter py-1 select-none">
+                                      {day}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="grid grid-cols-7 gap-1">
+                                  {daySlots}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      {/* Spacer dinámico para evitar desborde de altura */}
+                      <div className="h-[310px] pointer-events-none" />
+                    </>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-lightest text-sm">Motivo *</Label>
-                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[80px] text-sm" />
+
+                <div className="space-y-1">
+                  <Label className="text-gray-lightest text-xs">Motivo *</Label>
+                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[60px] text-xs" />
                 </div>
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-xs text-orange-200/80">
-                  ⚠️ Se cancelarán todas las citas activas del barbero en esa fecha.
+                
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-2 text-xs text-orange-200/80 flex gap-2 items-center">
+                  <AlertTriangle className="w-4 h-4 text-orange-primary shrink-0" />
+                  <p className="text-[10px]">Se cancelarán todas las citas activas del barbero en esa fecha.</p>
                 </div>
               </div>
             )}
 
             {/* DIAS (varios) */}
             {cancelTab === 'dias' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Label className="text-gray-lightest text-sm block">Selecciona los días:</Label>
-                    <Select
-                      value={String(weekOffset)}
-                      onValueChange={(val) => setWeekOffset(Number(val))}
-                    >
-                      <SelectTrigger className="w-48 elegante-input">
-                        <SelectValue placeholder="Semana" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-darkest border-gray-dark">
-                        <SelectItem value="0" className="text-white-primary">Semana actual</SelectItem>
-                        <SelectItem value="1" className="text-white-primary">Próxima semana</SelectItem>
-                        <SelectItem value="2" className="text-white-primary">En 2 semanas</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {diasSemana.map((dia) => {
-                      const targetNum = ordenDias[dia] ?? 0;
-                      const todayNum = getTodayNumeric();
-                      const isDisabled = weekOffset === 0 && targetNum < todayNum;
-                      const targetDate = getDateForWeek(dia, weekOffset);
-                      const key = formatDateLocal(targetDate);
-                      const isSelected = selectedDates.some(d => formatDateLocal(d) === key);
-                      return (
-                        <button
-                          key={dia}
-                          type="button"
-                          disabled={isDisabled}
-                          onClick={() => {
-                            if (isDisabled) return;
-                            if (isSelected) {
-                              setSelectedDates(selectedDates.filter(d => formatDateLocal(d) !== key));
-                            } else {
-                              setSelectedDates([...selectedDates, targetDate]);
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border flex items-center gap-1 ${
-                            isDisabled
-                              ? "bg-gray-dark text-gray-medium border-gray-medium cursor-not-allowed opacity-60"
-                              : isSelected
-                                ? "bg-red-500 text-white border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]"
-                                : "bg-gray-dark hover:bg-gray-medium text-gray-lightest border-gray-medium"
-                          }`}
-                        >
-                          {dia} ({formatDateShort(targetDate)})
-                          {isSelected && <CheckCircle className="w-3 h-3" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="text-xs text-gray-lightest italic">
-                    {getWeekRangeLabel(weekOffset)}. Fechas seleccionadas: <span className="text-white-primary font-medium">{selectedDates.length}</span>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-lightest text-sm">Motivo de la cancelación *</Label>
-                    <Textarea
-                      placeholder="Escribe el motivo aquí... (Este se enviará a los clientes)"
-                      value={cancelMotive}
-                      onChange={(e) => setCancelMotive(e.target.value)}
-                      className="elegante-input min-h-[120px] text-sm"
-                    />
-                  </div>
-                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
-                    <div className="flex gap-3">
-                      <AlertTriangle className="w-5 h-5 text-orange-primary shrink-0" />
-                      <p className="text-xs text-orange-200/80">El sistema buscará citas activas para esos días y las cancelará automáticamente.</p>
+              <div className="space-y-3">
+                <div className="space-y-2 relative">
+                  <Label className="text-gray-lightest text-xs block">Rango de fechas a cancelar:</Label>
+                  
+                  {/* Trigger Button - Visualización tipo Ida / Vuelta */}
+                  <div 
+                    onClick={() => setShowRangeCalendar(!showRangeCalendar)}
+                    className={`border rounded-xl overflow-hidden flex divide-x divide-gray-dark cursor-pointer transition-all max-w-md mx-auto ${
+                      showRangeCalendar 
+                        ? "border-orange-primary bg-gray-dark bg-opacity-40 ring-2 ring-orange-primary/20" 
+                        : "border-gray-dark bg-gray-darker hover:bg-gray-dark/30"
+                    }`}
+                  >
+                    {/* Fecha de Inicio */}
+                    <div className="flex-1 p-2.5 flex flex-col items-center justify-center text-center relative group">
+                      <span className="block text-[10px] font-semibold text-gray-lighter uppercase tracking-wider mb-0.5 select-none">
+                        Desde (Ida)
+                      </span>
+                      <div className="flex items-center justify-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-orange-primary shrink-0" />
+                        <span className="text-white-primary text-sm font-medium select-none">
+                          {cancelFechaInicio ? new Date(cancelFechaInicio + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' }) : 'Selecciona fecha'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Fecha de Fin */}
+                    <div className="flex-1 p-2.5 flex flex-col items-center justify-center text-center relative group">
+                      <span className="block text-[10px] font-semibold text-gray-lighter uppercase tracking-wider mb-0.5 select-none">
+                        Hasta (Vuelta)
+                      </span>
+                      <div className="flex items-center justify-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-orange-primary shrink-0" />
+                        <span className="text-white-primary text-sm font-medium select-none">
+                          {cancelFechaFin ? new Date(cancelFechaFin + 'T00:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' }) : 'Selecciona fecha'}
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Calendario de 2 Meses en un Popover Absoluto */}
+                  {showRangeCalendar && (
+                    <>
+                      {/* Overlay para cerrar al hacer clic afuera */}
+                      <div 
+                        className="fixed inset-0 z-30" 
+                        onClick={() => setShowRangeCalendar(false)} 
+                      />
+                      
+                      {/* Contenido del Calendario Popover */}
+                      <div className="absolute top-[85px] left-1/2 -translate-x-1/2 z-40 border border-gray-dark bg-gray-darkest shadow-2xl rounded-2xl p-5 space-y-4 w-[540px] md:w-[560px]">
+                        <div className="flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); navigateMonths(-1); }}
+                            className="p-1.5 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark text-gray-lightest hover:text-white transition-colors"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          
+                          <span className="text-xs text-gray-lighter font-medium uppercase tracking-widest select-none">
+                            Selecciona un rango de fechas
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); navigateMonths(1); }}
+                            className="p-1.5 rounded-lg bg-gray-darker hover:bg-gray-dark border border-gray-dark text-gray-lightest hover:text-white transition-colors"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="flex flex-row gap-8 justify-center animate-in fade-in zoom-in-95 duration-200">
+                          {/* Primer Mes */}
+                          {(() => {
+                            const monthNames = [
+                              "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                              "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+                            ];
+                            const year = calendarBaseDate.getFullYear();
+                            const month = calendarBaseDate.getMonth();
+                            const daysInMonth = getDaysInMonth(year, month);
+                            const firstDay = getFirstDayOfMonth(year, month);
+                            const todayStr = formatDateLocal(new Date());
+
+                            const daySlots = [];
+                            for (let i = 0; i < firstDay; i++) {
+                              daySlots.push(<div key={`empty-1-${i}`} className="w-8 h-8" />);
+                            }
+
+                            for (let d = 1; d <= daysInMonth; d++) {
+                              const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                              const isStart = cancelFechaInicio === dateStr;
+                              const isEnd = cancelFechaFin === dateStr;
+                              const isInRange = cancelFechaInicio && cancelFechaFin && dateStr > cancelFechaInicio && dateStr < cancelFechaFin;
+                              const isPast = dateStr < todayStr;
+                              const dateObj = new Date(dateStr + "T00:00:00");
+                              const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+
+                              let cellClass = "w-8 h-8 flex items-center justify-center text-xs font-normal transition-all duration-150 select-none relative ";
+                              if (isStart) {
+                                cellClass += "bg-orange-primary text-black-primary font-bold shadow-[0_0_12px_rgba(216,176,129,0.5)] z-10 cursor-pointer ";
+                                if (cancelFechaFin) {
+                                  if (dayOfWeek === 0) {
+                                    cellClass += "rounded-lg";
+                                  } else {
+                                    cellClass += "rounded-l-lg rounded-r-none";
+                                  }
+                                } else {
+                                  cellClass += "rounded-lg";
+                                }
+                              } else if (isEnd) {
+                                cellClass += "bg-orange-primary text-black-primary font-bold shadow-[0_0_12px_rgba(216,176,129,0.5)] z-10 cursor-pointer ";
+                                if (dayOfWeek === 1) {
+                                  cellClass += "rounded-lg";
+                                } else {
+                                  cellClass += "rounded-r-lg rounded-l-none";
+                                }
+                              } else if (isInRange) {
+                                cellClass += "bg-orange-primary/20 text-orange-primary font-medium cursor-pointer ";
+                                if (dayOfWeek === 1 || d === 1) {
+                                  cellClass += "rounded-l-lg rounded-r-none";
+                                } else if (dayOfWeek === 0 || d === daysInMonth) {
+                                  cellClass += "rounded-r-lg rounded-l-none";
+                                } else {
+                                  cellClass += "rounded-none";
+                                }
+                              } else if (isPast) {
+                                cellClass += "text-gray-500 opacity-25 cursor-not-allowed";
+                              } else {
+                                cellClass += "text-gray-lightest hover:bg-gray-dark hover:text-white rounded-lg cursor-pointer";
+                              }
+
+                              daySlots.push(
+                                <button
+                                  key={`day-1-${dateStr}`}
+                                  type="button"
+                                  disabled={isPast}
+                                  onClick={(e) => { e.stopPropagation(); handleDateClick(dateStr); }}
+                                  className={cellClass}
+                                >
+                                  {d}
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <div className="w-[240px]">
+                                <h4 className="text-white-primary font-semibold text-center text-sm mb-3">
+                                  {monthNames[month]} {year}
+                                </h4>
+                                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                                  {["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"].map((day) => (
+                                    <div key={day} className="text-[10px] font-semibold text-gray-lighter py-1 select-none">
+                                      {day}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="grid grid-cols-7 gap-1">
+                                  {daySlots}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Segundo Mes */}
+                          {(() => {
+                            const monthNames = [
+                              "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                              "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+                            ];
+                            const nextMonth = new Date(calendarBaseDate);
+                            nextMonth.setMonth(nextMonth.getMonth() + 1);
+                            const year = nextMonth.getFullYear();
+                            const month = nextMonth.getMonth();
+                            const daysInMonth = getDaysInMonth(year, month);
+                            const firstDay = getFirstDayOfMonth(year, month);
+                            const todayStr = formatDateLocal(new Date());
+
+                            const daySlots = [];
+                            for (let i = 0; i < firstDay; i++) {
+                              daySlots.push(<div key={`empty-2-${i}`} className="w-8 h-8" />);
+                            }
+
+                            for (let d = 1; d <= daysInMonth; d++) {
+                              const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                              const isStart = cancelFechaInicio === dateStr;
+                              const isEnd = cancelFechaFin === dateStr;
+                              const isInRange = cancelFechaInicio && cancelFechaFin && dateStr > cancelFechaInicio && dateStr < cancelFechaFin;
+                              const isPast = dateStr < todayStr;
+                              const dateObj = new Date(dateStr + "T00:00:00");
+                              const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+
+                              let cellClass = "w-8 h-8 flex items-center justify-center text-xs font-normal transition-all duration-150 select-none relative ";
+                              if (isStart) {
+                                cellClass += "bg-orange-primary text-black-primary font-bold shadow-[0_0_12px_rgba(216,176,129,0.5)] z-10 cursor-pointer ";
+                                if (cancelFechaFin) {
+                                  if (dayOfWeek === 0) {
+                                    cellClass += "rounded-lg";
+                                  } else {
+                                    cellClass += "rounded-l-lg rounded-r-none";
+                                  }
+                                } else {
+                                  cellClass += "rounded-lg";
+                                }
+                              } else if (isEnd) {
+                                cellClass += "bg-orange-primary text-black-primary font-bold shadow-[0_0_12px_rgba(216,176,129,0.5)] z-10 cursor-pointer ";
+                                if (dayOfWeek === 1) {
+                                  cellClass += "rounded-lg";
+                                } else {
+                                  cellClass += "rounded-r-lg rounded-l-none";
+                                }
+                              } else if (isInRange) {
+                                cellClass += "bg-orange-primary/20 text-orange-primary font-medium cursor-pointer ";
+                                if (dayOfWeek === 1 || d === 1) {
+                                  cellClass += "rounded-l-lg rounded-r-none";
+                                } else if (dayOfWeek === 0 || d === daysInMonth) {
+                                  cellClass += "rounded-r-lg rounded-l-none";
+                                } else {
+                                  cellClass += "rounded-none";
+                                }
+                              } else if (isPast) {
+                                cellClass += "text-gray-500 opacity-25 cursor-not-allowed";
+                              } else {
+                                cellClass += "text-gray-lightest hover:bg-gray-dark hover:text-white rounded-lg cursor-pointer";
+                              }
+
+                              daySlots.push(
+                                <button
+                                  key={`day-2-${dateStr}`}
+                                  type="button"
+                                  disabled={isPast}
+                                  onClick={(e) => { e.stopPropagation(); handleDateClick(dateStr); }}
+                                  className={cellClass}
+                                >
+                                  {d}
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <div className="w-[240px]">
+                                <h4 className="text-white-primary font-semibold text-center text-sm mb-3">
+                                  {monthNames[month]} {year}
+                                </h4>
+                                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                                  {["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"].map((day) => (
+                                    <div key={day} className="text-[10px] font-semibold text-gray-lighter py-1 select-none">
+                                      {day}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="grid grid-cols-7 gap-1">
+                                  {daySlots}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      {/* Spacer dinámico para evitar desborde de altura */}
+                      <div className="h-[310px] pointer-events-none" />
+                    </>
+                  )}
+                  
+                  {cancelFechaInicio && cancelFechaFin && (
+                    <div className="text-xs text-gray-lightest italic text-center">
+                      Días seleccionados del <span className="text-white-primary font-medium">{new Date(cancelFechaInicio + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</span> al <span className="text-white-primary font-medium">{new Date(cancelFechaFin + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</span>.
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-gray-lightest text-xs">Motivo de la cancelación *</Label>
+                  <Textarea
+                    placeholder="Escribe el motivo aquí... (Este se enviará a los clientes)"
+                    value={cancelMotive}
+                    onChange={(e) => setCancelMotive(e.target.value)}
+                    className="elegante-input min-h-[60px] text-xs"
+                  />
+                </div>
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-2 flex gap-2 items-center">
+                  <AlertTriangle className="w-4 h-4 text-orange-primary shrink-0" />
+                  <p className="text-[10px] text-orange-200/80">El sistema buscará citas activas para esos días y las cancelará automáticamente.</p>
                 </div>
               </div>
             )}
 
-            {/* SEMANAL */}
-            {cancelTab === 'semanal' && (
-              <div className="space-y-5">
-                <p className="text-gray-lightest text-sm">Cancela <strong>todas las citas</strong> de <strong className="text-white-primary">{selectedHorario?.barbero}</strong> durante una semana completa.</p>
-                <div className="space-y-2">
-                  <Label className="text-gray-lightest text-sm">Semana a cancelar</Label>
-                  <Select value={String(weekOffset)} onValueChange={(val) => setWeekOffset(Number(val))}>
-                    <SelectTrigger className="w-full elegante-input">
-                      <SelectValue placeholder="Semana" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-darkest border-gray-dark">
-                      <SelectItem value="0" className="text-white-primary">Semana actual (desde hoy)</SelectItem>
-                      <SelectItem value="1" className="text-white-primary">Próxima semana</SelectItem>
-                      <SelectItem value="2" className="text-white-primary">En 2 semanas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="text-xs text-gray-lightest italic">
-                  Referencia seleccionada: <span className="text-white-primary">{getWeekRangeLabel(weekOffset)}</span>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-lightest text-sm">Motivo *</Label>
-                  <Textarea placeholder="Motivo para los clientes..." value={cancelMotive} onChange={e => setCancelMotive(e.target.value)} className="elegante-input min-h-[100px] text-sm" />
-                </div>
-                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-xs text-orange-200/80">
-                  ⚠️ Se cancelarán las citas de los 7 días de la semana seleccionada que tengan horario activo.
-                </div>
-              </div>
-            )}
+
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-gray-dark gap-3">
+          <DialogFooter className="px-6 py-3 border-t border-gray-dark gap-3">
             <button
               onClick={() => setIsSpecialCancelDialogOpen(false)}
               className="px-6 py-2 rounded-xl text-gray-lightest hover:bg-gray-dark transition-colors text-sm font-medium"
@@ -1665,9 +2128,8 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             <button
               onClick={handleConfirmSpecialCancel}
               disabled={isProcessingSpecialCancel || (
-                cancelTab === 'dias' ? selectedDates.length === 0 :
-                cancelTab === 'semanal' ? false :
-                !cancelFechaDia
+                cancelTab === 'dias' ? (!cancelFechaInicio || !cancelFechaFin) :
+                  !cancelFechaDia
               )}
               className="elegante-button-primary bg-red-600 hover:bg-red-700 border-red-800 text-white-primary px-8 py-2 flex items-center gap-2"
             >
@@ -1822,9 +2284,9 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-gray-dark border-2 border-gray-medium overflow-hidden flex items-center justify-center shrink-0 shadow-md">
                     {selectedHorario.fotoPerfil ? (
-                      <img 
-                        src={selectedHorario.fotoPerfil} 
-                        alt={selectedHorario.barbero} 
+                      <img
+                        src={selectedHorario.fotoPerfil}
+                        alt={selectedHorario.barbero}
                         className="w-full h-full object-cover"
                       />
                     ) : (

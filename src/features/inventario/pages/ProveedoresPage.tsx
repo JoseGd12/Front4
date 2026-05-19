@@ -362,7 +362,7 @@ export function ProveedoresPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const ignoreId = isEditDialogOpen && selectedProveedor ? Number((selectedProveedor as any).id) : undefined;
+      const ignoreId = selectedProveedor ? Number((selectedProveedor as any).id) : undefined;
       validateDuplicateFields(
         { nombre: formData.nombre, identificacion: formData.identificacion, telefono: formData.telefono, correo: formData.correo },
         ignoreId
@@ -812,7 +812,13 @@ export function ProveedoresPage() {
           <TableHeaderSection
             variant="dark"
             leftContent={(
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) {
+                  setIsEditDialogOpen(false);
+                  resetForm();
+                }
+              }}>
                 <DialogTrigger asChild>
                   <button
                     className="btn-std-primary"
@@ -853,19 +859,35 @@ export function ProveedoresPage() {
                             <button
                               key={tipo.value}
                               type="button"
-                              disabled={isEditDialogOpen}
                               onClick={() => {
                                 const val = tipo.value as 'Juridico' | 'Natural';
-                                setFormData({
-                                  ...formData,
+                                if (val === formData.tipoProveedor) return;
+                                setShowProveedorFormErrors(false);
+                                setFormatErrors({});
+                                setFormData(prev => ({
+                                  ...prev,
                                   tipoProveedor: val,
-                                  tipoIdentificacionProveedor: val === 'Juridico' ? 'NIT' : 'CC'
-                                });
+                                  tipoIdentificacionProveedor: val === 'Juridico' ? 'NIT' : 'CC',
+                                  // Al cambiar a Natural, limpiar campos exclusivos de Jurídico
+                                  ...(val === 'Natural' ? {
+                                    representanteLegal: '',
+                                    tipoIdentificacionRepresentante: 'CC',
+                                    identificacionRepresentante: '',
+                                    correoRepresentante: '',
+                                    telefonoRepresentante: '',
+                                    direccion: '',
+                                    ciudad: '',
+                                    departamento: '',
+                                  } : {
+                                    // Al cambiar a Jurídico, limpiar identificación para que el usuario ingrese NIT
+                                    identificacion: '',
+                                  })
+                                }));
                               }}
                               className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 ${formData.tipoProveedor === tipo.value
                                   ? 'bg-orange-primary text-black shadow-[0_0_15px_rgba(216,176,129,0.3)]'
                                   : 'text-gray-lightest hover:bg-gray-dark hover:text-orange-secondary'
-                                } ${isEditDialogOpen && formData.tipoProveedor !== tipo.value ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                }`}
                             >
                               {tipo.value === 'Juridico' ? <Building className="w-4 h-4" /> : <User className="w-4 h-4" />}
                               {tipo.label}
@@ -882,21 +904,27 @@ export function ProveedoresPage() {
                           <IdCard className="w-4 h-4 text-orange-primary" />
                           Tipo identificación
                         </Label>
-                        <Select
-                          value={formData.tipoIdentificacionProveedor}
-                          onValueChange={(val) => setFormData({ ...formData, tipoIdentificacionProveedor: val })}
-                        >
-                          <SelectTrigger className="elegante-input w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-darkest border-gray-dark">
-                            {TIPOS_IDENTIFICACION_PROVEEDOR.map((t) => (
-                              <SelectItem key={t.value} value={t.value} className="text-gray-lightest">
-                                {t.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {formData.tipoProveedor === 'Juridico' ? (
+                          <div className="elegante-input w-full flex items-center px-3 h-10 text-sm text-gray-lightest bg-gray-darker border border-gray-dark rounded-md opacity-70 cursor-not-allowed select-none">
+                            NIT
+                          </div>
+                        ) : (
+                          <Select
+                            value={formData.tipoIdentificacionProveedor}
+                            onValueChange={(val) => setFormData({ ...formData, tipoIdentificacionProveedor: val, identificacion: '' })}
+                          >
+                            <SelectTrigger className="elegante-input w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-darkest border-gray-dark">
+                              {TIPOS_IDENTIFICACION_PROVEEDOR.filter(t => t.value !== 'NIT').map((t) => (
+                                <SelectItem key={t.value} value={t.value} className="text-gray-lightest">
+                                  {t.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label className="text-gray-lightest flex items-center gap-2">

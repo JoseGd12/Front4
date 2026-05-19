@@ -13,6 +13,19 @@ const formatCurrency = (amount: number): string => {
   return (amount ?? 0).toLocaleString('es-CO');
 };
 
+const formatCompactCurrency = (amount: number): string => {
+  const n = amount ?? 0;
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return m % 1 === 0 ? `${m}M` : `${parseFloat(m.toFixed(1))}M`;
+  }
+  if (n >= 1_000) {
+    const k = n / 1_000;
+    return k % 1 === 0 ? `${k}mil` : `${parseFloat(k.toFixed(1))}mil`;
+  }
+  return n.toLocaleString('es-CO');
+};
+
 interface ProductoCompraResumen {
   id: number;
   nombre: string;
@@ -73,7 +86,7 @@ export function DetailPanelCompra({
                 Productos ({productos.length})
               </h4>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 overflow-x-auto custom-scrollbar pb-2">
               {productos.map((p) => {
                 const cantidadVisual = getTarjetaInput
                   ? getTarjetaInput(p, "cantidad")
@@ -97,8 +110,9 @@ export function DetailPanelCompra({
                   <div
                     key={p.id}
                     className="bg-gray-darker rounded-lg px-3 py-2.5 border-l-2 border-blue-500/20 venta-item-enter"
+                    style={{ minWidth: "max-content" }}
                   >
-                    <div className="flex items-center gap-3 flex-nowrap min-w-0">
+                    <div className="flex items-center gap-3 flex-nowrap">
                       {/* Imagen */}
                       <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
                         <ImageRenderer
@@ -137,14 +151,12 @@ export function DetailPanelCompra({
                           }}
                           onPaste={(e) => {
                             const text = e.clipboardData?.getData('text') || '';
-                            if (/[^\d]/.test(text)) {
-                              e.preventDefault();
-                              const cleaned = text.replace(/\D+/g, '');
-                              onTarjetaInputChange?.(p.id, 'cantidad', cleaned);
-                            }
+                            e.preventDefault();
+                            const cleaned = text.replace(/\D+/g, '').slice(0, 4);
+                            onTarjetaInputChange?.(p.id, 'cantidad', cleaned);
                           }}
                           onChange={(e) => {
-                            const cleaned = e.target.value.replace(/\D+/g, '');
+                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 4);
                             onTarjetaInputChange?.(p.id, 'cantidad', cleaned);
                           }}
                           className="w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5"
@@ -165,14 +177,12 @@ export function DetailPanelCompra({
                           }}
                           onPaste={(e) => {
                             const text = e.clipboardData?.getData('text') || '';
-                            if (/[^\d]/.test(text)) {
-                              e.preventDefault();
-                              const cleaned = text.replace(/\D+/g, '');
-                              onTarjetaInputChange?.(p.id, 'stockVentas', cleaned);
-                            }
+                            e.preventDefault();
+                            const cleaned = text.replace(/\D+/g, '').slice(0, 4);
+                            onTarjetaInputChange?.(p.id, 'stockVentas', cleaned);
                           }}
                           onChange={(e) => {
-                            const cleaned = e.target.value.replace(/-/g, '');
+                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 4);
                             onTarjetaInputChange?.(p.id, 'stockVentas', cleaned);
                           }}
                           className="w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5 border-green-500/20"
@@ -195,15 +205,13 @@ export function DetailPanelCompra({
                           onPaste={(e) => {
                             if (esSoloVenta) { e.preventDefault(); return; }
                             const text = e.clipboardData?.getData('text') || '';
-                            if (/[^\d]/.test(text)) {
-                              e.preventDefault();
-                              const cleaned = text.replace(/\D+/g, '');
-                              onTarjetaInputChange?.(p.id, 'stockInsumos', cleaned);
-                            }
+                            e.preventDefault();
+                            const cleaned = text.replace(/\D+/g, '').slice(0, 4);
+                            onTarjetaInputChange?.(p.id, 'stockInsumos', cleaned);
                           }}
                           onChange={(e) => {
                             if (esSoloVenta) return;
-                            const cleaned = e.target.value.replace(/-/g, '');
+                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 4);
                             onTarjetaInputChange?.(p.id, 'stockInsumos', cleaned);
                           }}
                           className={`w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5 border-blue-500/20 ${esSoloVenta ? 'bg-gray-medium cursor-not-allowed' : ''}`}
@@ -263,10 +271,10 @@ export function DetailPanelCompra({
                       </div>
 
                       {/* Subtotal */}
-                      <div className="flex flex-col gap-0.5 shrink-0 justify-center">
+                      <div className="flex flex-col gap-0.5 shrink-0 justify-center" title={`$${formatCurrency(p.precio * p.cantidad)}`}>
                         <label className="text-[11px] text-gray-400 font-normal">Subt.</label>
-                        <span className="text-orange-primary font-semibold text-xs tabular-nums leading-7">
-                          ${formatCurrency(p.precio * p.cantidad)}
+                        <span className="text-orange-primary font-semibold text-xs tabular-nums leading-7 whitespace-nowrap">
+                          ${formatCompactCurrency(p.precio * p.cantidad)}
                         </span>
                       </div>
 

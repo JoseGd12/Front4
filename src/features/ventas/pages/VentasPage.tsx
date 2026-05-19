@@ -298,9 +298,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       });
 
       setClientesCatalogo(clientesConSaldo);
-      const ventasEnriquecidas = (ventasData || []).map((venta: Venta) =>
-        enriquecerVentaConClienteOptimizado(venta, clientesById, clientesByDocumento)
-      );
+      const ventasEnriquecidas = (ventasData || [])
+        .map((venta: Venta) =>
+          enriquecerVentaConClienteOptimizado(venta, clientesById, clientesByDocumento)
+        )
+        .sort((a: Venta, b: Venta) => (Number(b.id) || 0) - (Number(a.id) || 0));
       setVentas(ventasEnriquecidas);
       setServicios((serviciosData || []).filter(s => s.estado === true));
       setPaquetes((paquetesData || []).filter(p => p.activo === true));

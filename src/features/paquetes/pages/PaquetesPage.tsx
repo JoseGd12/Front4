@@ -134,6 +134,7 @@ export function PaquetesPage() {
   const [serviciosAgregados, setServiciosAgregados] = useState<Array<{ nombre: string, precio: number }>>([]);
   const [precioInput, setPrecioInput] = useState<string>('');
   const [porcentajeInput, setPorcentajeInput] = useState<string>('');
+  const [showDiscountWarning, setShowDiscountWarning] = useState(false);
   const [nuevoPaquete, setNuevoPaquete] = useState({
     nombre: '',
     descripcion: '',
@@ -313,6 +314,7 @@ export function PaquetesPage() {
       setViewMode('list');
       setPrecioInput('');
       setPorcentajeInput('');
+      setShowDiscountWarning(false);
       setHoraInput('');
       setMinutosInput('');
 
@@ -383,6 +385,7 @@ export function PaquetesPage() {
     });
     setPrecioInput(String(paquete.precio || 0));
     setPorcentajeInput('0');
+    setShowDiscountWarning(false);
 
     const totalMinutos = paquete.duracion || 0;
     const h = Math.floor(totalMinutos / 60);
@@ -560,6 +563,7 @@ export function PaquetesPage() {
                     setServicioSeleccionado('');
                     setPrecioInput('');
                     setPorcentajeInput('');
+                    setShowDiscountWarning(false);
                     setHoraInput('');
                     setMinutosInput('');
                     setViewMode('create');
@@ -940,17 +944,37 @@ export function PaquetesPage() {
                     value={porcentajeInput}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setPorcentajeInput(val);
-                      const nRaw = val.trim() === '' ? 0 : Number(val);
-                      const n = Number.isFinite(nRaw) ? Math.max(0, Math.min(100, nRaw)) : 0;
-                      setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: n });
+                      if (val.trim() === '') {
+                        setPorcentajeInput('');
+                        setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: 0 });
+                        setShowDiscountWarning(false);
+                        return;
+                      }
+                      const nRaw = Number(val);
+                      if (!Number.isNaN(nRaw)) {
+                        if (nRaw > 100) {
+                          setPorcentajeInput('100');
+                          setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: 100 });
+                          setShowDiscountWarning(true);
+                        } else {
+                          setPorcentajeInput(val);
+                          setNuevoPaquete({ ...nuevoPaquete, porcentajeDescuento: Math.max(0, nRaw) });
+                          setShowDiscountWarning(false);
+                        }
+                      } else {
+                        setPorcentajeInput(val);
+                        setShowDiscountWarning(false);
+                      }
                     }}
-                    className="elegante-input no-spin"
+                    className={`elegante-input no-spin ${showDiscountWarning ? "border-red-500 ring-1 ring-red-500" : ""}`}
                     min="0"
                     max="100"
                     step="1"
                     placeholder="0"
                   />
+                  {showDiscountWarning && (
+                    <p className="text-xs text-red-400 mt-1">el descuento no puede ser superior a 100</p>
+                  )}
                 </div>
               </div>
 
@@ -990,6 +1014,7 @@ export function PaquetesPage() {
                     setServicioSeleccionado('');
                     setPrecioInput('');
                     setPorcentajeInput('');
+                    setShowDiscountWarning(false);
                   }}
                   className="elegante-button-secondary"
                 >

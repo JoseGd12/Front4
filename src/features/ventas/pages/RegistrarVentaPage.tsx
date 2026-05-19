@@ -104,6 +104,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     fechaCreacion: "",
     tipoVenta: "Venta Invitado",
     metodoPago: "",
+    numeroRecibo: "",
     barberoId: null as number | null,
     barberoNombre: "",
     porcentajeDescuento: 0,
@@ -126,6 +127,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [cantidadProducto, setCantidadProducto] = useState(0);
   const [cantidadProductoInput, setCantidadProductoInput] = useState("");
   const [porcentajeDescuentoInput, setPorcentajeDescuentoInput] = useState("");
+  const [showDiscountWarning, setShowDiscountWarning] = useState(false);
+  const [showNegativeDiscountWarning, setShowNegativeDiscountWarning] = useState(false);
   const [servicioSeleccionado, setServicioSeleccionado] = useState("");
   const [serviciosAgregados, setServiciosAgregados] = useState<
     Array<{
@@ -198,6 +201,10 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         ? Math.max(...ventasData.map((v: any) => Number(v.numeroVenta || v.id) || 0))
         : 0;
       setVentasCount(maxNumVenta);
+      setNuevaVenta((prev) => ({
+        ...prev,
+        numeroRecibo: (maxNumVenta + 1).toString().padStart(3, "0"),
+      }));
 
       // Saldo real (devoluciones - saldoUsado en ventas) directo desde la API
       const clientesActivosRaw = (clientesData || []).filter(
@@ -404,15 +411,35 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   };
 
   const handlePorcentajeDescuentoInputChange = (valor: string) => {
-    setPorcentajeDescuentoInput(valor);
+    // Bloquear el signo negativo directamente
+    if (valor.includes('-')) {
+      setShowNegativeDiscountWarning(true);
+      return;
+    }
+    setShowNegativeDiscountWarning(false);
     if (valor.trim() === "") {
+      setPorcentajeDescuentoInput("");
       setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: 0 });
+      setShowDiscountWarning(false);
       return;
     }
     const numero = Number(valor);
     if (!Number.isNaN(numero)) {
-      const normalizado = Math.max(0, Math.min(100, numero));
-      setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: normalizado });
+      if (numero < 0) {
+        setShowNegativeDiscountWarning(true);
+        return;
+      } else if (numero > 100) {
+        setPorcentajeDescuentoInput("100");
+        setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: 100 });
+        setShowDiscountWarning(true);
+      } else {
+        setPorcentajeDescuentoInput(valor);
+        setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: numero });
+        setShowDiscountWarning(false);
+      }
+    } else {
+      setPorcentajeDescuentoInput(valor);
+      setShowDiscountWarning(false);
     }
   };
 
@@ -779,12 +806,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     const tieneServicios = serviciosAgregados.length > 0;
 
     const tieneCliente = nuevaVenta.clienteId || nuevaVenta.clienteNombreInvitado.trim();
-    if (!tieneCliente || !nuevaVenta.metodoPago) {
+    if (!tieneCliente || !nuevaVenta.metodoPago || !nuevaVenta.numeroRecibo?.trim()) {
       showErrorAlert(
         "Datos incompletos",
-        !tieneCliente
-          ? "Por favor selecciona un cliente o escribe el nombre del invitado."
-          : "Por favor selecciona el método de pago."
+        !nuevaVenta.numeroRecibo?.trim()
+          ? "Por favor ingresa el número de recibo."
+          : !tieneCliente
+            ? "Por favor selecciona un cliente o escribe el nombre del invitado."
+            : "Por favor selecciona el método de pago."
       );
       return;
     }
@@ -877,7 +906,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         : null;
 
       const ventaData = {
-        numeroRecibo: numeroVenta.toString().padStart(3, "0"),
+        numeroRecibo: nuevaVenta.numeroRecibo.trim(),
         numeroVenta,
         tipoVenta: nuevaVenta.tipoVenta,
         clienteId: nuevaVenta.clienteId || null,
@@ -991,32 +1020,51 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 title="Información Básica"
                 icon={<Receipt className="w-4 h-4" />}
                 headerRight={
-                  <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-                    <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
-                      <span className="text-gray-lightest font-normal">
+                  <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-lightest font-normal text-xs sm:text-sm">
+                        Nº Recibo:*
+                      </span>
+                      <div className="relative flex flex-col">
+                        <Input
+                          value={nuevaVenta.numeroRecibo}
+                          onChange={(e) => {
+                            setNuevaVenta((prev) => ({
+                              ...prev,
+                              numeroRecibo: e.target.value.slice(0, 10),
+                            }));
+                            clearValidationErrors();
+                          }}
+                          maxLength={10}
+                          style={{ width: "90px", height: "26px", padding: "2px 8px", fontSize: "12px" }}
+                          className={`elegante-input ${showVentaFormErrors && !nuevaVenta.numeroRecibo.trim()
+                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                            : ""
+                            }`}
+                          placeholder="Recibo"
+                        />
+                        {showVentaFormErrors && !nuevaVenta.numeroRecibo.trim() && (
+                          <span className="absolute top-[28px] left-0 text-[10px] text-red-400 whitespace-nowrap leading-none mt-1 animate-pulse font-medium">
+                            campo obligatorio
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="text-gray-lightest font-normal text-xs sm:text-sm">
                         Nº Venta:
                       </span>
-                      <span className="text-gray-lightest font-medium tabular-nums">
+                      <span className="text-gray-lightest font-medium tabular-nums text-xs sm:text-sm">
                         {numeroVenta.toString().padStart(3, "0")}
                       </span>
                     </div>
 
-                    <div className="hidden sm:block w-px h-4 bg-gray-dark" />
-                    <div className="flex items-left gap-2" style={{ paddingRight: '20px' }}>
-                      <span className="text-gray-lightest font-normal">
-                        Nº Recibo:
-                      </span>
-                      <span className="text-gray-lightest font-medium tabular-nums">
-                        {numeroVenta.toString().padStart(3, "0")}
-                      </span>
-                    </div>
-
-                    <div className="hidden sm:block w-px h-4 bg-gray-dark" />
-                    <div className="flex items-right gap-2">
-                      <span className="text-gray-lightest font-normal">
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="text-gray-lightest font-normal text-xs sm:text-sm">
                         Fecha:
                       </span>
-                      <span className="text-gray-lightest font-medium">
+                      <span className="text-gray-lightest font-medium text-xs sm:text-sm">
                         {formatDate(nuevaVenta.fechaCreacion)}
                       </span>
                     </div>
@@ -1255,8 +1303,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                           handlePorcentajeDescuentoInputChange(e.target.value);
                         }
                       }}
-                      className="elegante-input"
+                      className={`elegante-input no-spin ${showDiscountWarning ? "border-red-500 ring-1 ring-red-500" : ""}`}
                     />
+                    {showDiscountWarning && (
+                      <p className="text-xs text-red-400 mt-1">el descuento no puede ser superior a 100</p>
+                    )}
+                    {showNegativeDiscountWarning && (
+                      <p className="text-xs text-red-400 mt-1">el descuento no puede ser negativo</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Garantía</Label>
