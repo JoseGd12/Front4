@@ -353,6 +353,48 @@ html {
     margin-bottom: 1.5rem;
   }
 
+  /** Input sin anillo de foco coloreado */
+  .input-no-ring:focus {
+    border-color: var(--color-gray-dark) !important;
+    box-shadow: none !important;
+  }
+
+  /** Botón icono fantasma — igual al estilo de lupa de Google Calendar */
+  .btn-ghost-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    color: var(--gray-lightest);
+    transition: background-color 0.15s ease;
+  }
+  .btn-ghost-icon:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+  }
+  .btn-ghost-icon:active {
+    background-color: rgba(255, 255, 255, 0.20);
+  }
+
+  /** Variante compacta — misma sombra de hover, padding reducido para uso dentro de inputs */
+  .btn-ghost-icon-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .btn-ghost-icon-sm:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+    color: var(--color-gray-lightest);
+  }
+  .btn-ghost-icon-sm:active {
+    background-color: rgba(255, 255, 255, 0.20);
+  }
+
   .elegante-button-primary {
     font-weight: 600;
     padding: 0.75rem 1.5rem;

@@ -12,6 +12,7 @@ import { horariosService } from "../services/horariosService";
 import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../constants";
 import {
   barberoTrabajaEnFecha,
+  diaSemanaDesdeFecha,
   filtrarBarberosDisponibles,
   getHorariosBarberoParaDia,
   getHorasDisponiblesParaDia as calcularHorasDisponibles,
@@ -206,6 +207,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [currentWeek, setCurrentWeek] = useState(0);
   const [highlightedCitaId, setHighlightedCitaId] = useState<number | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
+  const [carouselEstadoFiltro, setCarouselEstadoFiltro] = useState<'Todas' | 'Pendiente' | 'Completada' | 'Cancelada'>('Pendiente');
+  const [carouselBusqueda, setCarouselBusqueda] = useState('');
+  const [busquedaExpanded, setBusquedaExpanded] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const busquedaRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Carrusel de servicios/paquetes dentro del modal de detalle de cita
   const [servicioCarouselPage, setServicioCarouselPage] = useState(0);
   const SERVICIO_PAGE_SIZE = 3;
@@ -2346,10 +2354,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Fila: Servicio / Paquete ── */}
               <div
-                className="flex items-center gap-0 py-1.5 px-2"
+                className="flex items-start gap-0 py-1.5 px-2"
                 style={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? { marginBottom: '1.25rem' } : {}}
               >
-                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
+                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3, paddingTop: '0.5rem' }} className="flex items-center justify-center">
                   {tipoServicio === 'paquetes' ? <Package className="w-5 h-5 text-gray-lighter" /> : <Scissors className="w-5 h-5 text-gray-lighter" />}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2783,6 +2791,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   <textarea
                     value={nuevaCita.notas}
                     rows={1}
+                    maxLength={300}
                     ref={(el) => {
                       if (!el) return;
                       el.style.height = 'auto';
@@ -2797,6 +2806,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     className="w-full bg-transparent text-base text-gray-lightest placeholder-gray-lighter resize-none focus:outline-none focus:ring-0 focus:shadow-none overflow-hidden px-3"
                     style={{ outline: 'none', boxShadow: 'none' }}
                   />
+                  {nuevaCita.notas.length > 0 && (
+                    <p className={`text-right text-xs px-3 mt-0.5 transition-colors ${
+                      nuevaCita.notas.length >= 280
+                        ? 'text-red-400'
+                        : nuevaCita.notas.length >= 240
+                          ? 'text-orange-primary'
+                          : 'text-gray-lighter'
+                    }`}>
+                      {nuevaCita.notas.length}/300
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2861,39 +2881,199 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </div>
 
           {/* Navegación de Semana */}
-          <div className="std-card mb-4">
-            {/* Fila de controles */}
-            <div className="flex items-center gap-6">
-              {/* Navegación izquierda */}
-              <div className="flex items-center gap-2 flex-1">
+          <div className="std-card mb-4 !pt-3">
+
+            {/* Fila única: título | spacer | buscador | nav semana | acciones */}
+            <div className="flex items-center gap-3">
+
+              {/* Título — extremo izquierdo */}
+              <h4 className="text-xl font-bold text-gray-lightest tracking-wide shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif" }}>Citas de la semana</h4>
+
+              {/* Buscador fantasma — ocupa todo el espacio disponible, abre lista de resultados */}
+              <div ref={searchContainerRef} className="flex-1 min-w-0 relative flex items-center">
+                {/* Input — siempre ocupa el espacio completo, visibilidad por opacidad */}
+                <div className={`relative w-full transition-opacity duration-200 ease-out ${
+                  busquedaExpanded || carouselBusqueda ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}>
+                  <input
+                    ref={busquedaRef}
+                    type="text"
+                    placeholder="Buscar cita..."
+                    value={carouselBusqueda}
+                    onChange={e => {
+                      setCarouselBusqueda(e.target.value);
+                      setShowSearchResults(true);
+                    }}
+                    onFocus={() => { if (carouselBusqueda) setShowSearchResults(true); }}
+                    onBlur={() => {
+                      searchBlurTimer.current = setTimeout(() => {
+                        setShowSearchResults(false);
+                        if (!carouselBusqueda) setBusquedaExpanded(false);
+                      }, 150);
+                    }}
+                    className="elegante-input input-no-ring text-sm py-2 pl-4 w-full"
+                  />
+                  {carouselBusqueda && (
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => {
+                        setCarouselBusqueda('');
+                        setShowSearchResults(false);
+                        busquedaRef.current?.focus();
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost-icon-sm text-gray-lighter"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {/* Lupa — superpuesta en el mismo espacio, desaparece cuando el input está activo */}
                 <button
-                  onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); }}
-                  className="elegante-button-secondary p-2"
+                  type="button"
+                  onClick={() => { setBusquedaExpanded(true); requestAnimationFrame(() => busquedaRef.current?.focus()); }}
+                  className={`absolute right-0 btn-ghost-icon transition-opacity duration-200 ease-out ${
+                    busquedaExpanded || carouselBusqueda ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                  }`}
+                >
+                  {/* Lupa con mango largo */}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                    <circle cx="9" cy="9" r="6" />
+                    <line x1="13.5" y1="13.5" x2="22" y2="22" />
+                  </svg>
+                </button>
+
+                {/* Portal: dropdown fuera del árbol DOM del std-card para escapar overflow:clip */}
+                {carouselBusqueda.trim() && showSearchResults && searchContainerRef.current && createPortal(
+                  (() => {
+                    const rect = searchContainerRef.current!.getBoundingClientRect();
+                    const normQ = (s: string) =>
+                      String(s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+                    const q = normQ(carouselBusqueda.trim());
+                    const results = citas.filter((cita: any) => {
+                      const diaNombre = cita.fecha ? diaSemanaDesdeFecha(normalizarFechaCita(cita.fecha)) : '';
+                      return (
+                        normQ(cita.clienteNombre).includes(q) ||
+                        normQ(cita.barberoNombre).includes(q) ||
+                        normQ(cita.servicioNombre).includes(q) ||
+                        normQ(cita.paqueteNombre).includes(q) ||
+                        normQ(diaNombre).includes(q)
+                      );
+                    }).slice(0, 15);
+
+                    const availableBelow = window.innerHeight - rect.bottom - 12;
+
+                    return (
+                      <div
+                        style={{
+                          position: 'fixed',
+                          top: rect.bottom + 6,
+                          left: rect.left,
+                          width: Math.max(rect.width, 380),
+                          maxHeight: Math.min(availableBelow, 300),
+                          zIndex: 9999,
+                        }}
+                        className="bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl overflow-y-auto custom-scrollbar"
+                      >
+                        {results.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-dark italic">Sin resultados</div>
+                        ) : results.map((cita: any) => {
+                          const diaNombre = cita.fecha ? diaSemanaDesdeFecha(normalizarFechaCita(cita.fecha)) : '';
+                          const fechaDisplay = cita.fecha
+                            ? normalizarFechaCita(cita.fecha).split('-').reverse().join('/')
+                            : '';
+                          const estado = String(cita.estado || '');
+                          const estadoColor =
+                            estado === 'Completada' ? 'text-[#7aab8a]'
+                            : estado === 'Cancelada' || estado === 'Anulada' ? 'text-[#b07070]'
+                            : 'text-orange-primary';
+
+                          return (
+                            <div
+                              key={cita.id}
+                              onMouseDown={e => {
+                                e.preventDefault();
+                                if (searchBlurTimer.current) clearTimeout(searchBlurTimer.current);
+                              }}
+                              onClick={(e) => {
+                                const today = new Date();
+                                const todayDay = today.getDay();
+                                const thisMonday = new Date(today);
+                                thisMonday.setDate(today.getDate() + (todayDay === 0 ? -6 : 1 - todayDay));
+                                thisMonday.setHours(0, 0, 0, 0);
+                                const citaDateObj = new Date(`${cita.fecha}T12:00:00`);
+                                const citaDay = citaDateObj.getDay();
+                                const citaMonday = new Date(citaDateObj);
+                                citaMonday.setDate(citaDateObj.getDate() + (citaDay === 0 ? -6 : 1 - citaDay));
+                                citaMonday.setHours(0, 0, 0, 0);
+                                const weekOffset = Math.round(
+                                  (citaMonday.getTime() - thisMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)
+                                );
+                                setCurrentWeek(weekOffset);
+                                const [hStr, mStr] = (cita.hora || '09:00').split(':');
+                                const horaNum = parseInt(hStr) + parseInt(mStr || '0') / 60;
+                                const diaStr = diasSemana[(citaDateObj.getDay() + 6) % 7];
+                                openCitaPopover(
+                                  cita,
+                                  { dia: diaStr, hora: horaNum, fecha: cita.fecha },
+                                  e.currentTarget.getBoundingClientRect()
+                                );
+                                setCarouselBusqueda('');
+                                setBusquedaExpanded(false);
+                                setShowSearchResults(false);
+                              }}
+                              className="px-4 py-3 border-b border-gray-dark last:border-none hover:bg-gray-dark transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-medium text-gray-lightest truncate">
+                                  {formatNombre(cita.clienteNombre)}
+                                </span>
+                                <span className={`text-xs font-medium shrink-0 ${estadoColor}`}>{estado}</span>
+                              </div>
+                              <p className="text-xs text-gray-lighter truncate mt-0.5">
+                                {formatNombre(cita.servicioNombre || cita.paqueteNombre || '—')}
+                              </p>
+                              <p className="text-[11px] text-gray-light mt-0.5">
+                                {formatNombre(cita.barberoNombre)} · {diaNombre} {fechaDisplay} · {formatHoraStr12(cita.hora)}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })(),
+                  document.body
+                )}
+              </div>
+
+              {/* Navegación de semana */}
+              <div className="flex items-center shrink-0">
+                <button
+                  onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
+                  className="btn-ghost-icon"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-
-                <div className="flex-1 text-center">
-                  <h3 className="text-lg font-semibold text-gray-lightest">
+                <div className="text-center px-4">
+                  <h3 className="text-base font-semibold text-gray-lightest leading-tight">
                     {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
                   </h3>
                   <p className="text-xs text-gray-light">
                     {getCurrentWeekDays()[0].fecha} - {getCurrentWeekDays()[6].fecha}
                   </p>
                 </div>
-
                 <button
-                  onClick={() => { setCurrentWeek(currentWeek + 1); setCarouselPage(0); }}
-                  className="elegante-button-secondary p-2"
+                  onClick={() => { setCurrentWeek(currentWeek + 1); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
+                  className="btn-ghost-icon"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Acciones derecha — Restaurados a la fila superior */}
-              <div className="flex items-center gap-2 ml-10">
+              {/* Acciones */}
+              <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => { setCurrentWeek(0); setCarouselPage(0); }}
+                  onClick={() => { setCurrentWeek(0); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
                   className="elegante-button-secondary text-sm"
                 >
                   Hoy
@@ -2913,32 +3093,54 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
             {/* Carrusel de citas de la semana */}
             {(() => {
-              const citasSemana = getCurrentWeekDays().flatMap(({ fechaCompleta }) =>
-                getCitasPorDia(diasSemana[getCurrentWeekDays().findIndex(d => d.fechaCompleta === fechaCompleta)])
-              ).sort((a, b) => {
+              // Construir el conjunto exacto de fechas YYYY-MM-DD de la semana visible.
+              const mondayRef = getMondayOfWeek(currentWeek);
+              const weekDateSet = new Set(
+                Array.from({ length: 7 }, (_, i) => {
+                  const d = new Date(mondayRef);
+                  d.setDate(mondayRef.getDate() + i);
+                  return toLocalDateString(d);
+                })
+              );
+
+              // Solo citas cuya fecha normalizada cae dentro de la semana visible.
+              // La guardia length===10 descarta fechas vacías o con formato inesperado.
+              const semanaCitas = citas.filter((cita: any) => {
+                const f = normalizarFechaCita(cita.fecha);
+                return f.length === 10 && weekDateSet.has(f);
+              });
+
+              // Filtrar por estado — el buscador es independiente y no afecta este carrusel.
+              const citasSemana = semanaCitas.filter((cita: any) => {
+                if (carouselEstadoFiltro === 'Todas') return true;
+                const estadoNorm = String(cita.estado || '').toLowerCase();
+                if (carouselEstadoFiltro === 'Cancelada') return estadoNorm === 'cancelada' || estadoNorm === 'anulada';
+                return String(cita.estado || '') === carouselEstadoFiltro;
+              }).sort((a: any, b: any) => {
                 if (a.fecha < b.fecha) return -1;
                 if (a.fecha > b.fecha) return 1;
                 return (a.hora || '').localeCompare(b.hora || '');
               });
 
               const totalPages = Math.max(1, Math.ceil(citasSemana.length / CAROUSEL_PAGE_SIZE));
+              const safePage = Math.min(carouselPage, Math.max(0, totalPages - 1));
+              const canGoPrev = citasSemana.length > 0 && safePage > 0;
+              const canGoNext = citasSemana.length > 0 && safePage < totalPages - 1;
               const pageCitas = citasSemana.slice(
-                carouselPage * CAROUSEL_PAGE_SIZE,
-                (carouselPage + 1) * CAROUSEL_PAGE_SIZE
+                safePage * CAROUSEL_PAGE_SIZE,
+                (safePage + 1) * CAROUSEL_PAGE_SIZE
               );
 
               return (
                 <div className="pt-4 pb-4 flex items-center gap-6">
                   {/* Contenedor de navegación del carrusel — alineado con el título de arriba */}
                   <div className="flex items-center gap-2 flex-1">
-                    {/* Botón anterior — flecha blanca con borde sutil para alinear */}
+                    {/* Botón anterior */}
                     <button
                       onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
-                      disabled={carouselPage === 0 || citasSemana.length === 0}
-                      className={`shrink-0 transition-all rounded-lg p-2 border cursor-pointer ${
-                        carouselPage === 0 || citasSemana.length === 0
-                          ? 'bg-gray-darkest border-gray-dark/20 text-gray-dark cursor-not-allowed opacity-40'
-                          : 'bg-gray-darker border-gray-dark text-gray-lightest hover:text-orange-primary hover:border-gray-medium'
+                      disabled={!canGoPrev}
+                      className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${
+                        canGoPrev ? 'opacity-100' : 'opacity-0 pointer-events-none'
                       }`}
                     >
                       <ChevronLeft className="w-5 h-5" />
@@ -2957,7 +3159,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                            <p className="text-[11px] text-gray-lighter mt-3 tracking-wider uppercase font-medium">Cargando agenda semanal...</p>
                          </div>
                        ) : citasSemana.length === 0 ? (
-                        <p className="flex-1 text-center text-sm text-gray-dark">Sin citas para esta semana</p>
+                        <p className="flex-1 text-center text-sm text-gray-dark">Sin citas {carouselEstadoFiltro === 'Todas' ? '' : carouselEstadoFiltro.toLowerCase() + 's '}para esta semana</p>
                       ) : (
                         <>
                           {pageCitas.map((cita: any) => {
@@ -3005,25 +3207,44 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       )}
                     </div>
 
-                    {/* Botón siguiente — flecha blanca con borde sutil para alinear */}
+                    {/* Botón siguiente */}
                     <button
                       onClick={() => setCarouselPage(p => Math.min(totalPages - 1, p + 1))}
-                      disabled={carouselPage >= totalPages - 1 || citasSemana.length === 0}
-                      className={`shrink-0 transition-all rounded-lg p-2 border cursor-pointer ${
-                        carouselPage >= totalPages - 1 || citasSemana.length === 0
-                          ? 'bg-gray-darkest border-gray-dark/20 text-gray-dark cursor-not-allowed opacity-40'
-                          : 'bg-gray-darker border-gray-dark text-gray-lightest hover:text-orange-primary hover:border-gray-medium'
+                      disabled={!canGoNext}
+                      className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${
+                        canGoNext ? 'opacity-100' : 'opacity-0 pointer-events-none'
                       }`}
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
                   </div>
 
-                  {/* Métrica derecha para evitar duplicidad de botones y conservar ancho de layout */}
-                  <div className="ml-10 w-[220px] shrink-0 flex justify-end">
-                    <div className="rounded-lg border border-gray-dark bg-gray-darker/50 px-3 py-2 text-center min-w-[170px]">
-                      <p className="text-[10px] uppercase tracking-widest text-gray-lighter">Total Semana</p>
-                      <p className="text-sm text-gray-lightest tabular-nums">{citasSemana.length} citas</p>
+                  {/* Filtro de estados + métrica total */}
+                  <div className="ml-4 shrink-0 flex items-center gap-3">
+                    {/* Filtro select */}
+                    <Select
+                      value={carouselEstadoFiltro}
+                      onValueChange={(v) => { setCarouselEstadoFiltro(v as any); setCarouselPage(0); }}
+                    >
+                      <SelectTrigger className="h-auto py-1.5 px-3 text-xs font-semibold rounded-xl border border-orange-primary bg-transparent text-orange-primary hover:bg-orange-primary/10 transition-colors focus:ring-0 focus:ring-offset-0 min-w-[110px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl">
+                        {(['Todas', 'Pendiente', 'Completada', 'Cancelada'] as const).map(op => (
+                          <SelectItem
+                            key={op}
+                            value={op}
+                            className="text-gray-lightest text-xs cursor-pointer [&[data-highlighted]]:bg-orange-primary/20 [&[data-highlighted]]:text-white-primary [&[data-state=checked]]:text-white-primary"
+                          >
+                            {op}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {/* Total */}
+                    <div className="text-center select-none">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-lighter leading-none">Total</p>
+                      <p className="text-sm text-gray-lightest tabular-nums mt-0.5">{citasSemana.length}</p>
                     </div>
                   </div>
                 </div>
@@ -3041,7 +3262,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   className="grid gap-1 mb-2"
                   style={{ gridTemplateColumns: calendarGridTemplate }}
                 >
-                  <div />
+                  {/* Mes actual — ocupa la columna del tiempo */}
+                  <div className="flex items-center justify-center select-none">
+                    <span className="text-[11px] font-semibold text-gray-lightest tracking-wide leading-none">
+                      {getMondayOfWeek(currentWeek).toLocaleDateString('es-ES', { month: 'long' }).toUpperCase()}
+                    </span>
+                  </div>
                   {getCurrentWeekDays().map(({ dia, fecha, fechaCompleta }) => {
                     const isSelected = selectedDates.has(fechaCompleta);
                     const discount = dayDiscounts[fechaCompleta];
@@ -3054,14 +3280,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         onClick={() => handleDateSelect(fechaCompleta)}
                       >
                         <div className="flex justify-center items-center gap-1">
-                          <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-bold">{dia.slice(0, 3)}</h4>
+                          <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-normal">{dia.slice(0, 3)}</h4>
                           {discount > 0 && (
                             <span className="bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                               -{discount}%
                             </span>
                           )}
                         </div>
-                        <p className="text-sm tracking-[0.06em] text-gray-lightest">{fecha}</p>
+                        <p className="text-xl text-gray-lightest leading-none">{parseInt(fechaCompleta.split('-')[2], 10)}</p>
                       </div>
                     );
                   })}

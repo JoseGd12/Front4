@@ -135,7 +135,7 @@ export const filtrarBarberosDisponibles = <T extends { id: number }>(
     duracionMinutos = 60,
     citas = [],
     ignoreCitaId,
-    minAnticipacionMinutos = 20,
+    minAnticipacionMinutos = 15,
     slotHours = CALENDAR_SLOT_HOURS,
   } = options;
 
@@ -180,7 +180,7 @@ export const getHorasDisponiblesParaDia = (options: {
     horariosList,
     citas,
     ignoreCitaId,
-    minAnticipacionMinutos = 20,
+    minAnticipacionMinutos = 15,
     slotHours = CALENDAR_SLOT_HOURS,
   } = options;
 
