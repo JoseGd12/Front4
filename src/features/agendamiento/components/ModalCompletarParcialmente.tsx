@@ -94,13 +94,15 @@ export function ModalCompletarParcialmente({
   if (!isOpen) return null;
 
   return createPortal(
-    <>
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div
-        className="fixed inset-0 bg-black/60 z-[10000] backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-md bg-gray-darkest rounded-2xl border border-gray-dark shadow-2xl z-[10001] flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
+        className="w-[95%] max-w-md bg-gray-darkest rounded-2xl border border-gray-dark shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-dark/60 bg-gray-darker/50 shrink-0">
           <h2 className="text-lg font-semibold text-white-primary">
@@ -245,14 +247,20 @@ export function ModalCompletarParcialmente({
           <button
             onClick={handleSubmit}
             disabled={loading || (serviciosChecked.size === 0 && productosChecked.size === 0)}
-            className="px-4 py-2 text-sm bg-orange-primary text-white-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 transition-colors font-medium"
+            className="px-4 py-2 text-sm bg-orange-primary text-white-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 transition-colors font-medium flex items-center gap-2"
           >
+            {loading && (
+              <svg className="w-4 h-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            )}
             {loading ? "Guardando..." : "Completar"}
           </button>
         </div>
 
       </div>
-    </>,
+    </div>,
     document.body
   );
 }

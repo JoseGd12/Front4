@@ -45,35 +45,35 @@ const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 const horasDelDia = CALENDAR_SLOT_HOURS; // 9:00 – 23:00, franjas de 30 min (sync con scheduleUtils)
 const calendarGridTemplate = "clamp(64px, 6vw, 78px) repeat(7, minmax(0, 1fr))";
 
-/** Hover en celdas del grid: fondo más claro + borde suave (captura); el + va en blanco sobre círculo fino */
+/** Hover en celdas del grid — usa clase CSS explícita para evitar problemas de cascade en Tailwind v4. */
 const CAL_GRID_HOVER_CELL =
-  "transition-[background-color,border-color] duration-200 ease-out group-hover:bg-[#454545] group-hover:border-[#5f5f5f]";
+  "cal-cell-hover transition-[background-color,border-color] duration-200 ease-out";
+/** Para bloques de cita (inner div): mismo hover + group para activar shimmer de hijos. */
+const CAL_GRID_BLOCK_HOVER =
+  "group cal-cell-hover transition-[background-color,border-color] duration-200 ease-out";
 const CAL_GRID_HOVER_SHIMMER =
   "pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-out";
-const CAL_GRID_HOVER_PLUS_WRAP =
-  "rounded-full border border-white/80 bg-black/15 p-1.5 shadow-none transform scale-[0.96] group-hover:scale-100 transition-transform duration-200 ease-out";
-const CAL_GRID_HOVER_PLUS_ICON = "w-4 h-4 text-white stroke-[1.1]";
+const CAL_GRID_HOVER_PLUS_ICON = "w-5 h-5 text-white/80 stroke-[1.2] transform scale-95 group-hover:scale-100 transition-transform duration-200 ease-out";
 
 const formatHora12 = (hora: number): string => {
   const h = Math.floor(hora);
   const m = (hora % 1) * 60;
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  const ampm = h >= 12 ? 'pm' : 'am';
   let h12 = h % 12;
   if (h12 === 0) h12 = 12;
-  const minutesStr = m === 0 ? '00' : '30';
-  return `${h12}:${minutesStr} ${ampm}`;
+  return m === 0 ? `${h12}${ampm}` : `${h12}:30${ampm}`;
 };
 
-// Convierte un string "HH:MM" o "HH:MM:SS" a formato 12 horas con AM/PM
+// Convierte un string "HH:MM" o "HH:MM:SS" a formato 12 horas con am/pm
 const formatHoraStr12 = (horaStr: string): string => {
   if (!horaStr) return '';
   const [hStr, mStr = '00'] = horaStr.split(':');
   const h = parseInt(hStr || '0', 10);
   const m = parseInt(mStr || '0', 10);
-  const ampm = h >= 12 ? 'PM' : 'AM';
+  const ampm = h >= 12 ? 'pm' : 'am';
   let h12 = h % 12;
   if (h12 === 0) h12 = 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  return m === 0 ? `${h12}${ampm}` : `${h12}:${String(m).padStart(2, '0')}${ampm}`;
 };
 
 /** Inicio (12h) – fin (12h) para tooltips del calendario. */
@@ -84,9 +84,10 @@ const formatRangoHorarioCita = (cita: { hora?: string; duracion?: number }): str
   const endMin = startMin + (Number(cita.duracion) || 60);
   const hFin = Math.floor(endMin / 60) % 24;
   const mFin = endMin % 60;
-  const ampm = hFin >= 12 ? 'PM' : 'AM';
+  const ampm = hFin >= 12 ? 'pm' : 'am';
   const h12 = hFin % 12 === 0 ? 12 : hFin % 12;
-  return `${formatHoraStr12(cita.hora)} – ${h12}:${String(mFin).padStart(2, '0')} ${ampm}`;
+  const endStr = mFin === 0 ? `${h12}${ampm}` : `${h12}:${String(mFin).padStart(2, '0')}${ampm}`;
+  return `${formatHoraStr12(cita.hora)} – ${endStr}`;
 };
 
 // Los datos se cargan dinámicamente desde la API
@@ -328,6 +329,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   // Estado para el mini-tooltip de cita al hacer hover sobre la pestaña
   const [hoveredCita, setHoveredCita] = useState<{ cita: any; rect: DOMRect; servicioLabel: string; tabColor: string; abrirDetalle: () => void } | null>(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
+  const [overflowPopup, setOverflowPopup] = useState<{
+    citas: any[];
+    rect: DOMRect;
+    horaLabel: string;
+    diaLabel: string;
+    fechaCompleta: string;
+  } | null>(null);
   const hoveredCitaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -376,6 +384,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [viewMode, setViewMode] = useState<'calendar' | 'crear'>('calendar');
   const [ventasPorCita, setVentasPorCita] = useState<Record<number, number>>({});
   const [showModalParcial, setShowModalParcial] = useState(false);
+  const showModalParcialRef = useRef(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   // Índice de la cita activa cuando hay varias en una misma franja (pestañas; key: `${fecha}-${hora}`)
   const [slotCitaIndex, setSlotCitaIndex] = useState<Record<string, number>>({});
@@ -1755,6 +1764,16 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     }, POPOVER_ANIM_MS);
   }, []);
 
+  /** Oculta el popover sin limpiar selectedCita — usar cuando otro modal necesita selectedCita. */
+  const hidePopoverKeepCita = useCallback(() => {
+    setPopoverPhase('exit');
+    setIsSlotModalOpen(false);
+    setPopoverPosition(null);
+  }, []);
+
+  // Mantener ref sincronizado con showModalParcial para usarlo en handlers
+  useEffect(() => { showModalParcialRef.current = showModalParcial; }, [showModalParcial]);
+
   // Cerrar popover al hacer click fuera o presionar Escape.
   // Aplica defensa en capas para garantizar que ningún bloque del calendario
   // quede por encima del popover, sin importar el stacking context del layout.
@@ -1795,6 +1814,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     document.head.appendChild(styleTag);
 
     const onMouseDown = (e: MouseEvent) => {
+      if (showModalParcialRef.current) return;
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         closePopover();
       }
@@ -3345,11 +3365,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           return false;
                         });
                         const tieneCita = citasEnCelda.length > 0;
-                        const muestraPestanas = citasQueArrancanEnCelda.length > 0;
-                        const safeIdx = muestraPestanas
-                          ? (slotCitaIndex[slotKey] ?? 0) % citasQueArrancanEnCelda.length
-                          : 0;
-                        const relevantKeys = `${citasEnCelda.map(c => c.id).join('-')}-${citasQueArrancanEnCelda.map(c => c.id).join('-')}-${slotCitaIndex[slotKey] ?? 0}`;
+                        const relevantKeys = `${citasEnCelda.map(c => c.id).join('-')}-${citasQueArrancanEnCelda.map(c => c.id).join('-')}`;
                         const mostrarBloqueCita = tieneCita;
                         const celdaResaltada = citasEnCelda.some(c => c.id === highlightedCitaId);
 
@@ -3370,12 +3386,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           >
                             {/* Slot vacío: hover + */}
                             {!tieneCita && !isPastSlot && (
-                              <div
-                                className={`absolute inset-0 z-[1] rounded ${CAL_GRID_HOVER_SHIMMER}`}
-                              >
-                                <div className={CAL_GRID_HOVER_PLUS_WRAP}>
-                                  <Plus className={CAL_GRID_HOVER_PLUS_ICON} />
-                                </div>
+                              <div className={`absolute inset-0 z-[1] rounded ${CAL_GRID_HOVER_SHIMMER}`}>
+                                <Plus className={CAL_GRID_HOVER_PLUS_ICON} />
                               </div>
                             )}
 
@@ -3384,108 +3396,97 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 className={`absolute inset-0 cita-calendar-block${celdaResaltada ? ' cita-notification-highlight' : ''}${!isPastSlot ? ' cursor-pointer' : ''}`}
                               >
                                 <div
-                                  className={`absolute inset-0 flex flex-col rounded-md overflow-hidden ${
+                                  className={`absolute inset-0 flex flex-col justify-start gap-1 rounded-md overflow-hidden px-1.5 pt-2 pb-1 ${
                                     isPastSlot
                                       ? 'cursor-default border border-gray-dark/45 bg-gray-darkest/90 opacity-[0.92]'
-                                      : `cursor-pointer border border-gray-dark bg-gray-darker ${CAL_GRID_HOVER_CELL}`
+                                      : `border border-gray-dark bg-gray-darker ${CAL_GRID_BLOCK_HOVER}`
                                   }`}
-                                  style={{
-                                    paddingTop: muestraPestanas ? 8 : 0,
-                                  }}
-                                  aria-hidden
                                 >
-                                  <div className="flex-1 min-h-0" />
+                                  {citasQueArrancanEnCelda.length > 0 ? (
+                                    <>
+                                    {citasQueArrancanEnCelda.slice(0, 2).map((citaItem) => {
+                                      const lineColor = getCitaTabColor(citaItem);
+                                      const visibleText = `${formatHoraStr12(citaItem.hora)} ${formatNombre(citaItem.clienteNombre || 'Cliente')} - ${formatNombre(citaItem.barberoNombre || 'Barbero')}`;
+                                      const abrirDetalleLinea = (rect: DOMRect) => {
+                                        const [hStr, mStr] = (citaItem.hora || '09:00').split(':');
+                                        const horaNum = parseInt(hStr, 10) + parseInt(mStr || '0', 10) / 60;
+                                        const fechaObj = new Date(`${dayInfo?.fechaCompleta}T12:00:00`);
+                                        const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
+                                        openCitaPopover(
+                                          citaItem,
+                                          { dia: diaStr, hora: horaNum, fecha: dayInfo?.fechaCompleta || '' },
+                                          rect
+                                        );
+                                      };
+                                      return (
+                                        <div
+                                          key={citaItem.id}
+                                          className="flex items-center gap-1.5 min-w-0 w-full rounded transition-colors duration-100 hover:bg-white/5 cursor-pointer"
+                                          onClick={(e) => { e.stopPropagation(); abrirDetalleLinea(e.currentTarget.getBoundingClientRect()); }}
+                                          onMouseEnter={(e) => {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            showTooltip({
+                                              cita: citaItem,
+                                              rect,
+                                              servicioLabel: formatNombre(citaItem.servicioNombre || citaItem.paqueteNombre || 'Servicio'),
+                                              tabColor: lineColor,
+                                              abrirDetalle: () => abrirDetalleLinea(rect),
+                                            });
+                                          }}
+                                          onMouseLeave={() => scheduleHideTooltip()}
+                                        >
+                                          <div
+                                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                                            style={{ background: lineColor }}
+                                          />
+                                          <span className="truncate text-[9px] font-bold text-gray-lightest leading-tight">
+                                            {visibleText}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                    {citasQueArrancanEnCelda.length > 2 && (
+                                      <button
+                                        type="button"
+                                        className="text-left text-[8px] font-semibold leading-tight rounded transition-colors hover:bg-white/5 px-0.5"
+                                        style={{ color: 'rgba(160,160,168,0.80)', paddingLeft: '3px', cursor: 'pointer' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOverflowPopup({
+                                            citas: citasQueArrancanEnCelda,
+                                            rect: e.currentTarget.getBoundingClientRect(),
+                                            horaLabel: formatHora12(hora),
+                                            diaLabel: dia,
+                                            fechaCompleta: dayInfo?.fechaCompleta || '',
+                                          });
+                                        }}
+                                      >
+                                        +{citasQueArrancanEnCelda.length - 2} más
+                                      </button>
+                                    )}
+                                    </>
+                                  ) : (
+                                    /* Continuation slot: cita spans from previous row */
+                                    <>
+                                      <div
+                                        className="absolute inset-y-2 left-1.5 rounded-full"
+                                        style={{ width: 2, background: getCitaTabColor(citasEnCelda[0]) }}
+                                      />
+                                      {!isPastSlot && (
+                                        <div
+                                          className={`absolute inset-0 z-10 rounded-md ${CAL_GRID_HOVER_SHIMMER}`}
+                                          aria-hidden
+                                        >
+                                          <Plus className={CAL_GRID_HOVER_PLUS_ICON} />
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
 
                                   {citasEnCelda.some(c => c.estado === 'Completada') && (
                                     <div className="absolute bottom-0 left-0 h-0.5 bg-blue-600 w-full" />
                                   )}
                                 </div>
-
-                                {/* Misma pista visual que slot vacío: no intercepta clics (las pestañas quedan encima). */}
-                                {!isPastSlot && (
-                                  <div
-                                    className={`absolute inset-0 z-20 rounded-md ${CAL_GRID_HOVER_SHIMMER}`}
-                                    aria-hidden
-                                  >
-                                    <div className={CAL_GRID_HOVER_PLUS_WRAP}>
-                                      <Plus className={CAL_GRID_HOVER_PLUS_ICON} />
-                                    </div>
-                                  </div>
-                                )}
-
-                                {muestraPestanas && (
-                                  <div
-                                    className="absolute z-30 flex flex-nowrap items-end justify-start gap-px pointer-events-auto"
-                                    style={{
-                                      top: 0,
-                                      left: 4,
-                                      right: 4,
-                                    }}
-                                    role="tablist"
-                                    aria-label={`${citasQueArrancanEnCelda.length} cita(s) con inicio en esta franja`}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {citasQueArrancanEnCelda.map((citaTab, i) => {
-                                      const selected = i === safeIdx;
-                                      const tabColor = getCitaTabColor(citaTab);
-                                      const servicioLabel = formatNombre(
-                                        citaTab.servicioNombre ||
-                                          citaTab.paqueteNombre ||
-                                          (citaTab.serviciosNombres?.[0]) ||
-                                          'Servicio'
-                                      );
-                                      const abrirDetalleDesdeEl = (target: HTMLElement, rectOverride?: DOMRect) => {
-                                        const [hStr, mStr] = (citaTab.hora || '09:00').split(':');
-                                        const horaNum = parseInt(hStr, 10) + parseInt(mStr || '0', 10) / 60;
-                                        const fechaObj = new Date(`${dayInfo?.fechaCompleta}T12:00:00`);
-                                        const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
-                                        openCitaPopover(
-                                          citaTab,
-                                          { dia: diaStr, hora: horaNum, fecha: dayInfo?.fechaCompleta || '' },
-                                          rectOverride ?? target.getBoundingClientRect()
-                                        );
-                                      };
-                                      return (
-                                        <button
-                                          key={citaTab.id}
-                                          type="button"
-                                          role="tab"
-                                          aria-selected={selected}
-                                          onClick={(e) => { e.stopPropagation(); cancelHideTooltip(); abrirDetalleDesdeEl(e.currentTarget); setHoveredCita(null); }}
-                                          onMouseEnter={(e) => {
-                                            const btn = e.currentTarget;
-                                            const rect = btn.getBoundingClientRect();
-                                            showTooltip({ cita: citaTab, rect, servicioLabel, tabColor, abrirDetalle: () => abrirDetalleDesdeEl(btn, rect) });
-                                          }}
-                                          onMouseLeave={() => scheduleHideTooltip()}
-                                          className="relative shrink-0 focus:outline-none cursor-pointer flex items-start justify-center"
-                                          style={{
-                                            width: 'clamp(20px, 3vmin, 28px)',
-                                            height: 24,
-                                            background: 'transparent',
-                                            padding: 0,
-                                          }}
-                                        >
-                                          <span
-                                            className="block transition-all duration-150"
-                                            style={{
-                                              backgroundColor: tabColor,
-                                              width: 'clamp(12px, 2.5vmin, 20px)',
-                                              height: (hoveredCita?.cita?.id === citaTab.id || (selectedCita?.id === citaTab.id && isSlotModalOpen)) ? 8 : 6,
-                                              borderRadius: '0 0 3px 3px',
-                                              opacity: (hoveredCita?.cita?.id === citaTab.id || (selectedCita?.id === citaTab.id && isSlotModalOpen)) ? 1 : 0.75,
-                                              boxShadow: (hoveredCita?.cita?.id === citaTab.id || (selectedCita?.id === citaTab.id && isSlotModalOpen))
-                                                ? `0 2px 8px ${tabColor}bb, 0 1px 0 rgba(255,255,255,0.3) inset`
-                                                : '0 1px 0 rgba(255,255,255,0.2) inset',
-                                              transform: (hoveredCita?.cita?.id === citaTab.id || (selectedCita?.id === citaTab.id && isSlotModalOpen)) ? 'scaleY(1.15)' : 'scaleY(1)',
-                                              transformOrigin: 'bottom',
-                                            }}
-                                          />
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
                               </div>
                             )}
                           </div>
@@ -3528,13 +3529,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           >
             {/* Franja de color de la cita */}
             <div className="w-1 rounded-full shrink-0" style={{ background: hoveredCita.tabColor }} />
-            <div>
-              <p className="text-[11px] font-semibold truncate" style={{ color: '#d8b081' }}>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold" style={{ color: '#d8b081' }}>
                 {formatNombre(hoveredCita.cita.clienteNombre || 'Cliente')}
               </p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(160,160,168,0.80)' }}>
+              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(160,160,168,0.90)' }}>
                 {formatRangoHorarioCita(hoveredCita.cita)}
               </p>
+              {hoveredCita.cita.barberoNombre && (
+                <p className="text-[10px] mt-0.5" style={{ color: 'rgba(160,160,168,0.65)' }}>
+                  {formatNombre(hoveredCita.cita.barberoNombre)}
+                </p>
+              )}
             </div>
           </div>
           {/* Flecha */}
@@ -3542,6 +3548,85 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             <div className="w-2 h-2 rotate-45" style={{ background: 'rgba(18,18,20,0.96)' }} />
           </div>
         </div>,
+        document.body
+      )}
+
+      {/* Overflow popup — lista de citas cuando el bloque tiene más de 2 */}
+      {overflowPopup && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOverflowPopup(null)} />
+          <div
+            className="fixed z-[9999] rounded-2xl border border-gray-dark/60 bg-gray-darkest overflow-hidden"
+            style={(() => {
+              const r = overflowPopup.rect;
+              const popW = 260;
+              const spaceBelow = window.innerHeight - r.bottom - 8;
+              const spaceAbove = r.top - 8;
+              const top = spaceBelow >= 160 || spaceBelow >= spaceAbove
+                ? r.bottom + 6
+                : undefined;
+              const bottom = top === undefined ? window.innerHeight - r.top + 6 : undefined;
+              const left = Math.min(r.left, window.innerWidth - popW - 12);
+              return {
+                top,
+                bottom,
+                left,
+                width: popW,
+                maxHeight: 320,
+                overflowY: 'auto' as const,
+                boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.60)',
+              };
+            })()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-dark bg-gray-darker/60 sticky top-0">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-orange-primary shrink-0" />
+                <span className="text-xs font-semibold text-gray-lightest">
+                  {overflowPopup.diaLabel} · {overflowPopup.horaLabel}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOverflowPopup(null)}
+                className="p-1 rounded-lg text-gray-lighter hover:text-white-primary hover:bg-gray-dark transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {/* Cita list */}
+            <div className="py-1">
+              {overflowPopup.citas.map((cita) => {
+                const color = getCitaTabColor(cita);
+                return (
+                  <button
+                    key={cita.id}
+                    type="button"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-dark transition-colors"
+                    onClick={(e) => {
+                      setOverflowPopup(null);
+                      const [hStr, mStr] = (cita.hora || '09:00').split(':');
+                      const horaNum = parseInt(hStr, 10) + parseInt(mStr || '0', 10) / 60;
+                      const fechaObj = new Date(`${overflowPopup.fechaCompleta}T12:00:00`);
+                      const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
+                      openCitaPopover(
+                        cita,
+                        { dia: diaStr, hora: horaNum, fecha: overflowPopup.fechaCompleta },
+                        e.currentTarget.getBoundingClientRect()
+                      );
+                    }}
+                  >
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                    <span className="text-[11px] font-semibold text-gray-lightest truncate">
+                      {formatHoraStr12(cita.hora)} {formatNombre(cita.clienteNombre || 'Cliente')} - {formatNombre(cita.barberoNombre || 'Barbero')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>,
         document.body
       )}
 
@@ -3809,12 +3894,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Acciones ── */}
               {selectedCita.estado !== 'Completada' && (() => {
-                // No permitir completar citas futuras (que aún no han terminado)
+                // Permitir completar desde que la cita inicia (no esperar a que termine)
                 const [h, m] = (selectedCita.hora || '00:00').split(':');
                 const citaStart = new Date(selectedCita.fecha + 'T' + h.padStart(2, '0') + ':' + m.padStart(2, '0'));
-                const duracion = Number(selectedCita.duracion || 60);
-                const citaEnd = new Date(citaStart.getTime() + (duracion * 60000));
-                const isFuture = citaEnd > new Date();
+                const isFuture = citaStart > new Date();
 
                 return (
                   <div className="flex flex-wrap justify-end gap-2 sm:gap-3 pt-3">
@@ -3827,7 +3910,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     {!isFuture && (
                       <>
                         <button
-                          onClick={() => setShowModalParcial(true)}
+                          onClick={() => { hidePopoverKeepCita(); setShowModalParcial(true); }}
                           className="px-4 py-2 rounded-lg text-sm font-medium border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/10 transition-all"
                         >
                           Completar Parcialmente

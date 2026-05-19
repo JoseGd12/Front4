@@ -780,6 +780,12 @@ html {
     z-index: 20 !important;
   }
 
+  /* ─── Calendar cell hover — explicit rule overrides Tailwind cascade ─── */
+  .cal-cell-hover:hover {
+    background-color: #454545 !important;
+    border-color: #5f5f5f !important;
+  }
+
   /* Oculta encabezados heredados dentro del contenido principal,
      ya que el título del módulo vive ahora en la barra superior */
   .module-content>header:first-of-type {
