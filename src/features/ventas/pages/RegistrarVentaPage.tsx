@@ -128,6 +128,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [cantidadProductoInput, setCantidadProductoInput] = useState("");
   const [porcentajeDescuentoInput, setPorcentajeDescuentoInput] = useState("");
   const [showDiscountWarning, setShowDiscountWarning] = useState(false);
+  const [showNegativeDiscountWarning, setShowNegativeDiscountWarning] = useState(false);
   const [servicioSeleccionado, setServicioSeleccionado] = useState("");
   const [serviciosAgregados, setServiciosAgregados] = useState<
     Array<{
@@ -410,6 +411,12 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   };
 
   const handlePorcentajeDescuentoInputChange = (valor: string) => {
+    // Bloquear el signo negativo directamente
+    if (valor.includes('-')) {
+      setShowNegativeDiscountWarning(true);
+      return;
+    }
+    setShowNegativeDiscountWarning(false);
     if (valor.trim() === "") {
       setPorcentajeDescuentoInput("");
       setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: 0 });
@@ -418,13 +425,16 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     }
     const numero = Number(valor);
     if (!Number.isNaN(numero)) {
-      if (numero > 100) {
+      if (numero < 0) {
+        setShowNegativeDiscountWarning(true);
+        return;
+      } else if (numero > 100) {
         setPorcentajeDescuentoInput("100");
         setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: 100 });
         setShowDiscountWarning(true);
       } else {
         setPorcentajeDescuentoInput(valor);
-        setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: Math.max(0, numero) });
+        setNuevaVenta({ ...nuevaVenta, porcentajeDescuento: numero });
         setShowDiscountWarning(false);
       }
     } else {
@@ -1297,6 +1307,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     />
                     {showDiscountWarning && (
                       <p className="text-xs text-red-400 mt-1">el descuento no puede ser superior a 100</p>
+                    )}
+                    {showNegativeDiscountWarning && (
+                      <p className="text-xs text-red-400 mt-1">el descuento no puede ser negativo</p>
                     )}
                   </div>
                   <div className="space-y-1">
