@@ -983,9 +983,11 @@ export function UsersPage() {
                         </Label>
                         <Input
                           value={newUser.celular}
-                          onChange={(e) => setNewUser({ ...newUser, celular: e.target.value })}
+                          onChange={(e) => setNewUser({ ...newUser, celular: e.target.value.replace(/[^0-9+\s\-()]/g, '') })}
+                          onKeyDown={(e) => { if (!/[0-9+\s\-()\\b]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key)) e.preventDefault(); }}
                           className={`elegante-input w-full ${showUserFormErrors && !newUser.celular ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="+57 300 123 4567"
+                          inputMode="tel"
                         />
                         {showUserFormErrors && !newUser.celular && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                       </div>

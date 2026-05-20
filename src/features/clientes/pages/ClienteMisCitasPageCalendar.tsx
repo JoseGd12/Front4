@@ -1040,18 +1040,27 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   transition: 'opacity 200ms ease-out, transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               >
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 pt-5 pb-3 bg-gray-darker/50 shrink-0">
-                  <h2 className="text-lg font-semibold text-gray-lightest">
-                    {isEditMode || selectedCita ? 'Editar Cita' : 'Nueva Cita'}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={handleCloseModal}
-                    className="p-1.5 rounded-lg text-gray-lighter hover:text-white-primary hover:bg-gray-dark transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                {/* Header con grip visual — igual al admin */}
+                <div
+                  className="shrink-0 bg-gray-darker/50 border-b border-gray-dark/40 select-none"
+                >
+                  {/* Grip visual */}
+                  <div className="flex justify-center pt-2 pb-0.5">
+                    <div className="w-8 h-1 rounded-full bg-gray-dark/80" />
+                  </div>
+                  <div className="flex items-center justify-between" style={{ paddingLeft: 67, paddingRight: 20, paddingTop: 10, paddingBottom: 12 }}>
+                    <h2 className="text-lg font-semibold text-gray-lightest">
+                      {isEditMode || selectedCita ? 'Editar Cita' : 'Nueva Cita'}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="p-2.5 rounded-full text-gray-lighter hover:text-white-primary hover:bg-gray-dark/80 bg-gray-dark/40 transition-all cursor-pointer flex items-center justify-center"
+                      title="Cerrar"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Contenido scrollable — filas del formulario (tareas 5.2–5.7) */}
@@ -1560,37 +1569,43 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
           <div className="p-2">
 
             {/* Navegación de Semana */}
-            <div className="std-card mb-4">
-              {/* Fila de controles */}
-              <div className="flex items-center gap-6">
-                {/* Navegación izquierda */}
-                <div className="flex items-center gap-2 flex-1">
+            <div className="std-card mb-4 !pt-3">
+
+              {/* Fila única: título | spacer | nav semana | acciones */}
+              <div className="flex items-center gap-3">
+
+                {/* Título — extremo izquierdo */}
+                <h4 className="text-xl font-bold text-gray-lightest tracking-wide shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif" }}>Mis Citas</h4>
+
+                {/* Spacer */}
+                <div className="flex-1 min-w-0" />
+
+                {/* Navegación de semana */}
+                <div className="flex items-center shrink-0">
                   <button
                     onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); }}
-                    className="elegante-button-secondary p-2"
+                    className="btn-ghost-icon"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-
-                  <div className="flex-1 text-center">
-                    <h3 className="text-lg font-semibold text-gray-lightest">
+                  <div className="text-center px-4">
+                    <h3 className="text-base font-semibold text-gray-lightest leading-tight">
                       {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
                     </h3>
                     <p className="text-xs text-gray-light">
                       {weekDays[0].fecha} - {weekDays[6].fecha}
                     </p>
                   </div>
-
                   <button
                     onClick={() => { setCurrentWeek(currentWeek + 1); setCarouselPage(0); }}
-                    className="elegante-button-secondary p-2"
+                    className="btn-ghost-icon"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
 
-                {/* Acciones derecha */}
-                <div className="flex items-center gap-2 ml-10">
+                {/* Acciones */}
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => { setCurrentWeek(0); setCarouselPage(0); }}
                     className="elegante-button-secondary text-sm"
@@ -1992,126 +2007,168 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
       {/* Modal Detalle Cita */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark text-white-primary max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center justify-between border-b border-gray-dark pb-3">
-              <DialogTitle className="text-xl">Detalle de tu Reservación</DialogTitle>
-              {selectedCita && selectedCita.estado !== 'Cancelada' && selectedCita.estado !== 'Completada' && (
-                <button
-                  onClick={() => handleOpenEdit(selectedCita)}
-                  className="p-2.5 bg-orange-primary/10 hover:bg-orange-primary/20 rounded-xl transition-all border border-orange-primary/20 group"
-                  title="Modificar cita"
-                >
-                  <Edit className="w-5 h-5 text-orange-primary group-hover:scale-110 transition-transform" />
-                </button>
-              )}
-            </div>
-          </DialogHeader>
-          {selectedCita && (
-            <div className="space-y-5 py-2">
-              {/* Header con Servicio y Estado */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-orange-primary/10 rounded-2xl flex items-center justify-center border border-orange-primary/20">
-                    <Scissors className="text-orange-primary w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white-primary">{selectedCita.servicioNombre || selectedCita.paqueteNombre}</h3>
-                    <p className="text-sm text-gray-lightest flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5" /> {selectedCita.duracion} min &bull;
-                      <span className="text-orange-primary font-bold">{formatearPrecio(selectedCita.precio)}</span>
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end">
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${selectedCita.estado === 'Pendiente' ? 'bg-orange-primary/10 text-orange-primary border-orange-primary/30' :
-                    selectedCita.estado === 'Completada' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' :
-                      'bg-red-500/10 text-red-500 border-red-500/30'
-                    }`}>
-                    {selectedCita.estado}
-                  </div>
-                </div>
-              </div>
+        <DialogContent className="bg-gray-darkest border-gray-dark/60 text-white-primary max-w-sm max-h-[90vh] overflow-y-auto p-0">
+          {selectedCita && (() => {
+            const barberoData = barberosList.find((b: any) => Number(b.id) === Number(selectedCita.barberoId));
+            const paqueteData = selectedCita.paqueteId ? paquetesList.find((p: any) => p.id === selectedCita.paqueteId) : null;
+            const estadoColor =
+              selectedCita.estado === 'Completada' ? '#3B82F6'
+              : selectedCita.estado === 'Cancelada' ? '#EF4444'
+              : '#d8b081';
 
-              {/* Productos asociados */}
-              {selectedCita.productosNombres && selectedCita.productosNombres.length > 0 && (
-                <div className="bg-black/20 p-4 rounded-2xl border border-gray-dark/50">
-                  <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50 mb-2 flex items-center gap-1">
-                    <ShoppingBag className="w-3.5 h-3.5" /> Productos Incluidos
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedCita.productosNombres.map((nombre: string, i: number) => (
-                      <span key={i} className="px-3 py-1 bg-orange-primary/10 border border-orange-primary/20 rounded-full text-xs text-orange-primary font-medium">
-                        {nombre}
-                      </span>
-                    ))}
+            // Calcular hora fin
+            const horaFin = (() => {
+              if (!selectedCita.hora) return '';
+              const [hh, mm] = selectedCita.hora.split(':').map(Number);
+              const finMin = hh * 60 + mm + (selectedCita.duracion || 60);
+              const finHH = Math.floor(finMin / 60).toString().padStart(2, '0');
+              const finMM = String(finMin % 60).padStart(2, '0');
+              return formatHoraStr12(`${finHH}:${finMM}`);
+            })();
+
+            // Fecha legible
+            const fechaLegible = (() => {
+              if (!selectedCita.fecha) return '';
+              const d = new Date(selectedCita.fecha + 'T12:00:00');
+              const s = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+              return s.charAt(0).toUpperCase() + s.slice(1);
+            })();
+
+            const servicioNombre = selectedCita.servicioNombre || selectedCita.paqueteNombre || '—';
+
+            return (
+              <>
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark/60 bg-gray-darker/50">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-orange-primary/10 border border-orange-primary/20 flex items-center justify-center shrink-0">
+                      <Scissors className="w-4 h-4 text-orange-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-gray-lightest truncate">{formatNombre(servicioNombre)}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[10px] font-medium border"
+                          style={{ background: `${estadoColor}18`, color: estadoColor, borderColor: `${estadoColor}40` }}
+                        >
+                          {selectedCita.estado}
+                        </span>
+                        {paqueteData && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-primary/15 text-orange-primary border border-orange-primary/30">
+                            Paquete
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  {selectedCita.estado !== 'Cancelada' && selectedCita.estado !== 'Completada' && (
+                    <button
+                      onClick={() => handleOpenEdit(selectedCita)}
+                      className="p-2 bg-orange-primary/10 hover:bg-orange-primary/20 rounded-xl transition-all border border-orange-primary/20 shrink-0 ml-2"
+                      title="Modificar cita"
+                    >
+                      <Edit className="w-4 h-4 text-orange-primary" />
+                    </button>
+                  )}
                 </div>
-              )}
 
-              {/* Grid de información */}
-              <div className="grid grid-cols-2 gap-4 bg-black/20 p-4 rounded-2xl border border-gray-dark/50">
-                <div className="space-y-1">
-                  <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Barbero Asignado</p>
-                  <p className="font-bold flex items-center gap-2 text-white-primary">
-                    <User className="w-4 h-4 text-orange-primary/70" />
-                    {selectedCita.barberoNombre}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Fecha Programada</p>
-                  <p className="font-bold flex items-center gap-2 text-white-primary">
-                    <Calendar className="w-4 h-4 text-orange-primary/70" />
-                    {selectedCita.fecha}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Hora de Inicio</p>
-                  <p className="font-bold flex items-center gap-2 text-white-primary text-lg">
-                    <Clock className="w-4 h-4 text-orange-primary/70" />
-                    {selectedCita.hora}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-gray-lightest text-[10px] uppercase font-black tracking-tighter opacity-50">Telf. Contacto</p>
-                  <p className="font-bold flex items-center gap-2 text-white-primary">
-                    <Phone className="w-4 h-4 text-orange-primary/70" />
-                    Barbería Elite
-                  </p>
-                </div>
-              </div>
+                {/* Contenido — filas estilo admin */}
+                <div className="px-4 py-2">
 
-              {/* Notas */}
-              {selectedCita.notas && (
-                <div className="space-y-2">
-                  <p className="text-gray-lightest text-[10px] font-bold uppercase ml-1">Observaciones / Preferencias</p>
-                  <div className="p-3 bg-gray-darker/50 rounded-xl text-[13px] border border-gray-dark italic text-gray-lighter leading-relaxed">
-                    "{selectedCita.notas}"
+                  {/* Separador */}
+                  <div className="border-t border-gray-dark/60 mb-1" />
+
+                  {/* Fila: Fecha y hora */}
+                  <div className="flex items-center gap-0 py-3">
+                    <div style={{ width: 44, minWidth: 44, flexShrink: 0 }} className="flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-gray-lighter" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-lightest">{fechaLegible}</p>
+                      <p className="text-sm text-gray-lighter mt-0.5">
+                        {formatHoraStr12(selectedCita.hora)}{horaFin ? ` – ${horaFin}` : ''} · {selectedCita.duracion || 60} min
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {/* Footer de cancelación */}
-              {selectedCita.estado !== 'Cancelada' && selectedCita.estado !== 'Completada' && (
-                <div className="pt-4 flex flex-col gap-3">
-                  <div className="h-px bg-gray-dark w-full mb-2" />
-                  <p className="text-[10px] text-gray-lightest text-center italic">
-                    ¿No puedes asistir? Por favor cancela con al menos 2 horas de anticipación.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setCitaToDelete(selectedCita);
-                      setIsDetailDialogOpen(false);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                    className="w-full py-3 bg-red-500/5 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500 hover:text-white transition-all text-xs font-black uppercase tracking-widest shadow-lg shadow-red-500/5"
-                  >
-                    Cancelar reservación
-                  </button>
+                  {/* Fila: Barbero */}
+                  <div className="flex items-center gap-0 py-3">
+                    <div style={{ width: 44, minWidth: 44, flexShrink: 0 }} className="flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center shrink-0">
+                        {barberoData?.fotoPerfil ? (
+                          <img src={barberoData.fotoPerfil} alt={selectedCita.barberoNombre} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-4 h-4 text-gray-lighter" />
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-lightest">{formatNombre(selectedCita.barberoNombre) || 'Sin barbero asignado'}</p>
+                      <p className="text-xs text-gray-lighter mt-0.5">Barbero</p>
+                    </div>
+                  </div>
+
+                  {/* Fila: Precio */}
+                  <div className="flex items-center gap-0 py-3">
+                    <div style={{ width: 44, minWidth: 44, flexShrink: 0 }} className="flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-gray-lighter" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-lightest font-semibold text-orange-primary">{formatearPrecio(selectedCita.precio)}</p>
+                      <p className="text-xs text-gray-lighter mt-0.5">Precio total</p>
+                    </div>
+                  </div>
+
+                  {/* Fila: Productos (si hay) */}
+                  {selectedCita.productosNombres && selectedCita.productosNombres.length > 0 && (
+                    <div className="flex items-start gap-0 py-3">
+                      <div style={{ width: 44, minWidth: 44, flexShrink: 0 }} className="flex items-center justify-center pt-0.5">
+                        <ShoppingBag className="w-5 h-5 text-gray-lighter" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-lightest">
+                          {selectedCita.productosNombres.join(', ')}
+                        </p>
+                        <p className="text-xs text-gray-lighter mt-0.5">Productos incluidos</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fila: Notas (si hay) */}
+                  {selectedCita.notas && (
+                    <div className="flex items-start gap-0 py-3">
+                      <div style={{ width: 44, minWidth: 44, flexShrink: 0 }} className="flex items-center justify-center pt-0.5">
+                        <FileText className="w-5 h-5 text-gray-lighter" />
+                      </div>
+                      <p className="text-sm text-gray-lighter leading-relaxed">{selectedCita.notas}</p>
+                    </div>
+                  )}
+
+                  {/* Separador */}
+                  <div className="border-t border-gray-dark/60 mt-1" />
+
+                  {/* Acciones */}
+                  {selectedCita.estado !== 'Cancelada' && selectedCita.estado !== 'Completada' && (
+                    <div className="flex flex-col gap-2 pt-3 pb-2">
+                      <p className="text-[10px] text-gray-lighter text-center italic">
+                        ¿No puedes asistir? Por favor cancela con al menos 2 horas de anticipación.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setCitaToDelete(selectedCita);
+                          setIsDetailDialogOpen(false);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        className="w-full py-2.5 text-sm font-medium text-red-400 hover:bg-red-600/10 border border-transparent hover:border-red-500/30 rounded-lg transition-all"
+                      >
+                        Cancelar reservación
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

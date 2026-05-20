@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
+import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
@@ -906,12 +907,11 @@ export function BarberosPage() {
                   <Phone className="w-4 h-4 text-orange-primary" />
                   Número de Celular
                 </Label>
-              <Input
+              <PhoneInput
                 value={newBarbero.telefono}
-                onChange={(e) => setNewBarbero({ ...newBarbero, telefono: e.target.value })}
-                maxLength={BARBERO_LIMITS.telefono}
-                className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.telefono.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                placeholder="+57 300 123 4567"
+                onChange={(value) => setNewBarbero({ ...newBarbero, telefono: value })}
+                className={`w-full ${showBarberoFormErrors && !newBarbero.telefono.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                placeholder="3001234567"
               />
               {showBarberoFormErrors && !newBarbero.telefono.trim() && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
             </div>

@@ -725,8 +725,11 @@ export function ProductosPage() {
     if (!productoActual) return;
     const nuevoEstado = !productoActual.activo;
 
-    // Actualización optimista local — no dependemos de getProductos() que devuelve 500
+    // Actualización optimista — actualiza tanto la lista completa como la paginada
     setProductos(prev =>
+      prev.map(p => p.id === productoId ? { ...p, activo: nuevoEstado } : p)
+    );
+    setPagedProductos(prev =>
       prev.map(p => p.id === productoId ? { ...p, activo: nuevoEstado } : p)
     );
 
@@ -737,6 +740,9 @@ export function ProductosPage() {
     } catch (err: any) {
       // Revertir el cambio optimista si la API falla
       setProductos(prev =>
+        prev.map(p => p.id === productoId ? { ...p, activo: !nuevoEstado } : p)
+      );
+      setPagedProductos(prev =>
         prev.map(p => p.id === productoId ? { ...p, activo: !nuevoEstado } : p)
       );
       console.error('Error toggling product active status:', err);
@@ -1340,32 +1346,32 @@ export function ProductosPage() {
             <div className="std-table-wrapper">
               <table className="std-table">
                 <colgroup>
-                  <col style={{ width: '64px' }} />   {/* Imagen */}
-                  <col style={{ width: 'auto' }} />   {/* Nombre */}
-                  <col style={{ width: '120px' }} />  {/* Precio venta */}
-                  <col style={{ width: '120px' }} />  {/* Precio compra */}
-                  <col style={{ width: '90px' }} />   {/* Stock total */}
-                  <col style={{ width: '100px' }} />  {/* Stock Ventas */}
-                  <col style={{ width: '110px' }} />  {/* Stock Insumos */}
-                  <col style={{ width: '100px' }} />  {/* Estado */}
+                  <col style={{ width: '72px' }} />   {/* Imagen */}
+                  <col style={{ width: '180px' }} />  {/* Nombre */}
+                  <col style={{ width: '130px' }} />  {/* Precio venta */}
+                  <col style={{ width: '130px' }} />  {/* Precio compra */}
+                  <col style={{ width: '100px' }} />  {/* Stock total */}
+                  <col style={{ width: '110px' }} />  {/* Stock Ventas */}
+                  <col style={{ width: '120px' }} />  {/* Stock Insumos */}
+                  <col style={{ width: '110px' }} />  {/* Estado */}
                   <col style={{ width: '160px' }} />  {/* Acciones */}
                 </colgroup>
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
-                    <th className="text-left py-3 px-4 text-gray-lightest font-normal text-sm">Imagen</th>
-                    <th className="text-left py-3 px-4 text-gray-lightest font-normal text-sm">Nombre</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Imagen</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Nombre</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Precio venta</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Precio compra</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock total</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock Ventas</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock Insumos</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock ventas</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock insumos</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="std-tbody">
                   {loading ? (
-                    <TableLoadingStateRow colSpan={9} title="Cargando productos..." />
+                    <TableLoadingStateRow colSpan={8} title="Cargando productos..." />
                   ) : displayedProductos.length > 0 ? displayedProductos.map((producto) => {
                     const isExpanded = expandedId === Number(producto.id);
                     const cached = precioComprasCache[Number(producto.id)];
@@ -1378,15 +1384,19 @@ export function ProductosPage() {
                           onClick={() => toggleExpandProducto(Number(producto.id))}
                         >
                           <td className="std-td-primary">
-                            <ImageRenderer
-                              url={producto.imagenProduc}
-                              alt={producto.nombre}
-                              className="w-10 h-10 object-cover rounded-lg"
-                              fallbackVariant="product"
-                              showLabel={false}
-                            />
+                            <div className="flex justify-center">
+                              <ImageRenderer
+                                url={producto.imagenProduc}
+                                alt={producto.nombre}
+                                className="w-10 h-10 object-cover rounded-lg"
+                                fallbackVariant="product"
+                                showLabel={false}
+                              />
+                            </div>
                           </td>
-                          <td className="std-td-primary" title={producto.nombre}>{producto.nombre}</td>
+                          <td className="std-td text-center text-gray-lightest" title={producto.nombre}>
+                            {producto.nombre}
+                          </td>
                           <td className="std-td text-gray-lightest">
                             {formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0)}
                           </td>
@@ -1460,7 +1470,7 @@ export function ProductosPage() {
 
                         {/* Fila expandible — compras del producto */}
                         <tr key={`expand-${producto.id}`} className={isExpanded ? 'border-b border-orange-primary/20' : ''}>
-                          <td colSpan={9} style={{ padding: 0 }}>
+                          <td colSpan={8} style={{ padding: 0 }}>
                             <div className={`row-accordion-wrap${isExpanded ? ' open' : ''}`}>
                               <div className="row-accordion-inner">
                               <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
@@ -1541,7 +1551,7 @@ export function ProductosPage() {
                     );
                   }) : (
                     <TableEmptyStateRow
-                      colSpan={9}
+                      colSpan={8}
                       title="No se encontraron productos"
                       description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                       onReload={() => window.location.reload()}

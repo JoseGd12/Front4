@@ -462,13 +462,21 @@ export function PaquetesPage() {
     const nombrePaquete = paquete.nombre;
     const nuevoEstado = !paquete.activo;
 
+    // Actualización optimista inmediata
+    setPaquetes(prev =>
+      prev.map(p => p.id === paquete.id ? { ...p, activo: nuevoEstado } : p)
+    );
+
     // Ejecutar directamente sin confirmación
     (async () => {
       try {
         await apiService.updatePaqueteStatus(paquete.id, nuevoEstado);
-        await loadPaquetes(true);
         edited(`Paquete ${nuevoEstado ? 'activado' : 'desactivado'} ✔️`, `El paquete "${nombrePaquete}" ha sido ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente.`);
       } catch (error) {
+        // Revertir si falla
+        setPaquetes(prev =>
+          prev.map(p => p.id === paquete.id ? { ...p, activo: !nuevoEstado } : p)
+        );
         console.error('Error updating paquete status:', error);
       }
     })();

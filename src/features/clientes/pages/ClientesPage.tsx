@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
+import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
@@ -1396,12 +1397,11 @@ export function ClientesPage() {
                   <Phone className="w-4 h-4 text-orange-primary" />
                   Número de Celular *
                 </Label>
-                <Input
+                <PhoneInput
                   value={editForm.telefono}
-                  onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })}
-                  maxLength={CLIENTE_LIMITS.telefono}
-                  className={`elegante-input w-full ${showEditValidation && !editForm.telefono ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                  placeholder="+57 300 123 4567"
+                  onChange={(value) => setEditForm({ ...editForm, telefono: value })}
+                  className={`w-full ${showEditValidation && !editForm.telefono ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  placeholder="3001234567"
                 />
                 {showEditValidation && !editForm.telefono && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
@@ -1625,12 +1625,11 @@ export function ClientesPage() {
                   <Phone className="w-4 h-4 text-orange-primary" />
                   Número de Celular *
                 </Label>
-                <Input
+                <PhoneInput
                   value={createForm.telefono}
-                  onChange={(e) => setCreateForm({ ...createForm, telefono: e.target.value })}
-                  maxLength={CLIENTE_LIMITS.telefono}
-                  className={`elegante-input w-full ${showCreateValidation && !createForm.telefono ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                  placeholder="+57 300 123 4567"
+                  onChange={(value) => setCreateForm({ ...createForm, telefono: value })}
+                  className={`w-full ${showCreateValidation && !createForm.telefono ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  placeholder="3001234567"
                 />
                 {showCreateValidation && !createForm.telefono && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>

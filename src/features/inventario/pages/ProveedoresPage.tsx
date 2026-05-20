@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
+import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import {
   Select,
   SelectContent,
@@ -1010,14 +1011,11 @@ export function ProveedoresPage() {
                           <Phone className="w-4 h-4 text-orange-primary" />
                           Teléfono <span className="text-gray-lightest">*</span>
                         </Label>
-                        <Input
-                          id="telefono"
+                        <PhoneInput
                           value={formData.telefono}
-                          onChange={(e) => setFormData({ ...formData, telefono: sanitizeTelefono(e.target.value) })}
-                          placeholder="Ej: +57 301 234 5678"
-                          maxLength={20}
-                          inputMode="tel"
-                          className={`elegante-input ${((showProveedorFormErrors && !formData.telefono.trim()) || !!duplicateErrors.telefono || !!formatErrors.telefono) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                          onChange={(value) => setFormData({ ...formData, telefono: sanitizeTelefono(value) })}
+                          className={`w-full ${((showProveedorFormErrors && !formData.telefono.trim()) || !!duplicateErrors.telefono || !!formatErrors.telefono) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                          placeholder="3012345678"
                         />
                         {showProveedorFormErrors && !formData.telefono.trim() && (
                           <p className="text-xs text-red-400">Este campo es obligatorio.</p>
@@ -1195,14 +1193,11 @@ export function ProveedoresPage() {
                               <Phone className="w-4 h-4 text-orange-primary" />
                               Teléfono representante <span className="text-gray-lightest">*</span>
                             </Label>
-                            <Input
-                              id="telefonoRepresentante"
+                            <PhoneInput
                               value={formData.telefonoRepresentante}
-                              onChange={(e) => setFormData({ ...formData, telefonoRepresentante: sanitizeTelefono(e.target.value) })}
-                              placeholder="Ej: +57 301 111 2222"
-                              maxLength={20}
-                              inputMode="tel"
-                              className={`elegante-input ${(showProveedorFormErrors && !formData.telefonoRepresentante.trim()) || !!formatErrors.telefonoRepresentante ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                              onChange={(value) => setFormData({ ...formData, telefonoRepresentante: sanitizeTelefono(value) })}
+                              className={`w-full ${(showProveedorFormErrors && !formData.telefonoRepresentante.trim()) || !!formatErrors.telefonoRepresentante ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                              placeholder="3012345678"
                             />
                             {showProveedorFormErrors && !formData.telefonoRepresentante.trim() && (
                               <p className="text-xs text-red-400">Este campo es obligatorio.</p>

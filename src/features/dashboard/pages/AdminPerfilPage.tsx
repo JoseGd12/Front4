@@ -287,6 +287,8 @@ export function AdminPerfilPage() {
                   onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                   className="elegante-input"
                   placeholder="Tu número celular"
+                  inputMode="tel"
+                  onKeyDown={(e) => { if (!/[0-9+\s\-()\\b]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key)) e.preventDefault(); }}
                 />
               </div>
             </div>

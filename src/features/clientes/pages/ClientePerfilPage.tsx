@@ -306,9 +306,11 @@ export function ClientePerfilPage() {
                 <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Teléfono</Label>
                 <Input 
                   value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                  onChange={(e) => setFormData({...formData, telefono: e.target.value.replace(/[^0-9+\s\-()]/g, '')})}
+                  onKeyDown={(e) => { if (!/[0-9+\s\-()\\b]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key)) e.preventDefault(); }}
                   className="elegante-input" 
                   placeholder="Tu número celular"
+                  inputMode="tel"
                 />
               </div>
             </div>

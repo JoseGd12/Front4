@@ -89,121 +89,121 @@ const moduleInfo: Record<string, {
     title: "Gestión de Ventas",
     description: "Procesamiento y seguimiento de ventas",
     icon: DollarSign,
-    color: "text-green-400"
+    color: "text-orange-primary"
   },
   "RegistrarVenta": {
     title: "Registrar Nueva Venta",
     description: "Completa la información de la transacción",
     icon: DollarSign,
-    color: "text-green-400"
+    color: "text-orange-primary"
   },
   "Compras": {
     title: "Gestión de Compras",
     description: "Administración de compras y proveedores",
     icon: ShoppingCart,
-    color: "text-blue-400"
+    color: "text-orange-primary"
   },
   "RegistrarCompra": {
     title: "Registrar Nueva Compra",
     description: "Completa la información de la compra al proveedor",
     icon: ShoppingCart,
-    color: "text-blue-400"
+    color: "text-orange-primary"
   },
   "Devoluciones": {
     title: "Devoluciones",
     description: "Gestión de devoluciones y reembolsos",
     icon: RotateCcw,
-    color: "text-yellow-400"
+    color: "text-orange-primary"
   },
   "RegistrarDevolucion": {
     title: "Registrar Nueva Devolución",
     description: "Completa la información de la devolución",
     icon: RotateCcw,
-    color: "text-yellow-400"
+    color: "text-orange-primary"
   },
   "RegistrarEntrega": {
     title: "Registrar Nueva Entrega",
     description: "Completa la información de la entrega de insumos",
     icon: Truck,
-    color: "text-green-400"
+    color: "text-orange-primary"
   },
   "Proveedores": {
     title: "Proveedores",
     description: "Administración de proveedores",
     icon: Truck,
-    color: "text-purple-400"
+    color: "text-orange-primary"
   },
   "Agendamientos": {
     title: "Agendamiento",
     description: "Gestión de citas y reservas",
     icon: Calendar,
-    color: "text-blue-400"
+    color: "text-orange-primary"
   },
   "Horarios": {
     title: "Horarios",
     description: "Configuración de horarios de trabajo",
     icon: Clock,
-    color: "text-cyan-400"
+    color: "text-orange-primary"
   },
   "Solicitudes de Cambio de Horario": {
     title: "Solicitudes de Cambio de Horario",
     description: "Revisar y gestionar solicitudes de cambio de horario",
     icon: FileText,
-    color: "text-blue-400"
+    color: "text-orange-primary"
   },
   "Barberos": {
     title: "Barberos",
     description: "Gestión del personal y barberos",
     icon: Users,
-    color: "text-pink-400"
+    color: "text-orange-primary"
   },
   "Servicios": {
     title: "Servicios",
     description: "Catálogo de servicios de la barbería",
     icon: Scissors,
-    color: "text-purple-400"
+    color: "text-orange-primary"
   },
   "Categorías": {
     title: "Categorías",
     description: "Organización de productos y servicios",
     icon: Tags,
-    color: "text-indigo-400"
+    color: "text-orange-primary"
   },
   "Paquetes": {
     title: "Paquetes",
     description: "Paquetes promocionales",
     icon: Gift,
-    color: "text-red-400"
+    color: "text-orange-primary"
   },
   "Productos": {
     title: "Productos",
     description: "Inventario y gestión de productos",
     icon: Package,
-    color: "text-green-400"
+    color: "text-orange-primary"
   },
   "Entregas de Insumos": {
     title: "Entregas de Insumos",
     description: "Control de entregas de materiales",
     icon: FileText,
-    color: "text-amber-400"
+    color: "text-orange-primary"
   },
   "Clientes": {
     title: "Clientes",
     description: "Base de datos de clientes",
     icon: Users,
-    color: "text-pink-400"
+    color: "text-orange-primary"
   },
   "Usuarios": {
     title: "Usuarios",
     description: "Gestión de usuarios del sistema",
     icon: User,
-    color: "text-indigo-400"
+    color: "text-orange-primary"
   },
   "Roles": {
     title: "Roles y Permisos",
     description: "Configuración de roles por módulos",
     icon: Shield,
-    color: "text-orange-400"
+    color: "text-orange-primary"
   },
   "MiCuenta": {
     title: "Mi Cuenta",

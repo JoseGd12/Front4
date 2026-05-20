@@ -999,12 +999,12 @@ html {
     font-family: 'DM Sans', 'Segoe UI', sans-serif;
   }
   .std-badge-positive {
-    background: var(--status-green);
-    color: var(--black-primary);
+    background: #d8b081;
+    color: #1a1008;
   }
   .std-badge-negative {
-    background: var(--status-red);
-    color: var(--black-primary);
+    background: #7a5c38;
+    color: #f3e8d8;
   }
   .std-badge-neutral {
     background: #4a4a4a;
