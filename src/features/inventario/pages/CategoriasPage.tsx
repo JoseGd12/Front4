@@ -279,11 +279,14 @@ export function CategoriasPage() {
   };
 
   const handleToggleStatus = async (categoria: Categoria) => {
+    const nuevoEstado = !categoria.estado;
+    setCategorias(prev => prev.map(c => c.id === categoria.id ? { ...c, estado: nuevoEstado } : c));
     try {
-      await categoriaService.updateCategoriaStatus(categoria.id, !categoria.estado);
-      await loadCategorias(true);
-      edited(categoria.nombre, `Categoría ${!categoria.estado ? 'activada' : 'desactivada'} exitosamente`);
+      await categoriaService.updateCategoriaStatus(categoria.id, nuevoEstado);
+      loadCategorias(true);
+      edited(categoria.nombre, `Categoría ${nuevoEstado ? 'activada' : 'desactivada'} exitosamente`);
     } catch (error) {
+      setCategorias(prev => prev.map(c => c.id === categoria.id ? { ...c, estado: categoria.estado } : c));
       console.error('Error cambiando estado:', error);
       setError('Error al cambiar el estado de la categoría');
     }

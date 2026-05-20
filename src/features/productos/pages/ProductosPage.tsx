@@ -104,6 +104,7 @@ export function ProductosPage() {
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const skipPagedRefetch = useRef(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showProductoFormErrors, setShowProductoFormErrors] = useState(false);
   const [productoValidationAttempt, setProductoValidationAttempt] = useState(0);
@@ -272,6 +273,12 @@ export function ProductosPage() {
   }, []);
 
   useEffect(() => {
+    // Skip re-fetch triggered by optimistic toggle updates
+    if (skipPagedRefetch.current) {
+      skipPagedRefetch.current = false;
+      return;
+    }
+    let cancelled = false;
     const run = async () => {
       try {
         setLoadingPage(true);
@@ -286,11 +293,13 @@ export function ProductosPage() {
           q: `${searchTerm}${categoriaInQ}`.trim(),
           ...extra
         });
+        if (cancelled) return;
         setPagedProductos(normalizarProductosParaUI(res.items, categorias));
         setTotalPagesApi(res.totalPages);
         setTotalCountApi(res.totalCount);
         if (res.page !== currentPage) setCurrentPage(res.page);
       } catch (e) {
+        if (cancelled) return;
         const term = searchTerm.trim().toLowerCase();
         const filtered = productos.filter(producto => {
           const categoriaNombre = typeof producto.categoria === 'string'
@@ -324,10 +333,11 @@ export function ProductosPage() {
         setTotalPagesApi(totalPages);
         setTotalCountApi(filtered.length);
       } finally {
-        setLoadingPage(false);
+        if (!cancelled) setLoadingPage(false);
       }
     };
     run();
+    return () => { cancelled = true; };
   }, [searchTerm, filterCategoria, currentPage, itemsPerPage, productos]);
 
   const displayedProductos = pagedProductos;
@@ -726,6 +736,8 @@ export function ProductosPage() {
     const nuevoEstado = !productoActual.activo;
 
     // Actualización optimista — actualiza tanto la lista completa como la paginada
+    // skipPagedRefetch evita que setProductos dispare el useEffect de paginación
+    skipPagedRefetch.current = true;
     setProductos(prev =>
       prev.map(p => p.id === productoId ? { ...p, activo: nuevoEstado } : p)
     );
@@ -734,11 +746,12 @@ export function ProductosPage() {
     );
 
     try {
-      await productoService.toggleProductoActivo(productoId);
+      await productoService.setProductoActivo(productoId, nuevoEstado);
       const accion = nuevoEstado ? 'activado' : 'desactivado';
       edited(`Producto ${accion} ✔️`, `El producto "${productoActual.nombre}" ha sido ${accion} exitosamente.`);
     } catch (err: any) {
       // Revertir el cambio optimista si la API falla
+      skipPagedRefetch.current = true;
       setProductos(prev =>
         prev.map(p => p.id === productoId ? { ...p, activo: !nuevoEstado } : p)
       );

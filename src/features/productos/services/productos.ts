@@ -546,6 +546,14 @@ class ProductoService {
     return await this.getProductoById(id) as ApiProducto;
   }
 
+  /** Establece el estado activo/inactivo de un producto sin GET previo ni GET posterior. */
+  async setProductoActivo(id: number, activo: boolean): Promise<void> {
+    await this.request(`/Productos/${id}/estado`, {
+      method: 'PUT',
+      body: JSON.stringify({ Estado: activo, Activo: activo }),
+    });
+  }
+
   async updateStock(id: number, stockVentas: number, stockInsumos: number): Promise<ApiProducto> {
     const producto = await this.getProductoById(id);
     if (!producto) throw new Error('Producto no encontrado');

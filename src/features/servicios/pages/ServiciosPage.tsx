@@ -381,8 +381,11 @@ export function ServiciosPage() {
 
     const nuevoEstado = !servicio.estado;
 
-    // Actualización optimista local
+    // Actualización optimista — actualiza servicios y pagedServicios (la tabla renderiza desde pagedServicios)
     setServicios(prev =>
+      prev.map(s => s.id === servicioId ? { ...s, estado: nuevoEstado, activo: nuevoEstado } : s)
+    );
+    setPagedServicios(prev =>
       prev.map(s => s.id === servicioId ? { ...s, estado: nuevoEstado, activo: nuevoEstado } : s)
     );
 
@@ -394,10 +397,12 @@ export function ServiciosPage() {
       setServicios(prev =>
         prev.map(s => s.id === servicioId ? { ...s, estado: !nuevoEstado, activo: !nuevoEstado } : s)
       );
+      setPagedServicios(prev =>
+        prev.map(s => s.id === servicioId ? { ...s, estado: !nuevoEstado, activo: !nuevoEstado } : s)
+      );
       console.error('Error actualizando estado del servicio:', err);
       setError(err.message || 'Error al actualizar el estado del servicio');
-      // Intentar recargar para sincronizar sin parpadear
-      await loadServicios(true);
+      loadServicios(true);
     }
   };
 

@@ -13,7 +13,6 @@ import {
   ToggleRight, ToggleLeft, X, Loader2, IdCard, KeyRound,
   Users2
 } from "lucide-react";
-import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
@@ -703,33 +702,24 @@ export function UsersPage() {
       return;
     }
 
-    const newStatus = !user.status; // 🔥 si es false → true, si es true → false
+    const newStatus = !user.status;
 
+    // Actualización optimista — sin alerta de carga
+    setUsers(prev =>
+      prev.map(u => u.id === userId ? { ...u, status: newStatus } : u)
+    );
 
     try {
-      const loadingToast = toast.loading("Cambiando estado...");
-
-      // Actualizar solo el estado (BOOLEAN)
       await apiService.updateUsuarioStatus(userId, newStatus);
-
-      // Actualizar estado localmente
-      setUsers(prev =>
-        prev.map(u =>
-          u.id === userId
-            ? { ...u, status: newStatus }
-            : u
-        )
-      );
-
-      toast.dismiss(loadingToast);
-
       showSuccess(
         newStatus ? "Usuario activado" : "Usuario desactivado",
         `${user.nombres} ahora está ${newStatus ? "activo" : "inactivo"}`
       );
-
     } catch (err) {
-      toast.dismiss();
+      // Revertir si falla
+      setUsers(prev =>
+        prev.map(u => u.id === userId ? { ...u, status: !newStatus } : u)
+      );
       showError("Error", "No se pudo cambiar el estado");
     }
   };

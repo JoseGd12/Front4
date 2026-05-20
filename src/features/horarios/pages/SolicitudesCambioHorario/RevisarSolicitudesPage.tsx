@@ -105,9 +105,10 @@ export default function RevisarSolicitudesPage({ usuarioId, onBack }: Props) {
     if (!selected) return;
     try {
       await solicitudesCambioHorarioService.aprobarSolicitud(selected.id, usuarioId);
+      setSolicitudes(prev => prev.map(s => s.id === selected.id ? { ...s, estado: 'Aprobada' as EstadoSolicitud } : s));
       edited('Solicitud aprobada', 'El horario del barbero fue actualizado.');
       cerrarModal();
-      await cargar();
+      cargar();
     } catch (e: any) {
       error('Error', e?.message ?? 'No se pudo aprobar la solicitud.');
     }
@@ -119,9 +120,10 @@ export default function RevisarSolicitudesPage({ usuarioId, onBack }: Props) {
       await solicitudesCambioHorarioService.rechazarSolicitud(selected.id, usuarioId, {
         observacion: observacion || undefined,
       });
+      setSolicitudes(prev => prev.map(s => s.id === selected.id ? { ...s, estado: 'Rechazada' as EstadoSolicitud } : s));
       edited('Solicitud rechazada', 'La solicitud fue marcada como rechazada.');
       cerrarModal();
-      await cargar();
+      cargar();
     } catch (e: any) {
       error('Error', e?.message ?? 'No se pudo rechazar la solicitud.');
     }
@@ -138,9 +140,10 @@ export default function RevisarSolicitudesPage({ usuarioId, onBack }: Props) {
         observacion: observacion || undefined,
         sugerencias: sugerenciasAdmin,
       });
+      setSolicitudes(prev => prev.map(s => s.id === selected.id ? { ...s, estado: 'Sugerida' as EstadoSolicitud } : s));
       edited('Contrapropuesta enviada', 'El barbero recibirá la contrapropuesta para responder.');
       cerrarModal();
-      await cargar();
+      cargar();
     } catch (e: any) {
       error('Error', e?.message ?? 'No se pudo enviar la contrapropuesta.');
     }

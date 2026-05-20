@@ -1460,6 +1460,12 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
             }
           }
 
+          // Actualizar estado localmente de inmediato
+          setDevoluciones(prev => prev.map(d =>
+            (d.apiId !== undefined ? d.apiId === idParaActualizar : Number(d.id) === idParaActualizar)
+              ? { ...d, estado: nuevoEstado as any }
+              : d
+          ));
           // La alerta de éxito la maneja confirmEditAction en sus opciones
           loadData(true);
 

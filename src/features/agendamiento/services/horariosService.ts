@@ -91,7 +91,13 @@ class HorariosService {
 
     private flattenSemanalToHorarioBarbero(semanal: HorarioSemanalApi): HorarioBarbero[] {
         const estadoActivo = semanal.estado === "Activo";
-        return semanal.detalles.map(d => ({
+        // Guard: detalles can arrive as {$values:[...]} from EF Core ref-tracking serialization
+        const detalles: DetalleHorarioDiaApi[] = Array.isArray(semanal.detalles)
+            ? semanal.detalles
+            : Array.isArray((semanal.detalles as any)?.$values)
+                ? (semanal.detalles as any).$values
+                : [];
+        return detalles.map(d => ({
             id: d.id,
             barberoId: semanal.barberoId,
             dia: normalizeDiaNombre(this.diaSemanaToNombre(d.diaSemana)),

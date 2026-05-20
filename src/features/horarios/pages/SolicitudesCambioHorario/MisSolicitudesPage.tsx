@@ -68,6 +68,8 @@ export default function MisSolicitudesPage({ barberoId, onNavigate }: Props) {
     if (!selected) return;
     try {
       await solicitudesCambioHorarioService.responderSugerencia(selected.id, { acepta });
+      const nuevoEstado: EstadoSolicitud = acepta ? 'Aprobada' : 'Rechazada';
+      setSolicitudes(prev => prev.map(s => s.id === selected.id ? { ...s, estado: nuevoEstado } : s));
       edited(
         acepta ? 'Contrapropuesta aceptada' : 'Contrapropuesta rechazada',
         acepta
@@ -75,7 +77,7 @@ export default function MisSolicitudesPage({ barberoId, onNavigate }: Props) {
           : 'La solicitud fue rechazada definitivamente.'
       );
       setSelected(null);
-      await cargar();
+      cargar();
     } catch (e: any) {
       error('Error', e?.message ?? 'No se pudo procesar la respuesta.');
     }

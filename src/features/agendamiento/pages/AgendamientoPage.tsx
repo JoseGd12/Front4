@@ -192,7 +192,7 @@ const isSnapshotDirty = (current: FormSnapshot, initial: FormSnapshot): boolean 
 
 
 export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChange }: AgendamientoPageProps) {
-  const { user } = useAuth();
+  const { user, isLoading: authIsLoading } = useAuth();
   const { success, error, AlertContainer } = useCustomAlert();
   const [citas, setCitas] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -226,10 +226,16 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const FORM_CAROUSEL_SIZE = 3;
   const [lastInitialItemKey, setLastInitialItemKey] = useState("");
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente — esperar a que Firebase auth esté listo.
+  // barberosService usa auth.currentUser.getIdToken(); si Firebase aún no inicializó
+  // la sesión, auth.currentUser es null y el servidor devuelve vacío o 401.
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
+    if (authIsLoading) return;          // Firebase still restoring session — wait
+    if (hasFetchedRef.current) return;  // Already fetched once — don't repeat on re-renders
+    hasFetchedRef.current = true;
     fetchData();
-  }, []);
+  }, [authIsLoading]);
 
   useEffect(() => {
     if (!initialItem || isLoading) return;
@@ -289,15 +295,31 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setProductosList((productosData as any[]).filter((p: any) => p.activo !== false && (p.stockVentas > 0 || p.stockTotal > 0)));
 
     if (horariosData !== null) {
-      const barberosConHorarioActivo = new Set(
-        (horariosData as any[]).filter(horarioEstaActivo).map((h: any) => Number(h.barberoId))
+      // Build the set from ALL horario records regardless of estado (Activo, Pendiente, Finalizado).
+      // Filtering only by horarioEstaActivo (estado === true = "Activo") caused barberos to disappear
+      // whenever their current week's schedule transitioned to "Finalizado" and no new "Activo"
+      // schedule had been created yet.  The horario-based availability check (barberoTrabajaEnFecha)
+      // already handles slot-level filtering inside the form — the dropdown list only needs to know
+      // whether a barbero has *any* schedule record in the system.
+      const barberosConHorario = new Set(
+        (horariosData as any[]).map((h: any) => Number(h.barberoId))
       );
       if (barberosData !== null) {
-        setBarberosList((barberosData as any[]).filter((b: any) => b.estado === true && barberosConHorarioActivo.has(Number(b.id))));
+        setBarberosList(
+          (barberosData as any[]).filter((b: any) => {
+            // Use truthy check — API may return estado as 1, "true", etc. (not strict boolean)
+            if (!b.estado) return false;
+            // If horariosData came back empty (API glitch / page-limit gap), show all active
+            // barberos rather than filtering everyone out.
+            if (barberosConHorario.size === 0) return true;
+            return barberosConHorario.has(Number(b.id));
+          })
+        );
       }
       setHorariosList(horariosData as any[]);
     } else if (barberosData !== null) {
-      setBarberosList((barberosData as any[]).filter((b: any) => b.estado === true));
+      // Truthy check — API may return estado as integer 1 or string "true"
+      setBarberosList((barberosData as any[]).filter((b: any) => !!b.estado));
     }
 
     // Alerta solo cuando TODAS las peticiones críticas fallaron (falla de conexión real).
@@ -328,6 +350,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   // Estado para el mini-tooltip de cita al hacer hover sobre la pestaña
   const [hoveredCita, setHoveredCita] = useState<{ cita: any; rect: DOMRect; servicioLabel: string; tabColor: string; abrirDetalle: () => void } | null>(null);
+  const [hoveredSlotKey, setHoveredSlotKey] = useState<string | null>(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [overflowPopup, setOverflowPopup] = useState<{
     citas: any[];
@@ -1019,6 +1042,25 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     const raw = String((cita as { color?: string }).color ?? '').trim();
     if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(raw)) return raw;
     return getCitaColor(String(cita.estado || 'Pendiente'));
+  };
+
+  /** Color del punto y barra de la cita en la grilla: gris si Completada, color por barbero principal, o dorado por defecto. */
+  const BARBERO_DOT_COLORS: { match: RegExp; color: string }[] = [
+    { match: /edwin/i,           color: '#F5C518' },
+    { match: /maicol/i,          color: '#E8B430' },
+    { match: /eduardo/i,         color: '#C8900A' },
+    { match: /christian/i,       color: '#B07808' },
+    { match: /juan\s*g[oó]mez/i, color: '#8B6410' },
+  ];
+
+  const getCitaDotColor = (cita: { estado?: string; barberoNombre?: string } | null | undefined): string => {
+    if (!cita) return '#d8b081';
+    if (String(cita.estado || '') === 'Completada') return '#6B7280';
+    const nombre = String((cita as any).barberoNombre || '');
+    for (const { match, color } of BARBERO_DOT_COLORS) {
+      if (match.test(nombre)) return color;
+    }
+    return '#d8b081';
   };
 
   const validarDisponibilidadBarbero = (barberoId: number): string | null => {
@@ -2015,7 +2057,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           >
             {/* Header con drag handle */}
             <div
-              className="shrink-0 bg-gray-darker/50 border-b border-gray-dark/40 select-none"
+              className="shrink-0 bg-gray-darker/50 select-none"
               onMouseDown={(e) => {
                 if ((e.target as HTMLElement).closest('button')) return;
                 const currentLeft = modalLeft ?? modalPosition.left;
@@ -2842,7 +2884,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             </div>
 
             {/* Footer sticky con botones */}
-            <div className="border-t border-gray-dark bg-gray-darker/50 px-4 py-3 shrink-0">
+            <div className="bg-gray-darker/50 px-4 py-3 shrink-0">
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
@@ -3368,6 +3410,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         const relevantKeys = `${citasEnCelda.map(c => c.id).join('-')}-${citasQueArrancanEnCelda.map(c => c.id).join('-')}`;
                         const mostrarBloqueCita = tieneCita;
                         const celdaResaltada = citasEnCelda.some(c => c.id === highlightedCitaId);
+                        const isBlockHovered = !isPastSlot && hoveredSlotKey === slotKey;
 
                         return (
                           <div
@@ -3381,6 +3424,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             }`}
                             onClick={(e) => {
                               if (isPastSlot) return;
+                              // Block slot clicks while any modal/dialog/popup is open to avoid
+                              // accidentally opening the create form behind an active overlay.
+                              if (
+                                isCreateModalOpen ||
+                                isSlotModalOpen ||
+                                isDeleteDialogOpen ||
+                                showDiscardDialog ||
+                                isDiscountDialogOpen ||
+                                isEditHorarioModalOpen ||
+                                showModalParcial ||
+                                overflowPopup !== null
+                              ) return;
                               handleSlotClick(dia, hora);
                             }}
                           >
@@ -3396,16 +3451,22 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 className={`absolute inset-0 cita-calendar-block${celdaResaltada ? ' cita-notification-highlight' : ''}${!isPastSlot ? ' cursor-pointer' : ''}`}
                               >
                                 <div
-                                  className={`absolute inset-0 flex flex-col justify-start gap-1 rounded-md overflow-hidden px-1.5 pt-2 pb-1 ${
+                                  className={`absolute inset-0 flex flex-col justify-start gap-1 rounded-md overflow-hidden px-1.5 pt-2 pb-1 group transition-[background-color,border-color] duration-200 ease-out ${
                                     isPastSlot
                                       ? 'cursor-default border border-gray-dark/45 bg-gray-darkest/90 opacity-[0.92]'
-                                      : `border border-gray-dark bg-gray-darker ${CAL_GRID_BLOCK_HOVER}`
+                                      : `border bg-gray-darker border-gray-dark${isBlockHovered ? ' cal-block-hovered' : ''}`
                                   }`}
+                                  onMouseOver={!isPastSlot ? (e) => {
+                                    // Only highlight when mouse is directly on the block background,
+                                    // not on child elements (cita rows, overflow button, tooltip).
+                                    setHoveredSlotKey(e.target === e.currentTarget ? slotKey : null);
+                                  } : undefined}
+                                  onMouseLeave={!isPastSlot ? () => setHoveredSlotKey(null) : undefined}
                                 >
                                   {citasQueArrancanEnCelda.length > 0 ? (
                                     <>
                                     {citasQueArrancanEnCelda.slice(0, 2).map((citaItem) => {
-                                      const lineColor = getCitaTabColor(citaItem);
+                                      const dotColor = getCitaDotColor(citaItem);
                                       const visibleText = `${formatHoraStr12(citaItem.hora)} ${formatNombre(citaItem.clienteNombre || 'Cliente')} - ${formatNombre(citaItem.barberoNombre || 'Barbero')}`;
                                       const abrirDetalleLinea = (rect: DOMRect) => {
                                         const [hStr, mStr] = (citaItem.hora || '09:00').split(':');
@@ -3421,25 +3482,31 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                       return (
                                         <div
                                           key={citaItem.id}
-                                          className="flex items-center gap-1.5 min-w-0 w-full rounded transition-colors duration-100 hover:bg-white/5 cursor-pointer"
+                                          className="flex items-center gap-1.5 min-w-0 w-full rounded cursor-pointer"
                                           onClick={(e) => { e.stopPropagation(); abrirDetalleLinea(e.currentTarget.getBoundingClientRect()); }}
                                           onMouseEnter={(e) => {
+                                            const span = e.currentTarget.querySelector('span');
+                                            if (span) span.style.color = 'rgba(255,255,255,0.95)';
                                             const rect = e.currentTarget.getBoundingClientRect();
                                             showTooltip({
                                               cita: citaItem,
                                               rect,
                                               servicioLabel: formatNombre(citaItem.servicioNombre || citaItem.paqueteNombre || 'Servicio'),
-                                              tabColor: lineColor,
+                                              tabColor: dotColor,
                                               abrirDetalle: () => abrirDetalleLinea(rect),
                                             });
                                           }}
-                                          onMouseLeave={() => scheduleHideTooltip()}
+                                          onMouseLeave={(e) => {
+                                            const span = e.currentTarget.querySelector('span');
+                                            if (span) span.style.color = '';
+                                            scheduleHideTooltip();
+                                          }}
                                         >
                                           <div
                                             className="w-1.5 h-1.5 rounded-full shrink-0"
-                                            style={{ background: lineColor }}
+                                            style={{ background: dotColor }}
                                           />
-                                          <span className="truncate text-[9px] font-bold text-gray-lightest leading-tight">
+                                          <span className="truncate text-[9px] font-bold text-gray-lightest leading-tight" style={{ transition: 'color 150ms' }}>
                                             {visibleText}
                                           </span>
                                         </div>
@@ -3448,8 +3515,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                     {citasQueArrancanEnCelda.length > 2 && (
                                       <button
                                         type="button"
-                                        className="text-left text-[8px] font-semibold leading-tight rounded transition-colors hover:bg-white/5 px-0.5"
+                                        className="self-start text-left text-[8px] font-semibold leading-tight rounded transition-all duration-150 px-0.5"
                                         style={{ color: 'rgba(160,160,168,0.80)', paddingLeft: '3px', cursor: 'pointer' }}
+                                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.90)'; }}
+                                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(160,160,168,0.80)'; }}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setOverflowPopup({
@@ -3461,7 +3530,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                           });
                                         }}
                                       >
-                                        +{citasQueArrancanEnCelda.length - 2} más
+                                        {citasQueArrancanEnCelda.length - 2} más
                                       </button>
                                     )}
                                     </>
@@ -3470,7 +3539,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                     <>
                                       <div
                                         className="absolute inset-y-2 left-1.5 rounded-full"
-                                        style={{ width: 2, background: getCitaTabColor(citasEnCelda[0]) }}
+                                        style={{ width: 2, background: getCitaDotColor(citasEnCelda[0]) }}
                                       />
                                       {!isPastSlot && (
                                         <div
@@ -3559,51 +3628,51 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             className="fixed z-[9999] rounded-2xl border border-gray-dark/60 bg-gray-darkest overflow-hidden"
             style={(() => {
               const r = overflowPopup.rect;
-              const popW = 260;
-              const spaceBelow = window.innerHeight - r.bottom - 8;
-              const spaceAbove = r.top - 8;
-              const top = spaceBelow >= 160 || spaceBelow >= spaceAbove
-                ? r.bottom + 6
-                : undefined;
-              const bottom = top === undefined ? window.innerHeight - r.top + 6 : undefined;
+              const popW = 290;
+              const popMaxH = 360;
+              // Center the popup vertically on the slot that triggered it.
+              const slotCenterY = (r.top + r.bottom) / 2;
+              const top = Math.max(8, Math.min(slotCenterY - popMaxH / 2, window.innerHeight - popMaxH - 8));
               const left = Math.min(r.left, window.innerWidth - popW - 12);
               return {
                 top,
-                bottom,
                 left,
                 width: popW,
-                maxHeight: 320,
+                maxHeight: popMaxH,
                 overflowY: 'auto' as const,
                 boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.60)',
               };
             })()}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-dark bg-gray-darker/60 sticky top-0">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-orange-primary shrink-0" />
-                <span className="text-xs font-semibold text-gray-lightest">
-                  {overflowPopup.diaLabel} · {overflowPopup.horaLabel}
+            {/* Header — día abreviado + número de fecha centrados */}
+            <div className="relative flex items-center justify-center px-4 py-4 border-b border-gray-dark bg-gray-darker/60 sticky top-0">
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-lighter leading-none">
+                  {overflowPopup.diaLabel.slice(0, 3)}
+                </span>
+                <span className="text-2xl font-bold text-white-primary leading-none">
+                  {new Date(`${overflowPopup.fechaCompleta}T12:00:00`).getDate()}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setOverflowPopup(null)}
-                className="p-1 rounded-lg text-gray-lighter hover:text-white-primary hover:bg-gray-dark transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-lighter hover:text-white-primary hover:bg-gray-dark transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
             {/* Cita list */}
-            <div className="py-1">
+            <div className="py-2">
               {overflowPopup.citas.map((cita) => {
                 const color = getCitaTabColor(cita);
                 return (
                   <button
                     key={cita.id}
                     type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-dark transition-colors"
+                    className="w-full flex items-center gap-3 py-2.5 text-left hover:bg-gray-dark transition-colors"
+                    style={{ paddingLeft: '1.75rem', paddingRight: '1rem' }}
                     onClick={(e) => {
                       setOverflowPopup(null);
                       const [hStr, mStr] = (cita.hora || '09:00').split(':');
@@ -3662,14 +3731,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               willChange: 'opacity, transform',
             }}
           >
-          {/* Barra superior: hora del slot + botón cerrar */}
+          {/* Barra superior: título + botón cerrar */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark bg-gray-darker/50 shrink-0">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-orange-primary" />
-              <span className="text-sm font-semibold text-gray-lightest">
-                {selectedSlot && `${selectedSlot.dia} · ${formatHora12(selectedSlot.hora)}`}
-              </span>
-            </div>
+            <span className="text-lg font-semibold text-gray-lightest">
+              Detalle de cita
+            </span>
             <button
               type="button"
               onClick={closePopover}
@@ -3775,9 +3841,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   </div>
                 </div>
               </div>
-
-              {/* ── Separador ── */}
-              <div className="border-t border-gray-dark/60 mb-1" />
 
               {/* ── Fila: Fecha y hora ── */}
               <div className="flex items-center gap-0 py-3">
@@ -3888,9 +3951,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   <p className="text-sm text-gray-lightest">{selectedCita.telefono}</p>
                 </div>
               )}
-
-              {/* ── Separador ── */}
-              <div className="border-t border-gray-dark/60 mt-1" />
 
               {/* ── Acciones ── */}
               {selectedCita.estado !== 'Completada' && (() => {

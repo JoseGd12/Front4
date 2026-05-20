@@ -345,6 +345,9 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
           // 2. Anular la compra en el backend (esto revierte stock de ventas automáticamente)
           await compraService.anularCompra(compraId);
 
+          // Actualizar estado localmente de inmediato
+          setCompras(prev => prev.map(c => c.id === compraId ? { ...c, estado: 'Anulada' } : c));
+
           // 3. Revertir manualmente el stock de insumos usando los detalles capturados
           try {
             for (const detalle of detallesCompra) {
@@ -373,7 +376,8 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
           const errorMsg = error.message || "";
           if (errorMsg.includes("ya está anulada") || errorMsg.includes("ya esta anulada")) {
             showInfoAlert("Información", "Esta compra ya figuraba como anulada en el sistema.");
-            await loadCompras().catch(() => { });
+            setCompras(prev => prev.map(c => c.id === compraId ? { ...c, estado: 'Anulada' } : c));
+            loadCompras().catch(() => { });
             return;
           }
           showErrorAlert("Error al anular", "No se pudo anular la compra.");

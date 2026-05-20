@@ -8,12 +8,10 @@ import {
   Calendar,
   Package,
   X,
-  ShoppingBag,
   CreditCard,
   Receipt,
   Hash,
   Calculator,
-  Scissors,
   FileText,
   ShieldCheck,
   Plus,
@@ -124,8 +122,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   // Form state
   const [nuevaVenta, setNuevaVenta] = useState(inicialNuevaVenta);
   const [productoSeleccionado, setProductoSeleccionado] = useState("");
-  const [cantidadProducto, setCantidadProducto] = useState(0);
-  const [cantidadProductoInput, setCantidadProductoInput] = useState("");
+  const [cantidadProducto] = useState(1); // fixed default — field removed from UI
   const [porcentajeDescuentoInput, setPorcentajeDescuentoInput] = useState("");
   const [showDiscountWarning, setShowDiscountWarning] = useState(false);
   const [showNegativeDiscountWarning, setShowNegativeDiscountWarning] = useState(false);
@@ -396,20 +393,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     setNuevaVenta({ ...nuevaVenta, metodoPago: value, usarSaldoAFavor: false });
   };
 
-  const handleCantidadProductoInputChange = (valor: string) => {
-    if (valor.trim() === "") {
-      setCantidadProductoInput("");
-      setCantidadProducto(0);
-      return;
-    }
-    const numero = Number(valor);
-    if (Number.isNaN(numero)) return;
-    const cantEntera = Math.max(0, Math.floor(numero));
-    setCantidadProductoInput(valor);
-    if (showAddProductoErrors) setShowAddProductoErrors(false);
-    setCantidadProducto(cantEntera);
-  };
-
   const handlePorcentajeDescuentoInputChange = (valor: string) => {
     // Bloquear el signo negativo directamente
     if (valor.includes('-')) {
@@ -461,7 +444,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   ]);
 
   const agregarProducto = () => {
-    if (!productoSeleccionado || cantidadProducto <= 0) {
+    if (!productoSeleccionado) {
       setShowAddProductoErrors(true);
       setVentaValidationAttempt((prev) => prev + 1);
       return;
@@ -526,8 +509,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     }
 
     setProductoSeleccionado("");
-    setCantidadProducto(0);
-    setCantidadProductoInput("");
     setProductSearchTerm("");
     setShowAddProductoErrors(false);
     setShowVentaFormErrors(false);
@@ -976,11 +957,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const showProductoSelectorError =
     (mustChooseProducto && !productoSeleccionado) ||
     (showAddProductoErrors && !productoSeleccionado);
-  const showCantidadProductoError =
-    (mustChooseProducto &&
-      !!productoSeleccionado &&
-      cantidadProducto <= 0) ||
-    (showAddProductoErrors && cantidadProducto <= 0);
   const mustChooseServicio =
     showVentaFormErrors && noItemsAgregados && !productoSeleccionado;
   const showServicioSelectorError =
@@ -1255,7 +1231,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Tipo de Venta</Label>
-                    <div className={`elegante-input bg-gray-medium flex items-center gap-2 h-10 px-3 rounded-md text-sm ${nuevaVenta.tipoVenta === "Venta Cliente" ? "text-green-400" : "text-orange-primary"
+                    <div className={`elegante-input bg-gray-medium flex items-center gap-2 px-3 rounded-md text-sm ${nuevaVenta.tipoVenta === "Venta Cliente" ? "text-green-400" : "text-orange-primary"
                       }`}>
                       <span className={`w-2 h-2 rounded-full shrink-0 ${nuevaVenta.tipoVenta === "Venta Cliente" ? "bg-green-400" : "bg-orange-primary"
                         }`} />
@@ -1324,8 +1300,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               </section>
 
               {/* Section 4: Products */}
-              <FormSection title="Agregar Productos" icon={<ShoppingBag className="w-4 h-4" />}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-3 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Producto *</Label>
                     <SearchField
@@ -1394,38 +1370,16 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-gray-lightest text-xs">Cantidad</Label>
-                    <Input
-                      type="number"
-                      value={cantidadProductoInput}
-                      onFocus={clearValidationErrors}
-                      onChange={(e) => {
-                        if (e.target.value.length <= 10) {
-                          handleCantidadProductoInputChange(e.target.value);
-                        }
-                      }}
-                      className={`elegante-input no-spin ${showCantidadProductoError
-                        ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                        : ""
-                        }`}
-                      min="1"
-                    />
-                    {showCantidadProductoError && !isStockExceeded && (
-                      <p className="text-xs text-red-400">
-                        Ingresa una cantidad válida.
-                      </p>
-                    )}
                     {isStockExceeded && (
                       <p className="text-xs text-red-500 font-bold animate-pulse mt-1">
                         Se ha excedido la cantidad de productos en el stock.
                       </p>
                     )}
-                  </div>
-                  <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">ㅤ</Label>
                     <button
                       onClick={agregarProducto}
-                      className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
+                      className="elegante-button-primary w-full flex items-center justify-center gap-2"
+                      style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem' }}
                     >
                       <Plus className="w-4 h-4" />
                       Agregar
@@ -1438,10 +1392,10 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     Debes agregar al menos un producto o servicio.
                   </p>
                 )}
-              </FormSection>
+              </div>
 
               {/* Section 5: Services */}
-              <FormSection title="Agregar Servicios" icon={<Scissors className="w-4 h-4" />}>
+              <div className="space-y-3 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">
@@ -1573,7 +1527,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               <Label className="text-gray-lightest text-xs">ㅤ</Label>
               <button
                 onClick={agregarServicio}
-                className="elegante-button-primary h-9 w-full flex items-center justify-center gap-2"
+                className="elegante-button-primary w-full flex items-center justify-center gap-2"
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem' }}
               >
                 <Plus className="w-4 h-4" />
                 Agregar
@@ -1581,7 +1536,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             </div>
           </div>
 
-        </FormSection>
+        </div>
       </div>
       {/* Action Buttons */}
       <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">

@@ -603,11 +603,13 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
           });
         }
 
-        await loadData(true);
+        setHorarios(prev => prev.map(h => h.id === horario.id ? { ...h, activo: false } : h));
+        loadData(true);
         success("Horario desactivado", `Horario finalizado y ${totalCanceladas} cita(s) cancelada(s).`);
       } else {
         await horariosService.toggleEstado(horario.id, true);
-        await loadData(true);
+        setHorarios(prev => prev.map(h => h.id === horario.id ? { ...h, activo: true } : h));
+        loadData(true);
         success("Estado actualizado", `El horario de ${horario.barbero} ahora está activo`);
       }
     } catch (err) {
