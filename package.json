@@ -71,6 +71,7 @@
         "@vercel/analytics": "^2.0.1",
         "@vercel/speed-insights": "^2.0.0",
         "@vitejs/plugin-react-swc": "^3.10.2",
+        "docx": "^9.6.1",
         "ts-morph": "^27.0.2",
         "typescript": "^5.9.3",
         "vite": "6.3.5"

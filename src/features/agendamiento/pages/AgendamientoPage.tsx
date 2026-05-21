@@ -87,7 +87,7 @@ const formatRangoHorarioCita = (cita: { hora?: string; duracion?: number }): str
   const ampm = hFin >= 12 ? 'pm' : 'am';
   const h12 = hFin % 12 === 0 ? 12 : hFin % 12;
   const endStr = mFin === 0 ? `${h12}${ampm}` : `${h12}:${String(mFin).padStart(2, '0')}${ampm}`;
-  return `${formatHoraStr12(cita.hora)} – ${endStr}`;
+  return `${formatHoraStr12(cita.hora)} · ${endStr}`;
 };
 
 // Los datos se cargan dinámicamente desde la API
@@ -3226,7 +3226,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         <>
                           {pageCitas.map((cita: any) => {
                           const servicio = formatNombre(cita.servicioNombre || cita.paqueteNombre || '—');
-                          const subtitulo = [formatHoraStr12(cita.hora), formatNombre(cita.barberoNombre)].join(' — ');
+                          const horaRango = formatRangoHorarioCita(cita);
+                          const subtitulo = [horaRango, formatNombre(cita.barberoNombre)].join(' — ');
                           const estadoColor =
                             cita.estado === 'Completada'
                                 ? 'border-l-[3px] border-l-[#7aab8a]'
@@ -3236,7 +3237,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             return (
                               <div
                                 key={cita.id}
-                                className={`flex-1 min-w-0 bg-gray-darker/40 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-gray-dark/80 hover:border-gray-medium border border-transparent transition-all duration-200 ${estadoColor}`}
+                                className={`flex-1 min-w-0 bg-gray-darker/40 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-gray-dark border border-gray-dark/40 hover:border-gray-medium transition-all duration-200 ${estadoColor}`}
                                 onClick={(e) => {
                                   const [hStr, mStr] = (cita.hora || '09:00').split(':');
                                   const horaNum = parseInt(hStr) + (parseInt(mStr) / 60);

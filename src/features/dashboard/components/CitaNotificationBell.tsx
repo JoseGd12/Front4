@@ -53,10 +53,44 @@ const saveCreatedAtMap = (map: Record<string, number>) => {
 };
 
 const getHaceMinutos = (createdAt: number): string => {
-  const diff = Math.floor((Date.now() - createdAt) / 60000);
-  if (diff < 1) return "Hace un momento";
-  if (diff === 1) return "Hace 1 min";
-  return `Hace ${diff} min`;
+  const diffMinutes = Math.floor((Date.now() - createdAt) / 60000);
+
+  if (diffMinutes < 1) return "Hace un momento";
+  if (diffMinutes === 1) return "Hace 1 min";
+  if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
+
+  // Calcular horas y minutos
+  const hours = Math.floor(diffMinutes / 60);
+  const minutes = diffMinutes % 60;
+
+  if (diffMinutes < 1440) { // Menos de 24 horas
+    if (hours === 1 && minutes === 0) return "Hace 1 h";
+    if (hours === 1) return `Hace 1 h ${minutes} min`;
+    if (minutes === 0) return `Hace ${hours} h`;
+    return `Hace ${hours} h ${minutes} min`;
+  }
+
+  // Calcular días, horas y minutos
+  const days = Math.floor(diffMinutes / 1440);
+  const remainingHours = Math.floor((diffMinutes % 1440) / 60);
+  const remainingMinutes = diffMinutes % 60;
+
+  if (days === 1 && remainingHours === 0 && remainingMinutes === 0) return "Hace 1 d";
+  if (days === 1 && remainingHours === 0) return `Hace 1 d ${remainingMinutes} min`;
+  if (days === 1 && remainingMinutes === 0) return `Hace 1 d ${remainingHours} h`;
+  if (days === 1) return `Hace 1 d ${remainingHours} h ${remainingMinutes} min`;
+
+  if (remainingHours === 0 && remainingMinutes === 0) return `Hace ${days} d`;
+  if (remainingHours === 0) return `Hace ${days} d ${remainingMinutes} min`;
+  if (remainingMinutes === 0) return `Hace ${days} d ${remainingHours} h`;
+  return `Hace ${days} d ${remainingHours} h ${remainingMinutes} min`;
+};
+
+// Convierte fecha "YYYY-MM-DD" + hora "HH:MM" a timestamp ms
+const citaDateMs = (fecha: string, hora: string): number => {
+  const [h, m] = (hora || "00:00").split(":").map(Number);
+  const [y, mo, d] = (fecha || "2000-01-01").split("-").map(Number);
+  return new Date(y, mo - 1, d, h || 0, m || 0, 0).getTime();
 };
 
 const toLocalDateString = (date: Date): string => {
@@ -201,7 +235,12 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
       porTerminar.forEach((cita) => {
         const notifId = `cita-${cita.id}`;
         if (actionedRef.current.has(notifId)) return;
-        if (!createdAtMap[notifId]) { createdAtMap[notifId] = Date.now(); createdAtChanged = true; }
+        // Usar tiempo real de la cita como base — evita "Hace un momento" cuando localStorage se pierde
+        const apptMs = citaDateMs(cita.fecha, cita.hora);
+        if (!createdAtMap[notifId] || createdAtMap[notifId] > apptMs) {
+          createdAtMap[notifId] = apptMs;
+          createdAtChanged = true;
+        }
         notifMap.set(notifId, {
           id: notifId,
           citaId: cita.id,
@@ -213,7 +252,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
           hora: cita.hora,
           fecha: cita.fecha,
           minutosRestantes: 0,
-          createdAt: createdAtMap[notifId] ?? Date.now(),
+          createdAt: apptMs,
         });
       });
 
@@ -234,7 +273,8 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
 
         // Mostrar solo cuando falten 10 minutos (o menos) para terminar
         if (minutosRestantes > 0 && minutosRestantes <= 10) {
-          if (!createdAtMap[notifId]) { createdAtMap[notifId] = Date.now(); createdAtChanged = true; }
+          const apptMs = citaDateMs(cita.fecha, cita.hora);
+          if (!createdAtMap[notifId]) { createdAtMap[notifId] = apptMs; createdAtChanged = true; }
           notifMap.set(notifId, {
             id: notifId,
             citaId: cita.id,
@@ -246,7 +286,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
             hora: cita.hora,
             fecha: cita.fecha,
             minutosRestantes: Math.ceil(minutosRestantes),
-            createdAt: createdAtMap[notifId] ?? Date.now(),
+            createdAt: apptMs,
           });
         }
       });
@@ -449,30 +489,29 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
                               <p className="text-sm font-semibold text-white-primary truncate leading-tight">
                                 {notif.clienteNombre}
                               </p>
-                              <span className="shrink-0 text-[9px] text-gray-lighter">
-                                {getHaceMinutos(notif.createdAt)}
+                              <span className="shrink-0 text-sm font-normal text-gray-lighter leading-tight">
+                                {notif.fecha.split("-").reverse().join("/")}
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              <Scissors className="w-3 h-3 text-gray-lighter shrink-0" />
-                              <span className="text-xs text-gray-lightest truncate max-w-[110px]">
-                                {notif.servicioNombre}
-                              </span>
-                              <span className="text-gray-dark text-xs">·</span>
+                            <div className="flex items-center gap-1.5 mt-1">
                               <User className="w-3 h-3 text-gray-lighter shrink-0" />
                               <span className="text-xs text-gray-lighter truncate">{notif.barberoNombre}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Scissors className="w-3 h-3 text-gray-lighter shrink-0" />
+                              <span className="text-xs text-gray-lightest truncate">
+                                {notif.servicioNombre}
+                              </span>
                             </div>
                           </div>
                         </button>
 
-                        {/* Bottom row: tiempo restante izq + acciones der */}
+                        {/* Bottom row: tiempo izq + acciones der */}
                         <div className="flex justify-between items-center px-3 pb-3">
-                          <span className={`text-[10px] font-medium ${notif.minutosRestantes > 0 ? "text-orange-primary" : "text-gray-lighter"}`}>
+                          <span className={`text-[10px] font-normal ${notif.minutosRestantes > 0 ? "text-orange-primary" : "text-gray-lighter"}`}>
                             {notif.minutosRestantes > 0
                               ? `Termina en ${notif.minutosRestantes} min`
-                              : notif.fecha !== toLocalDateString(new Date())
-                                ? `Pendiente del ${notif.fecha.split("-").reverse().join("/")}`
-                                : "Pendiente"}
+                              : getHaceMinutos(notif.createdAt)}
                           </span>
                           <div className="flex gap-2">
                             {notif.minutosRestantes <= 0 && (

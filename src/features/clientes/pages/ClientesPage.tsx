@@ -245,12 +245,16 @@ export function ClientesPage() {
 
 
   const filteredClientes = clientes.filter(cliente => {
-    const searchMatch = cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.numeroDocumento.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.telefono?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.direccion?.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.trim().toLowerCase();
+    const estadoLabel = cliente.activo ? 'activo' : 'inactivo';
+    const searchMatch = term === '' ||
+      (cliente.nombre || '').toLowerCase().includes(term) ||
+      (cliente.apellido || '').toLowerCase().includes(term) ||
+      (cliente.numeroDocumento || '').toLowerCase().includes(term) ||
+      (cliente.email || '').toLowerCase().includes(term) ||
+      (cliente.telefono || '').toLowerCase().includes(term) ||
+      (cliente.direccion || '').toLowerCase().includes(term) ||
+      estadoLabel.includes(term);
 
     const statusMatch = statusFilter === 'all' ||
       (statusFilter === 'active' && cliente.activo) ||

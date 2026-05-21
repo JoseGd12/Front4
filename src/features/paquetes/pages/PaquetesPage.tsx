@@ -168,8 +168,13 @@ export function PaquetesPage() {
   };
 
   const filteredPaquetes = paquetes.filter(paquete => {
-    const matchesSearch = paquete.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      paquete.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.trim().toLowerCase();
+    const estadoLabel = paquete.activo ? 'activo' : 'inactivo';
+    const matchesSearch = term === '' ||
+      (paquete.nombre || '').toLowerCase().includes(term) ||
+      (paquete.descripcion || '').toLowerCase().includes(term) ||
+      String(paquete.precio ?? '').includes(term) ||
+      estadoLabel.includes(term);
     
     let matchesEstado = true;
     if (filterEstado === "activos") {

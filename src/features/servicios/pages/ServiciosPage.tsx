@@ -88,8 +88,14 @@ export function ServiciosPage() {
       } catch (e) {
         // Fallback: si falla, mostrar por cliente
         const filtered = servicios.filter(servicio => {
-          const matchesSearch = servicio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            servicio.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
+          const term = searchTerm.trim().toLowerCase();
+          const estadoLabel = servicio.estado ? 'activo' : 'inactivo';
+          const matchesSearch = term === '' ||
+            (servicio.nombre || '').toLowerCase().includes(term) ||
+            (servicio.descripcion || '').toLowerCase().includes(term) ||
+            String(servicio.precio ?? '').includes(term) ||
+            String(servicio.duracion ?? '').includes(term) ||
+            estadoLabel.includes(term);
           const matchesStatus =
             statusFilter === "all" ||
             (statusFilter === "active" ? servicio.estado === true : servicio.estado === false);

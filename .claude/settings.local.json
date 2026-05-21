@@ -37,7 +37,12 @@
       "Bash(winget upgrade:*)",
       "Skill(ui-ux-pro-max)",
       "Bash(python skills/ui-ux-pro-max/scripts/search.py \"barbershop SaaS dashboard notification panel dark mode professional\" --design-system -p \"Barbershop Admin\")",
-      "Bash(py --version)"
+      "Bash(py --version)",
+      "Skill(anthropic-skills:pdf)",
+      "Skill(anthropic-skills:pdf:*)",
+      "Bash(python3 build_test_doc.py)",
+      "Bash(pandoc PRUEBAS_REGISTRO_CAJA_NEGRA.md -o PRUEBAS_REGISTRO_CAJA_NEGRA.docx)",
+      "Bash(python gen_docx.py)"
     ]
   },
   "enabledPlugins": {

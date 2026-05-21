@@ -104,8 +104,12 @@ export function CategoriasPage() {
   }, []);
 
   const filteredCategorias = categorias.filter(categoria => {
-    const searchMatch = categoria.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      categoria.id.toString().includes(searchTerm);
+    const term = searchTerm.trim().toLowerCase();
+    const estadoLabel = categoria.estado ? 'activo' : 'inactivo';
+    const searchMatch = term === '' ||
+      (categoria.nombre || '').toLowerCase().includes(term) ||
+      categoria.id.toString().includes(term) ||
+      estadoLabel.includes(term);
 
     const statusMatch = filterStatus === "all" ||
       (filterStatus === "active" && categoria.estado) ||

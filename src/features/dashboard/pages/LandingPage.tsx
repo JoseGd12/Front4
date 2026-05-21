@@ -29,9 +29,9 @@ import {
   CheckCircle,
   Eye,
   User,
-  Instagram
+  Instagram,
+  X
 } from 'lucide-react';
-import { Dialog, DialogContent } from '../../../shared/components/ui/dialog';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
 import { barberosService } from '../../administracion/services/barberosService';
@@ -558,6 +558,21 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       setSelectedDetailItem(null);
     }
   };
+
+  // Escape key + body scroll lock + Lenis pause while detail modal is open
+  useEffect(() => {
+    if (!isDetailDialogOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') handleDetailDialogChange(false); };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    lenisRef.current?.stop();
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = prev;
+      lenisRef.current?.start();
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isDetailDialogOpen]);
 
   const activeServiceItems = useMemo(
     () => (servicesView === 'servicios' ? servicios : paquetes),
@@ -1253,8 +1268,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   >
                     {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
                       <div key={`srv-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
-                        <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
-                          <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(servicio, 'servicio')}>
+                        <div
+                          className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full cursor-pointer"
+                          onClick={() => handleOpenDetail(servicio, 'servicio')}
+                        >
+                          <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
                             <img
                               loading="lazy"
                               src={servicio.imagen || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600'}
@@ -1279,7 +1297,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                             </div>
                             <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (isAuthenticated) {
                                   onSelectReservation?.(servicio);
                                 } else {
@@ -1386,8 +1405,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   <div ref={prodTrackRef} className="relative flex gap-6" style={{ width: 'max-content', willChange: 'transform', marginBottom: '4rem' }}>
                     {[...productos, ...productos].map((producto, idx) => (
                       <div key={`prod-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
-                        <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full">
-                          <div className="relative overflow-hidden bg-[#111] cursor-pointer" style={{ height: '240px' }} onClick={() => handleOpenDetail(producto, 'producto')}>
+                        <div
+                          className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full cursor-pointer"
+                          onClick={() => handleOpenDetail(producto, 'producto')}
+                        >
+                          <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
                             <img
                               loading="lazy"
                               src={producto.imagenProduc || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600'}
@@ -1598,16 +1620,37 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       </section>
 
       {/* ── Detail Modal ── */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={handleDetailDialogChange}>
-        <DialogContent
-          className="detail-modal-content border border-[#d8b081]/15 !bg-[#0e0e13] !p-0 !gap-0 text-white overflow-hidden rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(216,176,129,0.08)]"
-          style={{
-            width: 'min(96vw, 750px)',
-            height: 'min(90vh, 720px)',
-            maxWidth: '750px',
-            maxHeight: '90vh',
-          }}
-        >
+      {isDetailDialogOpen && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Backdrop */}
+          <div
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+            onClick={() => handleDetailDialogChange(false)}
+          />
+          {/* Modal content */}
+          <div
+            className="detail-modal-content border border-[#d8b081]/15 text-white overflow-hidden rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.85),0_0_60px_rgba(216,176,129,0.08)]"
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              background: '#0e0e13',
+              width: 'min(96vw, 750px)',
+              height: 'min(90vh, 720px)',
+              maxWidth: '750px',
+              maxHeight: '90vh',
+            }}
+          >
+
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={() => handleDetailDialogChange(false)}
+            style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 20, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', borderRadius: '0.75rem', padding: '0.4rem', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(216,176,129,0.2)'; e.currentTarget.style.color = '#d8b081'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+          >
+            <X className="w-4 h-4" />
+          </button>
 
           {/* ─── Skeleton / Loading state ─── */}
           {isDetailLoading && !selectedDetailItem?.nombre ? (
@@ -1817,8 +1860,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>,
+        document.body
+      )}
 
 
       {/* Footer */}
