@@ -27,6 +27,8 @@ export function ModalCompletarParcialmente({
   });
 
   const [loading, setLoading] = useState(false);
+  const [porcentajeDescuento, setPorcentajeDescuento] = useState(0);
+  const [descuentoInput, setDescuentoInput] = useState('');
 
   const servicios = useMemo(() => {
     const srvs = cita?.servicios || [];
@@ -63,11 +65,49 @@ export function ModalCompletarParcialmente({
       }
     });
 
-    const iva = subtotal * 0.19;
-    const total = subtotal + iva;
+    const descuento = subtotal * (porcentajeDescuento / 100);
+    const total = Math.max(0, subtotal - descuento);
 
-    return { subtotal, iva, total };
-  }, [serviciosChecked, productosChecked, servicios, productos]);
+    return { subtotal, descuento, total };
+  }, [serviciosChecked, productosChecked, servicios, productos, porcentajeDescuento]);
+
+  const todosServiciosChecked = servicios.length > 0 && servicios.every((s: any) => serviciosChecked.has(Number(s.servicioId || s.id)));
+  const todosProductosChecked = productos.length > 0 && productos.every((p: any) => productosChecked.has(Number(p.productoId || p.id)));
+
+  const toggleTodosServicios = () => {
+    if (todosServiciosChecked) {
+      setServiciosChecked(new Set());
+    } else {
+      setServiciosChecked(new Set(servicios.map((s: any) => Number(s.servicioId || s.id))));
+    }
+  };
+
+  const toggleTodosProductos = () => {
+    if (todosProductosChecked) {
+      setProductosChecked(new Set());
+    } else {
+      setProductosChecked(new Set(productos.map((p: any) => Number(p.productoId || p.id))));
+    }
+  };
+
+  const handleDescuentoChange = (valor: string) => {
+    if (valor === '' || valor === '-') {
+      setDescuentoInput('');
+      setPorcentajeDescuento(0);
+      return;
+    }
+    const numero = parseFloat(valor);
+    if (isNaN(numero) || numero < 0) {
+      setDescuentoInput('0');
+      setPorcentajeDescuento(0);
+    } else if (numero > 100) {
+      setDescuentoInput('100');
+      setPorcentajeDescuento(100);
+    } else {
+      setDescuentoInput(valor);
+      setPorcentajeDescuento(numero);
+    }
+  };
 
   const handleSubmit = async () => {
     if (serviciosChecked.size === 0 && productosChecked.size === 0) {
@@ -96,7 +136,7 @@ export function ModalCompletarParcialmente({
   return createPortal(
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) { e.stopPropagation(); onClose(); } }}
     >
       <div
         className="w-[95%] max-w-md bg-gray-darkest rounded-2xl border border-gray-dark shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200"
@@ -119,9 +159,22 @@ export function ModalCompletarParcialmente({
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-lightest mb-3">
-              Servicios Realizados
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-lightest">
+                Servicios Realizados
+              </h3>
+              {servicios.length > 0 && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={todosServiciosChecked}
+                    onChange={toggleTodosServicios}
+                    className="rounded w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-lightest">Todos</span>
+                </label>
+              )}
+            </div>
             <div className="space-y-2">
               {servicios.length > 0 ? (
                 servicios.map((srv: any) => {
@@ -163,9 +216,22 @@ export function ModalCompletarParcialmente({
 
           {productos.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-lightest mb-3">
-                Productos Vendidos
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-lightest">
+                  Productos Vendidos
+                </h3>
+                {productos.length > 0 && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={todosProductosChecked}
+                      onChange={toggleTodosProductos}
+                      className="rounded w-4 h-4 cursor-pointer"
+                    />
+                    <span className="text-xs text-gray-lightest">Todos</span>
+                  </label>
+                )}
+              </div>
               <div className="space-y-2">
                 {productos.map((prod: any) => {
                   const pid = Number(prod.productoId || prod.id);
@@ -216,15 +282,29 @@ export function ModalCompletarParcialmente({
               })}
             </span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-lighter">IVA (19%):</span>
-            <span className="text-gray-lightest font-medium">
-              ${totales.iva.toLocaleString('es-CO', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-              })}
-            </span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-lighter">Descuento (%):</span>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={descuentoInput}
+              onChange={(e) => handleDescuentoChange(e.target.value)}
+              placeholder="0"
+              className="w-20 text-right bg-gray-darker border border-gray-dark/60 rounded px-2 py-0.5 text-gray-lightest text-sm focus:outline-none focus:border-orange-primary/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
           </div>
+          {porcentajeDescuento > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-lighter">Descuento:</span>
+              <span className="text-green-400 font-medium">
+                -${totales.descuento.toLocaleString('es-CO', {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                })}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between text-base font-semibold border-t border-gray-dark pt-2">
             <span className="text-white-primary">Total:</span>
             <span className="text-orange-primary">

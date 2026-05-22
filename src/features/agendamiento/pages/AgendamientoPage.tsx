@@ -430,7 +430,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   });
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [pendingDiscountValue, setPendingDiscountValue] = useState("");
-  const [activeModalDiscountTab, setActiveModalDiscountTab] = useState<'descuento' | 'barberos' | 'citas'>('descuento');
+  const [activeModalDiscountTab, setActiveModalDiscountTab] = useState<'descuento' | 'barberos' | 'citas'>('citas');
 
   // Estados para edición de horario de barbero desde modal
   const [selectedBarberoForEdit, setSelectedBarberoForEdit] = useState<any>(null);
@@ -3844,8 +3844,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Fecha y hora ── */}
-              <div className="flex items-center gap-0 py-3">
-                <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="flex items-center gap-4 py-3">
+                <div style={{ width: 56, minWidth: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Clock className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div>
@@ -3859,8 +3859,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Barbero ── */}
-              <div className="flex items-center gap-0 py-3">
-                <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="flex items-center gap-4 py-3">
+                <div style={{ width: 56, minWidth: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div
                     style={{ width: 32, height: 32, minWidth: 32, minHeight: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}
                     className="bg-gray-dark border border-gray-dark flex items-center justify-center"
@@ -3886,8 +3886,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* ── Fila: Servicios / Paquete ── */}
-              <div className="flex items-center gap-0 py-3">
-                <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="flex items-center gap-4 py-3">
+                <div style={{ width: 56, minWidth: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Scissors className="w-5 h-5 text-gray-lighter" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -3919,8 +3919,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Fila: Productos (si hay) ── */}
               {detalleProductos.length > 0 && (
-                <div className="flex items-center gap-0 py-3">
-                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="flex items-center gap-4 py-3">
+                  <div style={{ width: 56, minWidth: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <ShoppingBag className="w-5 h-5 text-gray-lighter" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -3935,8 +3935,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Fila: Notas (si hay) ── */}
               {selectedCita.notas && (
-                <div className="flex items-center gap-0 py-3">
-                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="flex items-center gap-4 py-3">
+                  <div style={{ width: 56, minWidth: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <FileText className="w-5 h-5 text-gray-lighter" />
                   </div>
                   <p className="text-sm text-gray-lighter leading-relaxed">{selectedCita.notas}</p>
@@ -3945,8 +3945,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* ── Fila: Teléfono cliente (si hay) ── */}
               {selectedCita.telefono && (
-                <div className="flex items-center gap-0 py-3">
-                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="flex items-center gap-4 py-3">
+                  <div style={{ width: 56, minWidth: 56, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Phone className="w-5 h-5 text-gray-lighter" />
                   </div>
                   <p className="text-sm text-gray-lightest">{selectedCita.telefono}</p>
@@ -4113,7 +4113,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           <DialogHeader>
             <DialogTitle className="text-white-primary flex items-center gap-2 text-xl">
               <Calendar className="w-6 h-6 text-orange-primary" />
-              Descuento Especial
+              Detalle del día
             </DialogTitle>
             <DialogDescription className="text-gray-lightest pt-2">
               <strong>Días afectados:</strong> {Array.from(selectedDates).join(", ")}
@@ -4124,22 +4124,22 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             {/* Custom Tabs */}
             <div className="flex border-b border-gray-dark shrink-0">
               <button
-                className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'descuento' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
-                onClick={() => setActiveModalDiscountTab('descuento')}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'citas' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
+                onClick={() => setActiveModalDiscountTab('citas')}
               >
-                Configurar Descuento
+                Citas
               </button>
               <button
                 className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'barberos' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
                 onClick={() => setActiveModalDiscountTab('barberos')}
               >
-                Barberos
+                Horarios
               </button>
               <button
-                className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'citas' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
-                onClick={() => setActiveModalDiscountTab('citas')}
+                className={`flex-1 py-3 text-sm font-semibold transition-colors border-b-2 ${activeModalDiscountTab === 'descuento' ? 'border-orange-primary text-orange-primary bg-orange-primary/5' : 'border-transparent text-gray-lighter hover:text-white hover:bg-gray-dark/50'}`}
+                onClick={() => setActiveModalDiscountTab('descuento')}
               >
-                Citas
+                Descuentos
               </button>
             </div>
 

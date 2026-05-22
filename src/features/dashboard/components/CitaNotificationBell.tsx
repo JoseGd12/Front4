@@ -4,6 +4,7 @@ import { agendamientoService, type Agendamiento } from "../../agendamiento/servi
 import { clientesService } from "../../clientes/services/clientesService";
 import { toast } from "../../../shared/components/ui/notify";
 import { ModalCompletarParcialmente } from "../../agendamiento/components/ModalCompletarParcialmente";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../../../shared/components/ui/tooltip";
 
 interface CitaNotification {
   id: string;
@@ -56,34 +57,31 @@ const getHaceMinutos = (createdAt: number): string => {
   const diffMinutes = Math.floor((Date.now() - createdAt) / 60000);
 
   if (diffMinutes < 1) return "Hace un momento";
-  if (diffMinutes === 1) return "Hace 1 min";
   if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
 
-  // Calcular horas y minutos
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
-
-  if (diffMinutes < 1440) { // Menos de 24 horas
-    if (hours === 1 && minutes === 0) return "Hace 1 h";
-    if (hours === 1) return `Hace 1 h ${minutes} min`;
-    if (minutes === 0) return `Hace ${hours} h`;
-    return `Hace ${hours} h ${minutes} min`;
+  if (diffMinutes < 1440) {
+    const hours = Math.floor(diffMinutes / 60);
+    return hours === 1 ? "Hace 1 h" : `Hace ${hours} h`;
   }
 
-  // Calcular días, horas y minutos
   const days = Math.floor(diffMinutes / 1440);
-  const remainingHours = Math.floor((diffMinutes % 1440) / 60);
-  const remainingMinutes = diffMinutes % 60;
+  return days === 1 ? "Hace 1 d" : `Hace ${days} d`;
+};
 
-  if (days === 1 && remainingHours === 0 && remainingMinutes === 0) return "Hace 1 d";
-  if (days === 1 && remainingHours === 0) return `Hace 1 d ${remainingMinutes} min`;
-  if (days === 1 && remainingMinutes === 0) return `Hace 1 d ${remainingHours} h`;
-  if (days === 1) return `Hace 1 d ${remainingHours} h ${remainingMinutes} min`;
+const getHaceMinutosCompleto = (createdAt: number): string => {
+  const diffMinutes = Math.floor((Date.now() - createdAt) / 60000);
+  if (diffMinutes < 1) return "Hace un momento";
+  if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
 
-  if (remainingHours === 0 && remainingMinutes === 0) return `Hace ${days} d`;
-  if (remainingHours === 0) return `Hace ${days} d ${remainingMinutes} min`;
-  if (remainingMinutes === 0) return `Hace ${days} d ${remainingHours} h`;
-  return `Hace ${days} d ${remainingHours} h ${remainingMinutes} min`;
+  const days = Math.floor(diffMinutes / 1440);
+  const hours = Math.floor((diffMinutes % 1440) / 60);
+  const minutes = diffMinutes % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days} d`);
+  if (hours > 0) parts.push(`${hours} h`);
+  if (minutes > 0) parts.push(`${minutes} min`);
+  return `Hace ${parts.join(" ")}`;
 };
 
 // Convierte fecha "YYYY-MM-DD" + hora "HH:MM" a timestamp ms
@@ -324,12 +322,13 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
 
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
+      if (showModalParcial) return;
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape" && !showModalParcial) setOpen(false);
     };
     // Elimina notif al instante cuando se cambia estado desde detalle de cita
     const onCitaEstadoChanged = (e: Event) => {
@@ -346,7 +345,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("cita-estado-changed", onCitaEstadoChanged);
     };
-  }, [removeAfterAction]);
+  }, [removeAfterAction, showModalParcial]);
 
   const handleAction = async (citaId: number, estado: string, notifId: string) => {
     setLoadingId(citaId);
@@ -417,6 +416,10 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
             } as React.CSSProperties
           }
         >
+          {/* Overlay cuando modal parcial está abierto — misma intensidad que el backdrop del modal */}
+          {showModalParcial && (
+            <div className="absolute inset-0 z-10 bg-black/50 rounded-2xl pointer-events-auto" />
+          )}
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-dark/60 bg-gray-darker/40">
             <div className="flex items-center gap-4">
@@ -508,11 +511,22 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
 
                         {/* Bottom row: tiempo izq + acciones der */}
                         <div className="flex justify-between items-center px-3 pb-3">
-                          <span className={`text-[10px] font-normal ${notif.minutosRestantes > 0 ? "text-orange-primary" : "text-gray-lighter"}`}>
-                            {notif.minutosRestantes > 0
-                              ? `Termina en ${notif.minutosRestantes} min`
-                              : getHaceMinutos(notif.createdAt)}
-                          </span>
+                          {notif.minutosRestantes > 0 ? (
+                            <span className="text-[10px] font-normal text-orange-primary">
+                              {`Termina en ${notif.minutosRestantes} min`}
+                            </span>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-[10px] font-normal text-gray-lighter cursor-default">
+                                  {getHaceMinutos(notif.createdAt)}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                {getHaceMinutosCompleto(notif.createdAt)}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                           <div className="flex gap-2">
                             {notif.minutosRestantes <= 0 && (
                               <>
