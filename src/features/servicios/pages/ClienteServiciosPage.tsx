@@ -264,13 +264,13 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                       <div className="flex gap-2">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
-                          className="elegante-button-secondary flex-1 text-[10px] py-1.5 font-bold uppercase tracking-wider"
+                          className="elegante-button-secondary flex-1 text-xs py-2 font-bold uppercase tracking-wide"
                         >
                           Detalles
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleReservarItem(item); }}
-                          className="elegante-button-primary flex-1 text-[10px] py-1.5 font-bold uppercase tracking-wider shadow-lg shadow-orange-primary/10"
+                          className="elegante-button-primary flex-1 text-xs py-2 font-bold uppercase tracking-wide shadow-lg shadow-orange-primary/10"
                         >
                           Reservar
                         </button>

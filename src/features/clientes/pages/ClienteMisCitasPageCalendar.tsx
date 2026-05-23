@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Calendar,
@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Plus,
   Minus,
-  Edit,
   CalendarDays,
   Package,
   ShoppingBag,
@@ -41,8 +40,10 @@ import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../../agendamiento/constants";
 import {
   getHorariosBarberoParaDia,
   getHorasDisponiblesParaDia as calcularHorasDisponibles,
+  filtrarBarberosDisponibles,
   horarioEstaActivo,
   normalizeDiaNombre,
+  normalizarFechaCita,
   parseHoraAMinutos,
   toLocalDateString,
   CALENDAR_SLOT_HOURS,
@@ -297,7 +298,16 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [servicioSearchTerm, setServicioSearchTerm] = useState('');
   const [paqueteSearchTerm, setPaqueteSearchTerm] = useState('');
   const [productoSearchTerm, setProductoSearchTerm] = useState('');
+  const [formServicioPage, setFormServicioPage] = useState(0);
+  const [formProductoPage, setFormProductoPage] = useState(0);
+  const [formPaqueteServicioPage, setFormPaqueteServicioPage] = useState(0);
+  const FORM_CAROUSEL_SIZE = 3;
   const [showFormErrors, setShowFormErrors] = useState(false);
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
+  const [isSavingCita, setIsSavingCita] = useState(false);
+  const initialFormSnapshotRef = useRef<any>(null);
+  const showDiscardDialogRef = useRef(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [tipoServicio, setTipoServicio] = useState<'individuales' | 'paquetes'>('individuales');
   const [editingFecha, setEditingFecha] = useState(false);
   const [editingHora, setEditingHora] = useState(false);
@@ -376,25 +386,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
           || nombreBarbero.includes(String(b.nombre || '').trim().toLowerCase())
       );
 
-      const today = new Date();
-      const future = new Date(today.getTime() + (60 * 60 * 1000));
-      let hours = future.getHours();
-      let minutes = future.getMinutes();
-      let targetDate = today;
-
-      if (minutes < 15) { minutes = 0; }
-      else if (minutes < 45) { minutes = 30; }
-      else { minutes = 0; hours += 1; }
-
-      if (hours >= 22 || (hours === 21 && minutes > 30)) {
-        targetDate = new Date(today.getTime() + (24 * 60 * 60 * 1000));
-        hours = 11; minutes = 0;
-      } else if (hours < 9) {
-        hours = 11; minutes = 0;
-      }
-
-      const fechaAuto = toLocalDateString(targetDate);
-      const horaAuto = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      const { fecha: fechaAuto, hora: horaAuto } = getAutoDateTime();
 
       if (barberoMatch) {
         setBarberoFormSearchTerm(`${barberoMatch.nombre} ${barberoMatch.apellido || ''}`.trim());
@@ -472,37 +464,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       duration = s?.duracion || item.duracion || 60;
     }
 
-    const today = new Date();
-
-    // Calcular hora (una hora después: 60 min)
-    const future = new Date(today.getTime() + (60 * 60 * 1000));
-    let hours = future.getHours();
-    let minutes = future.getMinutes();
-    let targetDate = today;
-
-    // Redondear minutos al bloque de 30 más cercano (0 o 30)
-    if (minutes < 15) {
-      minutes = 0;
-    } else if (minutes < 45) {
-      minutes = 30;
-    } else {
-      minutes = 0;
-      hours += 1;
-    }
-
-    // Si la hora calculada es después del cierre (ej: 9:30 PM) o antes de la apertura (9:00 AM)
-    // Pasamos al día siguiente a las 11:00 AM como sugerencia ideal
-    if (hours >= 22 || (hours === 21 && minutes > 30)) {
-      targetDate = new Date(today.getTime() + (24 * 60 * 60 * 1000)); // Mañana
-      hours = 11;
-      minutes = 0;
-    } else if (hours < 9) {
-      hours = 11; // Si es muy temprano, sugerir también las 11 AM
-      minutes = 0;
-    }
-
-    const fechaAuto = toLocalDateString(targetDate);
-    const horaAuto = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const { fecha: fechaAuto, hora: horaAuto } = getAutoDateTime();
 
     setNuevaCita({
       barberoId: 0,
@@ -553,13 +515,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     return monday;
   };
 
-  const toLocalDateString = (date: Date): string => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const monday = getMondayOfWeek(currentWeek);
     const date = new Date(monday);
@@ -586,58 +541,45 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     });
   };
 
-  const validarDisponibilidad = (barberoId: number, fecha: string, hora: string, duracion: number, ignoreCitaId?: number): string | null => {
-    if (!fecha || !hora) return null;
-
+  const validarDisponibilidadBarbero = (barberoId: number): string | null => {
+    if (!nuevaCita.fecha || !nuevaCita.hora) return null;
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    if (fecha < todayStr) return "No puedes agendar en el pasado.";
-
-    const [hh, mm] = hora.split(':').map(Number);
-    const startNueva = hh * 60 + mm;
-    const endNueva = startNueva + duracion;
-
-    if (fecha === todayStr) {
-      const current = today.getHours() * 60 + today.getMinutes();
-      if (startNueva <= current + MIN_ANTICIPACION_AGENDA_MINUTOS) {
-        return `Debes agendar con al menos ${MIN_ANTICIPACION_AGENDA_MINUTOS} minutos de anticipación.`;
-      }
+    const todayStr = toLocalDateString(today);
+    if (nuevaCita.fecha < todayStr) return "No se permite agendar citas en dias anteriores al dia actual.";
+    const durNueva = Number(nuevaCita.duracion || 60);
+    const [hhStr, mmStr = '0'] = String(nuevaCita.hora).split(':');
+    const startNueva = (parseInt(hhStr || '0', 10) * 60) + (parseInt(mmStr || '0', 10));
+    if (nuevaCita.fecha === todayStr) {
+      const currentMinutes = today.getHours() * 60 + today.getMinutes();
+      if (startNueva <= currentMinutes + MIN_ANTICIPACION_AGENDA_MINUTOS)
+        return `Debes agendar con al menos ${MIN_ANTICIPACION_AGENDA_MINUTOS} minutos de anticipacion.`;
     }
-
-    const turnos = getHorariosBarberoParaDia(horariosList, barberoId, fecha);
-    if (turnos.length === 0) {
-      const dayStr = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][
-        new Date(`${fecha}T12:00:00`).getDay()
-      ];
-      return `${barberosList.find(b => b.id === barberoId)?.nombre} no trabaja los ${dayStr}.`;
+    const endNueva = startNueva + durNueva;
+    const horariosBarbero = getHorariosBarberoParaDia(horariosList, barberoId, nuevaCita.fecha);
+    if (horariosBarbero.length === 0) {
+      const diaStr = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'][new Date(`${nuevaCita.fecha}T12:00:00`).getDay()];
+      return `El barbero no trabaja los dias ${diaStr}.`;
     }
-
-    const enHorario = turnos.some((h: any) => {
-      const start = parseHoraAMinutos(h.horaInicio || '00:00');
-      const end = parseHoraAMinutos(h.horaFin || '23:59');
-      return startNueva >= start && endNueva <= end;
+    const dentroHorario = horariosBarbero.some((h: any) => {
+      const startH = parseHoraAMinutos(h.horaInicio || '00:00');
+      const endH = parseHoraAMinutos(h.horaFin || '23:59');
+      return startNueva >= startH && endNueva <= endH;
     });
-
-    if (!enHorario) return "La hora está fuera del horario laboral del barbero.";
-
-    // Solapamiento con cualquier cita del barbero (backend lo valida, pero aquí verificamos las del cliente)
-    // El administrador puede ver todas las citas, el cliente solo las suyas. 
-    // Para una validación real el backend es el que manda, pero validamos localmente lo que tenemos.
+    if (!dentroHorario) {
+      const horasDisponiblesStr = horariosBarbero.map((h: any) => `${h.horaInicio} a ${h.horaFin}`).join(", ");
+      return `La hora seleccionada esta fuera de su horario laboral. Horas disponibles: ${horasDisponiblesStr}.`;
+    }
     const solapa = citas.find((cita: any) => {
-      if (cita.fecha !== fecha) return false;
+      if (normalizarFechaCita(cita.fecha) !== nuevaCita.fecha) return false;
       if (Number(cita.barberoId) !== Number(barberoId)) return false;
-      if (ignoreCitaId && cita.id === ignoreCitaId) return false;
-      if (cita.estado === 'Cancelada') return false;
-
-      const [ch, cm] = (cita.hora || '').split(':').map(Number);
-      const startExist = ch * 60 + cm;
-      const endExist = startExist + (cita.duracion || 60);
-
+      if (isEditMode && selectedCita && cita.id === selectedCita.id) return false;
+      if (String(cita.estado || '').toLowerCase() === 'cancelada') return false;
+      const [ch, cm = '0'] = String(cita.hora || '').split(':');
+      const startExist = (parseInt(ch || '0', 10) * 60) + (parseInt(cm || '0', 10));
+      const endExist = startExist + Number(cita.duracion || 60);
       return startNueva < endExist && startExist < endNueva;
     });
-
-    if (solapa) return "Ese barbero ya tiene una cita en ese horario.";
-
+    if (solapa) return `El barbero ya tiene otra cita ocupada de ${solapa.hora} (+${solapa.duracion}min). Selecciona otro horario.`;
     return null;
   };
 
@@ -655,47 +597,113 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
   // ── Funciones de control del modal ──
 
+  const barberosParaFormulario = useMemo(
+    () =>
+      filtrarBarberosDisponibles(barberosList, horariosList, {
+        fechaStr: nuevaCita.fecha,
+        hora: nuevaCita.hora || undefined,
+        duracionMinutos: nuevaCita.duracion,
+        citas,
+        ignoreCitaId: isEditMode && selectedCita ? selectedCita.id : undefined,
+        minAnticipacionMinutos: MIN_ANTICIPACION_AGENDA_MINUTOS,
+        slotHours: horasDelDia,
+      }),
+    [barberosList, horariosList, nuevaCita.fecha, nuevaCita.hora, nuevaCita.duracion, citas, selectedCita?.id, isEditMode]
+  );
+
+  useEffect(() => {
+    if (!nuevaCita.barberoId || !nuevaCita.fecha) return;
+    const sigueDisponible = barberosParaFormulario.some(
+      (b: any) => Number(b.id) === Number(nuevaCita.barberoId)
+    );
+    if (!sigueDisponible) {
+      setNuevaCita((prev) => ({ ...prev, barberoId: 0, barbero: '' }));
+      setBarberoFormSearchTerm('');
+    }
+  }, [barberosParaFormulario, nuevaCita.barberoId, nuevaCita.fecha]);
+
+  const getAutoDateTime = () => {
+    const now = new Date();
+    const future = new Date(now.getTime() + (60 * 60 * 1000));
+    let hours = future.getHours();
+    let minutes = future.getMinutes();
+    let targetDate = now;
+    if (minutes < 15) { minutes = 0; }
+    else if (minutes < 45) { minutes = 30; }
+    else { minutes = 0; hours += 1; }
+    if (hours >= 22 || (hours === 21 && minutes > 30)) {
+      targetDate = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+      hours = 11; minutes = 0;
+    } else if (hours < 9) { hours = 11; minutes = 0; }
+    const fecha = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}-${String(targetDate.getDate()).padStart(2, "0")}`;
+    const hora = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    return { fecha, hora };
+  };
+
+  const buildCurrentFormSnapshot = () => ({
+    barberoId: nuevaCita.barberoId,
+    barbero: nuevaCita.barbero,
+    servicioId: nuevaCita.servicioId,
+    servicioIds: JSON.stringify(nuevaCita.servicioIds),
+    productoCantidades: JSON.stringify(nuevaCita.productoCantidades),
+    paqueteId: nuevaCita.paqueteId,
+    servicio: nuevaCita.servicio,
+    fecha: nuevaCita.fecha,
+    hora: nuevaCita.hora,
+    duracion: nuevaCita.duracion,
+    precio: nuevaCita.precio,
+    notas: (nuevaCita.notas || '').trim(),
+    tipoServicio,
+    barberoFormSearchTerm,
+    servicioSearchTerm,
+    paqueteSearchTerm,
+    productoSearchTerm,
+  });
+
+  const isFormDirtyNow = useCallback((): boolean => {
+    const init = initialFormSnapshotRef.current;
+    if (!init) return false;
+    const current = buildCurrentFormSnapshot();
+    return Object.keys(current).some((key) => (current as any)[key] !== (init as any)[key]);
+  }, [nuevaCita, tipoServicio, barberoFormSearchTerm, servicioSearchTerm, paqueteSearchTerm, productoSearchTerm]);
+
   const handleOpenCreateModal = () => {
-    // Calcular posición centrada en pantalla
+    const { fecha, hora } = getAutoDateTime();
     const position = {
       top: Math.max(16, (window.innerHeight - 600) / 2),
       left: Math.max(16, (window.innerWidth - 480) / 2)
     };
-
     setModalPosition(position);
     setModalHeight(MODAL_HEIGHT);
     setModalTop(MODAL_DOCKED_TOP);
     setModalLeft(null);
-    setIsCreateModalOpen(true);
     setIsEditMode(false);
-
-    // Resetear formulario
+    setSelectedCita(null);
+    setShowFormErrors(false);
+    setDismissedErrors(new Set());
     setNuevaCita({
-      barberoId: 0,
-      barbero: '',
-      servicioId: null,
-      servicioIds: [],
-      productoCantidades: {},
-      paqueteId: null,
-      servicio: '',
-      fecha: '',
-      hora: '',
-      notas: '',
-      duracion: 60,
-      precio: 0,
-      estado: 'Pendiente'
+      barberoId: 0, barbero: '',
+      servicioId: null, servicioIds: [], productoCantidades: {},
+      paqueteId: null, servicio: '',
+      fecha, hora, notas: '', duracion: 60, precio: 0, estado: 'Pendiente'
     });
     setBarberoFormSearchTerm('');
     setServicioSearchTerm('');
     setPaqueteSearchTerm('');
     setProductoSearchTerm('');
-    setShowFormErrors(false);
     setTipoServicio('individuales');
     setEditingFecha(false);
     setEditingHora(false);
-
-    // Inicializar animación de entrada
+    initialFormSnapshotRef.current = {
+      barberoId: 0, barbero: '',
+      servicioId: null, servicioIds: JSON.stringify([]), productoCantidades: JSON.stringify({}),
+      paqueteId: null, servicio: '',
+      fecha, hora, duracion: 60, precio: 0, notas: '',
+      tipoServicio: 'individuales',
+      barberoFormSearchTerm: '', servicioSearchTerm: '', paqueteSearchTerm: '', productoSearchTerm: '',
+    };
     setModalPhase('enter');
+    setIsCreateModalOpen(true);
     setTimeout(() => setModalPhase('open'), 10);
   };
 
@@ -747,33 +755,37 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     setTipoServicio('individuales');
     setEditingFecha(false);
     setEditingHora(false);
+    initialFormSnapshotRef.current = {
+      barberoId: 0, barbero: '',
+      servicioId: null, servicioIds: JSON.stringify([]), productoCantidades: JSON.stringify({}),
+      paqueteId: null, servicio: '',
+      fecha: fechaCompleta, hora: horaString, duracion: 60, precio: 0, notas: '',
+      tipoServicio: 'individuales',
+      barberoFormSearchTerm: '', servicioSearchTerm: '', paqueteSearchTerm: '', productoSearchTerm: '',
+    };
 
     // Inicializar animación de entrada
     setModalPhase('enter');
     setTimeout(() => setModalPhase('open'), 10);
   };
 
-  const handleCloseModal = () => {
-    // Iniciar animación de salida
+  const handleCloseModal = useCallback((skipDirty = false) => {
+    if (!skipDirty && isFormDirtyNow()) {
+      setShowDiscardDialog(true);
+      return;
+    }
+    setShowDiscardDialog(false);
+    initialFormSnapshotRef.current = null;
     setModalPhase('exit');
     setTimeout(() => {
       setIsCreateModalOpen(false);
       setModalPosition(null);
-      // Resetear estados del formulario
+      setSelectedCita(null);
       setNuevaCita({
-        barberoId: 0,
-        barbero: '',
-        servicioId: null,
-        servicioIds: [],
-        productoCantidades: {},
-        paqueteId: null,
-        servicio: '',
-        fecha: '',
-        hora: '',
-        notas: '',
-        duracion: 60,
-        precio: 0,
-        estado: 'Pendiente'
+        barberoId: 0, barbero: '',
+        servicioId: null, servicioIds: [], productoCantidades: {},
+        paqueteId: null, servicio: '',
+        fecha: '', hora: '', notas: '', duracion: 60, precio: 0, estado: 'Pendiente'
       });
       setBarberoFormSearchTerm('');
       setServicioSearchTerm('');
@@ -784,7 +796,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       setEditingFecha(false);
       setEditingHora(false);
     }, 200);
-  };
+  }, [isFormDirtyNow]);
+
+  useEffect(() => {
+    showDiscardDialogRef.current = showDiscardDialog;
+  }, [showDiscardDialog]);
 
   // Cerrar pickers de fecha/hora al hacer clic fuera
   useEffect(() => {
@@ -803,116 +819,132 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   // Cerrar modal con tecla ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isCreateModalOpen) {
+      if (e.key !== 'Escape') return;
+      if (showDiscardDialogRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowDiscardDialog(false);
+        return;
+      }
+      if (isCreateModalOpen) {
+        e.preventDefault();
         handleCloseModal();
       }
     };
-
-    if (isCreateModalOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
+    if (isCreateModalOpen || showDiscardDialog) {
+      document.addEventListener('keydown', handleKeyDown, true);
+      return () => document.removeEventListener('keydown', handleKeyDown, true);
     }
-  }, [isCreateModalOpen]);
+  }, [isCreateModalOpen, showDiscardDialog]);
 
-  const handleOpenEdit = (cita: any) => {
-    setIsEditMode(true);
-    setSelectedCita(cita);
-    setBarberoFormSearchTerm(cita.barberoNombre || '');
-    setNuevaCita({
-      barberoId: cita.barberoId,
-      barbero: cita.barberoNombre || '',
-      servicioId: cita.servicioId,
-      servicioIds: (cita.servicioIds && cita.servicioIds.length > 0)
-        ? cita.servicioIds
-        : (cita.servicioId ? [cita.servicioId] : []),
-      productoCantidades: (cita.productoIds || []).reduce((acc: any, id: number) => {
-        acc[id] = (acc[id] || 0) + 1;
-        return acc;
-      }, {}),
-      paqueteId: cita.paqueteId,
-      servicio: cita.servicioNombre || cita.paqueteNombre || '',
-      fecha: cita.fecha,
-      hora: cita.hora,
-      notas: cita.notas || '',
-      duracion: cita.duracion || 60,
-      precio: cita.precio || 0,
-      estado: cita.estado
-    });
-    setIsDetailDialogOpen(false);
-    // Open the modal
-    const position = {
-      top: Math.max(16, (window.innerHeight - 600) / 2),
-      left: Math.max(16, (window.innerWidth - 480) / 2)
-    };
-    setModalPosition(position);
-    setModalHeight(MODAL_HEIGHT);
-    setModalTop(MODAL_DOCKED_TOP);
-    setModalLeft(null);
-    setTipoServicio(cita.paqueteId ? 'paquetes' : 'individuales');
-    setEditingFecha(false);
-    setEditingHora(false);
-    setShowFormErrors(false);
-    setServicioSearchTerm('');
-    setPaqueteSearchTerm('');
-    setProductoSearchTerm('');
-    setModalPhase('enter');
-    setIsCreateModalOpen(true);
-    setTimeout(() => setModalPhase('open'), 10);
+  const handleOpenEdit = async (cita: any) => {
+    try {
+      const citaCompleta = await agendamientoService.getAgendamientoById(cita.id);
+      setIsEditMode(true);
+      setSelectedCita(citaCompleta);
+      setBarberoFormSearchTerm(citaCompleta.barberoNombre || '');
+      setShowFormErrors(false);
+      setDismissedErrors(new Set());
+      const editState = {
+        barberoId: citaCompleta.barberoId,
+        barbero: citaCompleta.barberoNombre || '',
+        servicioId: citaCompleta.servicioId,
+        servicioIds: (citaCompleta.servicioIds && citaCompleta.servicioIds.length > 0)
+          ? citaCompleta.servicioIds
+          : (citaCompleta.servicioId ? [citaCompleta.servicioId] : []),
+        productoCantidades: (citaCompleta.productos && citaCompleta.productos.length > 0)
+          ? citaCompleta.productos.reduce((acc: any, p: any) => { acc[p.productoId] = (p.cantidad || 1); return acc; }, {})
+          : ((citaCompleta.productoIds || []) as number[]).reduce((acc: Record<number,number>, id: number) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {} as Record<number,number>),
+        paqueteId: citaCompleta.paqueteId,
+        servicio: citaCompleta.servicioNombre || citaCompleta.paqueteNombre || '',
+        fecha: citaCompleta.fecha,
+        hora: citaCompleta.hora,
+        notas: citaCompleta.notas || '',
+        duracion: citaCompleta.duracion || 60,
+        precio: citaCompleta.precio || 0,
+        estado: citaCompleta.estado
+      };
+      setNuevaCita(editState);
+      setIsDetailDialogOpen(false);
+      const position = { top: Math.max(16, (window.innerHeight - 600) / 2), left: Math.max(16, (window.innerWidth - 480) / 2) };
+      setModalPosition(position);
+      setModalHeight(MODAL_HEIGHT);
+      setModalTop(MODAL_DOCKED_TOP);
+      setModalLeft(null);
+      const nextTipoServicio = citaCompleta.paqueteId ? 'paquetes' as const : 'individuales' as const;
+      setTipoServicio(nextTipoServicio);
+      setEditingFecha(false);
+      setEditingHora(false);
+      setServicioSearchTerm('');
+      setPaqueteSearchTerm('');
+      setProductoSearchTerm('');
+      initialFormSnapshotRef.current = {
+        barberoId: editState.barberoId, barbero: editState.barbero,
+        servicioId: editState.servicioId, servicioIds: JSON.stringify(editState.servicioIds),
+        productoCantidades: JSON.stringify(editState.productoCantidades),
+        paqueteId: editState.paqueteId, servicio: editState.servicio,
+        fecha: editState.fecha, hora: editState.hora, duracion: editState.duracion,
+        precio: editState.precio, notas: (editState.notas || '').trim(),
+        tipoServicio: nextTipoServicio,
+        barberoFormSearchTerm: citaCompleta.barberoNombre || '',
+        servicioSearchTerm: '', paqueteSearchTerm: '', productoSearchTerm: '',
+      };
+      setModalPhase('enter');
+      setIsCreateModalOpen(true);
+      setTimeout(() => setModalPhase('open'), 10);
+    } catch (err) {
+      console.error("Error al obtener cita:", err);
+      error("Error al cargar cita", "No se pudo traer la informacion para editar.");
+    }
   };
 
   const handleSaveCita = async () => {
     if (!nuevaCita.barberoId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
+      setDismissedErrors(new Set());
       return;
     }
-
-    const flattenedProductoIds = Object.entries(nuevaCita.productoCantidades).flatMap(([id, cant]) => Array(cant).fill(Number(id)));
-
-    const errorDisp = validarDisponibilidad(nuevaCita.barberoId, nuevaCita.fecha, nuevaCita.hora, nuevaCita.duracion, selectedCita?.id);
-    if (errorDisp) {
-      error("No disponible", errorDisp);
-      return;
+    setShowFormErrors(false);
+    const errorDisp = validarDisponibilidadBarbero(nuevaCita.barberoId);
+    if (errorDisp) { error("No disponible", errorDisp); return; }
+    if (isEditMode && selectedCita && String(nuevaCita.estado).toLowerCase() === 'completada') {
+      const now = new Date();
+      const horaCompleta = nuevaCita.hora ? (String(nuevaCita.hora).includes(':') ? String(nuevaCita.hora) : `${nuevaCita.hora}:00`) : '00:00';
+      const horaFormateada = horaCompleta.length === 4 && horaCompleta.indexOf(':') === 1 ? `0${horaCompleta}` : horaCompleta;
+      const citaDate = new Date(`${nuevaCita.fecha}T${horaFormateada}:00`);
+      if (citaDate > now) { error("Accion no permitida", "No se puede establecer una fecha futura a una cita completada."); return; }
     }
-
+    const productosPayload = Object.entries(nuevaCita.productoCantidades).map(([id, cant]) => ({ productoId: Number(id), cantidad: cant }));
+    setIsSavingCita(true);
     try {
       if (isEditMode && selectedCita) {
         await agendamientoService.updateAgendamiento(selectedCita.id, {
-          clienteId: Number(currentCliente.id),
-          barberoId: nuevaCita.barberoId,
-          servicioId: nuevaCita.servicioId,
-          servicioIds: nuevaCita.servicioIds,
-          productoIds: flattenedProductoIds,
-          paqueteId: nuevaCita.paqueteId,
-          fecha: nuevaCita.fecha,
-          hora: nuevaCita.hora,
-          duracion: nuevaCita.duracion,
-          precio: nuevaCita.precio,
-          estado: nuevaCita.estado,
-          notas: nuevaCita.notas
+          clienteId: Number(currentCliente.id), barberoId: nuevaCita.barberoId,
+          servicioId: nuevaCita.servicioId, servicioIds: nuevaCita.servicioIds,
+          productos: productosPayload, paqueteId: nuevaCita.paqueteId,
+          fecha: nuevaCita.fecha, hora: nuevaCita.hora, duracion: nuevaCita.duracion,
+          precio: nuevaCita.precio, estado: nuevaCita.estado, notas: nuevaCita.notas
         });
-        success("¡Cita actualizada!", "Tus cambios han sido guardados.");
+        success("Cita actualizada!", "Tus cambios han sido guardados correctamente.");
       } else {
         await agendamientoService.createAgendamiento({
-          clienteId: Number(currentCliente.id),
-          barberoId: nuevaCita.barberoId,
-          servicioId: nuevaCita.servicioId,
-          servicioIds: nuevaCita.servicioIds,
-          productoIds: flattenedProductoIds,
-          paqueteId: nuevaCita.paqueteId,
-          fecha: nuevaCita.fecha,
-          hora: nuevaCita.hora,
-          duracion: nuevaCita.duracion,
-          precio: nuevaCita.precio,
-          estado: 'Pendiente',
-          notas: nuevaCita.notas
+          clienteId: Number(currentCliente.id), barberoId: nuevaCita.barberoId,
+          servicioId: nuevaCita.servicioId, servicioIds: nuevaCita.servicioIds,
+          productos: productosPayload, paqueteId: nuevaCita.paqueteId,
+          fecha: nuevaCita.fecha, hora: nuevaCita.hora, duracion: nuevaCita.duracion,
+          precio: nuevaCita.precio, estado: 'Pendiente', notas: nuevaCita.notas
         });
-        success("¡Cita agendada!", "Tu cita ha sido registrada exitosamente.");
+        success("Cita agendada!", "Tu cita ha sido registrada exitosamente.");
       }
-
       await fetchData();
-      handleCloseModal();
+      handleCloseModal(true);
     } catch (err: any) {
-      error("Error", err.message || "No se pudo procesar la solicitud.");
+      console.error("Error al guardar cita:", err);
+      const errorMsg = err?.message || err || "No se pudo procesar la solicitud.";
+      const displayMsg = errorMsg.toString().replace("Error 400: ", "").replace("Error 500: ", "");
+      error("Error", displayMsg);
+    } finally {
+      setIsSavingCita(false);
     }
   };
 
@@ -1084,7 +1116,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               <div
                 className="fixed inset-0 bg-black/40"
                 style={{ zIndex: 9998 }}
-                onClick={handleCloseModal}
+                onClick={() => handleCloseModal()}
               />
 
               {/* Modal container */}
@@ -1157,7 +1189,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     </h2>
                     <button
                       type="button"
-                      onClick={handleCloseModal}
+                      onClick={() => handleCloseModal()}
                       className="p-2.5 rounded-full text-gray-lighter hover:text-white-primary hover:bg-gray-dark/80 bg-gray-dark/40 transition-all cursor-pointer flex items-center justify-center"
                       title="Cerrar"
                     >
@@ -1195,7 +1227,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                             <button
                               type="button"
                               onClick={() => {
-                                setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '', fecha: '', hora: '' }));
+                                setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
                                 setBarberoFormSearchTerm('');
                                 setEditingFecha(false);
                                 setEditingHora(false);
@@ -1214,14 +1246,14 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                           value={barberoFormSearchTerm}
                           onChange={setBarberoFormSearchTerm}
                           ghostMode={true}
-                          items={barberosList}
+                          items={barberosParaFormulario}
                           filterFn={(b, term) =>
                             (b.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
                             (b.apellido || '').toLowerCase().includes(term.toLowerCase())
                           }
                           onSelect={(b) => {
                             const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
-                            setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: nombreCompleto, fecha: '', hora: '' }));
+                            setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: nombreCompleto }));
                             setBarberoFormSearchTerm(nombreCompleto);
                             setEditingFecha(false);
                             setEditingHora(false);
@@ -1418,7 +1450,16 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               {!nuevaCita.barberoId ? 'Selecciona un barbero primero' : 'Selecciona una fecha primero'}
                             </p>
                           ) : (() => {
-                            const horasDisp = calcularHorasDisponibles(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
+                            const horasDisp = calcularHorasDisponibles({
+                              fechaStr: nuevaCita.fecha,
+                              barberoId: nuevaCita.barberoId,
+                              duracionMinutos: nuevaCita.duracion,
+                              horariosList,
+                              citas,
+                              ignoreCitaId: isEditMode && selectedCita ? selectedCita.id : undefined,
+                              minAnticipacionMinutos: MIN_ANTICIPACION_AGENDA_MINUTOS,
+                              slotHours: horasDelDia,
+                            });
                             if (horasDisp.length === 0) {
                               return <p className="text-xs text-gray-lighter px-4 py-3">No hay horas disponibles para este día</p>;
                             }
@@ -1485,60 +1526,146 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               </div>
                             )}
                             isSelected={nuevaCita.servicioIds.length > 0}
-                            error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                            error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? 'Selecciona al menos un servicio o paquete' : undefined}
+                            onFocus={() => setDismissedErrors(prev => new Set(prev).add('servicio'))}
                           />
-                          {/* Tags de servicios seleccionados */}
-                          {nuevaCita.servicioIds.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {nuevaCita.servicioIds.map(sId => {
-                                const srv = serviciosList.find(s => s.id === sId);
-                                if (!srv) return null;
-                                return (
-                                  <div key={sId} className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                    <Scissors className="w-3 h-3" />
-                                    <span>{srv.nombre}</span>
-                                    <span className="opacity-60">({formatearPrecio(srv.precio)})</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleServicio(sId)}
-                                      className="ml-1 hover:text-red-400 transition-colors"
-                                      title="Quitar servicio"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* Servicios seleccionados: carrusel horizontal */}
+                          {nuevaCita.servicioIds.length > 0 && (() => {
+                            const formServicioPageSize = 2;
+                            const totalSrvPages = Math.ceil(nuevaCita.servicioIds.length / formServicioPageSize);
+                            const safeSrvPage = Math.min(formServicioPage, totalSrvPages - 1);
+                            const pageSrvIds = nuevaCita.servicioIds.slice(safeSrvPage * formServicioPageSize, (safeSrvPage + 1) * formServicioPageSize);
+                            return (
+                              <div className="flex items-center gap-1 mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormServicioPage(p => Math.max(0, p - 1))}
+                                  disabled={safeSrvPage === 0}
+                                  className={`shrink-0 transition-colors cursor-pointer ${safeSrvPage === 0 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                >
+                                  <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <div className="flex gap-1 flex-1 min-w-0">
+                                  {pageSrvIds.map(sId => {
+                                    const srv = serviciosList.find(s => s.id === sId);
+                                    if (!srv) return null;
+                                    return (
+                                      <div key={sId} className="flex-1 min-w-0 group bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <div className="rounded-lg overflow-hidden shrink-0" style={{ width: 48, height: 48, minWidth: 48 }}>
+                                            <ImageRenderer url={srv.imagen || ""} alt={srv.nombre} className="!w-full !h-full !max-w-[48px] !max-h-[48px] !rounded-lg border-0 bg-transparent" />
+                                          </div>
+                                          <div className="flex-1 min-w-0 space-y-0.5">
+                                            <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
+                                            <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
+                                            <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => { toggleServicio(sId); if (safeSrvPage > 0 && pageSrvIds.length === 1) setFormServicioPage(p => p - 1); }}
+                                            className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
+                                            title="Quitar servicio"
+                                          >
+                                            <X className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  {pageSrvIds.length < formServicioPageSize && <div className="flex-1 min-w-0" />}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormServicioPage(p => Math.min(totalSrvPages - 1, p + 1))}
+                                  disabled={safeSrvPage >= totalSrvPages - 1}
+                                  className={`shrink-0 transition-colors cursor-pointer ${safeSrvPage >= totalSrvPages - 1 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                >
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </>
                       ) : (
                         <>
                           {nuevaCita.paqueteId ? (
-                            <div className="flex flex-wrap gap-2">
+                            <>
+                              {/* Card paquete seleccionado */}
                               {(() => {
                                 const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
                                 if (!paq) return null;
                                 return (
-                                  <div className="flex items-center gap-1.5 bg-orange-primary/15 border border-orange-primary/30 text-orange-primary rounded-full px-3 py-1 text-xs font-medium">
-                                    <Package className="w-3 h-3" />
-                                    <span>{paq.nombre}</span>
-                                    <span className="opacity-60">({formatearPrecio(paq.precio)})</span>
+                                  <div className="flex items-center justify-between py-1.5 px-3 bg-gray-dark/20 rounded-lg group animate-in fade-in slide-in-from-left-2 duration-200">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="w-8 h-8 rounded-md bg-gray-dark flex items-center justify-center border border-gray-dark/60 shadow-sm shrink-0">
+                                        <Package className="w-4 h-4 text-orange-primary" />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-sm text-gray-lightest leading-tight truncate">{paq.nombre}</p>
+                                        <p className="text-xs text-gray-lighter leading-tight">{paq.duracion || 60} min · {formatearPrecio(paq.precio)}</p>
+                                      </div>
+                                    </div>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        handlePaqueteChange('none');
-                                        setPaqueteSearchTerm('');
-                                      }}
-                                      className="ml-1 hover:text-red-400 transition-colors"
+                                      onClick={() => { handlePaqueteChange('none'); setPaqueteSearchTerm(''); setFormPaqueteServicioPage(0); }}
+                                      className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-white-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0"
                                       title="Quitar paquete"
                                     >
-                                      <X className="w-3 h-3" />
+                                      <X className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 );
                               })()}
-                            </div>
+                              {/* Servicios del paquete — carrusel read-only */}
+                              {(() => {
+                                const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
+                                if (!paq || !paq.servicios?.length) return null;
+                                const srvs: any[] = (paq.servicios as string[])
+                                  .map((nombre: string) => serviciosList.find((s: any) => s.nombre === nombre))
+                                  .filter(Boolean);
+                                const pageSize = 2;
+                                const totalPages = Math.ceil(srvs.length / pageSize);
+                                const safePage = Math.min(formPaqueteServicioPage, Math.max(0, totalPages - 1));
+                                const pageSrvs = srvs.slice(safePage * pageSize, (safePage + 1) * pageSize);
+                                return (
+                                  <div className="flex items-center gap-1 mt-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setFormPaqueteServicioPage(p => Math.max(0, p - 1))}
+                                      disabled={safePage === 0}
+                                      className={`shrink-0 transition-colors cursor-pointer ${safePage === 0 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                    >
+                                      <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <div className="flex gap-1 flex-1 min-w-0">
+                                      {pageSrvs.map((srv: any) => (
+                                        <div key={srv.id} className="flex-1 min-w-0 bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent">
+                                          <div className="flex items-center gap-3 min-w-0">
+                                            <div className="rounded-lg overflow-hidden shrink-0" style={{ width: 48, height: 48, minWidth: 48 }}>
+                                              <ImageRenderer url={srv.imagen || ""} alt={srv.nombre} className="!w-full !h-full !max-w-[48px] !max-h-[48px] !rounded-lg border-0 bg-transparent" />
+                                            </div>
+                                            <div className="flex-1 min-w-0 space-y-0.5">
+                                              <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
+                                              <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
+                                              <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {pageSrvs.length < pageSize && <div className="flex-1 min-w-0" />}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setFormPaqueteServicioPage(p => Math.min(totalPages - 1, p + 1))}
+                                      disabled={safePage >= totalPages - 1}
+                                      className={`shrink-0 transition-colors cursor-pointer ${safePage >= totalPages - 1 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                    >
+                                      <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                            </>
                           ) : (
                             <SearchField<any>
                               label="Buscar paquete"
@@ -1567,7 +1694,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                   <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                                 </div>
                               )}
-                              error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId ? 'Selecciona al menos un servicio o paquete' : undefined}
+                              error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? 'Selecciona al menos un servicio o paquete' : undefined}
+                              onFocus={() => setDismissedErrors(prev => new Set(prev).add('servicio'))}
                             />
                           )}
                         </>
@@ -1590,6 +1718,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                             value={productoSearchTerm}
                             onChange={setProductoSearchTerm}
                             ghostMode={true}
+                            isSelected={Object.keys(nuevaCita.productoCantidades).length > 0}
                             items={productosList}
                             filterFn={(p, term) =>
                               (p.nombre || '').toLowerCase().includes(term.toLowerCase())
@@ -1603,8 +1732,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               const cantActual = nuevaCita.productoCantidades[p.id] || 0;
                               return (
                                 <div className="flex items-center gap-3">
-                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
-                                    <ShoppingBag className="w-5 h-5 text-orange-primary/50" />
+                                  <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark">
+                                    <ImageRenderer url={p.imagenProduc || ""} alt={p.nombre} className="w-full h-full border-0 bg-transparent" />
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
@@ -1612,50 +1741,77 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                       <p className="text-orange-primary text-xs">En carrito: {cantActual}</p>
                                     )}
                                   </div>
-                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
+                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precioVenta ?? p.precio)}</span>
                                 </div>
                               );
                             }}
                           />
-                          {/* Productos seleccionados con control de cantidad */}
-                          {Object.keys(nuevaCita.productoCantidades).length > 0 && (
-                            <div className="space-y-2 mt-2">
-                              {Object.entries(nuevaCita.productoCantidades).map(([idStr, cantidad]) => {
-                                const pId = Number(idStr);
-                                const prod = productosList.find(p => p.id === pId);
-                                if (!prod) return null;
-                                return (
-                                  <div key={pId} className="flex items-center gap-2 bg-gray-darker/60 rounded-lg px-3 py-2">
-                                    <span className="flex-1 text-sm text-gray-lightest truncate">{prod.nombre}</span>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => removeProducto(pId)}
-                                        className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-gray-medium text-gray-lighter hover:text-white-primary transition-colors"
-                                      >
-                                        <Minus className="w-3 h-3" />
-                                      </button>
-                                      <span className="w-6 text-center text-sm text-gray-lightest tabular-nums">{cantidad}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => addProducto(pId)}
-                                        className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-gray-medium text-gray-lighter hover:text-white-primary transition-colors"
-                                      >
-                                        <Plus className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => quitarProducto(pId)}
-                                        className="w-6 h-6 flex items-center justify-center rounded-md bg-gray-dark hover:bg-red-600/60 text-gray-lighter hover:text-white-primary transition-colors ml-1"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* Productos seleccionados: carrusel horizontal */}
+                          {Object.keys(nuevaCita.productoCantidades).length > 0 && (() => {
+                            const prodEntries = Object.entries(nuevaCita.productoCantidades);
+                            const totalProdPages = Math.ceil(prodEntries.length / FORM_CAROUSEL_SIZE);
+                            const safeProdPage = Math.min(formProductoPage, totalProdPages - 1);
+                            const pageProdEntries = prodEntries.slice(safeProdPage * FORM_CAROUSEL_SIZE, (safeProdPage + 1) * FORM_CAROUSEL_SIZE);
+                            return (
+                              <div className="mt-3 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormProductoPage(p => Math.max(0, p - 1))}
+                                  disabled={safeProdPage === 0}
+                                  className={`shrink-0 transition-colors cursor-pointer ${safeProdPage === 0 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                >
+                                  <ChevronLeft className="w-4 h-4" />
+                                </button>
+                                <div className="flex-1 flex gap-2 min-w-0">
+                                  {pageProdEntries.map(([idStr, cantidad]) => {
+                                    const pId = Number(idStr);
+                                    const prod = productosList.find(p => p.id === pId);
+                                    if (!prod) return null;
+                                    return (
+                                      <div key={pId} className="flex-1 min-w-0 group bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent hover:border-gray-dark transition-all">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
+                                            <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-gray-lightest font-medium truncate leading-tight">{prod.nombre}</p>
+                                            <p className="text-gray-lighter leading-tight truncate" style={{ fontSize: '9px' }}>{formatearPrecio(prod.precioVenta ?? prod.precio)}</p>
+                                            <div className="flex items-center gap-1 mt-0.5">
+                                              <button type="button" onClick={() => removeProducto(pId)} className="text-gray-lighter hover:text-white-primary transition-colors cursor-pointer">
+                                                <Minus className="w-2.5 h-2.5" />
+                                              </button>
+                                              <span className="w-3 text-center text-gray-lightest tabular-nums" style={{ fontSize: '9px' }}>{cantidad}</span>
+                                              <button type="button" onClick={() => addProducto(pId)} className="text-gray-lighter hover:text-white-primary transition-colors cursor-pointer">
+                                                <Plus className="w-2.5 h-2.5" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => { quitarProducto(pId); if (safeProdPage > 0 && pageProdEntries.length === 1) setFormProductoPage(p => p - 1); }}
+                                            className="shrink-0 text-gray-dark hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  {pageProdEntries.length < FORM_CAROUSEL_SIZE && Array.from({ length: FORM_CAROUSEL_SIZE - pageProdEntries.length }).map((_, i) => (
+                                    <div key={`prod-empty-${i}`} className="flex-1 min-w-0" />
+                                  ))}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormProductoPage(p => Math.min(totalProdPages - 1, p + 1))}
+                                  disabled={safeProdPage >= totalProdPages - 1}
+                                  className={`shrink-0 transition-colors cursor-pointer ${safeProdPage >= totalProdPages - 1 ? 'text-gray-dark cursor-not-allowed opacity-30' : 'text-gray-lighter hover:text-orange-primary'}`}
+                                >
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </>
                       )}
                     </div>
@@ -1706,7 +1862,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   <div className="flex justify-end gap-3">
                     <button
                       type="button"
-                      onClick={handleCloseModal}
+                      onClick={() => handleCloseModal()}
                       className="px-4 py-2 text-sm font-medium text-gray-lighter hover:text-white-primary transition-colors"
                     >
                       Cancelar
@@ -1714,9 +1870,10 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     <button
                       type="button"
                       onClick={handleSaveCita}
+                      disabled={isSavingCita}
                       className="px-4 py-2 text-sm font-semibold bg-orange-primary text-black-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      Guardar
+                      {isSavingCita ? 'Guardando...' : (isEditMode ? 'Guardar cambios' : 'Agendar Cita')}
                     </button>
                   </div>
                 </div>
@@ -1724,6 +1881,28 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             </>,
             document.body
           )}
+
+          <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+            <AlertDialogContent className="bg-gray-darkest border-gray-dark text-white-primary" style={{ zIndex: 200000 }}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Descartar cambios</AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-lighter">
+                  Tienes cambios sin guardar. Si cierras el formulario se perderan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="bg-gray-darker text-white-primary border-gray-dark hover:bg-gray-medium">
+                  Seguir editando
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 text-white hover:bg-red-700"
+                  onClick={() => handleCloseModal(true)}
+                >
+                  Descartar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* VISTA DE CALENDARIO */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -2292,15 +2471,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                             <h2 className="text-2xl font-normal text-gray-lightest leading-tight truncate">
                               {formatNombre(selectedCita.barberoNombre) || 'Sin barbero'}
                             </h2>
-                            {selectedCita.estado !== 'Cancelada' && selectedCita.estado !== 'Completada' && (
-                              <button
-                                onClick={() => handleOpenEdit(selectedCita)}
-                                className="p-2 bg-orange-primary/10 hover:bg-orange-primary/20 rounded-xl transition-all border border-orange-primary/20 shrink-0"
-                                title="Modificar cita"
-                              >
-                                <Edit className="w-4 h-4 text-orange-primary" />
-                              </button>
-                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${
