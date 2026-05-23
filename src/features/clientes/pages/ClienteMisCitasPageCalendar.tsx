@@ -23,6 +23,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Label } from "../../../shared/components/ui/label";
 import { Input } from "../../../shared/components/ui/input";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
+import { Calendar as UICalendar } from "../../../shared/components/ui/calendar";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale/es";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { SearchField } from "../../../shared/components/ui/SearchField";
@@ -43,6 +46,7 @@ import {
   parseHoraAMinutos,
   toLocalDateString,
   CALENDAR_SLOT_HOURS,
+  barberoTrabajaEnFecha,
 } from "../../agendamiento/utils/scheduleUtils";
 
 const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -302,6 +306,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [modalPhase, setModalPhase] = useState<'enter' | 'open' | 'exit'>('enter');
   const [pendingProduct, setPendingProduct] = useState<any>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+  const hourPickerRef = useRef<HTMLDivElement>(null);
   const MODAL_HEIGHT = Math.min(580, window.innerHeight - 32);
   const MODAL_MIN_HEIGHT = 220;
   const MODAL_DOCKED_TOP = window.innerHeight - 16 - MODAL_HEIGHT;
@@ -779,6 +785,20 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       setEditingHora(false);
     }, 200);
   };
+
+  // Cerrar pickers de fecha/hora al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setEditingFecha(false);
+      }
+      if (hourPickerRef.current && !hourPickerRef.current.contains(event.target as Node)) {
+        setEditingHora(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Cerrar modal con tecla ESC
   useEffect(() => {
@@ -1273,114 +1293,154 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   </div>
 
                   {/* ── Fila: Fecha y Hora ── */}
-                  <div className="flex items-start gap-0 py-1 px-2">
-                    <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center pt-2">
+                  <div className="flex items-center gap-0 py-1 px-2.5 px-2">
+                    <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                       <CalendarDays className="w-5 h-5 text-gray-lighter" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      {!editingFecha && !editingHora ? (
-                        <div>
+                    <div className="flex-1 min-w-0 relative">
+                      {/* Chips (fecha + hora) una vez hay datos, o ghost si no */}
+                      {nuevaCita.fecha || nuevaCita.hora ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Chip fecha */}
                           <button
                             type="button"
-                            onClick={() => setEditingFecha(true)}
-                            className="text-left text-base text-gray-lightest hover:text-white-primary transition-colors w-full py-1.5 px-3 hover:bg-gray-dark rounded-md"
+                            onClick={() => { setEditingFecha(prev => !prev); setEditingHora(false); }}
+                            className={`px-3 py-1.5 rounded-lg text-base transition-colors duration-150 ${
+                              editingFecha
+                                ? 'bg-orange-primary text-white-primary'
+                                : 'bg-gray-dark/70 hover:bg-gray-dark text-gray-lightest hover:text-white-primary'
+                            }`}
                           >
-                            {formatFechaHoraTexto()}
+                            {nuevaCita.fecha
+                              ? (() => { const s = format(parseISO(`${nuevaCita.fecha}T12:00:00`), "EEEE, d 'de' MMMM", { locale: es }); return s.charAt(0).toUpperCase() + s.slice(1); })()
+                              : 'Selecciona fecha'}
                           </button>
-                          {showFormErrors && (!nuevaCita.fecha || !nuevaCita.hora) && (
-                            <p className="text-xs text-red-400 mt-1 px-3">Selecciona fecha y hora</p>
+                          {/* Chip hora inicio */}
+                          <button
+                            type="button"
+                            onClick={() => { setEditingHora(prev => !prev); setEditingFecha(false); }}
+                            className={`px-3 py-1.5 rounded-lg text-base transition-colors duration-150 ${
+                              editingHora
+                                ? 'bg-orange-primary text-white-primary'
+                                : 'bg-gray-dark/70 hover:bg-gray-dark text-gray-lightest hover:text-white-primary'
+                            }`}
+                          >
+                            {nuevaCita.hora ? formatHoraStr12(nuevaCita.hora) : 'Hora inicio'}
+                          </button>
+                          {/* Hora fin — solo si hay servicio o paquete */}
+                          {(nuevaCita.servicioIds.length > 0 || !!nuevaCita.paqueteId) && (
+                            <>
+                              <span className="text-gray-lighter text-sm select-none">–</span>
+                              <div className="px-3 py-1.5 rounded-lg bg-gray-dark/40 text-base text-gray-lighter transition-colors duration-150 cursor-default">
+                                {(() => {
+                                  if (!nuevaCita.hora) return 'Hora fin';
+                                  const [hs, ms = '0'] = nuevaCita.hora.split(':');
+                                  const startMin = parseInt(hs || '0', 10) * 60 + parseInt(ms || '0', 10);
+                                  const endMin = startMin + (Number(nuevaCita.duracion) || 60);
+                                  const hFin = Math.floor(endMin / 60) % 24;
+                                  const mFin = endMin % 60;
+                                  const ampm = hFin >= 12 ? 'PM' : 'AM';
+                                  const h12 = hFin % 12 === 0 ? 12 : hFin % 12;
+                                  return `${h12}:${String(mFin).padStart(2, '0')} ${ampm}`;
+                                })()}
+                              </div>
+                            </>
                           )}
                         </div>
                       ) : (
-                        <div className="px-3">
-                          {/* Picker de días disponibles del barbero */}
-                          {editingFecha && (() => {
-                            if (!nuevaCita.barberoId) {
-                              return (
-                                <p className="text-xs text-gray-lighter py-1">Selecciona un barbero primero para ver los días disponibles</p>
-                              );
-                            }
-                            const diasTrabajados = Array.from(new Set(
-                              horariosList
-                                .filter((h: any) => Number(h.barberoId) === Number(nuevaCita.barberoId) && horarioEstaActivo(h))
-                                .map((h: any) => normalizeDiaNombre(String(h.dia)))
-                            ));
-                            const diasDisponibles: { fecha: string; label: string; diaNombre: string }[] = [];
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                            for (let i = 0; i < 28 && diasDisponibles.length < 14; i++) {
-                              const d = new Date(today);
-                              d.setDate(today.getDate() + i);
-                              const diaNombre = dayNames[d.getDay()];
-                              if (diasTrabajados.includes(diaNombre)) {
-                                const y = d.getFullYear();
-                                const m = String(d.getMonth() + 1).padStart(2, '0');
-                                const day = String(d.getDate()).padStart(2, '0');
-                                const fechaStr = `${y}-${m}-${day}`;
-                                const label = d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
-                                diasDisponibles.push({ fecha: fechaStr, label, diaNombre });
+                        /* Ghost: placeholder hasta que el usuario interactúa */
+                        <button
+                          type="button"
+                          onClick={() => setEditingFecha(true)}
+                          className="w-full text-left py-1.5 px-3 text-gray-lighter hover:text-gray-lightest hover:bg-gray-dark rounded-md transition-colors duration-150 text-base cursor-pointer"
+                        >
+                          Selecciona fecha y hora
+                        </button>
+                      )}
+
+                      {showFormErrors && (!nuevaCita.fecha || !nuevaCita.hora) && (
+                        <p className="text-sm text-red-400 mt-1 px-3">Selecciona fecha y hora</p>
+                      )}
+
+                      {/* Calendario flotante */}
+                      {editingFecha && (
+                        <div
+                          ref={datePickerRef}
+                          className="absolute left-0 mt-1 bg-gray-darkest border border-gray-dark rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] p-2 animate-in fade-in zoom-in duration-200"
+                          style={{ zIndex: 101, top: '100%' }}
+                        >
+                          <UICalendar
+                            mode="single"
+                            selected={nuevaCita.fecha ? parseISO(nuevaCita.fecha) : undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                const y = date.getFullYear();
+                                const m = String(date.getMonth() + 1).padStart(2, '0');
+                                const d = String(date.getDate()).padStart(2, '0');
+                                const fechaStr = `${y}-${m}-${d}`;
+                                setNuevaCita(prev => ({ ...prev, fecha: fechaStr }));
+                                setEditingFecha(false);
+                                setEditingHora(true);
                               }
-                            }
-                            if (diasDisponibles.length === 0) {
-                              return (
-                                <p className="text-xs text-gray-lighter py-1">No hay días disponibles para este barbero</p>
-                              );
-                            }
-                            return (
-                              <div>
-                                <p className="text-xs text-gray-lighter mb-1.5">Selecciona un día</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {diasDisponibles.map(({ fecha, label }) => (
-                                    <button
-                                      key={fecha}
-                                      type="button"
-                                      onClick={() => {
-                                        setNuevaCita(prev => ({ ...prev, fecha }));
-                                        setEditingFecha(false);
-                                        setEditingHora(true);
-                                      }}
-                                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${nuevaCita.fecha === fecha
-                                        ? 'bg-orange-primary text-white-primary'
-                                        : 'bg-gray-dark/70 hover:bg-gray-dark text-gray-lightest'
-                                        }`}
-                                    >
-                                      {label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {/* Picker de horas disponibles */}
-                          {editingHora && nuevaCita.fecha && nuevaCita.barberoId > 0 && (() => {
-                            const horasDisp = getHorasDisponiblesParaDia(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
+                            }}
+                            locale={es}
+                            className="bg-gray-darkest text-gray-lightest"
+                            classNames={{
+                              day_selected: "bg-orange-primary text-white-primary hover:bg-orange-primary hover:text-white-primary focus:bg-orange-primary focus:text-white-primary rounded-full",
+                              day_today: "bg-gray-dark text-orange-primary font-bold rounded-full",
+                            }}
+                            disabled={(date) => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              if (date < today) return true;
+                              if (nuevaCita.barberoId) {
+                                const y = date.getFullYear();
+                                const m = String(date.getMonth() + 1).padStart(2, '0');
+                                const d = String(date.getDate()).padStart(2, '0');
+                                const fechaStr = `${y}-${m}-${d}`;
+                                return !barberoTrabajaEnFecha(horariosList, nuevaCita.barberoId, fechaStr);
+                              }
+                              return false;
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Dropdown de horas flotante */}
+                      {editingHora && (
+                        <div
+                          ref={hourPickerRef}
+                          className="absolute left-0 mt-1 w-48 bg-gray-darkest border border-gray-dark rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] overflow-hidden animate-in fade-in zoom-in duration-200"
+                          style={{ zIndex: 100, top: '100%' }}
+                        >
+                          {!nuevaCita.fecha || !nuevaCita.barberoId ? (
+                            <p className="text-xs text-gray-lighter px-4 py-3">
+                              {!nuevaCita.barberoId ? 'Selecciona un barbero primero' : 'Selecciona una fecha primero'}
+                            </p>
+                          ) : (() => {
+                            const horasDisp = calcularHorasDisponibles(nuevaCita.fecha, nuevaCita.barberoId, nuevaCita.duracion);
                             if (horasDisp.length === 0) {
-                              return (
-                                <p className="text-xs text-gray-lighter mt-2 py-1">No hay horas disponibles para este día</p>
-                              );
+                              return <p className="text-xs text-gray-lighter px-4 py-3">No hay horas disponibles para este día</p>;
                             }
                             return (
-                              <div className="mt-2">
-                                <p className="text-xs text-gray-lighter mb-1.5">Selecciona una hora</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {horasDisp.map(h => (
-                                    <button
-                                      key={h}
-                                      type="button"
-                                      onClick={() => {
-                                        setNuevaCita(prev => ({ ...prev, hora: h }));
-                                        setEditingHora(false);
-                                      }}
-                                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${nuevaCita.hora === h
-                                        ? 'bg-orange-primary text-white-primary'
-                                        : 'bg-gray-dark/70 hover:bg-gray-dark text-gray-lightest'
-                                        }`}
-                                    >
-                                      {formatHoraStr12(h)}
-                                    </button>
-                                  ))}
-                                </div>
+                              <div className="max-h-48 overflow-y-auto custom-scrollbar py-1">
+                                {horasDisp.map(h => (
+                                  <button
+                                    key={h}
+                                    type="button"
+                                    onClick={() => {
+                                      setNuevaCita(prev => ({ ...prev, hora: h }));
+                                      setEditingHora(false);
+                                    }}
+                                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                      nuevaCita.hora === h
+                                        ? 'bg-orange-primary text-white-primary font-medium'
+                                        : 'text-gray-lightest hover:bg-gray-dark'
+                                    }`}
+                                  >
+                                    {formatHoraStr12(h)}
+                                  </button>
+                                ))}
                               </div>
                             );
                           })()}
