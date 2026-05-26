@@ -48,7 +48,8 @@
       "Bash(node gen_compras.js)",
       "Bash(npm list *)",
       "Bash(node -e \"require\\('docx'\\); console.log\\('ok'\\)\")",
-      "Bash(node -e \"const m = require\\('C:/Users/samue/AppData/Roaming/npm/node_modules/docx'\\); console.log\\(Object.keys\\(m\\).slice\\(0,5\\)\\)\")"
+      "Bash(node -e \"const m = require\\('C:/Users/samue/AppData/Roaming/npm/node_modules/docx'\\); console.log\\(Object.keys\\(m\\).slice\\(0,5\\)\\)\")",
+      "Bash(python scripts/office/unpack.py \"C:\\\\Users\\\\samue\\\\Downloads\\\\trabajo caja negra.docx\" unpacked_ejemplo/)"
     ]
   },
   "enabledPlugins": {

@@ -204,18 +204,9 @@ export function SearchField<T>({
       )}
 
       {error && (
-        <p
-          className="text-sm text-red-400"
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            width: '100%',
-            paddingLeft: ghostMode ? '0.75rem' : '2.75rem',
-            paddingTop: '0.125rem',
-            pointerEvents: 'none',
-          }}
-        >{error}</p>
+        <p className="text-xs text-red-400 mt-1" style={{ paddingLeft: ghostMode ? '0.75rem' : '2.75rem' }}>
+          {error}
+        </p>
       )}
 
       {showResults && shouldDropUp && ReactDOM.createPortal(

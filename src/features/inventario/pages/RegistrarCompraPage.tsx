@@ -854,7 +854,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                     className={`elegante-input ${showCompraFormErrors && !nuevaCompra.fechaFactura ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ""}`}
                   />
                   {showCompraFormErrors && !nuevaCompra.fechaFactura && (
-                    <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                    <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
                   )}
                 </div>
                 <div className="space-y-1">
@@ -876,7 +876,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                     </SelectContent>
                   </Select>
                   {showCompraFormErrors && !nuevaCompra.metodoPago && (
-                    <p className="text-xs text-red-400">Este campo es obligatorio.</p>
+                    <p className="text-xs text-red-400 mt-1">Este campo es obligatorio.</p>
                   )}
                 </div>
               </div>
@@ -1040,7 +1040,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                 </div>
 
                 {(showCompraFormErrors || showAddProductoErrors) && noProductosAgregados && (
-                  <p className="text-xs text-red-400">Debes seleccionar y agregar al menos un producto.</p>
+                  <p className="text-xs text-red-400 mt-1">Debes seleccionar y agregar al menos un producto.</p>
                 )}
               </div>
             </FormSection>
