@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
+import { NameInput } from "../../../shared/components/ui/NameInput";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -884,27 +885,27 @@ export function UsersPage() {
                         {showUserFormErrors && !newUser.documento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                         {isDocDuplicateCreateUser && <p className="text-xs text-red-400">Documento ya existe en el sistema.</p>}
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 pb-5">
                         <Label className="text-white-primary flex items-center gap-2">
                           <UserIcon className="w-4 h-4 text-orange-primary" />
                           Nombres *
                         </Label>
-                        <Input
+                        <NameInput
                           value={newUser.nombres}
-                          onChange={(e) => setNewUser({ ...newUser, nombres: e.target.value })}
+                          onChange={(val) => setNewUser({ ...newUser, nombres: val })}
                           className={`elegante-input w-full ${showUserFormErrors && !newUser.nombres ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="Ingresa los nombres"
                         />
                         {showUserFormErrors && !newUser.nombres && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 pb-5">
                         <Label className="text-white-primary flex items-center gap-2">
                           <UserIcon className="w-4 h-4 text-orange-primary" />
                           Apellidos *
                         </Label>
-                        <Input
+                        <NameInput
                           value={newUser.apellidos}
-                          onChange={(e) => setNewUser({ ...newUser, apellidos: e.target.value })}
+                          onChange={(val) => setNewUser({ ...newUser, apellidos: val })}
                           className={`elegante-input w-full ${showUserFormErrors && !newUser.apellidos ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="Ingresa los apellidos"
                         />
@@ -921,8 +922,8 @@ export function UsersPage() {
                           min={minBirthDate}
                           max={maxBirthDateEight}
                           error={showUserFormErrors && !newUser.fechaNacimiento}
+                          requiredMessage="Este campo es obligatorio."
                         />
-                        {showUserFormErrors && !newUser.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                         {!!edadNewUser && <p className={`text-xs ${isTooYoungNewUser ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadNewUser} años{isTooYoungNewUser ? ' (mínimo 8)' : ''}</p>}
                       </div>
                       <div className="space-y-2">

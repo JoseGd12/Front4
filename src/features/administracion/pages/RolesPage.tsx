@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
+import { NameInput } from "../../../shared/components/ui/NameInput";
 import {
   Plus,
   Edit,
@@ -820,9 +821,9 @@ export function RolesPage() {
                     <UserCheck className="w-4 h-4 text-orange-primary" />
                     Nombre del Rol *
                   </Label>
-                  <Input
+                  <NameInput
                     value={nuevoRol.nombre}
-                    onChange={(e) => setNuevoRol({ ...nuevoRol, nombre: e.target.value })}
+                    onChange={(val) => setNuevoRol({ ...nuevoRol, nombre: val })}
                     placeholder="Ej: Content Manager"
                     className={`elegante-input w-full ${hasTriedToSubmit && !nuevoRol.nombre.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   />
@@ -966,9 +967,9 @@ export function RolesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-white-primary">Nombre del Rol *</Label>
-                    <Input
+                    <NameInput
                       value={editingRole.nombre}
-                      onChange={(e) => setEditingRole({ ...editingRole, nombre: e.target.value })}
+                      onChange={(val) => setEditingRole({ ...editingRole, nombre: val })}
                       className={`elegante-input w-full ${hasTriedToSubmit && !editingRole.nombre.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                     />
                     {hasTriedToSubmit && !editingRole.nombre.trim() && (

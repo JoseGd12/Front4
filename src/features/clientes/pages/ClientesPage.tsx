@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
+import { NameInput } from "../../../shared/components/ui/NameInput";
 import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -1335,29 +1336,27 @@ export function ClientesPage() {
                 />
                 {showEditValidation && !editForm.numeroDocumento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pb-5">
                 <Label className="text-white-primary flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-orange-primary" />
                   Nombres *
                 </Label>
-                <Input
+                <NameInput
                   value={editForm.nombre}
-                  onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })}
-                  maxLength={CLIENTE_LIMITS.nombre}
+                  onChange={(val) => setEditForm({ ...editForm, nombre: val })}
                   className={`elegante-input w-full ${showEditValidation && !editForm.nombre ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="Ingresa los nombres"
                 />
                 {showEditValidation && !editForm.nombre && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pb-5">
                 <Label className="text-white-primary flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-orange-primary" />
                   Apellidos *
                 </Label>
-                <Input
+                <NameInput
                   value={editForm.apellido}
-                  onChange={(e) => setEditForm({ ...editForm, apellido: e.target.value })}
-                  maxLength={CLIENTE_LIMITS.apellido}
+                  onChange={(val) => setEditForm({ ...editForm, apellido: val })}
                   className={`elegante-input w-full ${showEditValidation && !editForm.apellido ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="Ingresa los apellidos"
                 />
@@ -1374,8 +1373,8 @@ export function ClientesPage() {
                   min={minBirthDate}
                   max={maxBirthDateEight}
                   error={showEditValidation && !editForm.fechaNacimiento}
+                  requiredMessage="Este campo es obligatorio."
                 />
-                {showEditValidation && !editForm.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
             </div>
 
@@ -1561,29 +1560,27 @@ export function ClientesPage() {
                 {showCreateValidation && !createForm.numeroDocumento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                 {isDocDuplicateCreateCliente && <p className="text-xs text-red-400">Documento ya existe en el sistema.</p>}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pb-5">
                 <Label className="text-white-primary flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-orange-primary" />
                   Nombres *
                 </Label>
-                <Input
+                <NameInput
                   value={createForm.nombre}
-                  onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })}
-                  maxLength={CLIENTE_LIMITS.nombre}
+                  onChange={(val) => setCreateForm({ ...createForm, nombre: val })}
                   className={`elegante-input w-full ${showCreateValidation && !createForm.nombre ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="Ingresa los nombres"
                 />
                 {showCreateValidation && !createForm.nombre && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pb-5">
                 <Label className="text-white-primary flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-orange-primary" />
                   Apellidos *
                 </Label>
-                <Input
+                <NameInput
                   value={createForm.apellido}
-                  onChange={(e) => setCreateForm({ ...createForm, apellido: e.target.value })}
-                  maxLength={CLIENTE_LIMITS.apellido}
+                  onChange={(val) => setCreateForm({ ...createForm, apellido: val })}
                   className={`elegante-input w-full ${showCreateValidation && !createForm.apellido ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="Ingresa los apellidos"
                 />
@@ -1600,8 +1597,8 @@ export function ClientesPage() {
                   min={minBirthDate}
                   max={maxBirthDateEight}
                   error={showCreateValidation && !createForm.fechaNacimiento}
+                  requiredMessage="Este campo es obligatorio."
                 />
-                {showCreateValidation && !createForm.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                 {!!edadCreateCliente && <p className={`text-xs ${isTooYoungCreateCliente ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadCreateCliente} años{isTooYoungCreateCliente ? ' (mínimo 8)' : ''}</p>}
               </div>
             </div>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
+import { NameInput } from "../../../shared/components/ui/NameInput";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -763,9 +764,9 @@ export function PaquetesPage() {
                     <Package className="w-4 h-4 text-orange-primary" />
                     Nombre del Paquete *
                   </Label>
-                  <Input
+                  <NameInput
                     value={nuevoPaquete.nombre}
-                    onChange={(e) => setNuevoPaquete({ ...nuevoPaquete, nombre: e.target.value })}
+                    onChange={(val) => setNuevoPaquete({ ...nuevoPaquete, nombre: val })}
                     placeholder="Ej: Paquete Premium Completo"
                     className="elegante-input"
                   />

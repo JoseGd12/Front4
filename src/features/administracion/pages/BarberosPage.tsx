@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
+import { NameInput } from "../../../shared/components/ui/NameInput";
 import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
@@ -834,29 +835,27 @@ export function BarberosPage() {
                 {showBarberoFormErrors && !newBarbero.documento.trim() && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               {isDocDuplicateNewBarbero && <p className="text-xs text-red-400">Documento ya existe en el sistema.</p>}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pb-5">
                 <Label className="text-white-primary flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-orange-primary" />
                   Nombres *
                 </Label>
-              <Input
+              <NameInput
                 value={newBarbero.nombre}
-                onChange={(e) => setNewBarbero({ ...newBarbero, nombre: e.target.value })}
-                maxLength={BARBERO_LIMITS.nombre}
+                onChange={(val) => setNewBarbero({ ...newBarbero, nombre: val })}
                 className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.nombre.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                 placeholder="Ingresa los nombres"
               />
               {showBarberoFormErrors && !newBarbero.nombre.trim() && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
             </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pb-5">
                 <Label className="text-white-primary flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-orange-primary" />
                   Apellidos *
                 </Label>
-              <Input
+              <NameInput
                 value={newBarbero.apellido}
-                onChange={(e) => setNewBarbero({ ...newBarbero, apellido: e.target.value })}
-                maxLength={BARBERO_LIMITS.apellido}
+                onChange={(val) => setNewBarbero({ ...newBarbero, apellido: val })}
                 className={`elegante-input w-full ${showBarberoFormErrors && !newBarbero.apellido.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                 placeholder="Ingresa los apellidos"
               />
@@ -873,8 +872,8 @@ export function BarberosPage() {
                   min={minBirthDate}
                   max={maxBirthDateEight}
                   error={showBarberoFormErrors && !newBarbero.fechaNacimiento}
+                  requiredMessage="Este campo es obligatorio."
                 />
-                {showBarberoFormErrors && !newBarbero.fechaNacimiento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               {!!edadNewBarbero && <p className={`text-xs ${isTooYoungNewBarbero ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadNewBarbero} años{isTooYoungNewBarbero ? ' (mínimo 8)' : ''}</p>}
               </div>
             </div>

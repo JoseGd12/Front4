@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { Input } from "../../../shared/components/ui/input";
+import { NameInput } from "../../../shared/components/ui/NameInput";
 import {
   Package,
   Plus,
@@ -697,7 +698,11 @@ export function ProductosPage() {
         rawMsg.includes('no se puede eliminar') ||
         rawMsg.includes('asociado') ||
         rawMsg.includes('ya existe relación') ||
-        rawMsg.includes('en uso');
+        rawMsg.includes('en uso') ||
+        rawMsg.includes('saving the entity') ||
+        rawMsg.includes('inner exception') ||
+        rawMsg.includes('500') ||
+        rawMsg.includes('error interno del servidor');
 
       if (isFkConflict) {
         try {
@@ -942,9 +947,9 @@ export function ProductosPage() {
                               <Tags className="w-3.5 h-3.5 text-orange-primary" />
                               Nombre *
                             </Label>
-                            <Input
+                            <NameInput
                               value={nuevoProducto.nombre}
-                              onChange={(e) => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })}
+                              onChange={(val) => setNuevoProducto({ ...nuevoProducto, nombre: val })}
                               placeholder="Ej: Cadena de Rodio"
                               className={`elegante-input h-9 text-sm ${isNombreDuplicado ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                             />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "../../../shared/components/ui/input";
+import { NameInput } from "../../../shared/components/ui/NameInput";
 import { Scissors, Plus, Edit, Trash2, Eye, ToggleRight, ToggleLeft, Image as ImageIcon, X, Loader2, Camera, Info, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
@@ -625,9 +626,9 @@ export function ServiciosPage() {
                       <Scissors className="w-3.5 h-3.5 text-orange-primary" />
                       Nombre del Servicio *
                     </Label>
-                    <Input
+                    <NameInput
                       value={nuevoServicio.nombre}
-                      onChange={(e) => setNuevoServicio({ ...nuevoServicio, nombre: e.target.value })}
+                      onChange={(val) => setNuevoServicio({ ...nuevoServicio, nombre: val })}
                       placeholder="Ej: Corte Moderno"
                       className={`elegante-input h-9 text-sm ${
                         showServicioFormErrors && (!nuevoServicio.nombre.trim() || nombreServicioDuplicado)
