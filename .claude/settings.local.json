@@ -42,7 +42,13 @@
       "Skill(anthropic-skills:pdf:*)",
       "Bash(python3 build_test_doc.py)",
       "Bash(pandoc PRUEBAS_REGISTRO_CAJA_NEGRA.md -o PRUEBAS_REGISTRO_CAJA_NEGRA.docx)",
-      "Bash(python gen_docx.py)"
+      "Bash(python gen_docx.py)",
+      "Bash(node -e \"require\\('docx'\\)\")",
+      "Bash(npm install *)",
+      "Bash(node gen_compras.js)",
+      "Bash(npm list *)",
+      "Bash(node -e \"require\\('docx'\\); console.log\\('ok'\\)\")",
+      "Bash(node -e \"const m = require\\('C:/Users/samue/AppData/Roaming/npm/node_modules/docx'\\); console.log\\(Object.keys\\(m\\).slice\\(0,5\\)\\)\")"
     ]
   },
   "enabledPlugins": {
