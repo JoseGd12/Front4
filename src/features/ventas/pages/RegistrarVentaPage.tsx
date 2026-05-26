@@ -5,6 +5,8 @@ import {
   DollarSign,
   Search,
   User,
+  Users,
+  Scissors,
   Calendar,
   Package,
   X,
@@ -15,6 +17,7 @@ import {
   FileText,
   ShieldCheck,
   Plus,
+  ChevronDown,
 } from "lucide-react";
 import { Checkbox } from "../../../shared/components/ui/checkbox";
 import {
@@ -144,6 +147,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   >({});
 
   // Search state
+  const [selectorTipo, setSelectorTipo] = useState<"Clientes" | "Barberos">("Clientes");
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [barberoSearchTerm, setBarberoSearchTerm] = useState("");
@@ -485,6 +490,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         },
       }));
     } else {
+      const precioFinal = selectorTipo === "Barberos"
+        ? (producto.precioCompra || producto.precioBase)
+        : (producto.precio || producto.precioBase);
       setNuevaVenta({
         ...nuevaVenta,
         productos: [
@@ -493,7 +501,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             id: producto.id.toString(),
             nombre: producto.nombre,
             cantidad: cantidadProducto,
-            precio: producto.precio || producto.precioBase,
+            precio: precioFinal,
             imagen:
               (producto as ApiProducto).imagenProduc || "",
           },
@@ -503,7 +511,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         ...prev,
         [producto.id.toString()]: {
           cantidad: String(cantidadProducto),
-          precio: String(producto.precio || producto.precioBase),
+          precio: String(precioFinal),
         },
       }));
     }
@@ -786,14 +794,16 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     const productosActuales = nuevaVenta.productos || [];
     const tieneServicios = serviciosAgregados.length > 0;
 
-    const tieneCliente = nuevaVenta.clienteId || nuevaVenta.clienteNombreInvitado.trim();
+    const tieneCliente = nuevaVenta.clienteId || (selectorTipo === "Clientes" && nuevaVenta.clienteNombreInvitado.trim());
     if (!tieneCliente || !nuevaVenta.metodoPago || !nuevaVenta.numeroRecibo?.trim()) {
       showErrorAlert(
         "Datos incompletos",
         !nuevaVenta.numeroRecibo?.trim()
           ? "Por favor ingresa el número de recibo."
           : !tieneCliente
-            ? "Por favor selecciona un cliente o escribe el nombre del invitado."
+            ? selectorTipo === "Barberos"
+              ? "Por favor selecciona un barbero de la lista."
+              : "Por favor selecciona un cliente o escribe el nombre del invitado."
             : "Por favor selecciona el método de pago."
       );
       return;
@@ -1049,88 +1059,229 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               />
 
               {/* Section 2: Client */}
-              <FormSection title="Cliente" icon={<User className="w-4 h-4" />}>
+              <FormSection
+                title={selectorTipo === "Barberos" ? "Barbero" : "Cliente"}
+                icon={selectorTipo === "Barberos" ? <Scissors className="w-4 h-4" /> : <User className="w-4 h-4" />}
+              >
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <SearchField
-                      placeholder="Escribe el nombre del cliente o búscalo..."
-                      value={clientSearchTerm}
-                      onChange={(val) => {
-                        setClientSearchTerm(val);
-                        setNuevaVenta((prev) => ({
-                          ...prev,
-                          clienteId: null,
-                          clienteDocumento: "",
-                          clienteNombreInvitado: val,
-                          tipoVenta: "Venta Invitado",
-                        }));
-                      }}
-                      onClear={() => {
-                        setClientSearchTerm("");
-                        setNuevaVenta((prev) => ({
-                          ...prev,
-                          clienteId: null,
-                          clienteDocumento: "",
-                          clienteNombreInvitado: "",
-                          tipoVenta: "Venta Invitado",
-                        }));
-                      }}
-                      items={clientesDisponibles}
-                      filterFn={(c, query) => {
-                        const q = normalizeSearchText(query);
-                        const searchable = normalizeSearchText(
-                          [c.id, c.nombre, c.documento].join(" ")
-                        );
-                        return searchable.includes(q);
-                      }}
-                      renderItem={(cliente) => (
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
-                              {cliente.nombre}
-                            </p>
-                            <p className="text-[10px] text-gray-lightest">
-                              {cliente.documento || "Sin documento"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
-                              Saldo Disponible
-                            </p>
-                            <p
-                              className={`text-xs ${cliente.saldoAFavor > 0
-                                ? "text-green-400"
-                                : "text-gray-lightest"
-                                }`}
-                            >
-                              ${formatCurrency(cliente.saldoAFavor)}
-                            </p>
-                          </div>
+                  {/* Selector Clientes / Barberos */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-lightest text-sm">Seleccionar:</span>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setSelectorOpen((prev) => !prev)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-medium bg-gray-darker text-sm text-gray-lightest hover:border-orange-primary/50 transition-colors min-w-[130px]"
+                      >
+                        {selectorTipo === "Clientes" ? (
+                          <Users className="w-4 h-4 text-orange-primary" />
+                        ) : (
+                          <Scissors className="w-4 h-4 text-orange-primary" />
+                        )}
+                        <span className="flex-1 text-left">{selectorTipo}</span>
+                        <ChevronDown className="w-3.5 h-3.5 text-gray-lightest" />
+                      </button>
+                      {selectorOpen && (
+                        <div className="absolute top-full left-0 mt-1 z-50 w-full rounded-md border border-gray-medium bg-gray-darker shadow-lg overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectorTipo("Clientes");
+                              setSelectorOpen(false);
+                              setClientSearchTerm("");
+                              setNuevaVenta((prev) => ({
+                                ...prev,
+                                clienteId: null,
+                                clienteDocumento: "",
+                                clienteNombreInvitado: "",
+                                tipoVenta: "Venta Invitado",
+                              }));
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-lightest hover:bg-gray-medium transition-colors"
+                          >
+                            <Users className="w-4 h-4 text-orange-primary" />
+                            Clientes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectorTipo("Barberos");
+                              setSelectorOpen(false);
+                              setClientSearchTerm("");
+                              setNuevaVenta((prev) => ({
+                                ...prev,
+                                clienteId: null,
+                                clienteDocumento: "",
+                                clienteNombreInvitado: "",
+                                tipoVenta: "Venta Invitado",
+                              }));
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-lightest hover:bg-gray-medium transition-colors"
+                          >
+                            <Scissors className="w-4 h-4 text-orange-primary" />
+                            Barberos
+                          </button>
                         </div>
                       )}
-                      onSelect={(cliente) => {
-                        const esInvitado = cliente.documento?.startsWith("PASO-");
-                        setNuevaVenta({
-                          ...nuevaVenta,
-                          clienteId: cliente.id,
-                          clienteDocumento: cliente.documento,
-                          clienteNombreInvitado: "",
-                          tipoVenta: esInvitado ? "Venta Invitado" : "Venta Cliente",
-                        });
-                        setClientSearchTerm(
-                          `${cliente.nombre}${cliente.documento
-                            ? ` — ${cliente.documento}`
-                            : ""
-                          }`
-                        );
-                      }}
-                      error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()
-                        ? "Selecciona un cliente o entra un nombre para el invitado."
-                        : undefined}
-                      shakeClass={shakeClass}
-                      onFocus={clearValidationErrors}
-                    />
-                    {!nuevaVenta.clienteId && clientSearchTerm.trim() && (
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    {selectorTipo === "Clientes" ? (
+                      <SearchField
+                        placeholder="Escribe el nombre del cliente o búscalo..."
+                        value={clientSearchTerm}
+                        onChange={(val) => {
+                          setClientSearchTerm(val);
+                          setNuevaVenta((prev) => ({
+                            ...prev,
+                            clienteId: null,
+                            clienteDocumento: "",
+                            clienteNombreInvitado: val,
+                            tipoVenta: "Venta Invitado",
+                          }));
+                        }}
+                        onClear={() => {
+                          setClientSearchTerm("");
+                          setNuevaVenta((prev) => ({
+                            ...prev,
+                            clienteId: null,
+                            clienteDocumento: "",
+                            clienteNombreInvitado: "",
+                            tipoVenta: "Venta Invitado",
+                          }));
+                        }}
+                        items={clientesDisponibles}
+                        filterFn={(c, query) => {
+                          const q = normalizeSearchText(query);
+                          const searchable = normalizeSearchText(
+                            [c.id, c.nombre, c.documento].join(" ")
+                          );
+                          return searchable.includes(q);
+                        }}
+                        renderItem={(cliente) => (
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
+                                {cliente.nombre}
+                              </p>
+                              <p className="text-[10px] text-gray-lightest">
+                                {cliente.documento || "Sin documento"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
+                                Saldo Disponible
+                              </p>
+                              <p
+                                className={`text-xs ${cliente.saldoAFavor > 0
+                                  ? "text-green-400"
+                                  : "text-gray-lightest"
+                                  }`}
+                              >
+                                ${formatCurrency(cliente.saldoAFavor)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        onSelect={(cliente) => {
+                          const esInvitado = cliente.documento?.startsWith("PASO-");
+                          setNuevaVenta({
+                            ...nuevaVenta,
+                            clienteId: cliente.id,
+                            clienteDocumento: cliente.documento,
+                            clienteNombreInvitado: "",
+                            tipoVenta: esInvitado ? "Venta Invitado" : "Venta Cliente",
+                          });
+                          setClientSearchTerm(
+                            `${cliente.nombre}${cliente.documento
+                              ? ` — ${cliente.documento}`
+                              : ""
+                            }`
+                          );
+                        }}
+                        error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()
+                          ? "Selecciona un cliente o entra un nombre para el invitado."
+                          : undefined}
+                        shakeClass={shakeClass}
+                        onFocus={clearValidationErrors}
+                      />
+                    ) : (
+                      <SearchField
+                        placeholder="Escribe el nombre del barbero o búscalo..."
+                        value={clientSearchTerm}
+                        onChange={(val) => {
+                          setClientSearchTerm(val);
+                          setNuevaVenta((prev) => ({
+                            ...prev,
+                            clienteId: null,
+                            clienteDocumento: "",
+                            clienteNombreInvitado: "",
+                            tipoVenta: "Venta Invitado",
+                          }));
+                        }}
+                        onClear={() => {
+                          setClientSearchTerm("");
+                          setNuevaVenta((prev) => ({
+                            ...prev,
+                            clienteId: null,
+                            clienteDocumento: "",
+                            clienteNombreInvitado: "",
+                            tipoVenta: "Venta Invitado",
+                          }));
+                        }}
+                        items={barberosAPI}
+                        filterFn={(b: any, query) => {
+                          const q = normalizeSearchText(query);
+                          const searchable = normalizeSearchText(
+                            [b.id, b.nombre, b.apellido, b.documento].join(" ")
+                          );
+                          return searchable.includes(q);
+                        }}
+                        renderItem={(barbero: any) => {
+                          const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""}`.trim();
+                          return (
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
+                                  {nombreCompleto}
+                                </p>
+                                <p className="text-[10px] text-gray-lightest">
+                                  {barbero.documento || "Sin documento"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
+                                  Rol
+                                </p>
+                                <p className="text-xs text-orange-primary">
+                                  {barbero.rol || "Barbero"}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        }}
+                        onSelect={(barbero: any) => {
+                          const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""}`.trim();
+                          setNuevaVenta({
+                            ...nuevaVenta,
+                            clienteId: Number(barbero.id),
+                            clienteDocumento: barbero.documento || "",
+                            clienteNombreInvitado: "",
+                            tipoVenta: "Venta Cliente",
+                          });
+                          setClientSearchTerm(
+                            `${nombreCompleto}${barbero.documento ? ` — CC ${barbero.documento}` : ""}`
+                          );
+                        }}
+                        error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()
+                          ? "Selecciona un barbero."
+                          : undefined}
+                        shakeClass={shakeClass}
+                        onFocus={clearValidationErrors}
+                      />
+                    )}
+                    {selectorTipo === "Clientes" && !nuevaVenta.clienteId && clientSearchTerm.trim() && (
                       <div className="mt-2">
                         <p className="text-[10px] text-orange-primary flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-primary" />
@@ -1141,7 +1292,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                   </div>
 
                   {/* Saldo a Favor */}
-                  {nuevaVenta.clienteId && (
+                  {nuevaVenta.clienteId && selectorTipo === "Clientes" && (
                     <div className="bg-gray-darker p-3 rounded-lg border border-gray-dark flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
@@ -1229,6 +1380,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               {/* Section 3: Sale Config */}
               <section>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {selectorTipo !== "Barberos" && (
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Tipo de Venta</Label>
                     <div className={`elegante-input bg-gray-medium flex items-center gap-2 px-3 rounded-md text-sm ${nuevaVenta.tipoVenta === "Venta Cliente" ? "text-green-400" : "text-orange-primary"
@@ -1238,6 +1390,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       {nuevaVenta.tipoVenta}
                     </div>
                   </div>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Método de Pago *</Label>
                     <Select
@@ -1316,9 +1469,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         const stock = Number(
                           (p as any).stockVentas ?? (p as any).stock ?? 0
                         );
-                        const precioNum = Number(
-                          (p as any).precio ?? (p as any).precioBase ?? 0
-                        );
+                        const precioNum = selectorTipo === "Barberos"
+                          ? Number((p as any).precioCompra ?? (p as any).precioBase ?? 0)
+                          : Number((p as any).precio ?? (p as any).precioBase ?? 0);
                         return stock > 0 && precioNum > 0;
                       })}
                       filterFn={(p, query) =>
@@ -1335,7 +1488,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                             <p className="text-[10px] text-gray-lightest">
                               $
                               {formatCurrency(
-                                producto.precio || producto.precioBase
+                                selectorTipo === "Barberos"
+                                  ? (producto.precioCompra || producto.precioBase)
+                                  : (producto.precio || producto.precioBase)
                               )}
                             </p>
                           </div>
@@ -1394,7 +1549,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 )}
               </div>
 
-              {/* Section 5: Services */}
+              {/* Section 5: Services — oculto en modo Barberos */}
+              {selectorTipo !== "Barberos" && (
               <div className="space-y-3 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
@@ -1537,6 +1693,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
           </div>
 
         </div>
+              )}
       </div>
       {/* Action Buttons */}
       <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">
