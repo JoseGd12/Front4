@@ -14,6 +14,8 @@ import {
   Receipt,
   FileText,
   RefreshCw,
+  CalendarClock,
+  PlusCircle,
 } from "lucide-react";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -77,6 +79,17 @@ const css = `
     transition:background .15s, border-color .15s;
   }
   .cred-action-btn:hover { background:rgba(216,176,129,0.15); border-color:var(--orange-primary); }
+  .cred-action-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  /* Blue-tinted action (extender plazo) */
+  .cred-action-btn-ext {
+    background:rgba(122,171,138,0.08); border:1px solid rgba(122,171,138,0.25); border-radius:8px;
+    padding:7px 14px; color:var(--status-green); cursor:pointer; font-size:12px; font-weight:600;
+    display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:inherit;
+    transition:background .15s, border-color .15s;
+  }
+  .cred-action-btn-ext:hover { background:rgba(122,171,138,0.15); border-color:var(--status-green); }
+  .cred-action-btn-ext:disabled { opacity:.4; cursor:not-allowed; }
 
   /* General td */
   .cred-td { padding:12px 16px; font-size:13px; color:var(--gray-lightest); text-align:center; vertical-align:middle; }
@@ -84,10 +97,11 @@ const css = `
 
   /* Badges */
   .badge { display:inline-block; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; }
-  .badge-activo     { background:#f0d9b5; color:#7a4f1e; border:1px solid #d4b483; }
-  .badge-bloqueado  { background:#7a5230; color:#f0d9b5; border:1px solid #5c3a1e; }
-  .badge-completada { background:#f0d9b5; color:#7a4f1e; border:1px solid #d4b483; }
-  .badge-anulada    { background:#7a5230; color:#f0d9b5; border:1px solid #5c3a1e; }
+  .badge-activo          { background:#f0d9b5; color:#7a4f1e; border:1px solid #d4b483; }
+  .badge-pagado          { background:#c8e6c9; color:#2e7d32; border:1px solid #a5d6a7; }
+  .badge-bloqueado       { background:#7a5230; color:#f0d9b5; border:1px solid #5c3a1e; }
+  .badge-bloqueado-rojo  { background:#5c2020; color:#f5c6c6; border:1px solid #8b2020; }
+  .badge-anulada         { background:#7a5230; color:#f0d9b5; border:1px solid #5c3a1e; }
 
   /* Icon buttons */
   .cred-icon-btn {
@@ -118,7 +132,7 @@ const css = `
   .cred-stat-label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--gray-dark); }
   .cred-stat-val   { font-size:13px; font-weight:600; color:var(--white-primary); }
 
-  /* Tab pills — "villeterita" */
+  /* Tab pills */
   .cred-tabs {
     display:flex; gap:6px; padding:10px 20px; align-items:center;
     border-bottom:1px solid var(--gray-darker); background:rgba(17,17,17,0.4);
@@ -156,7 +170,7 @@ const css = `
   /* Actions bar */
   .cred-actions-bar {
     display:flex; justify-content:flex-end; gap:10px; padding:12px 20px;
-    border-top:1px solid var(--gray-darker); background:rgba(26,25,25,0.4);
+    border-top:1px solid var(--gray-darker); background:rgba(26,25,25,0.4); flex-wrap:wrap;
   }
 
   /* Progress bar */
@@ -172,6 +186,15 @@ const css = `
   }
   .cred-selector-item:hover   { background:rgba(216,176,129,0.06); border-color:var(--gray-darker); }
   .cred-selector-item.selected { background:rgba(216,176,129,0.1); border-color:var(--orange-primary); }
+
+  /* Vencimiento warning chip */
+  .cred-venc-chip {
+    display:inline-flex; align-items:center; gap:5px; font-size:11px;
+    padding:2px 8px; border-radius:999px; font-weight:600;
+  }
+  .cred-venc-chip.ok      { background:rgba(122,171,138,0.12); color:var(--status-green); border:1px solid rgba(122,171,138,0.3); }
+  .cred-venc-chip.warn    { background:rgba(216,176,129,0.12); color:var(--orange-primary); border:1px solid rgba(216,176,129,0.3); }
+  .cred-venc-chip.expired { background:rgba(176,112,112,0.12); color:var(--status-red); border:1px solid rgba(176,112,112,0.3); }
 `;
 
 import {
@@ -197,26 +220,69 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatCurrency = (v: number) => `$${(v ?? 0).toLocaleString("es-CO")}`;
 
-const formatDate = (s: string | null) => {
+const formatDate = (s: string | null | undefined) => {
   if (!s) return "—";
   const d = new Date(s);
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
-const formatDateTime = (s: string | null) => {
+const formatDateTime = (s: string | null | undefined) => {
   if (!s) return "—";
   const d = new Date(s);
   return isNaN(d.getTime()) ? "—" : d.toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
+/** Dias restantes hasta vencimiento (puede ser negativo si ya venció) */
+const diasHastaVencimiento = (fechaVenc: string): number => {
+  if (!fechaVenc) return 0;
+  const ahora = Date.now();
+  const venc  = new Date(fechaVenc).getTime();
+  return Math.ceil((venc - ahora) / (1000 * 60 * 60 * 24));
+};
+
+/** Prioridad de orden: bloqueados primero, luego activo, luego pagado */
+const estadoPrioridad = (e: string): number => {
+  const l = e.toLowerCase();
+  if (l.startsWith("bloqueado")) return 0;
+  if (l === "activo")            return 1;
+  if (l === "pagado")            return 2;
+  return 3;
+};
+
+const esBloqueado = (e: string) => e.toLowerCase().startsWith("bloqueado");
+const esPagado    = (e: string) => e.toLowerCase() === "pagado";
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function EstadoBadge({ estado }: { estado: string }) {
   const l = (estado || "").toLowerCase();
-  if (l === "activo" || l === "completada" || l === "completado")
+
+  if (l === "activo" || l === "completado" || l === "completada")
     return <span className="badge badge-activo">{estado}</span>;
+
+  if (l === "pagado")
+    return <span className="badge badge-pagado">Pagado</span>;
+
+  if (l === "bloqueadolimiteyVencimiento" || l === "bloqueadolimitoyvencimiento")
+    return <span className="badge badge-bloqueado-rojo">Bloqueado (limite + vencido)</span>;
+
+  if (l === "bloqueadovencimiento")
+    return <span className="badge badge-bloqueado-rojo">Bloqueado (vencido)</span>;
+
+  if (l === "bloqueadolimite")
+    return <span className="badge badge-bloqueado">Bloqueado (limite)</span>;
+
   if (l === "bloqueado" || l === "anulada" || l === "anulado")
     return <span className="badge badge-bloqueado">{estado}</span>;
+
   return <span className="badge" style={{ background: "var(--gray-medium)", color: "var(--gray-lightest)" }}>{estado}</span>;
+}
+
+function VencimientoChip({ fechaVenc, estado }: { fechaVenc: string; estado: string }) {
+  if (esPagado(estado)) return null;
+  const dias = diasHastaVencimiento(fechaVenc);
+  if (dias > 3)  return <span className="cred-venc-chip ok">{dias}d restantes</span>;
+  if (dias >= 0) return <span className="cred-venc-chip warn">{dias === 0 ? "Vence hoy" : `${dias}d restantes`}</span>;
+  return <span className="cred-venc-chip expired">Vencido hace {Math.abs(dias)}d</span>;
 }
 
 function BarraProgreso({ saldo, cupo }: { saldo: number; cupo: number }) {
@@ -289,6 +355,18 @@ export function CreditoBarberosPage() {
   const [abonoAnularBarbId,  setAbonoAnularBarbId]  = useState<number | null>(null);
   const [anulando,           setAnulando]           = useState(false);
 
+  // ── Modal: extender plazo ────────────────────────────────────────────────────
+  const [extenderOpen,    setExtenderOpen]    = useState(false);
+  const [extenderCredito, setExtenderCredito] = useState<CreditoBarberoDto | null>(null);
+  const [extendiendo,     setExtendiendo]     = useState(false);
+
+  // ── Modal: nuevo ciclo ───────────────────────────────────────────────────────
+  const [nuevoCicloOpen,    setNuevoCicloOpen]    = useState(false);
+  const [nuevoCicloCredito, setNuevoCicloCredito] = useState<CreditoBarberoDto | null>(null);
+  const [nuevoCicloCupo,    setNuevoCicloCupo]    = useState("");
+  const [nuevoCicloPlazos,  setNuevoCicloPlazos]  = useState("7");
+  const [creandoCiclo,      setCreandoCiclo]      = useState(false);
+
   // ── Carga principal ──────────────────────────────────────────────────────────
   const fetchCreditos = useCallback(async (page: number, q: string) => {
     try {
@@ -337,7 +415,7 @@ export function CreditoBarberosPage() {
 
   useEffect(() => { fetchCreditos(currentPage, searchTerm); }, [currentPage, searchTerm]);
 
-  // Cargar abonos al expandir una fila para poder saber qué ventas ya tienen abono
+  // Cargar abonos al expandir una fila
   useEffect(() => {
     if (expandedId !== null && inlineAbonos[expandedId] === undefined && !loadingInlineAbonos[expandedId]) {
       loadInlineAbonos(expandedId);
@@ -351,11 +429,7 @@ export function CreditoBarberosPage() {
   };
 
   const ordenados = useMemo(() => {
-    const prio = (e: string) => {
-      const l = e.toLowerCase();
-      return l === "bloqueado" ? 0 : l === "activo" ? 1 : 2;
-    };
-    return [...creditos].sort((a, b) => prio(a.estado) - prio(b.estado));
+    return [...creditos].sort((a, b) => estadoPrioridad(a.estado) - estadoPrioridad(b.estado));
   }, [creditos]);
 
   // ── Abonos inline ────────────────────────────────────────────────────────────
@@ -374,7 +448,6 @@ export function CreditoBarberosPage() {
   const handleSwitchTab = useCallback((barberoId: number, tab: "ventas" | "abonos") => {
     setActiveTab(prev => ({ ...prev, [barberoId]: tab }));
     if (tab === "abonos") {
-      // Cargar si no están cargados o forzar recarga
       loadInlineAbonos(barberoId);
     }
   }, [loadInlineAbonos]);
@@ -391,7 +464,6 @@ export function CreditoBarberosPage() {
       setRegistrarCredito(credito);
       setRegistrarStep("form");
     } else {
-      // Desde toolbar: mostrar selector primero
       setRegistrarCredito(null);
       setRegistrarStep("select");
       setBarberoSearch("");
@@ -411,21 +483,17 @@ export function CreditoBarberosPage() {
     if (!monto || monto <= 0) return;
     if (registrarCredito && monto > registrarCredito.saldoDeuda) return;
 
-    const notasFinales = selectedVentaAbono
-      ? `[ventaId:${selectedVentaAbono.id}]${notasInput.trim() ? ` ${notasInput.trim()}` : ""}`
-      : (notasInput.trim() || undefined);
-
     try {
       setSubmitting(true);
       await creditoBarberoService.registrarAbono(registrarCredito!.barberoId, {
         usuarioId: Number(user?.id ?? 0),
         monto,
         metodoPago,
-        notas: notasFinales,
+        notas: notasInput.trim() || undefined,
+        ventaId: selectedVentaAbono?.id ?? null,
       });
       created("Abono registrado", `Abono de ${formatCurrency(monto)} registrado exitosamente.`);
       setRegistrarOpen(false);
-      // Refrescar abonos inline si la tab de abonos está visible
       if (inlineAbonos[registrarCredito!.barberoId] !== undefined) {
         loadInlineAbonos(registrarCredito!.barberoId);
       }
@@ -451,6 +519,45 @@ export function CreditoBarberosPage() {
       showErrorAlert("Error", err?.message || "No se pudo anular el abono");
     } finally {
       setAnulando(false);
+    }
+  };
+
+  // ── Extender plazo ───────────────────────────────────────────────────────────
+  const handleExtenderPlazo = async () => {
+    if (!extenderCredito) return;
+    try {
+      setExtendiendo(true);
+      await creditoBarberoService.extenderPlazo(extenderCredito.barberoId, {
+        usuarioId: Number(user?.id ?? 0),
+      });
+      created("Plazo extendido", `El plazo del ciclo de ${extenderCredito.barberoNombre} se extendió a 14 dias.`);
+      setExtenderOpen(false);
+      fetchCreditos(currentPage, searchTerm);
+    } catch (err: any) {
+      showErrorAlert("Error", err?.message || "No se pudo extender el plazo");
+    } finally {
+      setExtendiendo(false);
+    }
+  };
+
+  // ── Nuevo ciclo ──────────────────────────────────────────────────────────────
+  const handleNuevoCiclo = async () => {
+    if (!nuevoCicloCredito) return;
+    const limiteNum = nuevoCicloCupo.trim() ? Number(nuevoCicloCupo.replace(/\D/g, "")) : null;
+    try {
+      setCreandoCiclo(true);
+      await creditoBarberoService.nuevoCiclo(nuevoCicloCredito.barberoId, {
+        usuarioId: Number(user?.id ?? 0),
+        limiteCredito: limiteNum,
+        plazoDias: Number(nuevoCicloPlazos),
+      });
+      created("Nuevo ciclo iniciado", `Se inició un nuevo ciclo de crédito para ${nuevoCicloCredito.barberoNombre}.`);
+      setNuevoCicloOpen(false);
+      fetchCreditos(currentPage, searchTerm);
+    } catch (err: any) {
+      showErrorAlert("Error", err?.message || "No se pudo crear el nuevo ciclo");
+    } finally {
+      setCreandoCiclo(false);
     }
   };
 
@@ -504,9 +611,9 @@ export function CreditoBarberosPage() {
                 <tr>
                   <th style={{ textAlign: "left", paddingLeft: 20 }}>Documento</th>
                   <th>Barbero</th>
-                  <th>Ventas a Crédito</th>
+                  <th>Ventas a Credito</th>
                   <th>Saldo Deuda</th>
-                  <th>Último Abono</th>
+                  <th>Ultimo Abono</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -514,13 +621,13 @@ export function CreditoBarberosPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={6} style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
-                      Cargando créditos...
+                      Cargando creditos...
                     </td>
                   </tr>
                 ) : ordenados.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
-                      No hay barberos con crédito registrado.
+                      No hay barberos con credito registrado.
                     </td>
                   </tr>
                 ) : ordenados.map(c => {
@@ -528,6 +635,10 @@ export function CreditoBarberosPage() {
                   const barbero    = barberosMap[c.barberoId];
                   const ventasCred = ventasCreditoPorBarbero[c.barberoId] || [];
                   const tab        = activeTab[c.barberoId] || "ventas";
+
+                  // Condiciones para botones especiales
+                  const puedeExtender = !c.extensionUsada && c.plazoDias === 7 && !esPagado(c.estado);
+                  const puedeNuevoCiclo = esPagado(c.estado);
 
                   return (
                     <React.Fragment key={c.id || c.barberoId}>
@@ -551,7 +662,7 @@ export function CreditoBarberosPage() {
                           </div>
                         </td>
 
-                        {/* Ventas a crédito */}
+                        {/* Ventas a credito */}
                         <td className="cred-td">
                           <span className="cred-num" style={{ color: "var(--white-primary)" }}>
                             {ventasCred.length}
@@ -561,14 +672,14 @@ export function CreditoBarberosPage() {
                         {/* Saldo deuda */}
                         <td className="cred-td">
                           <span className="cred-num" style={{
-                            color: c.saldoDeuda > 0 ? "#b07070" : "var(--status-green)",
+                            color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)",
                           }}>
                             <DollarSign className="w-3.5 h-3.5" />
                             {formatCurrency(c.saldoDeuda)}
                           </span>
                         </td>
 
-                        {/* Último abono */}
+                        {/* Ultimo abono */}
                         <td className="cred-td" style={{ fontSize: 12 }}>
                           {formatDate(abonosStats[c.barberoId] || null)}
                         </td>
@@ -579,7 +690,7 @@ export function CreditoBarberosPage() {
                             className="cred-expand-btn"
                             onClick={() => setExpandedId(isOpen ? null : c.barberoId)}
                           >
-                            Ver ventas
+                            Ver detalle
                             <span className={`chev-custom${isOpen ? " open" : ""}`}>
                               <ChevronDown className="w-4 h-4" />
                             </span>
@@ -587,7 +698,7 @@ export function CreditoBarberosPage() {
                         </td>
                       </tr>
 
-                      {/* Acordeón */}
+                      {/* Acordeon */}
                       <tr key={`exp-${c.barberoId}`}>
                         <td colSpan={6} className="cred-exp-cell">
                           <div className={`cred-accordion-wrap${isOpen ? " open" : ""}`}>
@@ -601,7 +712,7 @@ export function CreditoBarberosPage() {
                                 </div>
                                 <div className="cred-stat-item">
                                   <span className="cred-stat-label">Deuda Actual</span>
-                                  <span className="cred-stat-val" style={{ color: c.saldoDeuda > 0 ? "#b07070" : "var(--status-green)" }}>
+                                  <span className="cred-stat-val" style={{ color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)" }}>
                                     {formatCurrency(c.saldoDeuda)}
                                   </span>
                                 </div>
@@ -610,23 +721,49 @@ export function CreditoBarberosPage() {
                                   <span className="cred-stat-val">{formatCurrency(c.cupoDisponible)}</span>
                                 </div>
                                 <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Cupo Máximo</span>
+                                  <span className="cred-stat-label">Cupo Maximo</span>
                                   <span className="cred-stat-val">{formatCurrency(c.cupoMaximo)}</span>
                                 </div>
                                 <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Desde</span>
-                                  <span className="cred-stat-val">{formatDate(c.fechaCreacion)}</span>
+                                  <span className="cred-stat-label">Plazo</span>
+                                  <span className="cred-stat-val">
+                                    {c.plazoDias} dias
+                                    {c.extensionUsada && (
+                                      <span style={{ fontSize: 10, color: "var(--gray-dark)", marginLeft: 5, fontWeight: 400 }}>
+                                        (extendido)
+                                      </span>
+                                    )}
+                                  </span>
                                 </div>
+                                <div className="cred-stat-item">
+                                  <span className="cred-stat-label">Inicio ciclo</span>
+                                  <span className="cred-stat-val">{formatDate(c.fechaInicio)}</span>
+                                </div>
+                                <div className="cred-stat-item">
+                                  <span className="cred-stat-label">Vencimiento</span>
+                                  <span className="cred-stat-val" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    {formatDate(c.fechaVencimiento)}
+                                    <VencimientoChip fechaVenc={c.fechaVencimiento} estado={c.estado} />
+                                  </span>
+                                </div>
+                                {c.fechaCierre && (
+                                  <div className="cred-stat-item">
+                                    <span className="cred-stat-label">Cierre</span>
+                                    <span className="cred-stat-val" style={{ color: "var(--status-green)" }}>
+                                      {formatDate(c.fechaCierre)}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
 
-                              {/* Tab pills — "villeterita" */}
+                              {/* Tab pills */}
                               <div className="cred-tabs">
                                 <button
                                   className={`cred-tab${tab === "ventas" ? " active" : ""}`}
                                   onClick={() => handleSwitchTab(c.barberoId, "ventas")}
                                 >
                                   <Receipt className="w-3 h-3" />
-                                  Ventas a Crédito
+                                  Ventas a Credito
                                   <span style={{
                                     marginLeft: 2,
                                     fontSize: 10,
@@ -645,7 +782,7 @@ export function CreditoBarberosPage() {
                                 </button>
                               </div>
 
-                              {/* ── Vista: Ventas a Crédito ── */}
+                              {/* Vista: Ventas a Credito */}
                               {tab === "ventas" && (
                                 <>
                                   <table className="cred-table" style={{ borderTop: "none" }}>
@@ -659,19 +796,19 @@ export function CreditoBarberosPage() {
                                     </colgroup>
                                     <thead>
                                       <tr className="cred-sub-header">
-                                        <th>Número</th>
+                                        <th>Numero</th>
                                         <th>Fecha</th>
                                         <th style={{ textAlign: "left", paddingLeft: 36 }}>Productos / Servicios</th>
                                         <th>Monto</th>
                                         <th>Estado</th>
-                                        <th>Acción</th>
+                                        <th>Accion</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {ventasCred.length === 0 ? (
                                         <tr>
                                           <td colSpan={6} style={{ padding: 20, textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
-                                            Sin ventas a crédito registradas.
+                                            Sin ventas a credito registradas.
                                           </td>
                                         </tr>
                                       ) : ventasCred.map((v: any) => {
@@ -698,7 +835,7 @@ export function CreditoBarberosPage() {
                                               {itemsLabel || <span style={{ color: "var(--gray-dark)", fontStyle: "italic" }}>Sin detalle</span>}
                                             </td>
                                             <td className="cred-sub-td">
-                                              <span style={{ fontWeight: 600, color: "#b07070" }}>
+                                              <span style={{ fontWeight: 600, color: "var(--status-red)" }}>
                                                 {formatCurrency(Number(v.subtotal || v.total || 0))}
                                               </span>
                                             </td>
@@ -709,7 +846,7 @@ export function CreditoBarberosPage() {
                                               {(() => {
                                                 const anulada = String(v.estado || "").toLowerCase() === "anulada";
                                                 const tieneAbono = (inlineAbonos[c.barberoId] || []).some(
-                                                  a => a.estado !== "Anulado" && String(a.notas ?? "").includes(`[ventaId:${v.id}]`)
+                                                  a => a.estado !== "Anulado" && a.ventaId === v.id
                                                 );
                                                 if (anulada || tieneAbono) return null;
                                                 return (
@@ -732,9 +869,32 @@ export function CreditoBarberosPage() {
                                     </tbody>
                                   </table>
 
-                                  {/* Barra de acciones — solo en tab ventas */}
-                                  {c.saldoDeuda > 0 && (
-                                    <div className="cred-actions-bar">
+                                  {/* Barra de acciones — tab ventas */}
+                                  <div className="cred-actions-bar">
+                                    {puedeExtender && (
+                                      <button
+                                        className="cred-action-btn-ext"
+                                        onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}
+                                      >
+                                        <CalendarClock className="w-4 h-4" />
+                                        Extender Plazo
+                                      </button>
+                                    )}
+                                    {puedeNuevoCiclo && (
+                                      <button
+                                        className="cred-action-btn"
+                                        onClick={() => {
+                                          setNuevoCicloCredito(c);
+                                          setNuevoCicloCupo("");
+                                          setNuevoCicloPlazos("7");
+                                          setNuevoCicloOpen(true);
+                                        }}
+                                      >
+                                        <PlusCircle className="w-4 h-4" />
+                                        Nuevo Ciclo
+                                      </button>
+                                    )}
+                                    {c.saldoDeuda > 0 && (
                                       <button
                                         className="cred-action-btn"
                                         onClick={() => openRegistrar(c, null)}
@@ -742,12 +902,12 @@ export function CreditoBarberosPage() {
                                         <DollarSign className="w-4 h-4" />
                                         Registrar Pago General
                                       </button>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </>
                               )}
 
-                              {/* ── Vista: Ver Abonos ── */}
+                              {/* Vista: Ver Abonos */}
                               {tab === "abonos" && (
                                 <>
                                   {loadingInlineAbonos[c.barberoId] ? (
@@ -764,7 +924,7 @@ export function CreditoBarberosPage() {
                                       className="cred-abono-row"
                                       style={{ opacity: a.estado === "Anulado" ? 0.5 : 1 }}
                                     >
-                                      {/* Monto + estado */}
+                                      {/* Monto */}
                                       <div style={{ minWidth: 110 }}>
                                         <span style={{
                                           fontWeight: 700,
@@ -779,6 +939,11 @@ export function CreditoBarberosPage() {
                                       <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontSize: 12, color: "var(--gray-lighter)" }}>
                                           {formatDateTime(a.fecha)} · {a.metodoPago ?? "—"} · {a.usuarioNombre ?? "Sistema"}
+                                          {a.ventaId && (
+                                            <span style={{ marginLeft: 6, color: "var(--orange-primary)", fontWeight: 600 }}>
+                                              · Venta #{a.ventaId}
+                                            </span>
+                                          )}
                                         </div>
                                         {a.notas && (
                                           <div style={{ fontSize: 11, color: "var(--gray-dark)", fontStyle: "italic", marginTop: 2 }}>
@@ -797,7 +962,7 @@ export function CreditoBarberosPage() {
                                           style={{ color: "var(--gray-lightest)" }}
                                           title="Anular abono"
                                           onClick={() => { setAbonoAnular(a); setAbonoAnularBarbId(c.barberoId); setAnularOpen(true); }}
-                                          onMouseEnter={e => (e.currentTarget.style.color = "#b07070")}
+                                          onMouseEnter={e => (e.currentTarget.style.color = "var(--status-red)")}
                                           onMouseLeave={e => (e.currentTarget.style.color = "var(--gray-lightest)")}
                                         >
                                           <Ban className="w-3.5 h-3.5" />
@@ -816,6 +981,29 @@ export function CreditoBarberosPage() {
                                       <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                                       <span style={{ fontSize: 12 }}>Actualizar</span>
                                     </button>
+                                    {puedeExtender && (
+                                      <button
+                                        className="cred-action-btn-ext"
+                                        onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}
+                                      >
+                                        <CalendarClock className="w-4 h-4" />
+                                        Extender Plazo
+                                      </button>
+                                    )}
+                                    {puedeNuevoCiclo && (
+                                      <button
+                                        className="cred-action-btn"
+                                        onClick={() => {
+                                          setNuevoCicloCredito(c);
+                                          setNuevoCicloCupo("");
+                                          setNuevoCicloPlazos("7");
+                                          setNuevoCicloOpen(true);
+                                        }}
+                                      >
+                                        <PlusCircle className="w-4 h-4" />
+                                        Nuevo Ciclo
+                                      </button>
+                                    )}
                                     {c.saldoDeuda > 0 && (
                                       <button
                                         className="cred-action-btn"
@@ -840,17 +1028,17 @@ export function CreditoBarberosPage() {
             </table>
           </div>
 
-          {/* Paginación */}
+          {/* Paginacion */}
           {totalPages > 1 && (
             <div className="std-pagination">
-              <span className="std-pag-info">Página {currentPage} de {totalPages}</span>
+              <span className="std-pag-info">Pagina {currentPage} de {totalPages}</span>
               <EllipsisPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </div>
           )}
         </div>
       </div>
 
-      {/* ═══ Modal: Registrar Abono ══════════════════════════════════════════════ */}
+      {/* Modal: Registrar Abono */}
       <Dialog open={registrarOpen} onOpenChange={open => { if (!submitting) setRegistrarOpen(open); }}>
         <DialogContent className="max-w-md bg-gray-darkest border-gray-dark">
           <DialogHeader>
@@ -873,10 +1061,9 @@ export function CreditoBarberosPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* ── Paso 1: Seleccionar barbero ── */}
+          {/* Paso 1: Seleccionar barbero */}
           {registrarStep === "select" && (
             <div className="space-y-3 pt-1">
-              {/* Buscador */}
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--gray-dark)", display: "flex", pointerEvents: "none" }}>
                   <Search className="w-4 h-4" />
@@ -891,7 +1078,6 @@ export function CreditoBarberosPage() {
                 />
               </div>
 
-              {/* Lista de barberos */}
               <div className="cred-selector-list">
                 {creditosFiltradosModal.length === 0 ? (
                   <div style={{ padding: "16px 0", textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
@@ -940,11 +1126,10 @@ export function CreditoBarberosPage() {
             </div>
           )}
 
-          {/* ── Paso 2: Formulario de abono ── */}
+          {/* Paso 2: Formulario de abono */}
           {registrarStep === "form" && (
             <div className="space-y-4 pt-2">
 
-              {/* Tarjeta info venta si viene de una específica */}
               {selectedVentaAbono && (
                 <div className="bg-gray-darker rounded-xl p-3 border border-gray-dark text-sm space-y-1.5">
                   <div className="flex justify-between">
@@ -966,7 +1151,6 @@ export function CreditoBarberosPage() {
                 </div>
               )}
 
-              {/* Monto */}
               <div className="space-y-1.5">
                 <Label className="text-white-primary text-sm">Monto del abono *</Label>
                 <Input
@@ -985,7 +1169,7 @@ export function CreditoBarberosPage() {
                 />
                 {showFormErrors && !montoValido && (
                   <p className="text-xs text-status-red">
-                    {montoNum <= 0 ? "El monto debe ser mayor a 0" : `Máximo: ${formatCurrency(registrarCredito?.saldoDeuda ?? 0)}`}
+                    {montoNum <= 0 ? "El monto debe ser mayor a 0" : `Maximo: ${formatCurrency(registrarCredito?.saldoDeuda ?? 0)}`}
                   </p>
                 )}
                 {montoNum > 0 && montoValido && (
@@ -998,9 +1182,8 @@ export function CreditoBarberosPage() {
                 )}
               </div>
 
-              {/* Método de pago */}
               <div className="space-y-1.5">
-                <Label className="text-white-primary text-sm">Método de pago</Label>
+                <Label className="text-white-primary text-sm">Metodo de pago</Label>
                 <Select value={metodoPago} onValueChange={setMetodoPago}>
                   <SelectTrigger className="elegante-input">
                     <SelectValue />
@@ -1013,7 +1196,6 @@ export function CreditoBarberosPage() {
                 </Select>
               </div>
 
-              {/* Notas */}
               <div className="space-y-1.5">
                 <Label className="text-white-primary text-sm">Notas (opcional)</Label>
                 <textarea
@@ -1025,7 +1207,6 @@ export function CreditoBarberosPage() {
                 />
               </div>
 
-              {/* Botones */}
               <div className="flex justify-between gap-3 pt-2 border-t border-gray-dark">
                 <button
                   onClick={() => { setRegistrarStep("select"); setBarberoSearch(""); }}
@@ -1056,7 +1237,7 @@ export function CreditoBarberosPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ═══ Modal: Confirmar Anulación de Abono ════════════════════════════════ */}
+      {/* Modal: Confirmar Anulacion de Abono */}
       <Dialog open={anularOpen} onOpenChange={setAnularOpen}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
           <DialogHeader>
@@ -1065,7 +1246,7 @@ export function CreditoBarberosPage() {
               Anular Abono
             </DialogTitle>
             <DialogDescription className="text-gray-lightest">
-              Esta acción revertirá el monto al saldo de deuda del barbero.
+              Esta accion revertira el monto al saldo de deuda del barbero.
             </DialogDescription>
           </DialogHeader>
 
@@ -1085,12 +1266,18 @@ export function CreditoBarberosPage() {
                   <span className="text-gray-lightest">{formatDateTime(abonoAnular.fecha)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-lighter">Método</span>
+                  <span className="text-gray-lighter">Metodo</span>
                   <span className="text-gray-lightest">{abonoAnular.metodoPago ?? "—"}</span>
                 </div>
+                {abonoAnular.ventaId && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-lighter">Venta asociada</span>
+                    <span className="text-orange-primary font-semibold">#{abonoAnular.ventaId}</span>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-gray-lighter px-1">
-                El saldo de deuda del barbero aumentará en {formatCurrency(abonoAnular.monto)}.
+                El saldo de deuda del barbero aumentara en {formatCurrency(abonoAnular.monto)}.
               </p>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setAnularOpen(false)} disabled={anulando} className="elegante-button-secondary">
@@ -1103,7 +1290,127 @@ export function CreditoBarberosPage() {
                   style={{ opacity: anulando ? 0.7 : 1 }}
                 >
                   {anulando ? <RefreshCw className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                  {anulando ? "Anulando..." : "Confirmar Anulación"}
+                  {anulando ? "Anulando..." : "Confirmar Anulacion"}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Extender Plazo */}
+      <Dialog open={extenderOpen} onOpenChange={open => { if (!extendiendo) setExtenderOpen(open); }}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <CalendarClock className="w-5 h-5" style={{ color: "var(--status-green)" }} />
+              Extender Plazo del Ciclo
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest">
+              Se extendera el plazo de 7 a 14 dias. Solo se puede usar una vez por ciclo.
+            </DialogDescription>
+          </DialogHeader>
+
+          {extenderCredito && (
+            <div className="space-y-3 pt-1">
+              <div className="bg-gray-darker p-3 rounded-lg space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Barbero</span>
+                  <span className="text-white-primary font-medium">{extenderCredito.barberoNombre}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Vencimiento actual</span>
+                  <span className="text-orange-primary">{formatDate(extenderCredito.fechaVencimiento)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Nuevo vencimiento</span>
+                  <span className="text-status-green font-semibold">
+                    {formatDate(new Date(new Date(extenderCredito.fechaInicio).getTime() + 14 * 86400000).toISOString())}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Deuda actual</span>
+                  <span style={{ color: "var(--status-red)", fontWeight: 600 }}>{formatCurrency(extenderCredito.saldoDeuda)}</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-lighter px-1">
+                Esta extension no se puede revertir y solo se permite una vez por ciclo.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setExtenderOpen(false)} disabled={extendiendo} className="elegante-button-secondary">
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleExtenderPlazo}
+                  disabled={extendiendo}
+                  className="elegante-button-primary flex items-center gap-2"
+                  style={{ padding: "0.45rem 1.2rem", fontSize: "13px" }}
+                >
+                  {extendiendo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
+                  {extendiendo ? "Extendiendo..." : "Confirmar Extension"}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Nuevo Ciclo */}
+      <Dialog open={nuevoCicloOpen} onOpenChange={open => { if (!creandoCiclo) setNuevoCicloOpen(open); }}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-orange-primary" />
+              Iniciar Nuevo Ciclo de Credito
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest">
+              El ciclo anterior esta pagado. Configura el nuevo ciclo para {nuevoCicloCredito?.barberoNombre}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {nuevoCicloCredito && (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label className="text-white-primary text-sm">Cupo maximo (dejar vacio para mantener ${formatCurrency(nuevoCicloCredito.cupoMaximo)})</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={nuevoCicloCupo ? Number(nuevoCicloCupo).toLocaleString("es-CO") : ""}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    setNuevoCicloCupo(digits);
+                  }}
+                  placeholder={`Actual: ${formatCurrency(nuevoCicloCredito.cupoMaximo)}`}
+                  className="elegante-input"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-white-primary text-sm">Plazo del ciclo</Label>
+                <Select value={nuevoCicloPlazos} onValueChange={setNuevoCicloPlazos}>
+                  <SelectTrigger className="elegante-input">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    <SelectItem value="7" className="text-white-primary">7 dias (1 semana)</SelectItem>
+                    <SelectItem value="14" className="text-white-primary">14 dias (2 semanas)</SelectItem>
+                    <SelectItem value="30" className="text-white-primary">30 dias (1 mes)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-gray-dark">
+                <button onClick={() => setNuevoCicloOpen(false)} disabled={creandoCiclo} className="elegante-button-secondary">
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleNuevoCiclo}
+                  disabled={creandoCiclo}
+                  className="elegante-button-primary flex items-center gap-2"
+                  style={{ padding: "0.45rem 1.2rem", fontSize: "13px" }}
+                >
+                  {creandoCiclo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                  {creandoCiclo ? "Creando..." : "Iniciar Ciclo"}
                 </button>
               </div>
             </div>

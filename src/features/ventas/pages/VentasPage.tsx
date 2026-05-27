@@ -46,6 +46,7 @@ import { AppRole } from "../../auth/services/authSyncService";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import manitoLogo from "../../../assets/Manito.jpeg";
+import { creditoBarberoService } from "../../credito-barberos/services/creditoBarberoService";
 
 // Función para formatear moneda colombiana con puntos para separar miles
 const formatCurrency = (amount: number): string => {
@@ -1490,7 +1491,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         try {
           const result = await creditoBarberoService.getAbonos(barberoId, 1, 100);
           const tieneAbono = result.items.some(
-            a => a.estado !== 'Anulado' && String(a.notas ?? '').includes(`[ventaId:${venta.id}]`)
+            a => a.estado !== 'Anulado' && (a.ventaId === venta.id || String(a.notas ?? '').includes(`[ventaId:${venta.id}]`))
           );
           if (tieneAbono) {
             showErrorAlert(
@@ -2063,6 +2064,10 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         <td className="py-4 px-4 text-center">
                           <span className="text-gray-lighter font-normal">
                             ${(() => {
+                              // Ventas a crédito barbero: el cobro es diferido, se muestra $0 en el listado
+                              if (String(venta.metodoPago || '').toLowerCase() === 'creditobarbero') {
+                                return formatCurrency(0);
+                              }
                               const sumDev = devoluciones
                                 .filter((d) => {
                                   const motivoDet = String((d as any).motivoDetalle || '').toLowerCase();
@@ -2073,8 +2078,6 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                                   return Number((d as any).ventaId) === Number(venta.id) && noAnulada && !esConsumoSaldo;
                                 })
                                 .reduce((acc, d) => acc + (Number((d as any).monto) || 0), 0);
-                              // Mostrar el mismo cálculo que "Subtotal Ajustado" del detalle:
-                              // Subtotal - SaldoUsado - Monto Devuelto
                               const expSaldo = Number((venta as any).SaldoAFavorUsado ?? (venta as any).saldoAFavorUsado ?? (venta as any).SaldoAFavor ?? (venta as any).saldoAfavor ?? 0);
                               const saldoUsado = expSaldo > 0
                                 ? expSaldo
@@ -2285,10 +2288,16 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     <div className="space-y-2">
                       <Label className="text-gray-lightest flex items-center gap-2">
                         <Scissors className="w-4 h-4 text-orange-primary" />
-                        Barbero {String(selectedVenta.tipoVenta || '').toLowerCase().includes('barbero') ? '(Servicio)' : '(Servicio)'}
+                        Barbero (Servicio)
                       </Label>
                       <Input
-                        value={String(selectedVenta.tipoVenta || '').toLowerCase().includes('barbero') ? 'N/A (Compra de insumos)' : normalizeBarbero(selectedVenta.barbero)}
+                        value={
+                          selectedVenta.barberoPrestadorNombreCompleto
+                            ? selectedVenta.barberoPrestadorNombreCompleto
+                            : String(selectedVenta.tipoVenta || '').toLowerCase().includes('barbero')
+                              ? 'N/A (Compra de insumos)'
+                              : normalizeBarbero(selectedVenta.barbero)
+                        }
                         disabled
                         className="elegante-input bg-gray-medium"
                       />
@@ -2489,9 +2498,10 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     <div className="flex justify-between text-gray-lightest font-normal">
                       <span>Subtotal Ajustado:</span>
                       <span>
-                        ${formatCurrency(
-                          Math.max(0, (selectedVenta.subtotal || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0))
-                        )}
+                        ${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
+                          ? formatCurrency(0)
+                          : formatCurrency(Math.max(0, (selectedVenta.subtotal || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0)))
+                        }
                       </span>
                     </div>
 
@@ -2501,16 +2511,20 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     <div className="flex justify-between items-end">
                       <span className="text-white-primary font-bold text-xl">Total Ajustado:</span>
                       <span className="text-orange-primary font-bold  text-xl">
-                        ${formatCurrency(
-                          Math.max(0, (selectedVenta.subtotal || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0))
-                        )}
+                        ${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
+                          ? formatCurrency(0)
+                          : formatCurrency(Math.max(0, (selectedVenta.subtotal || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0)))
+                        }
                       </span>
                     </div>
 
                     {/* Total Original - Pequeño y Gris como en la imagen */}
                     <div className="flex justify-between text-gray-500 text-[11px] mt-1">
                       <span>Total Original:</span>
-                      <span>${formatCurrency((selectedVenta.subtotal || 0) - (selectedVenta.descuento || 0))}</span>
+                      <span>${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
+                        ? formatCurrency(0)
+                        : formatCurrency((selectedVenta.subtotal || 0) - (selectedVenta.descuento || 0))
+                      }</span>
                     </div>
                   </div>
                 </div>

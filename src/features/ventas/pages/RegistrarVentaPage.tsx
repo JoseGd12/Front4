@@ -38,6 +38,7 @@ import { FormSection } from "../../../shared/components/ui/FormSection";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { DetailPanel } from "../components/DetailPanel";
 import { barberosService, Barbero as ApiBarbero } from "../../administracion/services/barberosService";
+import { creditoBarberoService } from "../../credito-barberos/services/creditoBarberoService";
 
 
 // Utilities
@@ -159,6 +160,11 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [barberoSearchTerm, setBarberoSearchTerm] = useState("");
   const [serviceSearchTerm, setServiceSearchTerm] = useState("");
 
+  // Plazo crédito barbero: solo aplica en la primera venta de un ciclo nuevo
+  const [plazoDias, setPlazoDias] = useState<7 | 14>(7);
+  const [tieneCicloActivo, setTieneCicloActivo] = useState(false);
+  const [checkingCiclo, setCheckingCiclo] = useState(false);
+
   // Validation
   const [showVentaFormErrors, setShowVentaFormErrors] = useState(false);
   const [showAddProductoErrors, setShowAddProductoErrors] = useState(false);
@@ -171,6 +177,30 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     if (showAddProductoErrors) setShowAddProductoErrors(false);
     if (showAddServicioErrors) setShowAddServicioErrors(false);
   };
+
+  // Verificar si el barbero ya tiene un ciclo activo/bloqueado para mostrar selector de plazo
+  useEffect(() => {
+    const barberoId = seleccionadoEsBarbero ? Number(nuevaVenta.clienteId) : null;
+    const esCredito = nuevaVenta.metodoPago === "Crédito";
+
+    if (!barberoId || !esCredito) {
+      setTieneCicloActivo(false);
+      return;
+    }
+
+    setCheckingCiclo(true);
+    creditoBarberoService.getByBarbero(barberoId)
+      .then(credito => {
+        const estado = (credito.estado || "").toLowerCase();
+        const activo = estado === "activo" || estado.startsWith("bloqueado");
+        setTieneCicloActivo(activo);
+      })
+      .catch(() => {
+        // 404 u otro error = no tiene ciclo activo
+        setTieneCicloActivo(false);
+      })
+      .finally(() => setCheckingCiclo(false));
+  }, [nuevaVenta.clienteId, nuevaVenta.metodoPago, seleccionadoEsBarbero]);
 
   const generateCurrentDate = () => {
     return new Date().toISOString().split("T")[0] || "";
@@ -423,11 +453,19 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       return;
     }
     if (value === "Crédito") {
-      const totalActual = calcularTotal();
-      if (totalActual > LIMITE_CREDITO) {
+      // Limpiar servicios agregados: crédito barbero es solo para productos/insumos
+      if (seleccionadoEsBarbero && serviciosAgregados.length > 0) {
+        setServiciosAgregados([]);
+        setServiceSearchTerm("");
+        setServicioSeleccionado("");
+      }
+      const totalSinServicios = (nuevaVenta.productos || []).reduce(
+        (sum, p) => sum + p.precio * p.cantidad, 0
+      );
+      if (totalSinServicios > LIMITE_CREDITO) {
         showErrorAlert(
           "Límite de crédito excedido",
-          `El total de la venta ($${formatCurrency(totalActual)}) supera el límite máximo de crédito de $${formatCurrency(LIMITE_CREDITO)}. Reduce el monto o elige otro método de pago.`
+          `El total de la venta ($${formatCurrency(totalSinServicios)}) supera el límite máximo de crédito de $${formatCurrency(LIMITE_CREDITO)}. Reduce el monto o elige otro método de pago.`
         );
         return;
       }
@@ -967,10 +1005,16 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       // Cuando el comprador es un barbero:
       //   - clienteId debe ser null (evita FK violation contra tabla Clientes)
       //   - barberoId recibe el BarberoId del comprador (para crédito y registro)
+      //   - barberoPrestadorId recibe el BarberoId del que realiza el servicio
       //   - MetodoPago "Crédito" → "CreditoBarbero" (nombre que espera el backend)
       const barberoIdFinal = seleccionadoEsBarbero
-        ? Number(nuevaVenta.clienteId)           // buyer barbero
-        : (nuevaVenta.barberoId ? Number(nuevaVenta.barberoId) : null); // performing barbero
+        ? Number(nuevaVenta.clienteId)           // barbero comprador
+        : (nuevaVenta.barberoId ? Number(nuevaVenta.barberoId) : null);
+
+      // Barbero que realiza el servicio (solo aplica cuando el comprador es barbero)
+      const barberoPrestadorIdFinal = seleccionadoEsBarbero && nuevaVenta.barberoId
+        ? Number(nuevaVenta.barberoId)
+        : null;
 
       const clienteIdFinal = seleccionadoEsBarbero
         ? null
@@ -1004,9 +1048,11 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         total,
         saldoAFavorUsado: montoSaldoUsado,
         barberoId: barberoIdFinal,
+        barberoPrestadorId: barberoPrestadorIdFinal,
         barberoNombre: nuevaVenta.barberoNombre || "Sin asignar",
         estado: "Completada",
         metodoPago: metodoPagoFinal,
+        plazoDias: (metodoPagoFinal === "CreditoBarbero" && !tieneCicloActivo) ? plazoDias : null,
         garantiaMeses: nuevaVenta.garantiaMeses,
         productosDetalle: productosActuales,
         serviciosDetalle: tieneServicios
@@ -1422,6 +1468,29 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       </p>
                     )}
                   </div>
+
+                  {/* Plazo del ciclo — solo si es crédito, verificación completa y no tiene ciclo activo */}
+                  {seleccionadoEsBarbero && nuevaVenta.metodoPago === "Crédito" && !checkingCiclo && !tieneCicloActivo && (
+                    <div className="space-y-1">
+                      <Label className="text-gray-lightest text-xs">Plazo del ciclo de crédito</Label>
+                      <Select
+                        value={String(plazoDias)}
+                        onValueChange={(val) => setPlazoDias(Number(val) as 7 | 14)}
+                      >
+                        <SelectTrigger className="elegante-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="elegante-card">
+                          <SelectItem value="7">1 semana (7 días)</SelectItem>
+                          <SelectItem value="14">2 semanas (14 días)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-dark mt-0.5">
+                        Solo aplica al primer crédito del ciclo. Una vez iniciado no se puede cambiar (salvo extensión manual).
+                      </p>
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Descuento (%)</Label>
                     <Input
@@ -1549,8 +1618,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 )}
               </div>
 
-              {/* Section 5: Barbero y Servicios */}
-              <div className="space-y-3 py-4">
+              {/* Section 5: Barbero y Servicios — oculto en venta barbero a crédito */}
+              {!(seleccionadoEsBarbero && nuevaVenta.metodoPago === "Crédito") && <div className="space-y-3 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">
@@ -1691,7 +1760,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
             </div>
           </div>
 
-        </div>
+        </div>}
       </div>
       {/* Action Buttons */}
       <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">

@@ -15,7 +15,12 @@ export interface CreditoBarberoDto {
   saldoDeuda: number;
   cupoDisponible: number;
   estado: string;
+  plazoDias: number;
   fechaCreacion: string;
+  fechaInicio: string;
+  fechaVencimiento: string;
+  fechaCierre: string | null;
+  extensionUsada: boolean;
   fechaActualizacion: string | null;
 }
 
@@ -24,6 +29,7 @@ export interface AbonoCreditoBarberoDto {
   creditoBarberoId: number;
   usuarioId: number;
   usuarioNombre: string | null;
+  ventaId: number | null;
   monto: number;
   metodoPago: string | null;
   fecha: string;
@@ -44,10 +50,21 @@ export interface AbonoInput {
   monto: number;
   metodoPago?: string;
   notas?: string;
+  ventaId?: number | null;
 }
 
 export interface AnularAbonoInput {
   usuarioId: number;
+}
+
+export interface ExtenderPlazoInput {
+  usuarioId: number;
+}
+
+export interface NuevoCicloInput {
+  usuarioId: number;
+  limiteCredito?: number | null;
+  plazoDias?: number;
 }
 
 class CreditoBarberoService {
@@ -73,8 +90,13 @@ class CreditoBarberoService {
       cupoMaximo: Number(raw.cupoMaximo ?? raw.CupoMaximo ?? 200000),
       saldoDeuda: Number(raw.saldoDeuda ?? raw.SaldoDeuda ?? 0),
       cupoDisponible: Number(raw.cupoDisponible ?? raw.CupoDisponible ?? 200000),
-      estado: String(raw.estado ?? raw.Estado ?? 'Sin crédito'),
+      estado: String(raw.estado ?? raw.Estado ?? 'Sin credito'),
+      plazoDias: Number(raw.plazoDias ?? raw.PlazoDias ?? 7),
       fechaCreacion: String(raw.fechaCreacion ?? raw.FechaCreacion ?? ''),
+      fechaInicio: String(raw.fechaInicio ?? raw.FechaInicio ?? ''),
+      fechaVencimiento: String(raw.fechaVencimiento ?? raw.FechaVencimiento ?? ''),
+      fechaCierre: raw.fechaCierre ?? raw.FechaCierre ?? null,
+      extensionUsada: Boolean(raw.extensionUsada ?? raw.ExtensionUsada ?? false),
       fechaActualizacion: raw.fechaActualizacion ?? raw.FechaActualizacion ?? null,
     };
   }
@@ -85,11 +107,12 @@ class CreditoBarberoService {
       creditoBarberoId: Number(raw.creditoBarberoId ?? raw.CreditoBarberoId ?? 0),
       usuarioId: Number(raw.usuarioId ?? raw.UsuarioId ?? 0),
       usuarioNombre: raw.usuarioNombre ?? raw.UsuarioNombre ?? null,
+      ventaId: raw.ventaId != null ? Number(raw.ventaId) : (raw.VentaId != null ? Number(raw.VentaId) : null),
       monto: Number(raw.monto ?? raw.Monto ?? 0),
       metodoPago: raw.metodoPago ?? raw.MetodoPago ?? null,
       fecha: String(raw.fecha ?? raw.Fecha ?? ''),
       notas: raw.notas ?? raw.Notas ?? null,
-      estado: String(raw.estado ?? raw.Estado ?? 'Activo'),
+      estado: String(raw.estado ?? raw.Estado ?? 'Completado'),
     };
   }
 
@@ -135,6 +158,7 @@ class CreditoBarberoService {
         Monto: input.monto,
         MetodoPago: input.metodoPago ?? 'Efectivo',
         Notas: input.notas ?? null,
+        VentaId: input.ventaId ?? null,
       }),
     });
     return res.json();
@@ -144,6 +168,26 @@ class CreditoBarberoService {
     const res = await this.request(`/credito-barbero/abono/${abonoId}/anular`, {
       method: 'POST',
       body: JSON.stringify({ UsuarioId: usuarioId }),
+    });
+    return res.json();
+  }
+
+  async extenderPlazo(barberoId: number, input: ExtenderPlazoInput): Promise<any> {
+    const res = await this.request(`/credito-barbero/barbero/${barberoId}/extender-plazo`, {
+      method: 'PUT',
+      body: JSON.stringify({ UsuarioId: input.usuarioId }),
+    });
+    return res.json();
+  }
+
+  async nuevoCiclo(barberoId: number, input: NuevoCicloInput): Promise<any> {
+    const res = await this.request(`/credito-barbero/barbero/${barberoId}/nuevo-ciclo`, {
+      method: 'POST',
+      body: JSON.stringify({
+        UsuarioId: input.usuarioId,
+        LimiteCredito: input.limiteCredito ?? null,
+        PlazoDias: input.plazoDias ?? 7,
+      }),
     });
     return res.json();
   }

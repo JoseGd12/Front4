@@ -26,6 +26,8 @@ export interface Venta {
   saldoAFavorUsado?: number;
   barbero: string;
   barberoId?: number | null;
+  barberoPrestadorId?: number | null;
+  barberoPrestadorNombreCompleto?: string | null;
   barberoDocumento?: string;
   responsable?: string;
   estado: string;
@@ -67,10 +69,12 @@ export interface CreateVentaRequest {
   total: number;
   saldoAFavorUsado?: number;
   barberoId?: number | null;
+  barberoPrestadorId?: number | null;
   barberoNombre?: string;
   estado: string;
   metodoPago: string;
   garantiaMeses: number;
+  plazoDias?: number | null;
   productosDetalle: ProductoDetalle[];
   serviciosDetalle: ServicioDetalle[];
 }
@@ -166,9 +170,13 @@ class VentaService {
     if (data.usuarioId !== undefined && data.usuarioId !== null) {
       mapped.UsuarioId = Number(data.usuarioId);
     }
-    // BarberoId = barbero seleccionado en la venta (opcional e independiente)
+    // BarberoId = barbero comprador (en ventas a barbero)
     if (data.barberoId !== undefined && data.barberoId !== null) {
       mapped.BarberoId = Number(data.barberoId);
+    }
+    // BarberoPrestadorId = barbero que realiza el servicio (distinto del comprador)
+    if (data.barberoPrestadorId !== undefined && data.barberoPrestadorId !== null && Number(data.barberoPrestadorId) > 0) {
+      mapped.BarberoPrestadorId = Number(data.barberoPrestadorId);
     }
 
     if (data.metodoPago !== undefined) mapped.MetodoPago = data.metodoPago;
@@ -184,6 +192,7 @@ class VentaService {
     if (data.total !== undefined) mapped.Total = Number(data.total);
     if (data.garantiaMeses !== undefined) mapped.GarantiaMeses = Number(data.garantiaMeses);
     if (data.saldoAFavorUsado !== undefined) mapped.SaldoAFavorUsado = Number(data.saldoAFavorUsado);
+    if (data.plazoDias != null) mapped.PlazoDias = Number(data.plazoDias);
 
     // Unificar detalles en la propiedad 'Detalles' (PascalCase)
     const detalles: any[] = [];
@@ -397,6 +406,10 @@ class VentaService {
 
     const finalClienteId = getNumericId(data.clienteId || data.ClienteId, cliente.id || cliente.Id);
     const finalBarberoId = getNumericId(data.barberoId || data.BarberoId, barberoObj.id || barberoObj.Id);
+    const finalBarberoPrestadorId = getNumericId(data.barberoPrestadorId || data.BarberoPrestadorId, null);
+
+    const barberoPrestadorNombreCompleto: string | null =
+      data.barberoPrestadorNombreCompleto || data.BarberoPrestadorNombreCompleto || null;
 
     // 5. Retorno del objeto normalizado
     return {
@@ -420,6 +433,8 @@ class VentaService {
       saldoAFavorUsado: Number(data.saldoAFavorUsado || data.SaldoAFavorUsado || 0),
       barbero: barberoNombre,
       barberoId: finalBarberoId,
+      barberoPrestadorId: finalBarberoPrestadorId,
+      barberoPrestadorNombreCompleto,
       barberoDocumento: String(barberoObj.documento || barberoObj.Documento || (barberoUsuario as any)?.documento || (barberoUsuario as any)?.Documento || data.barberoDocumento || data.BarberoDocumento || ''),
       responsable: responsableNombre,
       estado: String(data.estado || data.Estado || 'Completada'),
