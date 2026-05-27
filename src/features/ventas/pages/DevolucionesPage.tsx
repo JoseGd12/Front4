@@ -509,12 +509,14 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         }
       });
 
-      const barberosMapa = new Map<number, { nombreCompleto: string; imagen: string }>();
+      const barberosMapa = new Map<number, { nombreCompleto: string; imagen: string; documento: string; tipoDocumento: string }>();
       (barberos || []).forEach((barbero: any) => {
         if (barbero.id) {
           barberosMapa.set(Number(barbero.id), {
             nombreCompleto: `${barbero.nombre || ''} ${barbero.apellido || ''}`.trim(),
-            imagen: String(barbero.fotoPerfil || barbero.FotoPerfil || barbero.imagen || barbero.foto || '')
+            imagen: String(barbero.fotoPerfil || barbero.FotoPerfil || barbero.imagen || barbero.foto || ''),
+            documento: String(barbero.documento || barbero.Documento || ''),
+            tipoDocumento: String(barbero.tipoDocumento || barbero.TipoDocumento || 'CC'),
           });
         }
       });
@@ -567,6 +569,18 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           clienteDocumento = clienteInfo.documento || '';
           if (!clienteNombreCompleto || clienteNombreCompleto.toLowerCase() === 'cliente') {
             clienteNombreCompleto = clienteInfo.nombreCompleto || clienteNombreCompleto;
+          }
+        }
+
+        // Si aún no hay documento y hay barberoId, buscar en barberosMapa
+        if (!clienteDocumento) {
+          const barberoIdDev = Number((d as any).barberoId || 0);
+          if (barberoIdDev > 0 && barberosMapa.has(barberoIdDev)) {
+            const barbInfo = barberosMapa.get(barberoIdDev)!;
+            if (barbInfo.documento) {
+              tipoDocumento = barbInfo.tipoDocumento || 'CC';
+              clienteDocumento = barbInfo.documento;
+            }
           }
         }
 
