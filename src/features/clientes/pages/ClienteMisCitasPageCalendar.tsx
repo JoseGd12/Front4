@@ -255,7 +255,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
       setServiciosList((Array.isArray(serviciosData) ? serviciosData : []).filter(s => isRecordActive(s)));
       setPaquetesList((Array.isArray(paquetesData) ? paquetesData : []).filter(p => isRecordActive(p)));
-      setProductosList((Array.isArray(productosData) ? productosData : []).filter((p: any) => p.activo !== false && (p.stockVentas > 0 || p.stockTotal > 0)));
+      setProductosList((Array.isArray(productosData) ? productosData : []).filter((p: any) => p.activo !== false && (p.stock ?? p.cantidad ?? 0) > 0));
       setHorariosList(horariosData || []);
 
       // Si venimos con un item pre-seleccionado desde Servicios

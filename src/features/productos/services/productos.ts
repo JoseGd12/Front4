@@ -23,8 +23,7 @@ export interface ApiProducto {
   precioCompra?: number;
   iva: number;
   porcentajeIva: number;
-  stockVentas: number;
-  stockInsumos: number;
+  stock: number;
   cantidad: number;
   /** @deprecated StockMinimo ya no existe en la API. Mantenido solo para compat de UI. */
   minCantidad?: number;
@@ -206,9 +205,8 @@ class ProductoService {
       precioCompra: Number(data.PrecioCompra || data.precioCompra || data.Precio || data.precio || 0),
       iva: Number(data.Iva || data.iva || 0),
       porcentajeIva: Number(data.PorcentajeIva || data.porcentajeIva || 0),
-      stockVentas: Number(data.StockVentas ?? data.stockVentas ?? data.CantidadVentas ?? data.cantidadVentas ?? 0),
-      stockInsumos: Number(data.StockInsumos ?? data.stockInsumos ?? data.CantidadInsumos ?? data.cantidadInsumos ?? 0),
-      cantidad: Number(data.Cantidad ?? data.cantidad ?? data.StockTotal ?? data.stockTotal ?? 0),
+      stock: Number(data.Stock ?? data.stock ?? data.Cantidad ?? data.cantidad ?? data.StockTotal ?? data.stockTotal ?? 0),
+      cantidad: Number(data.Stock ?? data.stock ?? data.Cantidad ?? data.cantidad ?? data.StockTotal ?? data.stockTotal ?? 0),
       // StockMinimo ya no existe en API — siempre 0
       minCantidad: 0,
       marca: data.Marca || data.marca || '',
@@ -326,8 +324,7 @@ class ProductoService {
     const apiBody: any = {
       Nombre: productoData.nombre || '',
       Descripcion: productoData.descripcion || '',
-      StockVentas: Number(productoData.stockVentas) || 0,
-      StockInsumos: Number(productoData.stockInsumos) || 0,
+      Stock: Number(productoData.stock ?? productoData.cantidad) || 0,
       Marca: productoData.marca || '',
       CategoriaId: categoriaId,
       Tipo: productoData.tipo || '',
@@ -423,31 +420,7 @@ class ProductoService {
 
     console.log(`📦 Actualizando producto ${id} - CategoriaId final: ${categoriaId}`);
 
-    let stockVentasFinal = Number(productoData.stockVentas) || 0;
-    let stockInsumosFinal = Number(productoData.stockInsumos) || 0;
-    const usoProducto = (productoData as any).usoProducto;
-    const consolidarStockEnVentas = !!(productoData as any).consolidarStockEnVentas || usoProducto === 'solo_venta';
-
-    if (consolidarStockEnVentas) {
-      stockVentasFinal = stockVentasFinal + stockInsumosFinal;
-      stockInsumosFinal = 0;
-    }
-
-    if (consolidarStockEnVentas && stockInsumosFinal === 0 && id > 0) {
-      try {
-        const productoActual = await this.getProductoById(id);
-        if (productoActual) {
-          const stockVentasActual = Number(productoActual.stockVentas) || 0;
-          const stockInsumosActual = Number(productoActual.stockInsumos) || 0;
-          const totalActual = stockVentasActual + stockInsumosActual;
-          if (stockInsumosActual > 0 && stockVentasFinal <= stockVentasActual) {
-            stockVentasFinal = totalActual;
-          }
-        }
-      } catch {}
-    }
-
-    const totalStockFinal = stockVentasFinal + stockInsumosFinal;
+    const stockFinal = Number(productoData.stock ?? productoData.cantidad) || 0;
     const apiBody: any = {
       Id: id,
       Nombre: productoData.nombre,
@@ -458,18 +431,8 @@ class ProductoService {
       PrecioCompra: (productoData as any).precioCompra !== undefined
         ? Number((productoData as any).precioCompra)
         : Number(productoData.precioBase),
-      StockVentas: stockVentasFinal,
-      StockInsumos: stockInsumosFinal,
-      CantidadVentas: stockVentasFinal,
-      CantidadInsumos: stockInsumosFinal,
-      StockTotal: totalStockFinal,
-      Cantidad: totalStockFinal,
-      stockVentas: stockVentasFinal,
-      stockInsumos: stockInsumosFinal,
-      cantidadVentas: stockVentasFinal,
-      cantidadInsumos: stockInsumosFinal,
-      stockTotal: totalStockFinal,
-      cantidad: totalStockFinal,
+      Stock: stockFinal,
+      Cantidad: stockFinal,
       CategoriaId: categoriaId,
       Tipo: productoData.tipo || '',
       tipo: productoData.tipo || '',
@@ -479,51 +442,12 @@ class ProductoService {
       Activo: productoData.activo !== undefined ? !!productoData.activo : true
     };
 
-    const doUpdate = async (body: any) => {
-      const response = await this.request(`/Productos/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      });
-      const text = await response.text();
-      return text ? JSON.parse(text) : { ...body, id };
-    };
-
-    const result = await doUpdate(apiBody);
-    const persisted = await this.getProductoById(id);
-    const stockPersistidoCoincide = persisted
-      ? (
-        Number(persisted.stockVentas ?? 0) === Number(stockVentasFinal) &&
-        Number(persisted.stockInsumos ?? 0) === Number(stockInsumosFinal)
-      )
-      : false;
-    if (
-      persisted &&
-      (
-        Number(persisted.stockVentas ?? 0) !== Number(stockVentasFinal) ||
-        Number(persisted.stockInsumos ?? 0) !== Number(stockInsumosFinal)
-      )
-    ) {
-      await doUpdate({
-        ...apiBody,
-        StockVentas: stockVentasFinal,
-        StockInsumos: stockInsumosFinal,
-        StockTotal: totalStockFinal,
-        Cantidad: totalStockFinal
-      });
-      const persistedRetry = await this.getProductoById(id);
-      const stockPersistidoTrasRetry = persistedRetry
-        ? (
-          Number(persistedRetry.stockVentas ?? 0) === Number(stockVentasFinal) &&
-          Number(persistedRetry.stockInsumos ?? 0) === Number(stockInsumosFinal)
-        )
-        : false;
-      if (persistedRetry && stockPersistidoTrasRetry) return persistedRetry;
-      throw new Error('El servidor no persistió la transferencia de stock solicitada. El cambio no se guardó en base de datos.');
-    }
-    if (persisted && stockPersistidoCoincide) return persisted;
-    if (persisted && !stockPersistidoCoincide) {
-      throw new Error('El servidor respondió correctamente pero el stock persistido no coincide con el enviado.');
-    }
+    const response = await this.request(`/Productos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(apiBody),
+    });
+    const text = await response.text();
+    const result = text ? JSON.parse(text) : { ...apiBody, id };
     return this.mapFromApiFormat(result);
   }
 
@@ -554,57 +478,25 @@ class ProductoService {
     });
   }
 
-  async updateStock(id: number, stockVentas: number, stockInsumos: number): Promise<ApiProducto> {
+  async updateStock(id: number, stock: number): Promise<ApiProducto> {
     const producto = await this.getProductoById(id);
     if (!producto) throw new Error('Producto no encontrado');
-    return await this.updateProducto(id, {
-      ...producto,
-      stockVentas,
-      stockInsumos,
-      cantidad: stockVentas + stockInsumos
-    });
+    return await this.updateProducto(id, { ...producto, stock, cantidad: stock });
   }
 
-  async adjustStock(id: number, cantidad: number, type: 'increment' | 'decrement', destino: 'ventas' | 'insumos' = 'insumos'): Promise<ApiProducto> {
+  async adjustStock(id: number, cantidad: number, type: 'increment' | 'decrement', _destino?: 'ventas' | 'insumos'): Promise<ApiProducto> {
     const producto = await this.getProductoById(id);
     if (!producto) throw new Error('Producto no encontrado');
     const factor = type === 'increment' ? 1 : -1;
-    let nuevoStockVentas = producto.stockVentas || 0;
-    let nuevoStockInsumos = producto.stockInsumos || 0;
-    if (destino === 'ventas') nuevoStockVentas += (cantidad * factor);
-    else nuevoStockInsumos += (cantidad * factor);
-    return await this.updateStock(id, Math.max(0, nuevoStockVentas), Math.max(0, nuevoStockInsumos));
+    const nuevoStock = Math.max(0, (producto.stock || producto.cantidad || 0) + cantidad * factor);
+    return await this.updateStock(id, nuevoStock);
   }
 
-  async revertirStockProducto(id: number, cantidadVentas: number, cantidadInsumos: number): Promise<ApiProducto> {
+  async revertirStockProducto(id: number, cantidad: number): Promise<ApiProducto> {
     const producto = await this.getProductoById(id);
     if (!producto) throw new Error('Producto no encontrado');
-    const nuevoStockVentas = Math.max(0, (producto.stockVentas || 0) - (cantidadVentas || 0));
-    const nuevoStockInsumos = Math.max(0, (producto.stockInsumos || 0) - (cantidadInsumos || 0));
-    return await this.updateStock(id, nuevoStockVentas, nuevoStockInsumos);
-  }
-
-  async agregarStockInsumos(id: number, cantidad: number, motive?: string): Promise<ApiProducto> {
-    console.log(`📦 Stock Insumos: +${cantidad} (${motive || 'Sin motivo'})`);
-    return await this.adjustStock(id, cantidad, 'increment', 'insumos');
-  }
-
-  async transferirStock(id: number, cantidad: number, origen: 'ventas' | 'insumos', destino: 'ventas' | 'insumos'): Promise<ApiProducto> {
-    try {
-      const response = await this.request(`/Productos/${id}/transferir-stock`, {
-        method: 'POST',
-        body: JSON.stringify({ cantidad, origen, destino }),
-      });
-      const result = await response.json();
-      return this.mapFromApiFormat(result);
-    } catch {
-      const response = await this.request(`/Productos/${id}/transferir-stock`, {
-        method: 'POST',
-        body: JSON.stringify({ Cantidad: cantidad, Origen: origen, Destino: destino }),
-      });
-      const result = await response.json();
-      return this.mapFromApiFormat(result);
-    }
+    const nuevoStock = Math.max(0, (producto.stock || producto.cantidad || 0) - (cantidad || 0));
+    return await this.updateStock(id, nuevoStock);
   }
 
   async searchProductos(query: string): Promise<ApiProducto[]> {

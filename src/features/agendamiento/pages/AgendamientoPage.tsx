@@ -292,7 +292,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     if (serviciosData !== null) setServiciosList((serviciosData as any[]).filter((s: any) => s.estado === true));
     if (clientesData !== null)  setClientesList((clientesData as any[]).filter((c: any) => c.estado === true));
     if (paquetesData !== null)  setPaquetesList((paquetesData as any[]).filter((p: any) => p.activo === true));
-    setProductosList((productosData as any[]).filter((p: any) => p.activo !== false && (p.stockVentas > 0 || p.stockTotal > 0)));
+    setProductosList((productosData as any[]).filter((p: any) => p.activo !== false && (p.stock ?? p.cantidad ?? 0) > 0));
 
     if (horariosData !== null) {
       // Build the set from ALL horario records regardless of estado (Activo, Pendiente, Finalizado).

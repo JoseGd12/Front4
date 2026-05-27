@@ -54,7 +54,6 @@ export function ProductosPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState<any>(null);
-  const [editingStockTotal, setEditingStockTotal] = useState<number | null>(null);
   const [selectedProducto, setSelectedProducto] = useState<any>(null);
   const [productoToDelete, setProductoToDelete] = useState<any>(null);
   type PrecioCompraPromedioData = {
@@ -94,8 +93,7 @@ export function ProductosPage() {
     precioBase: 0,
     precioVenta: 0,
     precioCompra: 0,
-    stockVentas: 0,
-    stockInsumos: 0,
+    stock: 0,
     minCantidad: 0,
     marca: '',
     imagenProduc: '',
@@ -139,27 +137,14 @@ export function ProductosPage() {
     });
     return productosRaw.map((p: any) => {
       const usoProducto = getUsoProductoActual(p);
-      const stockVentas = Number(p.stockVentas ?? 0);
-      const stockInsumos = Number(p.stockInsumos ?? 0);
       const cat = p?.categoria;
       if (cat && !cat.nombre && cat.id) {
         const found = categoriaById.get(cat.id);
         if (found?.nombre) {
-          return {
-            ...p,
-            categoria: { id: cat.id, nombre: found.nombre },
-            usoProducto,
-            stockVentas,
-            stockInsumos
-          };
+          return { ...p, categoria: { id: cat.id, nombre: found.nombre }, usoProducto };
         }
       }
-      return {
-        ...p,
-        usoProducto,
-        stockVentas,
-        stockInsumos
-      };
+      return { ...p, usoProducto };
     });
   };
 
@@ -186,24 +171,6 @@ export function ProductosPage() {
   }, [nuevoProducto]);
   const usoProductoValue =
     (nuevoProducto as any).usoProducto ?? (esSoloVentaNuevoProducto ? 'solo_venta' : 'venta_e_insumo');
-
-  useEffect(() => {
-    if (esSoloVentaNuevoProducto) {
-      setNuevoProducto(prev => {
-        const stockTotalActual = Number(prev.stockVentas || 0) + Number(prev.stockInsumos || 0);
-        const stockVentasActual = Number(prev.stockVentas || 0);
-        const stockInsumosActual = Number(prev.stockInsumos || 0);
-        if (stockInsumosActual === 0 && stockVentasActual === stockTotalActual) {
-          return prev;
-        }
-        return {
-          ...prev,
-          stockVentas: stockTotalActual,
-          stockInsumos: 0
-        };
-      });
-    }
-  }, [esSoloVentaNuevoProducto, editingProducto, editingStockTotal]);
 
   // Cargar precio compra promedio (últimas 5 compras) cuando se abre el detalle
   useEffect(() => {
@@ -306,9 +273,7 @@ export function ProductosPage() {
           const categoriaNombre = typeof producto.categoria === 'string'
             ? producto.categoria
             : producto.categoria?.nombre ?? '';
-          const stockVentas = Number(producto.stockVentas ?? 0);
-          const stockInsumos = Number(producto.stockInsumos ?? 0);
-          const stockTotal = stockVentas + stockInsumos;
+          const stock = Number((producto as any).stock ?? producto.cantidad ?? 0);
           const precioVenta = Number((producto as any).precioVenta ?? producto.precioBase ?? 0);
           const precioCompra = Number((producto as any).precioCompra ?? 0);
           const usoLabel = esProductoSoloVenta(producto as any) ? 'solo venta' : 'venta e insumo';
@@ -317,9 +282,7 @@ export function ProductosPage() {
             String(producto.nombre ?? ''),
             String(precioVenta),
             String(precioCompra),
-            String(stockTotal),
-            String(stockInsumos),
-            String(stockVentas),
+            String(stock),
             usoLabel,
             estadoLabel,
             String(categoriaNombre)
@@ -363,7 +326,7 @@ export function ProductosPage() {
 
 
   const getStockTotal = (producto: any) =>
-    (producto.stockVentas ?? 0) + (producto.stockInsumos ?? 0);
+    Number(producto.stock ?? producto.cantidad ?? 0);
 
   /*
   const productosCantidadBaja = productos.filter(
@@ -375,13 +338,6 @@ export function ProductosPage() {
 
 
 
-  /*
-  // Total de ventas potenciales (solo stock destinado a ventas)
-  const totalVentasPotenciales = productos.reduce((acum, producto) => {
-    const stockVentas = producto.stockVentas ?? 0;
-    return acum + stockVentas * (producto.precioBase || 0);
-  }, 0);
-  */
 
   const handleCreateProducto = () => {
     if (!nuevoProducto.nombre || !nuevoProducto.categoria) {
@@ -403,8 +359,7 @@ export function ProductosPage() {
       ...nuevoProducto,
       precioBase: nuevoProducto.precioBase || 0,
       minCantidad: nuevoProducto.minCantidad || 0,
-      stockVentas: nuevoProducto.stockVentas || 0,
-      stockInsumos: nuevoProducto.stockInsumos || 0
+      stock: (nuevoProducto as any).stock || 0,
     };
     setNuevoProducto(productoConDefaults);
     setIsDialogOpen(true);
@@ -443,8 +398,7 @@ export function ProductosPage() {
       }
       const precioFinal = nuevoProducto.precioBase || 0;
 
-      const stockVentas = nuevoProducto.stockVentas || 0;
-      const stockInsumos = nuevoProducto.stockInsumos || 0;
+      const stock = Number((nuevoProducto as any).stock) || 0;
 
       const selectedCat = categorias.find(c => c.nombre === nuevoProducto.categoria);
 
@@ -454,8 +408,7 @@ export function ProductosPage() {
         categoria: nuevoProducto.categoria,
         categoriaId: selectedCat?.id,
         precioBase: precioFinal,
-        stockVentas,
-        stockInsumos,
+        stock,
         minCantidad: nuevoProducto.minCantidad || 0,
         marca: nuevoProducto.marca || '',
         tipo: (nuevoProducto as any).usoProducto === 'solo_venta' ? 'solo_venta' : 'venta_e_insumo',
@@ -502,8 +455,7 @@ export function ProductosPage() {
         precioBase: 0,
         precioVenta: 0,
         precioCompra: 0,
-        stockVentas: 0,
-        stockInsumos: 0,
+        stock: 0,
         minCantidad: 0,
         marca: '',
         imagenProduc: '',
@@ -524,10 +476,7 @@ export function ProductosPage() {
   const handleEditProducto = (producto: any) => {
     setEditingProducto(producto);
     const categoriaVal = typeof producto.categoria === 'string' ? producto.categoria : producto.categoria?.nombre ?? '';
-    const stockVentas = producto.stockVentas ?? producto.cantidad ?? 0;
-    const stockInsumos = producto.stockInsumos ?? 0;
-    const stockTotalBase = Number(stockVentas || 0) + Number(stockInsumos || 0);
-    setEditingStockTotal(stockTotalBase);
+    const stock = Number(producto.stock ?? producto.cantidad ?? 0);
     setNuevoProducto({
       nombre: producto.nombre,
       descripcion: producto.descripcion,
@@ -535,8 +484,7 @@ export function ProductosPage() {
       precioBase: producto.precioBase,
       precioVenta: (producto as any).precioVenta ?? producto.precioBase ?? producto.precio ?? 0,
       precioCompra: (producto as any).precioCompra ?? producto.precioBase ?? producto.precio ?? 0,
-      stockVentas,
-      stockInsumos,
+      stock,
       minCantidad: producto.minCantidad,
       marca: producto.marca,
       imagenProduc: producto.imagenProduc,
@@ -589,12 +537,7 @@ export function ProductosPage() {
       const precioCompraFinal = Number((nuevoProducto as any).precioCompra) || 0;
       const usoProductoFinal = (nuevoProducto as any).usoProducto === 'solo_venta' ? 'solo_venta' : 'venta_e_insumo';
       const productoId = Number(editingProducto.id);
-      const stockVentasBase = Number(nuevoProducto.stockVentas) || 0;
-      const stockInsumosBase = Number(nuevoProducto.stockInsumos) || 0;
-      const stockVentasFinal = usoProductoFinal === 'solo_venta'
-        ? (editingStockTotal !== null ? Number(editingStockTotal) : (stockVentasBase + stockInsumosBase))
-        : stockVentasBase;
-      const stockInsumosFinal = usoProductoFinal === 'solo_venta' ? 0 : stockInsumosBase;
+      const stockFinal = Number((nuevoProducto as any).stock) || 0;
 
       const selectedCat = categorias.find(c => c.nombre === nuevoProducto.categoria);
 
@@ -605,8 +548,7 @@ export function ProductosPage() {
         categoriaId: selectedCat?.id,
         precioVenta: precioVentaFinal,
         precioCompra: precioCompraFinal,
-        stockVentas: stockVentasFinal,
-        stockInsumos: stockInsumosFinal,
+        stock: stockFinal,
         minCantidad: nuevoProducto.minCantidad,
         marca: nuevoProducto.marca,
         tipo: usoProductoFinal,
@@ -628,7 +570,6 @@ export function ProductosPage() {
       setProductos(productosActualizados);
 
       setEditingProducto(null);
-      setEditingStockTotal(null);
       setNuevoProducto({
         nombre: '',
         descripcion: '',
@@ -636,8 +577,7 @@ export function ProductosPage() {
         precioBase: 0,
         precioVenta: 0,
         precioCompra: 0,
-        stockVentas: 0,
-        stockInsumos: 0,
+        stock: 0,
         minCantidad: 0,
         marca: '',
         imagenProduc: '',
@@ -903,8 +843,7 @@ export function ProductosPage() {
                           precioBase: 0,
                           precioVenta: 0,
                           precioCompra: 0,
-                          stockVentas: 0,
-                          stockInsumos: 0,
+                          stock: 0,
                           minCantidad: 0,
                           marca: '',
                           imagenProduc: '',
@@ -1159,110 +1098,24 @@ export function ProductosPage() {
                             Información de venta
                           </Label>
                           <div className="space-y-1.5">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5 opacity-70 font-medium">
-                              <Package className="w-3.5 h-3.5 text-orange-primary" />
-                              Stock Total
+                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                              <Boxes className="w-3.5 h-3.5 text-orange-primary" />
+                              Stock
                             </Label>
                             <Input
-                              value={editingStockTotal ?? 0}
-                              disabled
-                              readOnly
-                              className="elegante-input bg-gray-dark/50 h-9 text-sm border-gray-dark/30 opacity-70 cursor-not-allowed"
+                              type="text"
+                              inputMode="numeric"
+                              min={0}
+                              value={(nuevoProducto as any).stock === '' ? '' : ((nuevoProducto as any).stock ?? '')}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === '') { setNuevoProducto(prev => ({ ...prev, stock: '' as any })); return; }
+                                const n = Number(v);
+                                if (Number.isNaN(n) || n < 0) return;
+                                setNuevoProducto(prev => ({ ...prev, stock: n }));
+                              }}
+                              className="elegante-input h-9 text-sm"
                             />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                              <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                                <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                                Stock Ventas
-                              </Label>
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                min={0}
-                                value={(nuevoProducto.stockVentas as number | string) === '' ? '' : (nuevoProducto.stockVentas ?? '')}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  if (v === '') {
-                                    setNuevoProducto(prev => ({ ...prev, stockVentas: '' as any }));
-                                    return;
-                                  }
-                                  const n = Number(v);
-                                  if (Number.isNaN(n) || n < 0) return;
-
-                                  if (editingStockTotal !== null) {
-                                  if (esSoloVentaNuevoProducto) {
-                                    setNuevoProducto(prev => ({
-                                      ...prev,
-                                      stockVentas: editingStockTotal,
-                                      stockInsumos: 0
-                                    }));
-                                    return;
-                                  }
-                                    if (n > editingStockTotal) {
-                                      error("Stock ventas inválido", "El stock destinado a ventas no puede superar el stock total del producto.");
-                                      setNuevoProducto(prev => ({
-                                        ...prev,
-                                        stockVentas: editingStockTotal - Number(prev.stockInsumos || 0) >= 0
-                                          ? editingStockTotal - Number(prev.stockInsumos || 0)
-                                          : prev.stockVentas
-                                      }));
-                                      return;
-                                    }
-                                    const nuevoInsumos = editingStockTotal - n;
-                                    setNuevoProducto(prev => ({
-                                      ...prev,
-                                      stockVentas: n,
-                                      stockInsumos: nuevoInsumos
-                                    }));
-                                  }
-                                }}
-                                className="elegante-input h-9 text-sm"
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                                <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                                Stock Insumos
-                              </Label>
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                min={0}
-                                value={(nuevoProducto.stockInsumos as number | string) === '' ? '' : (nuevoProducto.stockInsumos ?? '')}
-                                disabled={esSoloVentaNuevoProducto}
-                                onChange={(e) => {
-                                  if (esSoloVentaNuevoProducto) return;
-                                  const v = e.target.value;
-                                  if (v === '') {
-                                    setNuevoProducto(prev => ({ ...prev, stockInsumos: '' as any }));
-                                    return;
-                                  }
-                                  const n = Number(v);
-                                  if (Number.isNaN(n) || n < 0) return;
-
-                                  if (editingStockTotal !== null) {
-                                    if (n > editingStockTotal) {
-                                      error("Stock insumos inválido", "El stock destinado a insumos no puede superar el stock total del producto.");
-                                      setNuevoProducto(prev => ({
-                                        ...prev,
-                                        stockInsumos: editingStockTotal - Number(prev.stockVentas || 0) >= 0
-                                          ? editingStockTotal - Number(prev.stockVentas || 0)
-                                          : prev.stockInsumos
-                                      }));
-                                      return;
-                                    }
-                                    const nuevoVentas = editingStockTotal - n;
-                                    setNuevoProducto(prev => ({
-                                      ...prev,
-                                      stockInsumos: n,
-                                      stockVentas: nuevoVentas
-                                    }));
-                                  }
-                                }}
-                                className={`elegante-input h-9 text-sm ${esSoloVentaNuevoProducto ? 'opacity-60 cursor-not-allowed' : ''}`}
-                              />
-                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
@@ -1368,9 +1221,7 @@ export function ProductosPage() {
                   <col style={{ width: '180px' }} />  {/* Nombre */}
                   <col style={{ width: '130px' }} />  {/* Precio venta */}
                   <col style={{ width: '130px' }} />  {/* Precio compra */}
-                  <col style={{ width: '100px' }} />  {/* Stock total */}
-                  <col style={{ width: '110px' }} />  {/* Stock Ventas */}
-                  <col style={{ width: '120px' }} />  {/* Stock Insumos */}
+                  <col style={{ width: '100px' }} />  {/* Stock */}
                   <col style={{ width: '110px' }} />  {/* Estado */}
                   <col style={{ width: '160px' }} />  {/* Acciones */}
                 </colgroup>
@@ -1380,16 +1231,14 @@ export function ProductosPage() {
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Nombre</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Precio venta</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Precio compra</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock total</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock ventas</th>
-                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock insumos</th>
+                    <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Stock</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="std-tbody">
                   {loading ? (
-                    <TableLoadingStateRow colSpan={8} title="Cargando productos..." />
+                    <TableLoadingStateRow colSpan={7} title="Cargando productos..." />
                   ) : displayedProductos.length > 0 ? displayedProductos.map((producto) => {
                     const isExpanded = expandedId === Number(producto.id);
                     const cached = precioComprasCache[Number(producto.id)];
@@ -1423,12 +1272,6 @@ export function ProductosPage() {
                           </td>
                           <td className="std-td text-gray-lightest">
                             {String(getStockTotal(producto as unknown as ApiProducto))}
-                          </td>
-                          <td className="std-td text-gray-lightest">
-                            {String((producto as unknown as ApiProducto).stockVentas ?? 0)}
-                          </td>
-                          <td className="std-td text-gray-lightest">
-                            {String(soloVenta ? 0 : ((producto as unknown as ApiProducto).stockInsumos ?? 0))}
                           </td>
                           <td className="std-td">
                             <StandardTable.StatusBadge
@@ -1488,7 +1331,7 @@ export function ProductosPage() {
 
                         {/* Fila expandible — compras del producto */}
                         <tr key={`expand-${producto.id}`} className={isExpanded ? 'border-b border-orange-primary/20' : ''}>
-                          <td colSpan={8} style={{ padding: 0 }}>
+                          <td colSpan={7} style={{ padding: 0 }}>
                             <div className={`row-accordion-wrap${isExpanded ? ' open' : ''}`}>
                               <div className="row-accordion-inner">
                               <div style={{ borderLeft: '3px solid var(--orange-primary)' }}>
@@ -1569,7 +1412,7 @@ export function ProductosPage() {
                     );
                   }) : (
                     <TableEmptyStateRow
-                      colSpan={8}
+                      colSpan={7}
                       title="No se encontraron productos"
                       description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                       onReload={() => window.location.reload()}
@@ -1707,33 +1550,11 @@ export function ProductosPage() {
                     <div className="space-y-1.5">
                       <Label className="text-white-primary text-xs flex items-center gap-1.5">
                         <Package className="w-3.5 h-3.5 text-orange-primary" />
-                        Stock Total
+                        Stock
                       </Label>
                       <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-orange-primary/20 font-bold text-orange-primary">
-                        {(selectedProducto.stockVentas ?? 0) + (selectedProducto.stockInsumos ?? 0)} unidades
+                        {Number((selectedProducto as any).stock ?? selectedProducto.cantidad ?? 0)} unidades
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                          Stock Ventas
-                        </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark border-green-500/10">
-                          {(selectedProducto.stockVentas ?? 0)} unidades
-                        </div>
-                      </div>
-                      {!esSoloVentaProductoSeleccionado && (
-                        <div className="space-y-1.5">
-                          <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                            <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                            Stock Insumos
-                          </Label>
-                          <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark border-blue-500/10">
-                            {(selectedProducto.stockInsumos ?? 0)} unidades
-                          </div>
-                        </div>
-                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">

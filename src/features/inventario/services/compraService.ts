@@ -30,8 +30,6 @@ export interface DetalleCompra {
     cantidad: number;
     precioUnitario: number;
     subtotal?: number;
-    cantidadVentas?: number;
-    cantidadInsumos?: number;
 }
 
 export interface CreateCompraRequest {
@@ -47,8 +45,6 @@ export interface CreateCompraRequest {
         productoId: number;
         cantidad: number;
         precioUnitario: number;
-        cantidadVentas?: number;
-        cantidadInsumos?: number;
     }[];
 }
 
@@ -121,9 +117,7 @@ class CompraService {
             detalles: data.detalles.map(d => ({
                 productoId: d.productoId,
                 cantidad: this.toFiniteNumber(d.cantidad, 0),
-                precioUnitario: this.toFiniteNumber(d.precioUnitario, 0),
-                cantidadVentas: this.toFiniteNumber(d.cantidadVentas, 0),
-                cantidadInsumos: this.toFiniteNumber(d.cantidadInsumos, 0)
+                precioUnitario: this.toFiniteNumber(d.precioUnitario, 0)
             }))
         };
     }
@@ -203,9 +197,7 @@ class CompraService {
             productoImagen: d.productoImagen || d.ProductoImagen || d.producto?.imagenProduc || d.producto?.ImagenProduc || d.Producto?.ImagenProduc || d.Producto?.imagenProduc || '',
             cantidad: d.cantidad || d.Cantidad || 0,
             precioUnitario: d.precioUnitario || d.PrecioUnitario || d.precioCompra || d.PrecioCompra || 0,
-            subtotal: (Number(d.cantidad || d.Cantidad || 0)) * (Number(d.precioUnitario || d.PrecioUnitario || 0)),
-            cantidadVentas: d.cantidadVentas || d.CantidadVentas || 0,
-            cantidadInsumos: d.cantidadInsumos || d.CantidadInsumos || 0
+            subtotal: (Number(d.cantidad || d.Cantidad || 0)) * (Number(d.precioUnitario || d.PrecioUnitario || 0))
         }));
 
         const id = data.id || data.Id || 0;
@@ -354,9 +346,7 @@ class CompraService {
                 categoria: catFromDetalle(d) || undefined,
                 cantidad: d.cantidad || d.Cantidad || 0,
                 precioUnitario: d.precioUnitario || d.PrecioUnitario || d.precioCompra || d.PrecioCompra || 0,
-                subtotal: (Number(d.cantidad || d.Cantidad || 0)) * (Number(d.precioUnitario || d.PrecioUnitario || d.precioCompra || d.PrecioCompra || 0)),
-                cantidadVentas: d.cantidadVentas || d.CantidadVentas || 0,
-                cantidadInsumos: d.cantidadInsumos || d.CantidadInsumos || 0
+                subtotal: (Number(d.cantidad || d.Cantidad || 0)) * (Number(d.precioUnitario || d.PrecioUnitario || d.precioCompra || d.PrecioCompra || 0))
             }));
         } catch (error) {
             console.error('Error fetching detalles compra:', error);

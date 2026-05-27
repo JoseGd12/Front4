@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
-import { isSaleOnly } from "../../../shared/utils/usagePolicy";
 
 const formatCurrency = (amount: number): string => {
   return (amount ?? 0).toLocaleString('es-CO');
@@ -31,8 +30,6 @@ interface ProductoCompraResumen {
   nombre: string;
   cantidad: number;
   precio: number;
-  stockVentas: number;
-  stockInsumos: number;
   precioVenta?: number;
   imagen?: string;
   categoria?: string;
@@ -46,12 +43,12 @@ interface DetailPanelCompraProps {
   total: number;
   onRemoveProducto?: (productId: number) => void;
   getTarjetaInput?: (
-    producto: { id: number; cantidad: number; stockVentas: number; stockInsumos: number; precio: number; precioVenta?: number },
-    campo: "cantidad" | "stockVentas" | "stockInsumos" | "precio" | "precioVenta"
+    producto: { id: number; cantidad: number; precio: number; precioVenta?: number },
+    campo: "cantidad" | "precio" | "precioVenta"
   ) => string;
   onTarjetaInputChange?: (
     productId: number,
-    campo: "cantidad" | "stockVentas" | "stockInsumos" | "precio" | "precioVenta",
+    campo: "cantidad" | "precio" | "precioVenta",
     valor: string
   ) => void;
 }
@@ -91,20 +88,12 @@ export function DetailPanelCompra({
                 const cantidadVisual = getTarjetaInput
                   ? getTarjetaInput(p, "cantidad")
                   : String(p.cantidad);
-                const stockVentasVisual = getTarjetaInput
-                  ? getTarjetaInput(p, "stockVentas")
-                  : String(p.stockVentas);
-                const stockInsumosVisual = getTarjetaInput
-                  ? getTarjetaInput(p, "stockInsumos")
-                  : String(p.stockInsumos);
                 const precioVisual = getTarjetaInput
                   ? getTarjetaInput(p, "precio")
                   : String(p.precio);
                 const precioVentaVisual = getTarjetaInput
                   ? getTarjetaInput(p, "precioVenta")
                   : String(p.precioVenta ?? 0);
-                const esSoloVenta = isSaleOnly(p as any);
-                const distribucionOk = p.stockVentas + p.stockInsumos === p.cantidad;
 
                 return (
                   <div
@@ -137,9 +126,9 @@ export function DetailPanelCompra({
                         )}
                       </div>
 
-                      {/* Total */}
+                      {/* Cantidad */}
                       <div className="flex flex-col gap-0.5 shrink-0">
-                        <label className="text-[11px] text-gray-400 font-normal">Total</label>
+                        <label className="text-[11px] text-gray-400 font-normal">Cantidad</label>
                         <Input
                           type="number"
                           min={1}
@@ -160,61 +149,6 @@ export function DetailPanelCompra({
                             onTarjetaInputChange?.(p.id, 'cantidad', cleaned);
                           }}
                           className="w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5"
-                        />
-                      </div>
-
-                      {/* Ventas */}
-                      <div className="flex flex-col gap-0.5 shrink-0">
-                        <label className="text-[11px] text-gray-400 font-normal">Ventas</label>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={stockVentasVisual}
-                          onKeyDown={(e) => {
-                            if (e.key === '-' || e.key === 'e' || e.key === '+') {
-                              e.preventDefault();
-                            }
-                          }}
-                          onPaste={(e) => {
-                            const text = e.clipboardData?.getData('text') || '';
-                            e.preventDefault();
-                            const cleaned = text.replace(/\D+/g, '').slice(0, 4);
-                            onTarjetaInputChange?.(p.id, 'stockVentas', cleaned);
-                          }}
-                          onChange={(e) => {
-                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 4);
-                            onTarjetaInputChange?.(p.id, 'stockVentas', cleaned);
-                          }}
-                          className="w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5 border-green-500/20"
-                        />
-                      </div>
-
-                      {/* Insumos */}
-                      <div className="flex flex-col gap-0.5 shrink-0">
-                        <label className="text-[11px] text-gray-400 font-normal">Insumos</label>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={stockInsumosVisual}
-                          disabled={esSoloVenta}
-                          onKeyDown={(e) => {
-                            if (e.key === '-' || e.key === 'e' || e.key === '+') {
-                              e.preventDefault();
-                            }
-                          }}
-                          onPaste={(e) => {
-                            if (esSoloVenta) { e.preventDefault(); return; }
-                            const text = e.clipboardData?.getData('text') || '';
-                            e.preventDefault();
-                            const cleaned = text.replace(/\D+/g, '').slice(0, 4);
-                            onTarjetaInputChange?.(p.id, 'stockInsumos', cleaned);
-                          }}
-                          onChange={(e) => {
-                            if (esSoloVenta) return;
-                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 4);
-                            onTarjetaInputChange?.(p.id, 'stockInsumos', cleaned);
-                          }}
-                          className={`w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5 border-blue-500/20 ${esSoloVenta ? 'bg-gray-medium cursor-not-allowed' : ''}`}
                         />
                       </div>
 
@@ -277,11 +211,6 @@ export function DetailPanelCompra({
                           ${formatCompactCurrency(p.precio * p.cantidad)}
                         </span>
                       </div>
-
-                      {/* Warning distribución */}
-                      {!distribucionOk && (
-                        <span className="shrink-0 text-red-400 text-xs" title="Ventas + Insumos debe sumar Total">⚠️</span>
-                      )}
 
                       {/* Eliminar */}
                       <button

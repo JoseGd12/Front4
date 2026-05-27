@@ -26,6 +26,7 @@ import {
   Settings,
   AtSign,
   ArrowRight,
+  CreditCard,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
 import {
@@ -52,11 +53,10 @@ const ComprasPage = React.lazy(() => import("../../inventario/pages/ComprasPage"
 const RegistrarCompraPage = React.lazy(() => import("../../inventario/pages/RegistrarCompraPage").then(m => ({ default: m.RegistrarCompraPage })));
 const ProveedoresPage = React.lazy(() => import("../../inventario/pages/ProveedoresPage").then(m => ({ default: m.ProveedoresPage })));
 const CategoriasPage = React.lazy(() => import("../../inventario/pages/CategoriasPage").then(m => ({ default: m.CategoriasPage })));
-const EntregaInsumosPage = React.lazy(() => import("../../inventario/pages/EntregaInsumosPage").then(m => ({ default: m.EntregaInsumosPage })));
 const DevolucionesPage = React.lazy(() => import("../../ventas/pages/DevolucionesPage").then(m => ({ default: m.DevolucionesPage })));
 const RegistrarVentaPage = React.lazy(() => import("../../ventas/pages/RegistrarVentaPage").then(m => ({ default: m.RegistrarVentaPage })));
+const CreditoBarberosPage = React.lazy(() => import("../../credito-barberos/pages/CreditoBarberosPage").then(m => ({ default: m.CreditoBarberosPage })));
 const RegistrarDevolucionPage = React.lazy(() => import("../../ventas/pages/RegistrarDevolucionPage").then(m => ({ default: m.RegistrarDevolucionPage })));
-const RegistrarEntregaPage = React.lazy(() => import("../../inventario/pages/RegistrarEntregaPage").then(m => ({ default: m.RegistrarEntregaPage })));
 const RolesPage = React.lazy(() => import("../../administracion/pages/RolesPage").then(m => ({ default: m.RolesPage })));
 const UsersPage = React.lazy(() => import("../../administracion/pages/UsersPage").then(m => ({ default: m.UsersPage })));
 const AdminPerfilPage = React.lazy(() => import("../pages/AdminPerfilPage").then(m => ({ default: m.AdminPerfilPage })));
@@ -121,12 +121,6 @@ const moduleInfo: Record<string, {
     icon: RotateCcw,
     color: "text-orange-primary"
   },
-  "RegistrarEntrega": {
-    title: "Registrar Nueva Entrega",
-    description: "Completa la información de la entrega de insumos",
-    icon: Truck,
-    color: "text-orange-primary"
-  },
   "Proveedores": {
     title: "Proveedores",
     description: "Administración de proveedores",
@@ -181,12 +175,6 @@ const moduleInfo: Record<string, {
     icon: Package,
     color: "text-orange-primary"
   },
-  "Entregas de Insumos": {
-    title: "Entregas de Insumos",
-    description: "Control de entregas de materiales",
-    icon: FileText,
-    color: "text-orange-primary"
-  },
   "Clientes": {
     title: "Clientes",
     description: "Base de datos de clientes",
@@ -203,6 +191,12 @@ const moduleInfo: Record<string, {
     title: "Roles y Permisos",
     description: "Configuración de roles por módulos",
     icon: Shield,
+    color: "text-orange-primary"
+  },
+  "CreditoBarberos": {
+    title: "Crédito Barberos",
+    description: "Gestión de créditos y abonos de barberos",
+    icon: CreditCard,
     color: "text-orange-primary"
   },
   "MiCuenta": {
@@ -230,6 +224,7 @@ const menuSections = [
       { icon: Gift, label: "Paquetes" },
       { icon: RotateCcw, label: "Devoluciones" },
       { icon: Users, label: "Clientes" },
+      { icon: CreditCard, label: "Crédito Barberos", page: "CreditoBarberos" },
     ],
   },
   {
@@ -239,7 +234,6 @@ const menuSections = [
       { icon: Package, label: "Productos" },
       { icon: Tags, label: "Categorías" },
       { icon: Truck, label: "Proveedores" },
-      { icon: FileText, label: "Entregas de Insumos" },
     ],
   },
   {
@@ -283,14 +277,13 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (target === 'ventas/registrar') return 'RegistrarVenta';
     if (target === 'devoluciones') return 'Devoluciones';
     if (target === 'devoluciones/registrar') return 'RegistrarDevolucion';
+    if (target === 'credito-barberos') return 'CreditoBarberos';
     if (target === 'clientes') return 'Clientes';
     if (target === 'compras') return 'Compras';
     if (target === 'compras/registrar') return 'RegistrarCompra';
     if (target === 'productos') return 'Productos';
     if (target === 'categorias') return 'Categorías';
     if (target === 'proveedores') return 'Proveedores';
-    if (target === 'entregas-insumos') return 'Entregas de Insumos';
-    if (target === 'entregas-insumos/registrar') return 'RegistrarEntrega';
     if (target === 'usuarios') return 'Usuarios';
     if (target === 'roles') return 'Roles';
     if (target === 'mi-cuenta') return 'MiCuenta';
@@ -307,6 +300,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (page === 'Paquetes') return 'paquetes';
     if (page === 'Ventas') return 'ventas';
     if (page === 'RegistrarVenta') return 'ventas/registrar';
+    if (page === 'CreditoBarberos') return 'credito-barberos';
     if (page === 'Devoluciones') return 'devoluciones';
     if (page === 'RegistrarDevolucion') return 'devoluciones/registrar';
     if (page === 'Clientes') return 'clientes';
@@ -315,8 +309,6 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (page === 'Productos') return 'productos';
     if (page === 'Categorías') return 'categorias';
     if (page === 'Proveedores') return 'proveedores';
-    if (page === 'Entregas de Insumos') return 'entregas-insumos';
-    if (page === 'RegistrarEntrega') return 'entregas-insumos/registrar';
     if (page === 'Usuarios') return 'usuarios';
     if (page === 'Roles') return 'roles';
     if (page === 'MiCuenta') return 'mi-cuenta';
@@ -327,7 +319,6 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   const isRegistrarCompraPage = activePage === "RegistrarCompra";
   const isRegistrarVentaPage = activePage === "RegistrarVenta";
   const isRegistrarDevolucionPage = activePage === "RegistrarDevolucion";
-  const isRegistrarEntregaPage = activePage === "RegistrarEntrega";
   const isMiCuentaPage = activePage === "MiCuenta";
 
   useEffect(() => {
@@ -415,7 +406,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
       return ALL_MENU_LABELS.filter(label => label !== "Roles");
     }
     if (r === "barbero" || r === "recepcionista" || r === "cajero") {
-      return ["Agendamientos", "Horarios", "Barberos", "Ventas", "Servicios", "Paquetes", "Devoluciones", "Clientes", "Compras", "Productos", "Categorías", "Proveedores", "Entregas de Insumos"];
+      return ["Agendamientos", "Horarios", "Barberos", "Ventas", "Servicios", "Paquetes", "Devoluciones", "Clientes", "Compras", "Productos", "Categorías", "Proveedores"];
     }
     return ["Agendamientos", "Horarios", "Servicios", "Paquetes", "Clientes"];
   }
@@ -439,10 +430,10 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     if (itemLabel === 'Productos') searchTerms.push('producto', 'inventario');
     if (itemLabel === 'Categorías') searchTerms.push('categoria');
     if (itemLabel === 'Proveedores') searchTerms.push('proveedor');
-    if (itemLabel === 'Entregas de Insumos') searchTerms.push('entrega', 'insumo');
     if (itemLabel === 'Usuarios') searchTerms.push('usuario');
     if (itemLabel === 'Roles') searchTerms.push('rol', 'permiso');
     if (itemLabel === 'Configuración') searchTerms.push('config', 'ajuste');
+    if (itemLabel === 'Crédito Barberos') searchTerms.push('credito', 'credito barbero', 'abono');
 
     return allowedModules.some(mod => {
       const modNormalizado = mod.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -461,6 +452,10 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           // Filtro adicional: Solo el 'super_admin' puede ver el módulo de Roles
           if (item.label === "Roles") {
             return user?.role === 'super_admin';
+          }
+          // Solo admin y super_admin pueden ver Crédito Barberos
+          if (item.label === "Crédito Barberos" || item.page === "CreditoBarberos") {
+            return user?.role === 'super_admin' || user?.role === 'admin';
           }
           return checkModuleAccess(item.label);
         })
@@ -525,10 +520,6 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         return <RevisarSolicitudesPage usuarioId={user?.id || 0} onBack={() => setActivePage("Horarios")} />;
       case "Barberos":
         return <BarberosPage />;
-      case "Entregas de Insumos":
-        return <EntregaInsumosPage onNavigate={(page: string) => setActivePage(page)} />;
-      case "RegistrarEntrega":
-        return <RegistrarEntregaPage onBack={() => setActivePage("Entregas de Insumos")} />;
       case "Servicios":
         return <ServiciosPage />;
       case "Paquetes":
@@ -537,6 +528,8 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         return <VentasPage onNavigate={(page: string) => setActivePage(page)} />;
       case "RegistrarVenta":
         return <RegistrarVentaPage onBack={() => setActivePage("Ventas")} />;
+      case "CreditoBarberos":
+        return <CreditoBarberosPage />;
       case "Compras":
         return <ComprasPage onNavigate={(page: string) => setActivePage(page)} />;
       case "RegistrarCompra":
@@ -581,24 +574,21 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
     subtitle:
       isRegistrarCompraPage ||
         isRegistrarVentaPage ||
-        isRegistrarDevolucionPage ||
-        isRegistrarEntregaPage
+        isRegistrarDevolucionPage
         ? moduleInfo[activePage]?.description
         : undefined,
     onBack:
       isRegistrarCompraPage ? () => setActivePage("Compras") :
         isRegistrarVentaPage ? () => setActivePage("Ventas") :
           isRegistrarDevolucionPage ? () => setActivePage("Devoluciones") :
-            isRegistrarEntregaPage ? () => setActivePage("Entregas de Insumos") :
-              isMiCuentaPage ? () => setActivePage("Dashboard") :
-                undefined,
+            isMiCuentaPage ? () => setActivePage("Dashboard") :
+              undefined,
     backTitle:
       isRegistrarCompraPage ? "Volver a Compras" :
         isRegistrarVentaPage ? "Volver a Ventas" :
           isRegistrarDevolucionPage ? "Volver a Devoluciones" :
-            isRegistrarEntregaPage ? "Volver a Entregas de Insumos" :
-              isMiCuentaPage ? "Volver al Panel" :
-                undefined,
+            isMiCuentaPage ? "Volver al Panel" :
+              undefined,
     icon: moduleInfo[activePage] && moduleInfo[activePage].icon
       ? React.createElement(moduleInfo[activePage].icon, { className: "w-5 h-5" })
       : undefined,
@@ -844,7 +834,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               iconContainerClassName={currentSubNav.iconContainerClassName}
             />
             <div
-              className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion" || activePage === "RegistrarEntrega"
+              className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion"
                   ? "overflow-hidden flex flex-col"
                   : "overflow-y-auto"
                 }`}

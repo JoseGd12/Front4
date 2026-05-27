@@ -10,8 +10,6 @@ export interface Insumo {
   nombre: string;
   categoria: string;
   stock: number;
-  stockVentas?: number;
-  stockInsumos?: number;
   minimo: number;
   precio: number;
   imagen: string;
@@ -124,15 +122,12 @@ class InsumosService {
           return found ?? '';
         })();
 
-        const stockVentas = pickNumber(p, ['stockVentas', 'StockVentas', 'stockVenta', 'StockVenta'], Number.NaN);
-        const stockInsumos = pickNumber(p, ['stockInsumos', 'StockInsumos'], Number.NaN);
-
         return {
           id: Number(p?.id ?? p?.productoId ?? 0),
           nombre: String(p?.nombre ?? p?.nombreProducto ?? p?.descripcion ?? ''),
           categoria: String(categoria),
           stock: (() => {
-            const direct = pickNumber(p, ['stockInsumos', 'StockInsumos', 'stock', 'Stock', 'existencia', 'Existencia', 'cantidad', 'Cantidad', 'stockActual', 'StockActual', 'cantidadDisponible', 'CantidadDisponible'], Number.NaN);
+            const direct = pickNumber(p, ['stock', 'Stock', 'existencia', 'Existencia', 'cantidad', 'Cantidad', 'stockActual', 'StockActual', 'cantidadDisponible', 'CantidadDisponible'], Number.NaN);
             if (!Number.isNaN(direct)) return direct;
 
             const inferred = inferNumberByKeyMatch(
@@ -147,8 +142,6 @@ class InsumosService {
             const nested = pickNumber(p?.inventario, ['stock', 'Stock', 'existencia', 'Existencia'], 0);
             return nested;
           })(),
-          stockVentas: Number.isNaN(stockVentas) ? undefined : stockVentas,
-          stockInsumos: Number.isNaN(stockInsumos) ? undefined : stockInsumos,
           minimo: (() => {
             const direct = pickNumber(p, ['minimo', 'Minimo', 'stockMinimo', 'StockMinimo', 'minStock', 'MinStock'], Number.NaN);
             if (!Number.isNaN(direct)) return direct;
@@ -239,9 +232,7 @@ class InsumosService {
         return found ?? '';
       })();
 
-      const stockVentas = pickNumber(p, ['stockVentas', 'StockVentas', 'stockVenta', 'StockVenta'], Number.NaN);
-      const stockInsumos = pickNumber(p, ['stockInsumos', 'StockInsumos'], Number.NaN);
-      const stock = pickNumber(p, ['stockInsumos', 'StockInsumos', 'stock', 'Stock', 'existencia', 'Existencia', 'cantidad', 'Cantidad'], 0);
+      const stock = pickNumber(p, ['stock', 'Stock', 'existencia', 'Existencia', 'cantidad', 'Cantidad'], 0);
       const minimo = pickNumber(p, ['minimo', 'Minimo', 'stockMinimo', 'StockMinimo'], 0);
       const precio = pickNumber(p, ['PrecioVenta', 'precioVenta', 'precio', 'Precio', 'valor', 'Valor'], 0);
 
@@ -250,8 +241,6 @@ class InsumosService {
         nombre: String(p?.nombre ?? p?.nombreProducto ?? p?.descripcion ?? ''),
         categoria: String(categoria),
         stock,
-        stockVentas: Number.isNaN(stockVentas) ? undefined : stockVentas,
-        stockInsumos: Number.isNaN(stockInsumos) ? undefined : stockInsumos,
         minimo,
         precio,
         imagen: String(p?.imagen ?? p?.Imagen ?? p?.imagenProduc ?? p?.ImagenProduc ?? p?.imagenUrl ?? p?.ImagenUrl ?? ''),

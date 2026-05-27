@@ -26,6 +26,7 @@ export interface Venta {
   saldoAFavorUsado?: number;
   barbero: string;
   barberoId?: number | null;
+  barberoDocumento?: string;
   responsable?: string;
   estado: string;
   metodoPago: string;
@@ -419,6 +420,7 @@ class VentaService {
       saldoAFavorUsado: Number(data.saldoAFavorUsado || data.SaldoAFavorUsado || 0),
       barbero: barberoNombre,
       barberoId: finalBarberoId,
+      barberoDocumento: String(barberoObj.documento || barberoObj.Documento || (barberoUsuario as any)?.documento || (barberoUsuario as any)?.Documento || data.barberoDocumento || data.BarberoDocumento || ''),
       responsable: responsableNombre,
       estado: String(data.estado || data.Estado || 'Completada'),
       metodoPago: String(data.metodoPago || data.MetodoPago || 'Efectivo'),

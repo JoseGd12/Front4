@@ -4,9 +4,7 @@ import { Input } from "../../../shared/components/ui/input";
 import {
   DollarSign,
   Search,
-  User,
   Users,
-  Scissors,
   Calendar,
   Package,
   X,
@@ -17,7 +15,6 @@ import {
   FileText,
   ShieldCheck,
   Plus,
-  ChevronDown,
 } from "lucide-react";
 import { Checkbox } from "../../../shared/components/ui/checkbox";
 import {
@@ -76,6 +73,15 @@ const normalizeSearchText = (value: unknown): string => {
     .toLowerCase()
     .trim();
 };
+
+interface PersonaBuscador {
+  tipo: 'cliente' | 'barbero';
+  id: number;
+  nombre: string;
+  documento: string;
+  saldoAFavor?: number;
+  rol?: string;
+}
 
 interface RegistrarVentaPageProps {
   onBack: () => void;
@@ -147,8 +153,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   >({});
 
   // Search state
-  const [selectorTipo, setSelectorTipo] = useState<"Clientes" | "Barberos">("Clientes");
-  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [seleccionadoEsBarbero, setSeleccionadoEsBarbero] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [barberoSearchTerm, setBarberoSearchTerm] = useState("");
@@ -291,6 +296,26 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [clientesAPI]);
 
+  const personasDisponibles = useMemo((): PersonaBuscador[] => {
+    const clientes: PersonaBuscador[] = clientesDisponibles.map((c) => ({
+      tipo: 'cliente',
+      id: c.id,
+      nombre: c.nombre,
+      documento: c.documento,
+      saldoAFavor: c.saldoAFavor,
+    }));
+    const barberos: PersonaBuscador[] = barberosAPI.map((b: any) => ({
+      tipo: 'barbero',
+      id: Number(b.id),
+      nombre: `${b.nombre} ${b.apellido || ""}`.trim(),
+      documento: b.documento || "",
+      rol: b.rol || "Barbero",
+    }));
+    return [...clientes, ...barberos].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre)
+    );
+  }, [clientesDisponibles, barberosAPI]);
+
   const isStockExceeded = useMemo(() => {
     if (!productoSeleccionado || cantidadProducto <= 0) return false;
     const producto = productosAPI.find(
@@ -301,7 +326,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       (p) => p.id === productoSeleccionado
     );
     const cantYaAgregada = yaAgregado ? yaAgregado.cantidad : 0;
-    return cantidadProducto + cantYaAgregada > producto.stockVentas;
+    return cantidadProducto + cantYaAgregada > (producto.stock ?? producto.cantidad ?? 0);
   }, [productoSeleccionado, cantidadProducto, nuevaVenta.productos, productosAPI]);
 
   // Calculations
@@ -371,6 +396,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     return saldoDisponible > 0 && saldoDisponible >= totalSinSaldo;
   };
 
+  const LIMITE_CREDITO = 200000;
+
   // Handlers
   const handleMetodoPagoChange = (value: string) => {
     if (value === "Saldo") {
@@ -394,6 +421,16 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         usarSaldoAFavor: true,
       });
       return;
+    }
+    if (value === "Crédito") {
+      const totalActual = calcularTotal();
+      if (totalActual > LIMITE_CREDITO) {
+        showErrorAlert(
+          "Límite de crédito excedido",
+          `El total de la venta ($${formatCurrency(totalActual)}) supera el límite máximo de crédito de $${formatCurrency(LIMITE_CREDITO)}. Reduce el monto o elige otro método de pago.`
+        );
+        return;
+      }
     }
     setNuevaVenta({ ...nuevaVenta, metodoPago: value, usarSaldoAFavor: false });
   };
@@ -448,6 +485,40 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     nuevaVenta.porcentajeDescuento,
   ]);
 
+  // Recalcular precios de productos ya agregados cuando cambia el tipo de persona
+  // y limpiar método de pago "Crédito" si se cambia a cliente
+  useEffect(() => {
+    setNuevaVenta((prev) => {
+      const metodoPagoLimpiado =
+        !seleccionadoEsBarbero && prev.metodoPago === "Crédito"
+          ? ""
+          : prev.metodoPago;
+      if (!prev.productos || prev.productos.length === 0)
+        return { ...prev, metodoPago: metodoPagoLimpiado };
+      const productosActualizados = prev.productos.map((p) => {
+        const info = productosAPI.find((api) => api.id.toString() === p.id);
+        if (!info) return p;
+        const nuevoPrecio = seleccionadoEsBarbero
+          ? (info.precioCompra || info.precioBase)
+          : (info.precio || info.precioBase);
+        return { ...p, precio: nuevoPrecio };
+      });
+      return { ...prev, productos: productosActualizados, metodoPago: metodoPagoLimpiado };
+    });
+    setTarjetaProductoInputs((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((productId) => {
+        const info = productosAPI.find((api) => api.id.toString() === productId);
+        if (!info) return;
+        const nuevoPrecio = seleccionadoEsBarbero
+          ? (info.precioCompra || info.precioBase)
+          : (info.precio || info.precioBase);
+        next[productId] = { ...next[productId], precio: String(nuevoPrecio) };
+      });
+      return next;
+    });
+  }, [seleccionadoEsBarbero, productosAPI]);
+
   const agregarProducto = () => {
     if (!productoSeleccionado) {
       setShowAddProductoErrors(true);
@@ -490,7 +561,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         },
       }));
     } else {
-      const precioFinal = selectorTipo === "Barberos"
+      const precioFinal = seleccionadoEsBarbero
         ? (producto.precioCompra || producto.precioBase)
         : (producto.precio || producto.precioBase);
       setNuevaVenta({
@@ -543,10 +614,10 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     const productoInfo = productosAPI.find(
       (p) => p.id.toString() === productId
     );
-    if (productoInfo && nuevaCantidad > productoInfo.stockVentas) {
+    if (productoInfo && nuevaCantidad > (productoInfo.stock ?? productoInfo.cantidad ?? 0)) {
       showErrorAlert(
         "Stock insuficiente",
-        `No se puede añadir una cantidad superior al stock disponible (${productoInfo.stockVentas}).`
+        `No se puede añadir una cantidad superior al stock disponible (${productoInfo.stock ?? productoInfo.cantidad ?? 0}).`
       );
       const cantAnterior =
         nuevaVenta.productos?.find((p) => p.id === productId)?.cantidad || 1;
@@ -794,14 +865,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     const productosActuales = nuevaVenta.productos || [];
     const tieneServicios = serviciosAgregados.length > 0;
 
-    const tieneCliente = nuevaVenta.clienteId || (selectorTipo === "Clientes" && nuevaVenta.clienteNombreInvitado.trim());
+    const tieneCliente = nuevaVenta.clienteId || (!seleccionadoEsBarbero && nuevaVenta.clienteNombreInvitado.trim());
     if (!tieneCliente || !nuevaVenta.metodoPago || !nuevaVenta.numeroRecibo?.trim()) {
       showErrorAlert(
         "Datos incompletos",
         !nuevaVenta.numeroRecibo?.trim()
           ? "Por favor ingresa el número de recibo."
           : !tieneCliente
-            ? selectorTipo === "Barberos"
+            ? seleccionadoEsBarbero
               ? "Por favor selecciona un barbero de la lista."
               : "Por favor selecciona un cliente o escribe el nombre del invitado."
             : "Por favor selecciona el método de pago."
@@ -813,6 +884,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       showErrorAlert(
         "Venta vacía",
         "Debes agregar al menos un producto o un servicio a la venta."
+      );
+      return;
+    }
+
+    if (nuevaVenta.metodoPago === "Crédito" && calcularTotal() > LIMITE_CREDITO) {
+      showErrorAlert(
+        "Límite de crédito excedido",
+        `El total ($${formatCurrency(calcularTotal())}) supera el límite máximo de crédito de $${formatCurrency(LIMITE_CREDITO)}. Reduce el monto o cambia el método de pago.`
       );
       return;
     }
@@ -885,25 +964,37 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
           .join(", ")
         : "Ninguno";
 
-      const metodoPagoFinal =
-        nuevaVenta.metodoPago === "Saldo"
-          ? "Saldo"
-          : nuevaVenta.usarSaldoAFavor
-            ? `${nuevaVenta.metodoPago} (Saldo aplicado)`
-            : nuevaVenta.metodoPago;
+      // Cuando el comprador es un barbero:
+      //   - clienteId debe ser null (evita FK violation contra tabla Clientes)
+      //   - barberoId recibe el BarberoId del comprador (para crédito y registro)
+      //   - MetodoPago "Crédito" → "CreditoBarbero" (nombre que espera el backend)
+      const barberoIdFinal = seleccionadoEsBarbero
+        ? Number(nuevaVenta.clienteId)           // buyer barbero
+        : (nuevaVenta.barberoId ? Number(nuevaVenta.barberoId) : null); // performing barbero
 
-      const barberoIdFinal = nuevaVenta.barberoId
-        ? Number(nuevaVenta.barberoId)
-        : null;
+      const clienteIdFinal = seleccionadoEsBarbero
+        ? null
+        : (nuevaVenta.clienteId || null);
+
+      const metodoPagoFinal =
+        nuevaVenta.metodoPago === "Crédito"
+          ? "CreditoBarbero"
+          : nuevaVenta.metodoPago === "Saldo"
+            ? "Saldo"
+            : nuevaVenta.usarSaldoAFavor
+              ? `${nuevaVenta.metodoPago} (Saldo aplicado)`
+              : nuevaVenta.metodoPago;
 
       const ventaData = {
         numeroRecibo: nuevaVenta.numeroRecibo.trim(),
         numeroVenta,
         tipoVenta: nuevaVenta.tipoVenta,
-        clienteId: nuevaVenta.clienteId || null,
-        clienteNombre: nuevaVenta.clienteNombreInvitado.trim() || clienteSeleccionadoNombre || undefined,
+        clienteId: clienteIdFinal,
+        clienteNombre: seleccionadoEsBarbero
+          ? undefined
+          : (nuevaVenta.clienteNombreInvitado.trim() || clienteSeleccionadoNombre || undefined),
         usuarioId: Number(user.id),
-        clienteDocumento: nuevaVenta.clienteDocumento || "",
+        clienteDocumento: seleccionadoEsBarbero ? "" : (nuevaVenta.clienteDocumento || ""),
         fecha: nuevaVenta.fechaCreacion,
         servicios: serviciosTexto,
         productos: productosTexto,
@@ -1058,230 +1149,127 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 }
               />
 
-              {/* Section 2: Client */}
+              {/* Section 2: Client / Barbero */}
               <FormSection
-                title={selectorTipo === "Barberos" ? "Barbero" : "Cliente"}
-                icon={selectorTipo === "Barberos" ? <Scissors className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                title="Cliente / Barbero"
+                icon={<Users className="w-4 h-4" />}
               >
                 <div className="space-y-4">
-                  {/* Selector Clientes / Barberos */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-gray-lightest text-sm">Seleccionar:</span>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setSelectorOpen((prev) => !prev)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-medium bg-gray-darker text-sm text-gray-lightest hover:border-orange-primary/50 transition-colors min-w-[130px]"
-                      >
-                        {selectorTipo === "Clientes" ? (
-                          <Users className="w-4 h-4 text-orange-primary" />
-                        ) : (
-                          <Scissors className="w-4 h-4 text-orange-primary" />
-                        )}
-                        <span className="flex-1 text-left">{selectorTipo}</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-lightest" />
-                      </button>
-                      {selectorOpen && (
-                        <div className="absolute top-full left-0 mt-1 z-50 w-full rounded-md border border-gray-medium bg-gray-darker shadow-lg overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectorTipo("Clientes");
-                              setSelectorOpen(false);
-                              setClientSearchTerm("");
-                              setNuevaVenta((prev) => ({
-                                ...prev,
-                                clienteId: null,
-                                clienteDocumento: "",
-                                clienteNombreInvitado: "",
-                                tipoVenta: "Venta Invitado",
-                              }));
-                            }}
-                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-lightest hover:bg-gray-medium transition-colors"
-                          >
-                            <Users className="w-4 h-4 text-orange-primary" />
-                            Clientes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectorTipo("Barberos");
-                              setSelectorOpen(false);
-                              setClientSearchTerm("");
-                              setNuevaVenta((prev) => ({
-                                ...prev,
-                                clienteId: null,
-                                clienteDocumento: "",
-                                clienteNombreInvitado: "",
-                                tipoVenta: "Venta Invitado",
-                              }));
-                            }}
-                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-lightest hover:bg-gray-medium transition-colors"
-                          >
-                            <Scissors className="w-4 h-4 text-orange-primary" />
-                            Barberos
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
                   <div className="space-y-1">
-                    {selectorTipo === "Clientes" ? (
-                      <SearchField
-                        placeholder="Escribe el nombre del cliente o búscalo..."
-                        value={clientSearchTerm}
-                        onChange={(val) => {
-                          setClientSearchTerm(val);
-                          setNuevaVenta((prev) => ({
-                            ...prev,
-                            clienteId: null,
-                            clienteDocumento: "",
-                            clienteNombreInvitado: val,
-                            tipoVenta: "Venta Invitado",
-                          }));
-                        }}
-                        onClear={() => {
-                          setClientSearchTerm("");
-                          setNuevaVenta((prev) => ({
-                            ...prev,
-                            clienteId: null,
-                            clienteDocumento: "",
-                            clienteNombreInvitado: "",
-                            tipoVenta: "Venta Invitado",
-                          }));
-                        }}
-                        items={clientesDisponibles}
-                        filterFn={(c, query) => {
-                          const q = normalizeSearchText(query);
-                          const searchable = normalizeSearchText(
-                            [c.id, c.nombre, c.documento].join(" ")
-                          );
-                          return searchable.includes(q);
-                        }}
-                        renderItem={(cliente) => (
-                          <div className="flex justify-between items-center">
-                            <div>
+                    <SearchField
+                      placeholder="Busca un cliente o barbero..."
+                      value={clientSearchTerm}
+                      onChange={(val) => {
+                        setClientSearchTerm(val);
+                        setSeleccionadoEsBarbero(false);
+                        setNuevaVenta((prev) => ({
+                          ...prev,
+                          clienteId: null,
+                          clienteDocumento: "",
+                          clienteNombreInvitado: val,
+                          tipoVenta: "Venta Invitado",
+                        }));
+                      }}
+                      onClear={() => {
+                        setClientSearchTerm("");
+                        setSeleccionadoEsBarbero(false);
+                        setNuevaVenta((prev) => ({
+                          ...prev,
+                          clienteId: null,
+                          clienteDocumento: "",
+                          clienteNombreInvitado: "",
+                          tipoVenta: "Venta Invitado",
+                        }));
+                      }}
+                      items={personasDisponibles}
+                      filterFn={(item, query) => {
+                        const q = normalizeSearchText(query);
+                        const searchable = normalizeSearchText(
+                          [item.id, item.nombre, item.documento].join(" ")
+                        );
+                        return searchable.includes(q);
+                      }}
+                      renderItem={(item) => (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="flex items-center gap-2">
                               <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
-                                {cliente.nombre}
+                                {item.nombre}
                               </p>
-                              <p className="text-[10px] text-gray-lightest">
-                                {cliente.documento || "Sin documento"}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
-                                Saldo Disponible
-                              </p>
-                              <p
-                                className={`text-xs ${cliente.saldoAFavor > 0
-                                  ? "text-green-400"
-                                  : "text-gray-lightest"
-                                  }`}
+                              <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider ${
+                                  item.tipo === 'barbero'
+                                    ? 'bg-orange-primary/20 text-orange-primary'
+                                    : 'bg-blue-500/20 text-blue-400'
+                                }`}
                               >
-                                ${formatCurrency(cliente.saldoAFavor)}
-                              </p>
+                                {item.tipo === 'barbero' ? 'Barbero' : 'Cliente'}
+                              </span>
                             </div>
+                            <p className="text-[10px] text-gray-lightest">
+                              {item.documento || "Sin documento"}
+                            </p>
                           </div>
-                        )}
-                        onSelect={(cliente) => {
-                          const esInvitado = cliente.documento?.startsWith("PASO-");
-                          setNuevaVenta({
-                            ...nuevaVenta,
-                            clienteId: cliente.id,
-                            clienteDocumento: cliente.documento,
-                            clienteNombreInvitado: "",
-                            tipoVenta: esInvitado ? "Venta Invitado" : "Venta Cliente",
-                          });
-                          setClientSearchTerm(
-                            `${cliente.nombre}${cliente.documento
-                              ? ` — ${cliente.documento}`
-                              : ""
-                            }`
-                          );
-                        }}
-                        error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()
-                          ? "Selecciona un cliente o entra un nombre para el invitado."
-                          : undefined}
-                        shakeClass={shakeClass}
-                        onFocus={clearValidationErrors}
-                      />
-                    ) : (
-                      <SearchField
-                        placeholder="Escribe el nombre del barbero o búscalo..."
-                        value={clientSearchTerm}
-                        onChange={(val) => {
-                          setClientSearchTerm(val);
-                          setNuevaVenta((prev) => ({
-                            ...prev,
-                            clienteId: null,
-                            clienteDocumento: "",
-                            clienteNombreInvitado: "",
-                            tipoVenta: "Venta Invitado",
-                          }));
-                        }}
-                        onClear={() => {
-                          setClientSearchTerm("");
-                          setNuevaVenta((prev) => ({
-                            ...prev,
-                            clienteId: null,
-                            clienteDocumento: "",
-                            clienteNombreInvitado: "",
-                            tipoVenta: "Venta Invitado",
-                          }));
-                        }}
-                        items={barberosAPI}
-                        filterFn={(b: any, query) => {
-                          const q = normalizeSearchText(query);
-                          const searchable = normalizeSearchText(
-                            [b.id, b.nombre, b.apellido, b.documento].join(" ")
-                          );
-                          return searchable.includes(q);
-                        }}
-                        renderItem={(barbero: any) => {
-                          const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""}`.trim();
-                          return (
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
-                                  {nombreCompleto}
+                          <div className="text-right">
+                            {item.tipo === 'cliente' ? (
+                              <>
+                                <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
+                                  Saldo
                                 </p>
-                                <p className="text-[10px] text-gray-lightest">
-                                  {barbero.documento || "Sin documento"}
+                                <p className={`text-xs ${(item.saldoAFavor || 0) > 0 ? 'text-green-400' : 'text-gray-lightest'}`}>
+                                  ${formatCurrency(item.saldoAFavor || 0)}
                                 </p>
-                              </div>
-                              <div className="text-right">
+                              </>
+                            ) : (
+                              <>
                                 <p className="text-[9px] text-gray-lightest uppercase tracking-widest leading-none mb-1">
                                   Rol
                                 </p>
                                 <p className="text-xs text-orange-primary">
-                                  {barbero.rol || "Barbero"}
+                                  {item.rol || 'Barbero'}
                                 </p>
-                              </div>
-                            </div>
-                          );
-                        }}
-                        onSelect={(barbero: any) => {
-                          const nombreCompleto = `${barbero.nombre} ${barbero.apellido || ""}`.trim();
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      onSelect={(item) => {
+                        if (item.tipo === 'barbero') {
+                          setSeleccionadoEsBarbero(true);
                           setNuevaVenta({
                             ...nuevaVenta,
-                            clienteId: Number(barbero.id),
-                            clienteDocumento: barbero.documento || "",
+                            clienteId: item.id,
+                            clienteDocumento: item.documento,
                             clienteNombreInvitado: "",
-                            tipoVenta: "Venta Cliente",
+                            tipoVenta: "Venta Barbero",
                           });
                           setClientSearchTerm(
-                            `${nombreCompleto}${barbero.documento ? ` — CC ${barbero.documento}` : ""}`
+                            `${item.nombre}${item.documento ? ` — CC ${item.documento}` : ""}`
                           );
-                        }}
-                        error={showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()
-                          ? "Selecciona un barbero."
-                          : undefined}
-                        shakeClass={shakeClass}
-                        onFocus={clearValidationErrors}
-                      />
-                    )}
-                    {selectorTipo === "Clientes" && !nuevaVenta.clienteId && clientSearchTerm.trim() && (
+                        } else {
+                          const esInvitado = item.documento?.startsWith("PASO-");
+                          setSeleccionadoEsBarbero(false);
+                          setNuevaVenta({
+                            ...nuevaVenta,
+                            clienteId: item.id,
+                            clienteDocumento: item.documento,
+                            clienteNombreInvitado: "",
+                            tipoVenta: esInvitado ? "Venta Invitado" : "Venta Cliente",
+                          });
+                          setClientSearchTerm(
+                            `${item.nombre}${item.documento ? ` — ${item.documento}` : ""}`
+                          );
+                        }
+                      }}
+                      error={
+                        showVentaFormErrors && !nuevaVenta.clienteId && !clientSearchTerm.trim()
+                          ? "Selecciona un cliente o barbero, o escribe el nombre del invitado."
+                          : undefined
+                      }
+                      shakeClass={shakeClass}
+                      onFocus={clearValidationErrors}
+                    />
+                    {!seleccionadoEsBarbero && !nuevaVenta.clienteId && clientSearchTerm.trim() && (
                       <div className="mt-2">
                         <p className="text-[10px] text-orange-primary flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-primary" />
@@ -1292,7 +1280,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                   </div>
 
                   {/* Saldo a Favor */}
-                  {nuevaVenta.clienteId && selectorTipo === "Clientes" && (
+                  {nuevaVenta.clienteId && !seleccionadoEsBarbero && (
                     <div className="bg-gray-darker p-3 rounded-lg border border-gray-dark flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
@@ -1380,17 +1368,21 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               {/* Section 3: Sale Config */}
               <section>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {selectorTipo !== "Barberos" && (
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Tipo de Venta</Label>
-                    <div className={`elegante-input bg-gray-medium flex items-center gap-2 px-3 rounded-md text-sm ${nuevaVenta.tipoVenta === "Venta Cliente" ? "text-green-400" : "text-orange-primary"
-                      }`}>
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${nuevaVenta.tipoVenta === "Venta Cliente" ? "bg-green-400" : "bg-orange-primary"
-                        }`} />
+                    <div className={`elegante-input bg-gray-medium flex items-center gap-2 px-3 rounded-md text-sm ${
+                      nuevaVenta.tipoVenta === "Venta Cliente" || nuevaVenta.tipoVenta === "Venta Barbero"
+                        ? "text-green-400"
+                        : "text-orange-primary"
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${
+                        nuevaVenta.tipoVenta === "Venta Cliente" || nuevaVenta.tipoVenta === "Venta Barbero"
+                          ? "bg-green-400"
+                          : "bg-orange-primary"
+                      }`} />
                       {nuevaVenta.tipoVenta}
                     </div>
                   </div>
-                  )}
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Método de Pago *</Label>
                     <Select
@@ -1412,11 +1404,21 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         <SelectItem value="Transferencia">
                           Transferencia
                         </SelectItem>
+                        {seleccionadoEsBarbero && (
+                          <SelectItem value="Crédito">Crédito</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     {showVentaFormErrors && !nuevaVenta.metodoPago && (
                       <p className="text-xs text-red-400">
                         Este campo es obligatorio.
+                      </p>
+                    )}
+                    {nuevaVenta.metodoPago === "Crédito" && (
+                      <p className={`text-xs mt-1 ${calcularTotal() > LIMITE_CREDITO ? "text-red-400 font-medium animate-pulse" : "text-orange-primary"}`}>
+                        {calcularTotal() > LIMITE_CREDITO
+                          ? `Límite excedido: $${formatCurrency(calcularTotal())} / $${formatCurrency(LIMITE_CREDITO)}`
+                          : `Crédito: $${formatCurrency(calcularTotal())} de $${formatCurrency(LIMITE_CREDITO)} máx.`}
                       </p>
                     )}
                   </div>
@@ -1466,10 +1468,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         setProductoSeleccionado("");
                       }}
                       items={productosAPI.filter((p) => {
-                        const stock = Number(
-                          (p as any).stockVentas ?? (p as any).stock ?? 0
-                        );
-                        const precioNum = selectorTipo === "Barberos"
+                        const stock = Number((p as any).stock ?? (p as any).cantidad ?? 0);
+                        const precioNum = seleccionadoEsBarbero
                           ? Number((p as any).precioCompra ?? (p as any).precioBase ?? 0)
                           : Number((p as any).precio ?? (p as any).precioBase ?? 0);
                         return stock > 0 && precioNum > 0;
@@ -1488,7 +1488,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                             <p className="text-[10px] text-gray-lightest">
                               $
                               {formatCurrency(
-                                selectorTipo === "Barberos"
+                                seleccionadoEsBarbero
                                   ? (producto.precioCompra || producto.precioBase)
                                   : (producto.precio || producto.precioBase)
                               )}
@@ -1499,12 +1499,12 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                               Stock
                             </p>
                             <p
-                              className={`text-xs ${producto.stockVentas > 0
+                              className={`text-xs ${(producto.stock ?? 0) > 0
                                 ? "text-green-400"
                                 : "text-red-400"
                                 }`}
                             >
-                              {producto.stockVentas}
+                              {producto.stock ?? 0}
                             </p>
                           </div>
                         </div>
@@ -1549,8 +1549,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 )}
               </div>
 
-              {/* Section 5: Services — oculto en modo Barberos */}
-              {selectorTipo !== "Barberos" && (
+              {/* Section 5: Barbero y Servicios */}
               <div className="space-y-3 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
@@ -1693,7 +1692,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
           </div>
 
         </div>
-              )}
       </div>
       {/* Action Buttons */}
       <div className="shrink-0 px-5 pt-3 pb-4 border-t border-gray-dark bg-gray-darkest/90 flex justify-end space-x-3">

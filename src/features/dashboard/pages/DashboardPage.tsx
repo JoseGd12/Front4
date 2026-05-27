@@ -57,9 +57,6 @@ type Agendamiento = {
 
 type Insumo = {
   nombre: string;
-  stockVentas?: number;
-  stockInsumos?: number;
-  stockTotal?: number;
   stock?: number;
   minimo?: number;
   categoria?: string | null;
@@ -159,9 +156,7 @@ const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: A
 
     const insumos = (Array.isArray(jd?.inventarioBajo) ? jd.inventarioBajo : []).map((p: any) => ({
       nombre: p.nombre ?? p.Nombre,
-      stockVentas: Number((p.stockVentas ?? p.StockVentas) ?? 0),
-      stockInsumos: Number((p.stockInsumos ?? p.StockInsumos) ?? 0),
-      stockTotal: Number((p.stockTotal ?? p.StockTotal) ?? 0),
+      stock: Number(p.stock ?? p.Stock ?? p.cantidad ?? p.Cantidad ?? 0),
       minimo: Number(p.minimo ?? 50),
       categoria: (p.categoriaNombre ?? p.CategoriaNombre) ?? (p.categoria ?? null)
     }));
@@ -349,25 +344,16 @@ export function DashboardPage() {
   }, [agendamientos]);
 
   const inventarioBajo = useMemo(() => {
-    const items = insumos.map(p => {
-      const sv = Number(p.stockVentas ?? NaN);
-      const si = Number(p.stockInsumos ?? NaN);
-      let total: number;
-      if (!Number.isNaN(sv) && !Number.isNaN(si)) total = sv + si;
-      else if (!Number.isNaN(sv)) total = sv;
-      else if (!Number.isNaN(si)) total = si;
-      else total = Number(p.stock || 0);
-      return {
+    return insumos
+      .map(p => ({
         producto: p.nombre,
-        stockTotal: total,
+        stockTotal: Number(p.stock || 0),
         minimo: p.minimo,
         categoria: p.categoria
-      };
-    })
+      }))
       .filter(item => typeof item.stockTotal === "number" && item.stockTotal >= 0 && item.stockTotal < 50)
       .sort((a, b) => a.stockTotal - b.stockTotal)
       .slice(0, 5);
-    return items;
   }, [insumos]);
 
   const totalVentasHoy = useMemo(() => ventasHoy.reduce((acc, v) => acc + (Number(v.total) || 0), 0), [ventasHoy]);

@@ -508,7 +508,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     if (!producto) return false;
     const yaAgregado = (nuevaVenta.productos || []).find(p => p.id === productoSeleccionado);
     const cantYaAgregada = yaAgregado ? yaAgregado.cantidad : 0;
-    return (cantidadProducto + cantYaAgregada) > producto.stockVentas;
+    return (cantidadProducto + cantYaAgregada) > (producto.stock ?? producto.cantidad ?? 0);
   }, [productoSeleccionado, cantidadProducto, nuevaVenta.productos, productosAPI]);
 
   const filteredVentas = useMemo(() => {
@@ -763,6 +763,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   // si no, derivarlo de la aritmética de la venta.
   const saldoUsadoDetalle = useMemo(() => {
     if (!selectedVenta) return 0;
+    // Si es crédito barbero, el saldo a favor no aplica
+    if (String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero') return 0;
     // Prioridad: usar exactamente 'SaldoAFavorUsado' (PascalCase) si viene del backend
     const explicit = Number(
       (selectedVenta as any).SaldoAFavorUsado ??
@@ -778,12 +780,23 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     const descuento = Number(selectedVenta.descuento || 0);
     const total = Number(selectedVenta.total || 0);
 
-    // El saldo usado es la diferencia entre lo que debería costar (Subtotal + IVA - Descuento) y lo que se cobró (Total)
     const shouldBe = subtotal + iva - descuento;
     const diff = shouldBe - total;
-
-    // Retornar la diferencia si es positiva (tolerancia por decimales)
     return diff > 0.01 ? diff : 0;
+  }, [selectedVenta]);
+
+  // Crédito barbero usado: el monto total que quedó pendiente de pago
+  const creditoBarberoUsado = useMemo(() => {
+    if (!selectedVenta) return 0;
+    if (String(selectedVenta.metodoPago || '').toLowerCase() !== 'creditobarbero') return 0;
+    const explicit = Number(
+      (selectedVenta as any).CreditoBarberoUsado ??
+      (selectedVenta as any).creditoBarberoUsado ??
+      0
+    );
+    if (explicit > 0) return explicit;
+    // Derivar: todo el subtotal neto va a crédito
+    return Math.max(0, Number(selectedVenta.subtotal || 0) - Number(selectedVenta.descuento || 0));
   }, [selectedVenta]);
 
 
@@ -961,8 +974,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
     // VALIDACIÓN DE STOCK
     const productoInfo = productosAPI.find(p => p.id.toString() === productId);
-    if (productoInfo && nuevaCantidad > productoInfo.stockVentas) {
-      showErrorAlert("Stock insuficiente", `No se puede añadir una cantidad superior al stock disponible (${productoInfo.stockVentas}).`);
+    if (productoInfo && nuevaCantidad > (productoInfo.stock ?? productoInfo.cantidad ?? 0)) {
+      showErrorAlert("Stock insuficiente", `No se puede añadir una cantidad superior al stock disponible (${productoInfo.stock ?? productoInfo.cantidad ?? 0}).`);
 
       // Si excedió el stock, revertimos el input visual a la cantidad anterior
       const cantAnterior = nuevaVenta.productos?.find(p => p.id === productId)?.cantidad || 1;
@@ -1419,7 +1432,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
               normalizeBarbero(nuevaVentaCreada.barbero) === 'Sin asignar'
                 ? (barberoSeleccionadoData ? `${barberoSeleccionadoData.nombre} ${barberoSeleccionadoData.apellido || ''}`.trim() : 'Sin asignar')
                 : nuevaVentaCreada.barbero
-            )
+            ),
+        barberoDocumento:
+          (nuevaVentaCreada.barberoDocumento && String(nuevaVentaCreada.barberoDocumento).trim() !== '')
+            ? nuevaVentaCreada.barberoDocumento
+            : (barberoSeleccionadoData?.documento || '')
       };
 
       // Actualizar el estado local con la nueva venta
@@ -1483,7 +1500,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
             for (const p of venta.productosDetalle) {
               const pId = Number((p as any).id || (p as any).productoId || (p as any).ProductoId);
               if (!isNaN(pId)) {
-                await productoService.adjustStock(pId, p.cantidad, 'increment', 'ventas');
+                await productoService.adjustStock(pId, p.cantidad, 'increment');
               }
             }
           }
@@ -1616,27 +1633,43 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       doc.setLineWidth(0.5);
       doc.line(hMargin, y + 2, 85, y + 2);
 
+      const isBarberoVenta = String((ventaData as any).tipoVenta || '').toLowerCase().includes('barbero');
       const fechaRegistro = formatDate((ventaData as any).fecha || "");
-      const responsableVenta = normalizeBarbero((ventaData as any).barbero);
-      const clienteIdVenta = Number((ventaData as any).clienteId || 0);
-      const clienteDocumentoVenta = String((ventaData as any).clienteDocumento || "").trim();
-      const clienteNombreVenta = normalizeCliente((ventaData as any).cliente);
-      const clientesFuente = (clientesCatalogo?.length ? clientesCatalogo : clientesAPI) || [];
-      const clienteMatch = clientesFuente.find((c: any) => {
-        const idMatch = !Number.isNaN(clienteIdVenta) && clienteIdVenta > 0 && Number(c?.id) === clienteIdVenta;
-        if (idMatch) return true;
-        if (!clienteDocumentoVenta) return false;
-        const docCatalogo = String(c?.documento || "").trim();
-        return docCatalogo !== "" && (docCatalogo === clienteDocumentoVenta || docCatalogo.endsWith(clienteDocumentoVenta) || clienteDocumentoVenta.endsWith(docCatalogo));
-      });
-      const clienteNombreCatalogo = `${String(clienteMatch?.nombre || "").trim()} ${String(clienteMatch?.apellido || "").trim()}`.trim();
-      const clienteDocumentoCatalogo = String(clienteMatch?.documento || "").trim();
-      const clienteTipoDocumentoCatalogo = String((clienteMatch as any)?.tipoDocumento || "").trim();
-      const clienteNombreEsGenerico =
-        !clienteNombreVenta ||
-        ["cliente", "n/a", "na", "sin cliente", "null", "undefined"].includes(clienteNombreVenta.toLowerCase()) ||
-        /^cliente\s*\d*$/i.test(clienteNombreVenta);
-      const clienteNombreFinal = (clienteNombreEsGenerico ? clienteNombreCatalogo : clienteNombreVenta) || clienteNombreCatalogo || "Cliente";
+
+      let compradorNombre = "";
+      let compradorDoc = "";
+      let responsableVenta = "";
+
+      if (isBarberoVenta) {
+        compradorNombre = normalizeBarbero((ventaData as any).barbero);
+        const barberoIdVenta = Number((ventaData as any).barberoId || 0);
+        const barberoMatch = barberoIdVenta > 0 ? barberosAPI.find(b => Number(b.id) === barberoIdVenta) : null;
+        compradorDoc = barberoMatch?.documento || "";
+        responsableVenta = (ventaData as any).responsable || "N/A";
+      } else {
+        const clienteIdVenta = Number((ventaData as any).clienteId || 0);
+        const clienteDocumentoVenta = String((ventaData as any).clienteDocumento || "").trim();
+        const clienteNombreVenta = normalizeCliente((ventaData as any).cliente);
+        const clientesFuente = (clientesCatalogo?.length ? clientesCatalogo : clientesAPI) || [];
+        const clienteMatch = clientesFuente.find((c: any) => {
+          const idMatch = !Number.isNaN(clienteIdVenta) && clienteIdVenta > 0 && Number(c?.id) === clienteIdVenta;
+          if (idMatch) return true;
+          if (!clienteDocumentoVenta) return false;
+          const docCatalogo = String(c?.documento || "").trim();
+          return docCatalogo !== "" && (docCatalogo === clienteDocumentoVenta || docCatalogo.endsWith(clienteDocumentoVenta) || clienteDocumentoVenta.endsWith(docCatalogo));
+        });
+        const clienteNombreCatalogo = `${String(clienteMatch?.nombre || "").trim()} ${String(clienteMatch?.apellido || "").trim()}`.trim();
+        const clienteDocumentoCatalogo = String(clienteMatch?.documento || "").trim();
+        const clienteNombreEsGenerico =
+          !clienteNombreVenta ||
+          ["cliente", "n/a", "na", "sin cliente", "null", "undefined"].includes(clienteNombreVenta.toLowerCase()) ||
+          /^cliente\s*\d*$/i.test(clienteNombreVenta);
+
+        compradorNombre = (clienteNombreEsGenerico ? clienteNombreCatalogo : clienteNombreVenta) || clienteNombreCatalogo || "Cliente";
+        compradorDoc = clienteDocumentoVenta || clienteDocumentoCatalogo;
+        responsableVenta = normalizeBarbero((ventaData as any).barbero);
+      }
+
       const parseDocumento = (docRaw: string) => {
         const value = String(docRaw || "").trim().replace(/\s+/g, " ");
         if (!value) return { tipo: "", numero: "" };
@@ -1646,6 +1679,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         }
         return { tipo: "", numero: value };
       };
+
       const normalizeTipoDocumento = (tipoRaw: string) => {
         const tipo = String(tipoRaw || "").toUpperCase().replace(/\./g, "").trim();
         const map: Record<string, string> = {
@@ -1658,14 +1692,26 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         };
         return map[tipo] || "";
       };
-      const docFuente = clienteDocumentoVenta || clienteDocumentoCatalogo;
-      const docParsed = parseDocumento(docFuente);
+
+      const docParsed = parseDocumento(compradorDoc);
       const tipoFromParsed = normalizeTipoDocumento(docParsed.tipo);
-      const tipoFromCatalog = normalizeTipoDocumento(clienteTipoDocumentoCatalogo);
+
+      let tipoFromCatalog = "";
+      if (!isBarberoVenta) {
+        const clienteIdVenta = Number((ventaData as any).clienteId || 0);
+        const clientesFuente = (clientesCatalogo?.length ? clientesCatalogo : clientesAPI) || [];
+        const clienteMatch = clientesFuente.find(c => Number(c.id) === clienteIdVenta);
+        tipoFromCatalog = normalizeTipoDocumento(String((clienteMatch as any)?.tipoDocumento || "").trim());
+      } else {
+        const barberoIdVenta = Number((ventaData as any).barberoId || 0);
+        const barberoMatch = barberosAPI.find(b => Number(b.id) === barberoIdVenta);
+        tipoFromCatalog = normalizeTipoDocumento(String((barberoMatch as any)?.tipoDocumento || "").trim());
+      }
+
       const tipoDocumentoFinal = tipoFromParsed || tipoFromCatalog;
       const numeroDocumentoFinal = docParsed.numero || "N/A";
       const documentoFormateado = tipoDocumentoFinal ? `${tipoDocumentoFinal} ${numeroDocumentoFinal}` : numeroDocumentoFinal;
-      const clienteDisplay = `${clienteNombreFinal} - ${documentoFormateado}`;
+      const compradorDisplay = `${compradorNombre} - ${documentoFormateado}`;
 
       y += 15;
       doc.setFontSize(10);
@@ -1676,9 +1722,9 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
       y += 8;
       doc.setFont("helvetica", "bold");
-      doc.text("Cliente:", hMargin, y);
+      doc.text(isBarberoVenta ? "Barbero:" : "Cliente:", hMargin, y);
       doc.setFont("helvetica", "normal");
-      doc.text(clienteDisplay, hMargin + 40, y);
+      doc.text(compradorDisplay, hMargin + 40, y);
 
       y += 8;
       doc.setFont("helvetica", "bold");
@@ -1945,8 +1991,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                   <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                     <tr className="border-b border-gray-dark">
                       <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Número</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento Cliente</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Nombre Cliente</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento Cliente / Barbero</th>
+                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Nombre Cliente / Barbero</th>
                       <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Total</th>
                       <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Fecha de Registro</th>
                       <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
@@ -1970,14 +2016,26 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         <td className="py-4 px-4 text-center">
                           <div className="text-center">
                             <span className="text-gray-lighter">
-                              {venta.clienteDocumento || 'N/A'}
+                              {(() => {
+                                const isBarberoVenta = String(venta.tipoVenta || '').toLowerCase().includes('barbero');
+                                if (isBarberoVenta) {
+                                  return venta.barberoDocumento || 'N/A';
+                                }
+                                return venta.clienteDocumento || 'N/A';
+                              })()}
                             </span>
                           </div>
                         </td>
                         <td className="py-4 px-4 text-center">
                           <div className="text-center">
                             <span className="text-gray-lighter">
-                              {normalizeCliente(venta.cliente)}
+                              {(() => {
+                                const isBarberoVenta = String(venta.tipoVenta || '').toLowerCase().includes('barbero');
+                                if (isBarberoVenta) {
+                                  return normalizeBarbero(venta.barbero);
+                                }
+                                return normalizeCliente(venta.cliente);
+                              })()}
                             </span>
                           </div>
                         </td>
@@ -2162,10 +2220,18 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     <div className="space-y-2">
                       <Label className="text-gray-lightest flex items-center gap-2">
                         <User className="w-4 h-4 text-orange-primary" />
-                        Cliente
+                        {String(selectedVenta.tipoVenta || '').toLowerCase().includes('barbero') ? 'Barbero (Comprador)' : 'Cliente'}
                       </Label>
                       <Input
-                        value={`${normalizeCliente(selectedVenta.cliente)}${selectedVenta.clienteDocumento ? ` (${selectedVenta.clienteDocumento})` : ''}`}
+                        value={(() => {
+                          const isBarberoVenta = String(selectedVenta.tipoVenta || '').toLowerCase().includes('barbero');
+                          if (isBarberoVenta) {
+                            const doc = selectedVenta.barberoDocumento || '';
+                            return `${normalizeBarbero(selectedVenta.barbero)}${doc ? ` - Doc: ${doc}` : ''}`;
+                          }
+                          const doc = selectedVenta.clienteDocumento || '';
+                          return `${normalizeCliente(selectedVenta.cliente)}${doc ? ` - Doc: ${doc}` : ''}`;
+                        })()}
                         disabled
                         className="elegante-input bg-gray-medium"
                       />
@@ -2198,10 +2264,10 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     <div className="space-y-2">
                       <Label className="text-gray-lightest flex items-center gap-2">
                         <Scissors className="w-4 h-4 text-orange-primary" />
-                        Barbero
+                        Barbero {String(selectedVenta.tipoVenta || '').toLowerCase().includes('barbero') ? '(Servicio)' : '(Servicio)'}
                       </Label>
                       <Input
-                        value={normalizeBarbero(selectedVenta.barbero)}
+                        value={String(selectedVenta.tipoVenta || '').toLowerCase().includes('barbero') ? 'N/A (Compra de insumos)' : normalizeBarbero(selectedVenta.barbero)}
                         disabled
                         className="elegante-input bg-gray-medium"
                       />

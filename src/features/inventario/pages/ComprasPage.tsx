@@ -348,27 +348,18 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
           // Actualizar estado localmente de inmediato
           setCompras(prev => prev.map(c => c.id === compraId ? { ...c, estado: 'Anulada' } : c));
 
-          // 3. Revertir manualmente el stock de insumos usando los detalles capturados
+          // 3. Revertir manualmente el stock usando los detalles capturados
           try {
             for (const detalle of detallesCompra) {
               const productoId = Number(detalle.productoId);
               if (!productoId) continue;
-
               const cantidadTotal = Number(detalle.cantidad || 0);
-              const cantidadVentas = Number(detalle.cantidadVentas || 0);
-              const cantidadInsumosPersistida = Number(detalle.cantidadInsumos || 0);
-
-              // Si el backend no persiste cantidadInsumos, inferimos el resto
-              const insumosARevertir = cantidadInsumosPersistida > 0
-                ? cantidadInsumosPersistida
-                : Math.max(0, cantidadTotal - cantidadVentas);
-
-              if (insumosARevertir > 0) {
-                 await productoService.adjustStock(productoId, insumosARevertir, 'decrement', 'insumos');
+              if (cantidadTotal > 0) {
+                await productoService.revertirStockProducto(productoId, cantidadTotal);
               }
             }
           } catch (revertError) {
-             console.error("Error al revertir stock de insumos en el cliente:", revertError);
+             console.error("Error al revertir stock en el cliente:", revertError);
           }
 
           await loadCompras().catch(() => { });
@@ -714,8 +705,6 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                   <td>${producto.productoNombre}</td>
                   <td>
                     ${producto.cantidad}
-                    <br>
-                    <small style="color: #666;">(🛒: ${producto.cantidadVentas} | 📦: ${producto.cantidadInsumos})</small>
                   </td>
                   <td>${formatCurrency(producto.precioUnitario)}</td>
                   <td>${formatCurrency(producto.subtotal || 0)}</td>
@@ -1005,9 +994,6 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                       </div>
                       <div className="space-y-2 max-h-52 overflow-y-auto">
                         {selectedCompra.detalles.map((detalle, idx) => {
-                          const stockVentasDetalle = detalle.cantidadVentas ?? 0;
-                          const stockInsumosDetalle = detalle.cantidadInsumos ?? 0;
-                          // Usar la imagen que viene directamente en el detalle para mayor confiabilidad
                           const imgUrl = detalle.productoImagen;
 
                           return (
@@ -1028,18 +1014,8 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                                 </div>
 
                                 <div className="flex flex-col gap-0.5 shrink-0">
-                                  <label className="text-[11px] text-gray-400 font-normal">Total</label>
+                                  <label className="text-[11px] text-gray-400 font-normal">Cantidad</label>
                                   <Input type="number" value={detalle.cantidad} disabled className="w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5 bg-gray-medium" />
-                                </div>
-
-                                <div className="flex flex-col gap-0.5 shrink-0">
-                                  <label className="text-[11px] text-gray-400 font-normal">Ventas</label>
-                                  <Input type="number" value={stockVentasDetalle} disabled className="w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5 border-green-500/20 bg-gray-medium" />
-                                </div>
-
-                                <div className="flex flex-col gap-0.5 shrink-0">
-                                  <label className="text-[11px] text-gray-400 font-normal">Insumos</label>
-                                  <Input type="number" value={stockInsumosDetalle} disabled className="w-12 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5 border-blue-500/20 bg-gray-medium" />
                                 </div>
 
                                 <div className="flex flex-col gap-0.5 shrink-0">
@@ -1054,9 +1030,6 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                                   </span>
                                 </div>
 
-                                {(stockVentasDetalle + stockInsumosDetalle) !== detalle.cantidad && (
-                                  <span className="shrink-0 text-red-400 text-xs" title="Ventas + Insumos = Total"></span>
-                                )}
                               </div>
                             </div>
                           );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
+import { firebaseAuthService } from '../../../shared/services/firebase';
 import { Button } from '../../../shared/components/ui/button';
 import { Input } from '../../../shared/components/ui/input';
 import { Label } from '../../../shared/components/ui/label';
@@ -98,6 +99,24 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
     };
   };
 
+  // Hace login temporal con la nueva contraseña para obtener un token
+  // y actualiza el hash en la BD SQL. No bloquea la UX — fallo silencioso.
+  const sincronizarHashEnSQL = async (email: string, nuevaContrasena: string) => {
+    try {
+      const cred = await firebaseAuthService.signIn(email, nuevaContrasena);
+      const token = await cred.user.getIdToken();
+      await fetch('/api/usuarios/contrasena-propia', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ nuevaContrasena }),
+      });
+      await firebaseAuthService.signOut();
+    } catch {
+      // Fallo silencioso: Firebase ya actualizó su copia, el hash SQL
+      // se actualizará la próxima vez que el usuario inicie sesión.
+    }
+  };
+
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -123,6 +142,8 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
     try {
       const result = await confirmPasswordReset(finalToken, passwords.newPassword);
       if (result.success) {
+        // Sincronizar el hash en SQL sin bloquear la UX
+        sincronizarHashEnSQL(verifiedEmail, passwords.newPassword);
         setStep('success');
       } else {
         setError(result.error || 'Error al actualizar la contraseña');

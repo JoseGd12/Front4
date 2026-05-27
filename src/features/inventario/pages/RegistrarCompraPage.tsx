@@ -24,7 +24,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { DetailPanelCompra } from "../components/DetailPanelCompra";
 import { useAuth } from "../../../shared/contexts/AuthContext";
-import { canBeUsedInService, isSaleOnly } from "../../../shared/utils/usagePolicy";
 
 // Utilities
 const formatCurrency = (amount: number): string => {
@@ -124,8 +123,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
       nombre: string;
       cantidad: number;
       precio: number;
-      stockVentas: number;
-      stockInsumos: number;
       precioVenta?: number;
       imagen?: string;
       categoria?: string;
@@ -138,8 +135,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
   const [tarjetaInputs, setTarjetaInputs] = useState<
     Record<number, {
       cantidad?: string;
-      stockVentas?: string;
-      stockInsumos?: string;
       precio?: string;
       precioVenta?: string;
     }>
@@ -149,11 +144,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
   const [productoSeleccionado, setProductoSeleccionado] = useState("");
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [precioUnitario, setPrecioUnitario] = useState(0);
-  const [stockVentas, setStockVentas] = useState(0);
-  const [stockInsumos, setStockInsumos] = useState(0);
-  const [stockVentasInput, setStockVentasInput] = useState("");
-  const [stockInsumosInput, setStockInsumosInput] = useState("");
-  const cantidadProducto = stockVentas + stockInsumos;
 
   // Proveedor search state
   const [proveedorSearchTerm, setProveedorSearchTerm] = useState("");
@@ -171,28 +161,11 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
   // Submission
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedProductoObj = useMemo(() => {
-    const id = Number(productoSeleccionado);
-    if (!id) return undefined;
-    return productos.find((p) => Number(p.id) === id);
-  }, [productoSeleccionado, productos]);
-
-  const esSoloVentaSeleccionado = useMemo(() => {
-    if (!selectedProductoObj) return false;
-    return isSaleOnly(selectedProductoObj as any);
-  }, [selectedProductoObj]);
-
   // Derived validation states
   const noProductosAgregados = (nuevaCompra.productos?.length || 0) === 0;
   const showProductoSelectorError =
     (showCompraFormErrors && noProductosAgregados && !productoSeleccionado) ||
     (showAddProductoErrors && !productoSeleccionado);
-  const showStockCantidadError =
-    ((showCompraFormErrors && noProductosAgregados) || showAddProductoErrors) &&
-    cantidadProducto <= 0;
-  const showStockVentasError = showStockCantidadError;
-  const showStockInsumosError =
-    showStockCantidadError && !esSoloVentaSeleccionado;
 
   const numeroCompra = useMemo(() => {
     return comprasCount + 1;
@@ -277,12 +250,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     }
   }, [productoSeleccionado, productos]);
 
-  useEffect(() => {
-    if (!esSoloVentaSeleccionado) return;
-    setStockInsumos(0);
-    setStockInsumosInput("0");
-  }, [esSoloVentaSeleccionado]);
-
   // --- Calculations ---
   const calcularSubtotal = () => {
     if (!nuevaCompra.productos || !Array.isArray(nuevaCompra.productos)) return 0;
@@ -300,33 +267,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
   };
 
   // --- Input handlers ---
-  const handleStockVentasInputChange = (valor: string) => {
-    const onlyDigits = valor.replace(/\D+/g, "").slice(0, 4);
-    setStockVentasInput(onlyDigits);
-    if (showAddProductoErrors) setShowAddProductoErrors(false);
-    if (onlyDigits.trim() === "") {
-      setStockVentas(0);
-      return;
-    }
-    setStockVentas(Math.max(0, parseInt(onlyDigits, 10) || 0));
-  };
-
-  const handleStockInsumosInputChange = (valor: string) => {
-    if (esSoloVentaSeleccionado) {
-      setStockInsumos(0);
-      setStockInsumosInput("0");
-      return;
-    }
-    const onlyDigits = valor.replace(/\D+/g, "").slice(0, 4);
-    setStockInsumosInput(onlyDigits);
-    if (showAddProductoErrors) setShowAddProductoErrors(false);
-    if (onlyDigits.trim() === "") {
-      setStockInsumos(0);
-      return;
-    }
-    setStockInsumos(Math.max(0, parseInt(onlyDigits, 10) || 0));
-  };
-
   const handlePorcentajeDescuentoInputChange = (valor: string) => {
     if (valor.trim() === "") {
       setPorcentajeDescuentoInput("");
@@ -370,27 +310,16 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
 
       const productosActuales = nuevaCompra.productos || [];
       const existeProducto = productosActuales.find((p) => p.id === producto.id);
-      const stockVentasAgregar = 1;
-      const stockInsumosAgregar = 0;
       const precioCompraInicial = precioUnitario > 0 ? precioUnitario : getPrecioCompra(producto);
 
       if (existeProducto) {
         const cantidadActualizada = existeProducto.cantidad + cantidadAgregar;
-        const stockVentasActualizado = existeProducto.stockVentas + stockVentasAgregar;
-        const stockInsumosActualizado = existeProducto.stockInsumos + stockInsumosAgregar;
         const precioActualizado = existeProducto.precio > 0 ? existeProducto.precio : precioCompraInicial;
         setNuevaCompra({
           ...nuevaCompra,
           productos: productosActuales.map((p) =>
             p.id === producto.id
-              ? {
-                  ...p,
-                  cantidad: cantidadActualizada,
-                  precio: precioActualizado,
-                  stockVentas: stockVentasActualizado,
-                  stockInsumos: stockInsumosActualizado,
-                  precioVenta: (p as any).precioVenta ?? getPrecioVenta(producto),
-                }
+              ? { ...p, cantidad: cantidadActualizada, precio: precioActualizado, precioVenta: (p as any).precioVenta ?? getPrecioVenta(producto) }
               : p
           ),
         });
@@ -398,8 +327,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
           ...prev,
           [producto.id]: {
             cantidad: String(cantidadActualizada),
-            stockVentas: String(stockVentasActualizado),
-            stockInsumos: String(stockInsumosActualizado),
             precio: prev[producto.id]?.precio ?? String(precioActualizado),
             precioVenta: prev[producto.id]?.precioVenta ?? String((existeProducto as any)?.precioVenta ?? getPrecioVenta(producto)),
           },
@@ -415,8 +342,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
               nombre: producto.nombre,
               cantidad: cantidadAgregar,
               precio: precioCompraInicial,
-              stockVentas: stockVentasAgregar,
-              stockInsumos: stockInsumosAgregar,
               precioVenta: precioVentaInicial,
               imagen: (producto as any).imagen ?? (producto as any).imagenProduc ?? "",
               categoria:
@@ -430,8 +355,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
           ...prev,
           [producto.id]: {
             cantidad: String(cantidadAgregar),
-            stockVentas: String(stockVentasAgregar),
-            stockInsumos: String(stockInsumosAgregar),
             precio: String(precioCompraInicial),
             precioVenta: String(precioVentaInicial),
           },
@@ -442,10 +365,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
       setProductoSeleccionado("");
       setProductSearchTerm("");
       setPrecioUnitario(0);
-      setStockVentas(0);
-      setStockInsumos(0);
-      setStockVentasInput("");
-      setStockInsumosInput("");
       setShowAddProductoErrors(false);
       setShowCompraFormErrors(false);
     } catch (err) {
@@ -468,99 +387,42 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
 
   // --- Tarjeta input management (for DetailPanel editable fields) ---
   const getTarjetaInput = (
-    producto: { id: number; cantidad: number; stockVentas: number; stockInsumos: number; precio: number; precioVenta?: number },
-    campo: "cantidad" | "stockVentas" | "stockInsumos" | "precio" | "precioVenta"
+    producto: { id: number; cantidad: number; precio: number; precioVenta?: number },
+    campo: "cantidad" | "precio" | "precioVenta"
   ) => {
-    const visual = tarjetaInputs[producto.id]?.[campo];
-    return visual ?? "";
+    return tarjetaInputs[producto.id]?.[campo] ?? "";
   };
 
   const actualizarTarjetaInput = (
     productId: number,
-    campo: "cantidad" | "stockVentas" | "stockInsumos" | "precio" | "precioVenta",
+    campo: "cantidad" | "precio" | "precioVenta",
     valor: string
   ) => {
     setTarjetaInputs((prev) => ({
       ...prev,
-      [productId]: {
-        ...prev[productId],
-        [campo]: valor,
-      },
+      [productId]: { ...prev[productId], [campo]: valor },
     }));
 
     if (valor.trim() === "") return;
     const numero = Number(valor);
     if (Number.isNaN(numero)) return;
 
-    if (campo === "cantidad" && numero >= 1) {
-      actualizarCantidadProducto(productId, numero);
-      return;
-    }
-    if (campo === "stockVentas" && numero >= 0) {
-      actualizarStockVentas(productId, numero);
-      return;
-    }
-    if (campo === "stockInsumos" && numero >= 0) {
-      actualizarStockInsumos(productId, numero);
-      return;
-    }
-    if (campo === "precio" && numero >= 0) {
-      actualizarPrecioProducto(productId, numero);
-      return;
-    }
-    if (campo === "precioVenta" && numero >= 0) {
-      actualizarPrecioVentaProducto(productId, numero);
-    }
+    if (campo === "cantidad" && numero >= 1) { actualizarCantidadProducto(productId, numero); return; }
+    if (campo === "precio" && numero >= 0) { actualizarPrecioProducto(productId, numero); return; }
+    if (campo === "precioVenta" && numero >= 0) { actualizarPrecioVentaProducto(productId, numero); }
   };
 
   const actualizarCantidadProducto = (productId: number, nuevaCantidad: number) => {
     if (nuevaCantidad < 1) return;
-    const productosActuales = nuevaCompra.productos || [];
-    const producto = productosActuales.find((p) => p.id === productId);
-    if (!producto) return;
-
-    if (isSaleOnly(producto as any)) {
-      setNuevaCompra({
-        ...nuevaCompra,
-        productos: productosActuales.map((p) =>
-          p.id === productId ? { ...p, cantidad: nuevaCantidad, stockVentas: nuevaCantidad, stockInsumos: 0 } : p
-        ),
-      });
-      setTarjetaInputs((prev) => ({
-        ...prev,
-        [productId]: { ...prev[productId], cantidad: String(nuevaCantidad), stockVentas: String(nuevaCantidad), stockInsumos: "0" },
-      }));
-      return;
-    }
-
-    const diferencia = nuevaCantidad - producto.cantidad;
-    let nuevoStockVentas = producto.stockVentas + diferencia;
-    let nuevoStockInsumos = producto.stockInsumos;
-
-    if (nuevoStockVentas > nuevaCantidad) {
-      nuevoStockVentas = nuevaCantidad;
-      nuevoStockInsumos = 0;
-    } else if (nuevoStockVentas < 0) {
-      nuevoStockVentas = 0;
-      nuevoStockInsumos = nuevaCantidad;
-    } else {
-      nuevoStockInsumos = nuevaCantidad - nuevoStockVentas;
-    }
-
     setNuevaCompra({
       ...nuevaCompra,
-      productos: productosActuales.map((p) =>
-        p.id === productId ? { ...p, cantidad: nuevaCantidad, stockVentas: nuevoStockVentas, stockInsumos: nuevoStockInsumos } : p
+      productos: (nuevaCompra.productos || []).map((p) =>
+        p.id === productId ? { ...p, cantidad: nuevaCantidad } : p
       ),
     });
     setTarjetaInputs((prev) => ({
       ...prev,
-      [productId]: {
-        ...prev[productId],
-        cantidad: String(nuevaCantidad),
-        stockVentas: String(nuevoStockVentas),
-        stockInsumos: String(nuevoStockInsumos),
-      },
+      [productId]: { ...prev[productId], cantidad: String(nuevaCantidad) },
     }));
   };
 
@@ -588,60 +450,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     }));
   };
 
-  const actualizarStockVentas = (productId: number, nuevoStock: number) => {
-    if (nuevoStock < 0) return;
-    const productosActuales = nuevaCompra.productos || [];
-    const producto = productosActuales.find((p) => p.id === productId);
-    if (!producto) return;
-
-    let nuevoVentas = Math.floor(nuevoStock);
-    let nuevoInsumos = producto.stockInsumos;
-
-    if (isSaleOnly(producto as any)) {
-      nuevoInsumos = 0;
-    }
-
-    const nuevaCantidad = nuevoVentas + nuevoInsumos;
-
-    setNuevaCompra({
-      ...nuevaCompra,
-      productos: productosActuales.map((p) =>
-        p.id === productId ? { ...p, cantidad: nuevaCantidad, stockVentas: nuevoVentas, stockInsumos: nuevoInsumos } : p
-      ),
-    });
-    setTarjetaInputs((prev) => ({
-      ...prev,
-      [productId]: { ...prev[productId], cantidad: String(nuevaCantidad), stockVentas: String(nuevoVentas), stockInsumos: String(nuevoInsumos) },
-    }));
-  };
-
-  const actualizarStockInsumos = (productId: number, nuevoStock: number) => {
-    if (nuevoStock < 0) return;
-    const productosActuales = nuevaCompra.productos || [];
-    const producto = productosActuales.find((p) => p.id === productId);
-    if (!producto) return;
-
-    if (isSaleOnly(producto as any)) {
-      return;
-    }
-
-    let nuevoInsumos = Math.floor(nuevoStock);
-    let nuevoVentas = producto.stockVentas;
-
-    const nuevaCantidad = nuevoVentas + nuevoInsumos;
-
-    setNuevaCompra({
-      ...nuevaCompra,
-      productos: productosActuales.map((p) =>
-        p.id === productId ? { ...p, cantidad: nuevaCantidad, stockVentas: nuevoVentas, stockInsumos: nuevoInsumos } : p
-      ),
-    });
-    setTarjetaInputs((prev) => ({
-      ...prev,
-      [productId]: { ...prev[productId], cantidad: String(nuevaCantidad), stockVentas: String(nuevoVentas), stockInsumos: String(nuevoInsumos) },
-    }));
-  };
-
   // --- Submit ---
   const handleCreateCompra = async () => {
     if (isSubmitting) return;
@@ -657,21 +465,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
       showErrorAlert(
         "Campos obligatorios",
         "Por favor completa la fecha de factura, el método de pago, selecciona un proveedor y agrega al menos un producto."
-      );
-      return;
-    }
-
-    // Validate stock distribution
-    const productosInvalidos = nuevaCompra.productos.filter((p) => {
-      const sumaStocks = p.stockVentas + p.stockInsumos;
-      return sumaStocks !== p.cantidad;
-    });
-
-    if (productosInvalidos.length > 0) {
-      const nombresInvalidos = productosInvalidos.map((p) => p.nombre).join(", ");
-      showErrorAlert(
-        "Error en distribución de stock",
-        `Los siguientes productos tienen una distribución de stock incorrecta: ${nombresInvalidos}`
       );
       return;
     }
@@ -717,8 +510,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
         productoId: p.id,
         cantidad: p.cantidad,
         precioUnitario: p.precio,
-        cantidadVentas: Number.isFinite(p.stockVentas) ? p.stockVentas : 0,
-        cantidadInsumos: Number.isFinite(p.stockInsumos) ? p.stockInsumos : 0,
       })),
     };
 
@@ -973,10 +764,6 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                       setProductSearchTerm("");
                       setProductoSeleccionado("");
                       setPrecioUnitario(0);
-                      setStockVentas(0);
-                      setStockInsumos(0);
-                      setStockVentasInput("");
-                      setStockInsumosInput("");
                     }}
                     items={productos}
                     filterFn={(p, query) => {
@@ -1000,19 +787,11 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
                           </p>
                         </div>
                         <div className="text-right">
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] text-gray-lightest leading-none">Stock ventas</span>
-                              <span className={`text-xs font-bold ${((producto as any).stockVentas ?? 0) > 0 ? "text-green-400" : "text-red-400"}`}>
-                                {Number((producto as any).stockVentas ?? 0)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] text-gray-lightest leading-none">Stock insumos</span>
-                              <span className={`text-xs font-bold ${((producto as any).stockInsumos ?? (producto as any).stock ?? 0) > 0 ? "text-blue-400" : "text-red-400"}`}>
-                                {Number((producto as any).stockInsumos ?? (producto as any).stock ?? 0)}
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-gray-lightest leading-none">Stock</span>
+                            <span className={`text-xs font-bold ${((producto as any).stock ?? 0) > 0 ? "text-green-400" : "text-red-400"}`}>
+                              {Number((producto as any).stock ?? 0)}
+                            </span>
                           </div>
                         </div>
                       </div>

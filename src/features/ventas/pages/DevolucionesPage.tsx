@@ -46,7 +46,6 @@ import { clientesService } from "../../clientes/services/clientesService";
 import { productoService } from "../../productos/services/productos";
 import { categoriaService } from "../../inventario/services/categoriaService";
 import { barberosService } from "../../administracion/services/barberosService";
-import { entregaInsumosService } from "../../inventario/services/entregaInsumosService";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { useAuth } from "../../../shared/contexts/AuthContext"; // Added
 import manitoLogo from "../../../assets/Manito.jpeg";
@@ -429,9 +428,6 @@ interface Devolucion {
   apiId?: number;
   ventaId?: number;
   productoId?: number;
-  entregaId?: number;
-  entregaEstado?: string;
-  entregaFecha?: string;
   userImagen?: string;
 }
 
@@ -457,7 +453,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [ventasDisponibles, setVentasDisponibles] = useState<any[]>([]);
   const [barberosDisponibles, setBarberosDisponibles] = useState<any[]>([]);
-  const [tipoDevolucion, setTipoDevolucion] = useState<'venta' | 'insumos'>('venta');
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -475,12 +470,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   // Estados para búsqueda de ventas en el formulario de nueva devolución
   const [ventaSearchTerm, setVentaSearchTerm] = useState("");
   const [showVentaResults, setShowVentaResults] = useState(false);
-  const [selectedBarbero, setSelectedBarbero] = useState<any>(null);
-  const [resumenEntregas, setResumenEntregas] = useState<any[]>([]);
-  const [entregasBarbero, setEntregasBarbero] = useState<any[]>([]);
-  const [selectedEntrega, setSelectedEntrega] = useState<any>(null);
-  const [productosInsumosSeleccionados, setProductosInsumosSeleccionados] = useState<Record<number, boolean>>({});
-  const [cantidadesInsumos, setCantidadesInsumos] = useState<Record<number, string>>({});
 
   // Cargar datos al iniciar
   useEffect(() => {
@@ -637,9 +626,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           apiId: d.id,
           ventaId: d.ventaId,
           productoId: d.productoId,
-          entregaId: (d as any).entregaId,
-          entregaEstado: (d as any).entregaEstado,
-          entregaFecha: (d as any).entregaFecha,
           userImagen: clienteIdNum && clientesMapa.has(clienteIdNum)
             ? clientesMapa.get(clienteIdNum)!.imagen
             : (d as any).barberoId && barberosMapa.has(Number((d as any).barberoId))
@@ -760,7 +746,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const isSubmittingRef = useRef(false);
   const showVentaError = showDevolucionFormErrors && !nuevaDevolucion.ventaId && tipoDevolucion === 'venta';
   const showProductoError = showDevolucionFormErrors && Object.values(productosSeleccionados).filter(Boolean).length === 0;
-  const showMotivoError = showDevolucionFormErrors && !nuevaDevolucion.motivoCategoria && !selectedBarbero;
+  const showMotivoError = showDevolucionFormErrors && !nuevaDevolucion.motivoCategoria;
   const showCantidadError = false;
 
   const inits = (s: string) => s.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
@@ -1036,200 +1022,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
     }
   };
 
-  const handleBarberoChange = async (barbero: any) => {
-    setSelectedBarbero(barbero);
-    try {
-      const todas = await entregaInsumosService.getEntregas();
-      const entregasList = (todas || [])
-        .filter((e: any) => Number(e.barberoId ?? e.BarberoId ?? 0) === Number(barbero.id));
-      const sortByFechaDesc = (a: any, b: any) => {
-        const ta = new Date(a.fecha ?? a.Fecha ?? Date.now()).getTime();
-        const tb = new Date(b.fecha ?? b.Fecha ?? Date.now()).getTime();
-        return tb - ta;
-      };
-      entregasList.sort(sortByFechaDesc);
-      setEntregasBarbero(entregasList);
-      setSelectedEntrega(entregasList[0] || null);
-      if (entregasList.length > 0) {
-        await handleSelectEntrega(entregasList[0]);
-      } else {
-        setResumenEntregas([]);
-        setCantidadesInsumos({});
-        setProductosInsumosSeleccionados({});
-      }
-    } catch (e) {
-      showErrorAlert("Error al cargar entregas", "No se pudieron cargar las entregas del barbero.");
-    }
-  };
-
-  const handleSelectEntrega = async (entrega: any) => {
-    setSelectedEntrega(entrega);
-    try {
-      // Intentar usar el resumen del backend para asegurar productoId correcto
-      const resumen = await devolucionService.getEntregasDevolucionesResumen({
-        barberoId: Number(selectedBarbero?.id || 0),
-        entregaId: Number((entrega as any).id || 0)
-      });
-      let normalized: Array<{ productoId: number; nombre: string; entregado: number; devuelto: number; disponible: number; precio: number }> = [];
-      if (Array.isArray(resumen) && resumen.length > 0) {
-        normalized = resumen.map((it: any, idx: number) => {
-          const productoObj = it.producto || it.Producto || {};
-          const productoId = Number(it.productoId || it.ProductoId || productoObj.id || productoObj.Id || idx);
-          const nombre = String(productoObj.nombre || productoObj.Nombre || it.nombre || it.Nombre || `Producto ${idx + 1}`);
-          const entregado = Number(it.entregado || it.totalEntregado || it.Entregado || it.TotalEntregado || 0);
-          const devuelto = Number(it.devuelto || it.totalDevuelto || it.Devuelto || it.TotalDevuelto || 0);
-          const disponible = Math.max(0, Number(it.disponible || it.Disponible || (entregado - devuelto)));
-          const precio = Number(it.precioHistorico || it.PrecioHistorico || it.precioVenta || it.PrecioVenta || 0);
-          return { productoId, nombre, entregado, devuelto, disponible, precio };
-        });
-      } else {
-        // Fallback: construir desde los detalles de la entrega
-        let detallesRaw =
-          (entrega as any).insumosDetalle ||
-          (entrega as any).detalleEntregasInsumos ||
-          (entrega as any).detalles ||
-          [];
-        if (!Array.isArray(detallesRaw) || detallesRaw.length === 0) {
-          const entregaCompleta = await entregaInsumosService.getEntregaById(String((entrega as any).id || ''));
-          if (entregaCompleta) {
-            detallesRaw =
-              (entregaCompleta as any).insumosDetalle ||
-              (entregaCompleta as any).detalleEntregasInsumos ||
-              (entregaCompleta as any).detalles ||
-              (entregaCompleta as any).insumos ||
-              [];
-          }
-        }
-        const devols = await devolucionService.getEntregasDevoluciones({
-          barberoId: Number(selectedBarbero?.id || 0),
-          entregaId: Number((entrega as any).id || 0)
-        });
-        const devueltoMap = new Map<number, number>();
-        (devols || []).forEach((d: any) => {
-          const pId = Number(d.productoId || d.ProductoId || 0);
-          const cant = Number(d.cantidad || d.Cantidad || 0);
-          if (!pId || !cant) return;
-          devueltoMap.set(pId, (devueltoMap.get(pId) || 0) + cant);
-        });
-        normalized = (Array.isArray(detallesRaw) ? detallesRaw : []).map((det: any, idx: number) => {
-          const prod = det.producto || det || {};
-          // Intentar usar productoId presente en detalle si existe
-          const productoId = Number(det.productoId || det.ProductoId || prod.id || prod.Id || idx);
-          const nombre = String(prod.nombre || prod.Nombre || det.nombre || det.Nombre || `Producto ${idx + 1}`);
-          const entregado = Number(det.cantidad || det.Cantidad || prod.cantidad || 0);
-          const devuelto = devueltoMap.get(productoId) || 0;
-          const disponible = Math.max(0, entregado - devuelto);
-          const precio = Number(det.precio || det.Precio || det.precioHistorico || det.PrecioHistorico || prod.precioVenta || 0);
-          return { productoId, nombre, entregado, devuelto, disponible, precio };
-        });
-      }
-      setResumenEntregas(normalized);
-      const initCant: Record<number, string> = {};
-      normalized.forEach((row: any) => {
-        initCant[row.productoId] = row.disponible > 0 ? '1' : '0';
-      });
-      setCantidadesInsumos(initCant);
-      setProductosInsumosSeleccionados({});
-    } catch {
-      showErrorAlert("Error al cargar resumen", "No se pudo cargar el resumen de la entrega.");
-    }
-  };
-
-  const handleToggleInsumoSeleccion = (row: any, checked: boolean) => {
-    const pid = Number(row.productoId || 0);
-    if (!pid) return;
-    const maxDisp = Number(row.disponible ?? 0);
-    if (checked && maxDisp <= 0) {
-      showErrorAlert("Sin unidades disponibles", "Este producto no tiene unidades disponibles para devolución.");
-      return;
-    }
-    setProductosInsumosSeleccionados(prev => ({ ...prev, [pid]: checked }));
-    if (checked) {
-      const raw = cantidadesInsumos[pid] ?? '1';
-      const parsed = Math.min(Math.max(1, Number(raw) || 1), maxDisp);
-      setCantidadesInsumos(prev => ({ ...prev, [pid]: String(parsed) }));
-    }
-  };
-
-  const handleCantidadInsumoChange = (row: any, valor: string) => {
-    const pid = Number(row.productoId || 0);
-    if (!pid) return;
-    const max = Number(row.disponible ?? 0);
-    const cleaned = valor.replace(/\D/g, '');
-    if (cleaned === '') {
-      setCantidadesInsumos(prev => ({ ...prev, [pid]: '' }));
-      return;
-    }
-    const parsed = Number(cleaned);
-    if (!Number.isNaN(parsed)) {
-      const valid = Math.min(Math.max(1, Math.floor(parsed)), max);
-      setCantidadesInsumos(prev => ({ ...prev, [pid]: String(valid) }));
-    }
-  };
-
-  const handleCantidadInsumoBlur = (row: any) => {
-    const pid = Number(row.productoId || 0);
-    if (!pid) return;
-    const max = Number(row.disponible ?? 0);
-    const raw = String(cantidadesInsumos[pid] ?? '').trim();
-    if (raw === '') {
-      setCantidadesInsumos(prev => ({ ...prev, [pid]: '1' }));
-      return;
-    }
-    const parsed = Number(raw);
-    const valid = Math.min(Math.max(1, Math.floor(parsed)), max);
-    setCantidadesInsumos(prev => ({ ...prev, [pid]: String(valid) }));
-  };
-
-  const handleCreateDevolucionInsumos = async () => {
-    setShowDevolucionFormErrors(true);
-    if (!selectedBarbero || !selectedBarbero.id) {
-      showErrorAlert("Barbero requerido", "Selecciona un barbero.");
-      return;
-    }
-    const idsSel = Object.entries(productosInsumosSeleccionados).filter(([_, v]) => v).map(([k]) => Number(k));
-    if (idsSel.length === 0) {
-      showErrorAlert("Productos requeridos", "Selecciona al menos un producto a devolver.");
-      return;
-    }
-    const detalles = idsSel.map(pid => {
-      const row = resumenEntregas.find(r => Number(r.productoId) === pid) || {};
-      const cant = Number(cantidadesInsumos[pid] ?? 0);
-      const max = Number((row as any).disponible ?? 0);
-      if (cant <= 0 || cant > max) {
-        throw new Error(`Cantidad inválida para producto ${pid}`);
-      }
-      return { productoId: pid, cantidad: cant, precioHistorico: Number((row as any).precio || 0) || undefined };
-    });
-    try {
-      const currentUserId = Number(user?.id || 0);
-      if (!currentUserId) {
-        showErrorAlert("Sesión inválida", "Inicia sesión nuevamente.");
-        return;
-      }
-      await devolucionService.createDevolucionInsumosBarbero({
-        barberoId: Number(selectedBarbero.id),
-        usuarioId: currentUserId,
-        motivoCategoria: nuevaDevolucion.motivoCategoria || '',
-        motivoDetalle: nuevaDevolucion.motivoCategoria || '',
-        observaciones: nuevaDevolucion.observaciones || '',
-        detalles
-      });
-      created("Devolución de insumos registrada", "La devolución ha sido registrada correctamente.");
-      setIsDialogOpen(false);
-      loadData(true);
-      resetFormularios();
-    } catch (e: any) {
-      showErrorAlert("Error al registrar", "No se pudo registrar la devolución de insumos.");
-    }
-  };
-
-  const handleRegistrarDevolucion = async () => {
-    if (selectedBarbero && resumenEntregas.length > 0) {
-      await handleCreateDevolucionInsumos();
-    } else {
-      handleCreateDevolucion();
-    }
+  const handleRegistrarDevolucion = () => {
+    handleCreateDevolucion();
   };
   const handleToggleProductoSeleccion = (producto: any, checked: boolean) => {
     if (showDevolucionFormErrors) setShowDevolucionFormErrors(false);
@@ -1454,8 +1248,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
               await productoService.adjustStock(
                 devolucion.productoId,
                 devolucion.cantidad,
-                'decrement',
-                'ventas'
+                'decrement'
               );
             }
           }
@@ -1923,7 +1716,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
                                           {/* Tipo */}
                                           <td className="dev-td">
-                                            {dev.ventaId ? 'Venta' : (dev.entregaId ? 'Insumos' : '—')}
+                                            {dev.ventaId ? 'Venta' : '—'}
                                           </td>
 
                                           {/* Monto */}
@@ -2349,12 +2142,12 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
             <div className="space-y-2 relative">
               <Label className="text-gray-lightest flex items-center gap-2">
                 <Search className="w-4 h-4 text-orange-primary" />
-                Buscar Venta o Barbero *
+                Buscar Venta *
               </Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
                 <Input
-                  placeholder="Escribe para buscar venta o barbero..."
+                  placeholder="Escribe para buscar venta..."
                   value={ventaSearchTerm}
                   onChange={(e) => {
                     setVentaSearchTerm(e.target.value);
@@ -2372,12 +2165,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                     onClick={() => {
                       setVentaSearchTerm('');
                       setShowVentaResults(false);
-                      setSelectedBarbero(null);
-                      setSelectedEntrega(null);
-                      setEntregasBarbero([]);
-                      setResumenEntregas([]);
-                      setProductosInsumosSeleccionados({});
-                      setTipoDevolucion('venta');
                     }}
                     title="Limpiar búsqueda"
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
@@ -2401,19 +2188,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                         ].join(' '));
                         return searchableText.includes(query);
                       }).slice(0, 50);
-                      const filteredBarberos = barberosDisponibles.filter(b => {
-                        const searchableText = normalizeSearchText([
-                          b.id,
-                          b.nombre,
-                          b.apellido,
-                          b.tipoDocumento,
-                          b.documento,
-                          b.correo,
-                          b.telefono
-                        ].join(' '));
-                        return searchableText.includes(query);
-                      }).slice(0, 50);
-                      if (filteredVentas.length === 0 && filteredBarberos.length === 0) {
+                      if (filteredVentas.length === 0) {
                         return (
                           <div className="p-4 text-center text-gray-lightest italic">
                             No se encontraron resultados que coincidan.
@@ -2422,11 +2197,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                       }
                       return (
                         <>
-                          {filteredVentas.length > 0 && (
-                            <div className="px-3 py-2 text-[10px] text-gray-lighter uppercase tracking-widest">
-                              Ventas
-                            </div>
-                          )}
                           {filteredVentas.map((venta) => {
                             const clienteNombre = typeof venta.cliente === 'string' ? venta.cliente : String(venta.cliente || 'Cliente');
                             const saldoFavor = getSaldoTotalCliente(String(venta.clienteId));
@@ -2434,7 +2204,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                               <div
                                 key={`venta-${venta.id}`}
                                 onClick={() => {
-                                  setTipoDevolucion('venta');
                                   handleVentaChange(venta.id.toString());
                                   setVentaSearchTerm(`${venta.numeroVenta} - ${clienteNombre}`);
                                   setShowVentaResults(false);
@@ -2495,39 +2264,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                               </div>
                             );
                           })}
-                          {filteredBarberos.length > 0 && (
-                            <div className="px-3 py-2 text-[10px] text-gray-lighter uppercase tracking-widest">
-                              Barberos
-                            </div>
-                          )}
-                          {filteredBarberos.map((b) => (
-                            <div
-                              key={`barbero-${b.id}`}
-                              onClick={() => {
-                                setTipoDevolucion('insumos');
-                                setVentaSearchTerm(`${b.nombre} ${b.apellido} — ${b.tipoDocumento} ${b.documento}`);
-                                setShowVentaResults(false);
-                                handleBarberoChange(b);
-                              }}
-                              className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer group"
-                            >
-                              <div className="flex justify-between items-start mb-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-white-primary font-medium text-sm">{b.nombre} {b.apellido}</span>
-                                  <span className="text-[11px] text-gray-lightest bg-gray-dark px-1.5 py-0.5 rounded border border-gray-darker font-medium">
-                                    {b.tipoDocumento} {b.documento}
-                                  </span>
-                                </div>
-                                <span className={`text-[10px] ${b.estado ? 'text-green-400' : 'text-red-400'}`}>
-                                  {b.status === 'active' ? 'Activo' : 'Inactivo'}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-end">
-                                <div className="text-[10px] text-gray-lightest">{b.correo}</div>
-                                <div className="text-[10px] text-gray-lightest">{b.telefono}</div>
-                              </div>
-                            </div>
-                          ))}
                         </>
                       );
                     })()}
@@ -2704,92 +2440,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                     <p className="text-xs text-red-400">Ingresa una cantidad válida para el producto seleccionado.</p>
                   )}
                 </div>
-              </div>
-            )}
-
-            {selectedBarbero && resumenEntregas.length > 0 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
-                <div className="bg-gray-darker p-5 rounded-2xl border border-gray-dark/50 shadow-lg">
-                  <div className="flex items-center gap-3 mb-4 border-b border-gray-dark pb-3">
-                    <div className="p-2 bg-orange-primary/10 rounded-lg">
-                      <UserIcon className="w-5 h-5 text-orange-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-white-primary font-bold text-lg">Barbero</h3>
-                      <p className="text-xs text-gray-lightest">{selectedBarbero.nombre} {selectedBarbero.apellido} — {selectedBarbero.tipoDocumento} {selectedBarbero.documento}</p>
-                    </div>
-                  </div>
-                  {entregasBarbero.length > 0 && (
-                    <div className="mb-4">
-                      <div className="text-[11px] text-gray-400 mb-1">Entregas de Insumos</div>
-                      <div className="flex flex-wrap gap-2">
-                        {entregasBarbero.map((ent: any) => (
-                          <button
-                            key={`ent-${ent.id}`}
-                            onClick={() => handleSelectEntrega(ent)}
-                            className={`px-2.5 py-1 rounded-lg text-xs border ${selectedEntrega?.id === ent.id
-                              ? 'bg-orange-primary text-black-primary border-orange-primary'
-                              : 'bg-gray-dark text-gray-lightest border-gray-dark hover:border-orange-primary/40'}`}
-                            title={`Entrega #${ent.id} • ${(String(ent.estado || ent.Estado || '').toLowerCase().includes('anul') ? 'Anulada' : 'Completada')} • ${ent.fecha ? new Date(ent.fecha).toLocaleDateString('es-CO') : ''}`}
-                          >
-                            #{ent.id} • {(String(ent.estado || ent.Estado || '').toLowerCase().includes('anul') ? 'Anulada' : 'Completada')} • {ent.fecha ? new Date(ent.fecha).toLocaleDateString('es-CO') : ''}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
-                    {resumenEntregas.map((row: any) => {
-                      const pid = Number(row.productoId || 0);
-                      const checked = !!productosInsumosSeleccionados[pid];
-                      const val = cantidadesInsumos[pid] ?? '1';
-                      const subtotal = Number(row.precio || 0) * Number(val || 0);
-                      return (
-                        <div key={`ins-${pid}`} className="bg-gray-darkest rounded-lg px-3 py-2.5 border-l-2 border-orange-primary/20">
-                          <div className="flex items-center gap-4 flex-nowrap min-w-0">
-                            <div className="shrink-0 w-7 h-7 rounded-md border flex items-center justify-center transition-colors border-[#D9C3A4] bg-[#D9C3A4]/20">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => handleToggleInsumoSeleccion(row, e.target.checked)}
-                                className="h-4 w-4 accent-[#D9C3A4] shrink-0"
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1 shrink flex items-center justify-start">
-                              <span className="text-white-primary font-semibold text-base truncate block w-full">
-                                {row.nombre}
-                              </span>
-                            </div>
-                            <div className="flex flex-col gap-0.5 shrink-0">
-                              <label className="text-[11px] text-gray-400 font-normal">Disponible</label>
-                              <span className="text-white-primary font-semibold text-xs tabular-nums leading-7">{row.disponible}</span>
-                            </div>
-                            <div className="flex flex-col gap-0.5 shrink-0">
-                              <label className="text-[11px] text-gray-400 font-normal">Cantidad</label>
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={val}
-                                onChange={(e) => handleCantidadInsumoChange(row, e.target.value)}
-                                onBlur={() => handleCantidadInsumoBlur(row)}
-                                disabled={!checked}
-                                className="w-16 h-7 text-xs text-center tabular-nums elegante-input no-spin py-0 px-1.5"
-                              />
-                            </div>
-                            <div className="flex flex-col gap-0.5 shrink-0 justify-center">
-                              <label className="text-[11px] text-gray-400 font-normal">Subtotal</label>
-                              <span className="text-orange-primary font-semibold text-xs tabular-nums leading-7">
-                                ${formatCurrency(subtotal)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3"></div>
               </div>
             )}
 

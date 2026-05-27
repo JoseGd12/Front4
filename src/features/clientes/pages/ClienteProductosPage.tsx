@@ -77,7 +77,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
           productoService.getProductos(),
           productoService.getCategorias(),
         ]);
-        setProductos(prods.filter((p) => p.activo && p.stockVentas > 0));
+        setProductos(prods.filter((p) => p.activo && (p.stock ?? p.cantidad ?? 0) > 0));
         setCategorias(cats.filter((c) => c.estado));
       } catch {
         // silencioso
@@ -185,7 +185,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                     </span>
                     <div className="flex items-center gap-1 text-gray-lighter text-[10px]">
                       <ShoppingBag className="w-3 h-3" />
-                      <span>{producto.stockVentas}</span>
+                      <span>{producto.stock ?? producto.cantidad ?? 0}</span>
                     </div>
                   </div>
 
@@ -279,7 +279,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                           <span className="text-[10px] text-gray-lighter font-bold uppercase tracking-widest mb-1">Disponibles</span>
                           <div className="flex items-center gap-2 text-white-primary">
                             <ShoppingBag className="w-5 h-5 text-orange-primary" />
-                            <span className="font-bold text-2xl">{selectedProducto.stockVentas}</span>
+                            <span className="font-bold text-2xl">{selectedProducto.stock ?? selectedProducto.cantidad ?? 0}</span>
                           </div>
                         </div>
                       </div>
