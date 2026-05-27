@@ -228,6 +228,7 @@ class DevolucionService {
     async createDevolucionBatch(input: {
         ventaId: number;
         clienteId: number | null;
+        barberoId?: number | null;
         usuarioId: number;
         motivoCategoria: string;
         observaciones?: string;
@@ -237,6 +238,7 @@ class DevolucionService {
             const payload = {
                 VentaId: input.ventaId,
                 ClienteId: input.clienteId,
+                BarberoId: input.barberoId,
                 UsuarioId: input.usuarioId,
                 MotivoCategoria: input.motivoCategoria,
                 Observaciones: input.observaciones || '',

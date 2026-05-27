@@ -5,24 +5,15 @@ import {
   Search,
   Eye,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  RotateCcw,
   FileText,
   FileDown,
-  Download,
   User as UserIcon,
   IdCard as IdCard,
-  Filter,
-  Check,
-  History,
   AlertCircle,
-  Wallet,
   Ban,
   Receipt,
   ShoppingBag,
   DollarSign,
-  TrendingDown,
   Calendar,
   X,
   ShieldCheck,
@@ -30,13 +21,8 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "../../../shared/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
-import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
-import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
-import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
-import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
@@ -311,14 +297,14 @@ const css = `
     white-space: nowrap;
   }
   .badge-completada {
-    background: rgba(122,171,138,0.1);
-    color: ${T.green};
-    border: 1px solid rgba(122,171,138,0.2);
+    background: #f0d9b5;
+    color: #7a4f1e;
+    border: 1px solid #d4b483;
   }
   .badge-anulada {
-    background: rgba(176,112,112,0.1);
-    color: #b07070;
-    border: 1px solid rgba(176,112,112,0.2);
+    background: #7a5230;
+    color: #f0d9b5;
+    border: 1px solid #5c3a1e;
   }
   .badge-pendiente {
     background: rgba(168,144,96,0.1);
@@ -431,16 +417,6 @@ interface Devolucion {
   userImagen?: string;
 }
 
-// Interface para manejar saldos de clientes
-interface SaldoCliente {
-  clienteId: string;
-  cliente: string;
-  saldoTotal: number;
-}
-
-// DevolucionesPage component
-
-
 interface DevolucionesPageProps {
   onNavigate?: (page: string) => void;
 }
@@ -448,15 +424,14 @@ interface DevolucionesPageProps {
 export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const { user } = useAuth();
   const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-  const { created, success, error: showErrorAlert, info: showInfoAlert, warning: showWarningAlert, AlertContainer } = useCustomAlert();
-  const { confirmCreateAction, confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
+  const { created, success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
+  const { confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [ventasDisponibles, setVentasDisponibles] = useState<any[]>([]);
-  const [barberosDisponibles, setBarberosDisponibles] = useState<any[]>([]);
+  const [saldosDisponiblesPorCliente, setSaldosDisponiblesPorCliente] = useState<Map<number, number>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [isHistorialDialogOpen, setIsHistorialDialogOpen] = useState(false);
   const [selectedDevolucion, setSelectedDevolucion] = useState<Devolucion | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -514,7 +489,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         }
       });
       setImagenesProductosCatalogo(Object.fromEntries(imagenesProductoMap.entries()));
-      setBarberosDisponibles(barberos || []);
 
       // Crear mapa de clienteId -> info de cliente para búsqueda rápida
       const clientesMapa = new Map<number, { documento: string; tipoDocumento?: string; nombreCompleto?: string; imagen?: string }>();
@@ -636,6 +610,16 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
       setDevoluciones(formattedDevs);
 
+      // Cargar saldos actuales (netos) de cada cliente con devoluciones
+      const clienteIdsDevs = Array.from(new Set(
+        formattedDevs.map(d => Number(d.clienteId)).filter(id => id > 0)
+      ));
+      if (clienteIdsDevs.length > 0) {
+        clientesService.getSaldosDisponibles(clienteIdsDevs)
+          .then(saldosMap => setSaldosDisponiblesPorCliente(saldosMap))
+          .catch(() => {});
+      }
+
       // Formatear ventas para el selector
       const formattedSales = sales.map(s => {
         const clienteIdNum = Number(s.clienteId || 0);
@@ -676,6 +660,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           cliente: clienteNombre,
           clienteDocumento,
           clienteId: s.clienteId,
+          barberoId: s.barberoId,
           fecha: s.fecha ? new Date(s.fecha).toLocaleDateString('es-CO') : '',
           fechaISO: s.fecha || '',
           garantiaMeses: Number(s.garantiaMeses || 1),
@@ -719,14 +704,12 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
     }
   };
 
-  // Estados para rango de fechas en reporte Excel
-
-
   // Estado para nueva devolución
   const [nuevaDevolucion, setNuevaDevolucion] = useState({
     numeroVenta: '',
     ventaId: 0,
     clienteId: null as number | null,
+    barberoId: null as number | null,
     cliente: '',
     clienteDocumento: '',
     productoId: 0,
@@ -744,19 +727,11 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const [imagenesProductosCatalogo, setImagenesProductosCatalogo] = useState<Record<number, string>>({});
   const shakeClass = devolucionValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
   const isSubmittingRef = useRef(false);
-  const showVentaError = showDevolucionFormErrors && !nuevaDevolucion.ventaId && tipoDevolucion === 'venta';
   const showProductoError = showDevolucionFormErrors && Object.values(productosSeleccionados).filter(Boolean).length === 0;
   const showMotivoError = showDevolucionFormErrors && !nuevaDevolucion.motivoCategoria;
-  const showCantidadError = false;
-
-  const inits = (s: string) => s.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 
   // Filtros y paginación - Actualizado para eliminar búsqueda por producto
   const filteredDevoluciones = useMemo(() => devoluciones.filter(devolucion => {
-    const motivoDet = String((devolucion as any).motivoDetalle || '').toLowerCase();
-    const motivoCat = String((devolucion as any).motivo || '').toLowerCase();
-    const esConsumoSaldo = (motivoDet.includes('consumo') && motivoDet.includes('saldo')) || (motivoCat.includes('consumo') && motivoCat.includes('saldo')) || (Number((devolucion as any).saldoAFavor || 0) < 0 && Number((devolucion as any).monto || 0) === 0);
-    if (esConsumoSaldo) return false;
     const query = normalizeSearchText(searchTerm);
     const searchableText = normalizeSearchText([
       devolucion.id,
@@ -801,13 +776,15 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         : `cliente-${devolucion.clienteId || devolucion.cliente || 'sin-cliente'}`;
 
       const existing = map.get(groupKey);
-      const saldo = Number(devolucion.saldoAFavor || 0);
+      // Usar el saldo disponible actual del cliente, no el monto histórico de cada devolución
+      const clienteIdNum = Number(devolucion.clienteId);
+      const saldo = (clienteIdNum > 0 && saldosDisponiblesPorCliente.has(clienteIdNum))
+        ? saldosDisponiblesPorCliente.get(clienteIdNum)!
+        : Number(devolucion.saldoAFavor || 0);
 
       if (existing) {
         existing.items.push(devolucion);
-        if (String(devolucion.estado).toLowerCase() === 'completada') {
-          existing.saldoTotal += saldo;
-        }
+        // No acumular: el saldoTotal ya representa el balance actual del cliente (no sumar por cada devolución)
         existing.totalDevoluciones += 1;
         return;
       }
@@ -847,7 +824,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         ultimaDevolucion: sortedItems[0]?.fecha || '—'
       };
     }).sort((a, b) => b.saldoTotal - a.saldoTotal);
-  }, [filteredDevoluciones]);
+  }, [filteredDevoluciones, saldosDisponiblesPorCliente]);
 
   const totalPages = Math.max(1, Math.ceil(groupedDevoluciones.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -860,8 +837,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   // Funciones auxiliares
   const getEstadoColor = (estado: string) => {
     const e = (estado || '').toLowerCase().trim();
-    if (e === 'completada' || e === 'completado' || e === 'activo') return "bg-green-500/10 text-green-400 border border-green-500/20";
-    if (e === 'anulada' || e === 'anulado') return "bg-red-500/10 text-red-400 border border-red-500/20";
+    if (e === 'completada' || e === 'completado' || e === 'activo') return "bg-[#f0d9b5] text-[#7a4f1e] border border-[#d4b483]";
+    if (e === 'anulada' || e === 'anulado') return "bg-[#7a5230] text-[#f0d9b5] border border-[#5c3a1e]";
     if (e === 'pendiente') return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
     if (e === 'procesado') return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
     return "bg-gray-medium text-gray-lighter";
@@ -883,28 +860,24 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
     return String(estado || '').toLowerCase().trim();
   };
 
-  const getHistorialCliente = (clienteId: string) => {
-    return devoluciones.filter(d => d.clienteId === clienteId).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  // Retorna el saldo disponible actual del cliente (no el monto histórico de la devolución)
+  const getSaldoDisponible = (dev: Devolucion): number => {
+    const clienteId = Number(dev.clienteId);
+    if (clienteId > 0 && saldosDisponiblesPorCliente.has(clienteId)) {
+      return saldosDisponiblesPorCliente.get(clienteId)!;
+    }
+    return dev.saldoAFavor;
   };
 
-  // Función para calcular el saldo total acumulativo de un cliente
+  // Función para calcular el saldo disponible actual de un cliente por ID
   const getSaldoTotalCliente = (clienteId: string): number => {
+    const id = Number(clienteId);
+    if (id > 0 && saldosDisponiblesPorCliente.has(id)) {
+      return saldosDisponiblesPorCliente.get(id)!;
+    }
     return devoluciones
       .filter(d => d.clienteId === clienteId && d.estado === 'Completada')
       .reduce((total, d) => total + d.saldoAFavor, 0);
-  };
-
-  // Función para obtener todos los saldos por cliente
-  const getSaldosClientes = (): SaldoCliente[] => {
-    const clientesUnicos = [...new Set(devoluciones.map(d => d.clienteId))];
-    return clientesUnicos.map(clienteId => {
-      const cliente = devoluciones.find(d => d.clienteId === clienteId);
-      return {
-        clienteId,
-        cliente: cliente?.cliente || '',
-        saldoTotal: getSaldoTotalCliente(clienteId)
-      };
-    }).filter(s => s.saldoTotal > 0);
   };
 
   const handleVentaChange = async (ventaIdStr: string) => {
@@ -998,6 +971,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         numeroVenta: venta!.numeroVenta,
         ventaId: venta!.id,
         clienteId: venta!.clienteId,
+        barberoId: venta!.barberoId,
         cliente: venta!.cliente,
         clienteDocumento: venta!.clienteDocumento || '',
         cantidad: 1,
@@ -1022,9 +996,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
     }
   };
 
-  const handleRegistrarDevolucion = () => {
-    handleCreateDevolucion();
-  };
   const handleToggleProductoSeleccion = (producto: any, checked: boolean) => {
     if (showDevolucionFormErrors) setShowDevolucionFormErrors(false);
     const productoId = Number(producto?.id || 0);
@@ -1112,8 +1083,11 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       return;
     }
 
-    if (!nuevaDevolucion.clienteId || Number(nuevaDevolucion.clienteId) <= 0) {
-      showErrorAlert("Cliente inválido", "El ID del cliente debe ser mayor a 0.");
+    const hasOwner = (nuevaDevolucion.clienteId && Number(nuevaDevolucion.clienteId) > 0) || 
+                     (nuevaDevolucion.barberoId && Number(nuevaDevolucion.barberoId) > 0);
+
+    if (!hasOwner) {
+      showErrorAlert("Propietario inválido", "La venta debe estar asociada a un cliente o a un barbero.");
       return;
     }
 
@@ -1196,6 +1170,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       numeroVenta: '',
       ventaId: 0,
       clienteId: null,
+      barberoId: null,
       cliente: '',
       clienteDocumento: '',
       productoId: 0,
@@ -1279,10 +1254,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
 
 
-  // Función para generar reporte Excel real por rango de fechas
-
-
-  // Función para generar PDF individual de devolución real
+  // Función para generar PDF individual de devolución
   const generateIndividualPdf = async (devolucion: Devolucion) => {
     try {
       const jsPDF = (await import('jspdf')).default;
@@ -1446,7 +1418,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       doc.text(`TOTAL DEVUELTO: $ ${formatCurrency(subtotal)}`, pageWidth / 2, y + 8, { align: "center" });
       doc.setFontSize(14);
       doc.setTextColor(0, 0, 0);
-      doc.text(`SALDO A FAVOR: $ ${formatCurrency(Number(devolucion.saldoAFavor || 0))}`, pageWidth / 2, y + 17, { align: "center" });
+      doc.text(`SALDO A FAVOR: $ ${formatCurrency(getSaldoDisponible(devolucion))}`, pageWidth / 2, y + 17, { align: "center" });
 
       y = Math.max(275, y + 28);
       doc.setDrawColor(0, 0, 0);
@@ -1467,14 +1439,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       showErrorAlert("Error al generar PDF", "No se pudo generar el reporte de la devolución.");
     }
   };
-
-  // Estadísticas
-  const devolucionesHoy = devoluciones.filter(d => d.fecha === new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })).length;
-  const totalMontoDevoluciones = devoluciones.reduce((sum, d) => sum + d.monto, 0);
-  const devolucionesActivas = devoluciones.filter(d => d.estado === "Completada").length;
-  const devolucionesAnuladas = devoluciones.filter(d => d.estado === "Anulada").length;
-  const totalSaldosAFavor = devoluciones.filter(d => d.estado === "Completada").reduce((sum, d) => sum + d.saldoAFavor, 0);
-  const clientesConSaldo = getSaldosClientes().length;
 
   return (
     <>
@@ -1731,11 +1695,11 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                                           <td className="dev-td">
                                             <span
                                               style={{
-                                                color: dev.saldoAFavor > 0 ? (isAdminOrSuperAdmin ? T.red : T.green) : T.grayDark,
+                                                color: getSaldoDisponible(dev) > 0 ? (isAdminOrSuperAdmin ? T.red : T.green) : T.grayDark,
                                                 fontWeight: 400,
                                               }}
                                             >
-                                              ${formatCurrency(dev.saldoAFavor)}
+                                              ${formatCurrency(getSaldoDisponible(dev))}
                                             </span>
                                           </td>
 
@@ -1835,11 +1799,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
           {selectedDevolucion && (
             <div className="space-y-6 pt-4">
-              <div className="flex justify-end">
-
-              </div>
-
-
               {/* Selección de Venta (Lectura) */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -2108,7 +2067,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                 </div>
                 <div className="flex justify-between text-gray-lightest">
                   <span>Saldo a Favor Actual:</span>
-                  <span className={`${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'} font-bold text-md`}>${formatCurrency(selectedDevolucion.saldoAFavor)}</span>
+                  <span className={`${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'} font-bold text-md`}>${formatCurrency(getSaldoDisponible(selectedDevolucion))}</span>
                 </div>
                 <p className="text-sm text-gray-lightest pt-2 border-t border-gray-dark mt-2">
                   Saldo Total Acumulado del Cliente: <span className={`${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'} font-bold`}>${formatCurrency(getSaldoTotalCliente(selectedDevolucion.clienteId))}</span>
@@ -2157,7 +2116,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   onBlur={() => {
                     setTimeout(() => setShowVentaResults(false), 120);
                   }}
-                  className={`elegante-input pl-11 w-full ${showVentaError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                  className="elegante-input pl-11 w-full"
                 />
                 {ventaSearchTerm && (
                   <button
@@ -2270,9 +2229,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   </div>
                 )}
               </div>
-              {showVentaError && (
-                <p className="text-xs text-red-400 mt-1">Debes seleccionar una venta del buscador.</p>
-              )}
             </div>
 
             {/* Información del Cliente y productos de la venta */}
@@ -2436,9 +2392,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                   {showProductoError && (
                     <p className="text-xs text-red-400">Selecciona un producto para la devolución.</p>
                   )}
-                  {showCantidadError && (
-                    <p className="text-xs text-red-400">Ingresa una cantidad válida para el producto seleccionado.</p>
-                  )}
                 </div>
               </div>
             )}
@@ -2504,19 +2457,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
               </div>
             </div>
 
-            {/* Resumen del Monto */}
-            {nuevaDevolucion.monto > 0 && (
-              <div className="bg-gray-darker p-4 rounded-lg space-y-2">
-                <div className="flex justify-between text-gray-lightest">
-                  <span>Monto Total a Devolver:</span>
-                  <span className="text-orange-primary font-bold text-lg">${formatCurrency(nuevaDevolucion.monto)}</span>
-                </div>
-                <p className="text-sm text-gray-lightest">
-                  Este monto se agregará como saldo a favor del cliente
-                </p>
-              </div>
-            )}
-
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
               <button
                 onClick={() => {
@@ -2529,71 +2469,12 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                 Cancelar
               </button>
               <button
-                onClick={handleRegistrarDevolucion}
+                onClick={handleCreateDevolucion}
                 className="elegante-button-primary"
               >
                 Registrar Devolución
               </button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-
-
-      {/* Modal de Saldos a Favor */}
-      <Dialog open={isHistorialDialogOpen} onOpenChange={setIsHistorialDialogOpen}>
-        <DialogContent className="max-w-4xl bg-gray-darkest border-gray-dark">
-          <DialogHeader>
-            <DialogTitle className="text-white-primary">Saldos a Favor por Cliente</DialogTitle>
-            <DialogDescription className="text-gray-lightest">
-              Clientes con saldo acumulativo disponible para futuras compras
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {getSaldosClientes().map((saldo) => (
-              <div key={saldo.clienteId} className="bg-gray-darker p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-dark border-2 border-gray-medium flex items-center justify-center">
-                      <UserIcon className="w-5 h-5 text-gray-lightest" />
-                    </div>
-                    <div>
-                      <h4 className="text-white-primary font-medium">{saldo.cliente}</h4>
-                      <p className="text-gray-lightest text-sm">{saldo.clienteId}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-bold text-lg ${isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'}`}>${formatCurrency(saldo.saldoTotal)}</p>
-                    <p className="text-gray-lightest text-sm">Saldo disponible</p>
-                  </div>
-                </div>
-
-                {/* Historial resumido */}
-                <div className="mt-4 pt-4 border-t border-gray-dark">
-                  <h5 className="text-white-primary text-sm font-medium mb-2">Devoluciones Activas:</h5>
-                  <div className="space-y-1 max-h-24 overflow-y-auto custom-scrollbar">
-                    {getHistorialCliente(saldo.clienteId)
-                      .filter(d => d.estado === 'Completada')
-                      .slice(0, 3)
-                      .map((dev) => (
-                        <div key={dev.id} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-lightest">{dev.id} - {dev.producto}</span>
-                          <span className={isAdminOrSuperAdmin ? 'text-red-400' : 'text-green-400'}>${formatCurrency(dev.saldoAFavor)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {getSaldosClientes().length === 0 && (
-              <div className="text-center py-8">
-                <Wallet className="w-12 h-12 text-gray-medium mx-auto mb-4" />
-                <p className="text-gray-lightest">No hay clientes con saldo a favor actualmente</p>
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>

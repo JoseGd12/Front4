@@ -210,6 +210,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
           cliente: clienteNombre,
           clienteDocumento,
           clienteId: s.clienteId,
+          barberoId: s.barberoId,
           fecha: s.fecha ? new Date(s.fecha).toLocaleDateString('es-CO') : '',
           fechaISO: s.fecha || '',
           garantiaMeses: Number(s.garantiaMeses || 1),
@@ -417,8 +418,11 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
       return;
     }
 
-    if (!ventaSeleccionada.clienteId || Number(ventaSeleccionada.clienteId) <= 0) {
-      showErrorAlert("Cliente inválido", "La venta no tiene un cliente asociado válido.");
+    const hasOwner = (ventaSeleccionada.clienteId && Number(ventaSeleccionada.clienteId) > 0) || 
+                     (ventaSeleccionada.barberoId && Number(ventaSeleccionada.barberoId) > 0);
+
+    if (!hasOwner) {
+      showErrorAlert("Propietario inválido", "La venta debe estar asociada a un cliente o a un barbero.");
       return;
     }
 
@@ -459,7 +463,8 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
 
       await devolucionService.createDevolucionBatch({
         ventaId: Number(ventaSeleccionada.id),
-        clienteId: Number(ventaSeleccionada.clienteId),
+        clienteId: ventaSeleccionada.clienteId ? Number(ventaSeleccionada.clienteId) : null,
+        barberoId: ventaSeleccionada.barberoId ? Number(ventaSeleccionada.barberoId) : null,
         usuarioId: currentUserId,
         motivoCategoria,
         observaciones: observaciones || '',

@@ -607,7 +607,7 @@ export function BarberosPage() {
                   <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento</th>
                   <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Barbero</th>
                   <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Contacto</th>
-                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Especialidad</th>
+                  <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Saldo Crédito</th>
                   <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
                   <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
                 </tr>
@@ -650,8 +650,14 @@ export function BarberosPage() {
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className="px-2 py-1 rounded-full text-xs bg-gray-dark text-orange-primary border border-orange-primary/20">
-                          {barbero.especialidad || 'General'}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                          (barbero.saldoDisponible ?? 200000) <= 0
+                            ? 'bg-red-900/30 text-red-400 border-red-500/30'
+                            : (barbero.saldoDisponible ?? 200000) < 50000
+                            ? 'bg-yellow-900/30 text-yellow-400 border-yellow-500/30'
+                            : 'bg-green-900/30 text-green-400 border-green-500/30'
+                        }`}>
+                          ${(barbero.saldoDisponible ?? 200000).toLocaleString('es-CO')}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -1142,6 +1148,32 @@ export function BarberosPage() {
                     readOnly
                     className="elegante-input w-full opacity-80 cursor-default"
                   />
+                </div>
+              </div>
+
+              {/* Saldo de crédito */}
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-orange-primary" />
+                    Saldo Crédito Disponible
+                  </Label>
+                  <div className={`elegante-input w-full flex items-center gap-2 px-3 py-2 rounded-md border font-semibold ${
+                    (selectedBarbero.saldoDisponible ?? 200000) <= 0
+                      ? 'border-red-500/40 text-red-400 bg-red-900/10'
+                      : (selectedBarbero.saldoDisponible ?? 200000) < 50000
+                      ? 'border-yellow-500/40 text-yellow-400 bg-yellow-900/10'
+                      : 'border-green-500/40 text-green-400 bg-green-900/10'
+                  }`}>
+                    ${(selectedBarbero.saldoDisponible ?? 200000).toLocaleString('es-CO')}
+                    <span className="ml-2 text-xs font-normal opacity-70">
+                      {(selectedBarbero.saldoDisponible ?? 200000) <= 0
+                        ? '— Sin cupo disponible'
+                        : (selectedBarbero.saldoDisponible ?? 200000) < 50000
+                        ? '— Cupo bajo'
+                        : '— Cupo disponible'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

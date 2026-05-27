@@ -1,174 +1,348 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  CreditCard,
   Search,
   ChevronLeft,
   ChevronRight,
   X,
+  Ban,
   DollarSign,
-  User,
+  User as UserIcon,
   AlertTriangle,
-  CheckCircle,
-  Clock,
+  ChevronDown,
+  Wallet,
+  Hash,
+  Receipt,
   FileText,
   RefreshCw,
 } from "lucide-react";
+
+// ─── CSS ──────────────────────────────────────────────────────────────────────
+const css = `
+  .cred-root { min-height:100vh; background:var(--black-primary); color:var(--white-primary); padding:0; }
+  .cred-card { background:var(--gray-darkest); border:1px solid var(--gray-darker); border-radius:14px; overflow:hidden; }
+
+  /* Toolbar */
+  .cred-toolbar {
+    display:flex; align-items:center; gap:14px; padding:16px 20px;
+    border-bottom:1px solid var(--gray-darker); flex-wrap:wrap; background:var(--gray-darkest);
+  }
+  .cred-search-wrap { position:relative; flex:1; min-width:180px; max-width:360px; }
+  .cred-search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--gray-dark); pointer-events:none; display:flex; }
+  .cred-search {
+    width:100%; padding:9px 14px 9px 36px; background:var(--black-secondary);
+    border:1px solid var(--gray-darker); border-radius:8px; color:var(--white-primary);
+    font-size:13px; outline:none; font-family:inherit; transition:border-color .15s;
+  }
+  .cred-search::placeholder { color:var(--gray-dark); }
+  .cred-search:focus { border-color:var(--orange-primary); }
+  .cred-count { margin-left:auto; font-size:13px; color:var(--gray-lightest); white-space:nowrap; }
+
+  /* Main table */
+  .cred-table { width:100%; border-collapse:collapse; }
+  .cred-thead th {
+    padding:13px 16px; font-size:11px; font-weight:700; color:var(--gray-lightest);
+    text-align:center; letter-spacing:.06em; text-transform:uppercase;
+    border-bottom:1px solid var(--gray-darker); white-space:nowrap; background:var(--gray-darkest);
+  }
+  .cred-thead th:first-child { text-align:left; padding-left:20px; }
+
+  /* Group row */
+  .cred-group-row { background:var(--gray-darkest); border-bottom:1px solid var(--gray-darker); cursor:pointer; transition:background .15s; }
+  .cred-group-row:hover { background:var(--gray-dark); }
+  .cred-group-cell { padding:14px 16px; }
+  .cred-group-cell:first-child { padding-left:20px; }
+  .cred-group-inner { display:flex; align-items:center; gap:12px; }
+  .cred-avatar {
+    width:36px; height:36px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:12px; font-weight:700; color:var(--black-primary);
+    flex-shrink:0; background:var(--orange-primary);
+  }
+  .cred-barber-name { font-size:14px; font-weight:400; color:var(--gray-lightest); line-height:1.3; }
+  .cred-barber-sub  { font-size:12px; color:var(--gray-dark); margin-top:1px; }
+
+  /* Accent button (expand) */
+  .cred-expand-btn {
+    background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.2); border-radius:7px;
+    padding:6px 13px; color:var(--gray-lightest); cursor:pointer; font-size:12px; font-weight:500;
+    display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-family:inherit;
+    transition:background .15s, border-color .15s, color .15s;
+  }
+  .cred-expand-btn:hover { background:rgba(216,176,129,0.15); border-color:var(--orange-primary); color:var(--orange-primary); }
+
+  /* Accent action button (toolbar / accordion) */
+  .cred-action-btn {
+    background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.2); border-radius:8px;
+    padding:7px 14px; color:var(--orange-primary); cursor:pointer; font-size:12px; font-weight:600;
+    display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:inherit;
+    transition:background .15s, border-color .15s;
+  }
+  .cred-action-btn:hover { background:rgba(216,176,129,0.15); border-color:var(--orange-primary); }
+
+  /* General td */
+  .cred-td { padding:12px 16px; font-size:13px; color:var(--gray-lightest); text-align:center; vertical-align:middle; }
+  .cred-num { display:inline-flex; align-items:center; gap:4px; font-weight:600; color:var(--orange-primary); }
+
+  /* Badges */
+  .badge { display:inline-block; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap; }
+  .badge-activo     { background:#f0d9b5; color:#7a4f1e; border:1px solid #d4b483; }
+  .badge-bloqueado  { background:#7a5230; color:#f0d9b5; border:1px solid #5c3a1e; }
+  .badge-completada { background:#f0d9b5; color:#7a4f1e; border:1px solid #d4b483; }
+  .badge-anulada    { background:#7a5230; color:#f0d9b5; border:1px solid #5c3a1e; }
+
+  /* Icon buttons */
+  .cred-icon-btn {
+    background:none; border:none; cursor:pointer; color:var(--gray-lightest); padding:6px;
+    border-radius:7px; display:inline-flex; align-items:center; transition:background .12s, color .12s;
+  }
+  .cred-icon-btn:hover        { background:var(--gray-darker); }
+  .cred-icon-btn:disabled     { opacity:.35; cursor:not-allowed; }
+
+  /* Expanded accordion cell */
+  .cred-exp-cell { padding:0; background:var(--black-secondary); }
+  .cred-exp-cell:has(.cred-accordion-wrap.open) {
+    border-bottom:2px solid rgba(216,176,129,0.18);
+    border-left:3px solid var(--orange-primary);
+  }
+  .cred-accordion-wrap { display:grid; grid-template-rows:0fr; transition:grid-template-rows 0.3s cubic-bezier(0.4,0,0.2,1); overflow:hidden; }
+  .cred-accordion-wrap.open { grid-template-rows:1fr; }
+  .cred-accordion-inner { overflow:hidden; }
+  .chev-custom { display:inline-flex; transition:transform .2s; }
+  .chev-custom.open { transform:rotate(180deg); }
+
+  /* Stats bar */
+  .cred-stats-bar {
+    display:flex; flex-wrap:wrap; gap:20px 36px; align-items:center;
+    padding:14px 20px; border-bottom:1px solid var(--gray-darker); background:rgba(26,25,25,0.5);
+  }
+  .cred-stat-item  { display:flex; flex-direction:column; gap:3px; }
+  .cred-stat-label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--gray-dark); }
+  .cred-stat-val   { font-size:13px; font-weight:600; color:var(--white-primary); }
+
+  /* Tab pills — "villeterita" */
+  .cred-tabs {
+    display:flex; gap:6px; padding:10px 20px; align-items:center;
+    border-bottom:1px solid var(--gray-darker); background:rgba(17,17,17,0.4);
+  }
+  .cred-tab {
+    padding:4px 14px; border-radius:999px; font-size:12px; font-weight:500;
+    cursor:pointer; border:1px solid var(--gray-darker); background:none;
+    color:var(--gray-lightest); font-family:inherit; transition:all .15s;
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .cred-tab:hover  { border-color:var(--orange-primary); color:var(--orange-primary); }
+  .cred-tab.active {
+    background:rgba(216,176,129,0.11); border-color:var(--orange-primary);
+    color:var(--orange-primary); font-weight:600;
+  }
+
+  /* Sub-table header */
+  .cred-sub-header th {
+    padding:9px 16px; font-size:10px; font-weight:700; color:var(--gray-dark);
+    text-align:center; text-transform:uppercase; letter-spacing:.06em;
+    background:rgba(17,17,17,0.5); border-bottom:1px solid var(--gray-darker); white-space:nowrap;
+  }
+  .cred-sub-header th:first-child { text-align:left; padding-left:36px; }
+  .cred-item-row { border-bottom:1px solid rgba(42,42,42,0.8); background:var(--black-secondary); transition:background .12s; }
+  .cred-item-row:hover { background:var(--gray-darkest); }
+  .cred-sub-td { padding:11px 16px; font-size:13px; color:var(--gray-lightest); text-align:center; vertical-align:middle; }
+
+  /* Inline abono rows */
+  .cred-abono-row {
+    display:flex; align-items:center; gap:12px; padding:10px 20px;
+    border-bottom:1px solid var(--gray-darker); transition:background .12s;
+  }
+  .cred-abono-row:hover { background:rgba(255,255,255,0.015); }
+
+  /* Actions bar */
+  .cred-actions-bar {
+    display:flex; justify-content:flex-end; gap:10px; padding:12px 20px;
+    border-top:1px solid var(--gray-darker); background:rgba(26,25,25,0.4);
+  }
+
+  /* Progress bar */
+  .cred-progress-wrap  { display:flex; align-items:center; gap:8px; min-width:120px; }
+  .cred-progress-track { flex:1; height:5px; border-radius:99px; overflow:hidden; background:var(--gray-dark); }
+  .cred-progress-fill  { height:100%; border-radius:99px; transition:width .3s; }
+
+  /* Modal barbero selector */
+  .cred-selector-list { max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+  .cred-selector-item {
+    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px;
+    cursor:pointer; border:1px solid transparent; transition:background .12s, border-color .12s;
+  }
+  .cred-selector-item:hover   { background:rgba(216,176,129,0.06); border-color:var(--gray-darker); }
+  .cred-selector-item.selected { background:rgba(216,176,129,0.1); border-color:var(--orange-primary); }
+`;
+
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "../../../shared/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../../../shared/components/ui/select";
-import { Label } from "../../../shared/components/ui/label";
-import { Input } from "../../../shared/components/ui/input";
-import { Button } from "../../../shared/components/ui/button";
-import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
-import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
-import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { Label }  from "../../../shared/components/ui/label";
+import { Input }  from "../../../shared/components/ui/input";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useAuth } from "../../../shared/contexts/AuthContext";
+import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
+import { barberosService, type Barbero } from "../../administracion/services/barberosService";
+import { ventaService } from "../../ventas/services/ventaService";
 import {
   creditoBarberoService,
   CreditoBarberoDto,
   AbonoCreditoBarberoDto,
 } from "../services/creditoBarberoService";
 
-const formatCurrency = (v: number) =>
-  `$${(v ?? 0).toLocaleString("es-CO")}`;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const formatCurrency = (v: number) => `$${(v ?? 0).toLocaleString("es-CO")}`;
 
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
+const formatDate = (s: string | null) => {
+  if (!s) return "—";
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
-const formatDateTime = (dateStr: string | null) => {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString("es-CO", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
+const formatDateTime = (s: string | null) => {
+  if (!s) return "—";
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-type EstadoBadgeProps = { estado: string };
-
-function EstadoBadge({ estado }: EstadoBadgeProps) {
-  const lower = estado.toLowerCase();
-  let bg = "color-mix(in srgb, var(--gray-medium) 60%, transparent)";
-  let color = "var(--gray-lightest)";
-  let Icon = Clock;
-
-  if (lower === "activo") {
-    bg = "color-mix(in srgb, var(--status-green) 20%, transparent)";
-    color = "var(--status-green)";
-    Icon = CheckCircle;
-  } else if (lower === "bloqueado") {
-    bg = "color-mix(in srgb, var(--status-red) 20%, transparent)";
-    color = "var(--status-red)";
-    Icon = AlertTriangle;
-  } else if (lower === "anulado") {
-    bg = "color-mix(in srgb, var(--status-red) 15%, transparent)";
-    color = "var(--status-red)";
-    Icon = X;
-  }
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-      style={{ backgroundColor: bg, color }}
-    >
-      <Icon className="w-3 h-3" />
-      {estado}
-    </span>
-  );
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function EstadoBadge({ estado }: { estado: string }) {
+  const l = (estado || "").toLowerCase();
+  if (l === "activo" || l === "completada" || l === "completado")
+    return <span className="badge badge-activo">{estado}</span>;
+  if (l === "bloqueado" || l === "anulada" || l === "anulado")
+    return <span className="badge badge-bloqueado">{estado}</span>;
+  return <span className="badge" style={{ background: "var(--gray-medium)", color: "var(--gray-lightest)" }}>{estado}</span>;
 }
 
 function BarraProgreso({ saldo, cupo }: { saldo: number; cupo: number }) {
   const pct = cupo > 0 ? Math.min(100, (saldo / cupo) * 100) : 0;
-  let barColor = "var(--status-green)";
-  if (pct >= 90) barColor = "var(--status-red)";
-  else if (pct >= 60) barColor = "var(--orange-primary)";
-
+  const color = pct >= 90 ? "var(--status-red)" : pct >= 60 ? "var(--orange-primary)" : "var(--status-green)";
   return (
-    <div className="flex items-center gap-2 min-w-[80px]">
-      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--gray-medium)" }}>
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: barColor }}
-        />
+    <div className="cred-progress-wrap">
+      <div className="cred-progress-track">
+        <div className="cred-progress-fill" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
-      <span className="text-xs tabular-nums" style={{ color: "var(--gray-lighter)", minWidth: "36px" }}>
-        {Math.round(pct)}%
-      </span>
+      <span style={{ fontSize: 11, color: "var(--gray-lightest)", minWidth: 34 }}>{Math.round(pct)}%</span>
     </div>
   );
 }
 
+function AvatarCell({ barbero }: { barbero?: Barbero }) {
+  const hasFoto = barbero?.fotoPerfil && barbero.fotoPerfil.trim() && barbero.fotoPerfil !== "No especificada";
+  return (
+    <div className="cred-avatar" style={{ overflow: "hidden", background: hasFoto ? "transparent" : "var(--orange-primary)" }}>
+      {hasFoto ? (
+        <ImageRenderer url={barbero!.fotoPerfil!} className="w-full h-full object-cover" fallbackVariant="person" showLabel={false} />
+      ) : (
+        <UserIcon className="w-5 h-5" style={{ color: "var(--black-primary)" }} />
+      )}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export function CreditoBarberosPage() {
   const { user } = useAuth();
   const { created, error: showErrorAlert, AlertContainer } = useCustomAlert();
 
-  // Lista principal
-  const [creditos, setCreditos] = useState<CreditoBarberoDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ── Lista principal ──────────────────────────────────────────────────────────
+  const [creditos, setCreditos]     = useState<CreditoBarberoDto[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages]   = useState(1);
   const PAGE_SIZE = 15;
-  const [searchTerm, setSearchTerm] = useState("");
+
   const [searchInput, setSearchInput] = useState("");
+  const [searchTerm,  setSearchTerm]  = useState("");
+  const [expandedId,  setExpandedId]  = useState<number | null>(null);
 
-  // Modal abonos
-  const [abonosModalOpen, setAbonosModalOpen] = useState(false);
-  const [abonosCredito, setAbonosCredito] = useState<CreditoBarberoDto | null>(null);
-  const [abonos, setAbonos] = useState<AbonoCreditoBarberoDto[]>([]);
-  const [loadingAbonos, setLoadingAbonos] = useState(false);
-  const [abonosPage, setAbonosPage] = useState(1);
-  const [abonosTotalPages, setAbonosTotalPages] = useState(1);
+  const [barberosMap, setBarberosMap]     = useState<Record<number, Barbero>>({});
+  const [ventasCreditoPorBarbero, setVentasCreditoPorBarbero] = useState<Record<number, any[]>>({});
+  const [abonosStats, setAbonosStats]     = useState<Record<number, string>>({});
 
-  // Modal registrar abono
-  const [registrarOpen, setRegistrarOpen] = useState(false);
+  // ── Tab por barbero ──────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<Record<number, "ventas" | "abonos">>({});
+  const [inlineAbonos, setInlineAbonos]                     = useState<Record<number, AbonoCreditoBarberoDto[]>>({});
+  const [loadingInlineAbonos, setLoadingInlineAbonos]       = useState<Record<number, boolean>>({});
+
+  // ── Modal: registrar abono ───────────────────────────────────────────────────
+  const [registrarOpen,    setRegistrarOpen]    = useState(false);
+  const [registrarStep,    setRegistrarStep]    = useState<"select" | "form">("select");
+  const [barberoSearch,    setBarberoSearch]    = useState("");
   const [registrarCredito, setRegistrarCredito] = useState<CreditoBarberoDto | null>(null);
-  const [montoInput, setMontoInput] = useState("");
-  const [metodoPago, setMetodoPago] = useState("Efectivo");
-  const [notasInput, setNotasInput] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [showFormErrors, setShowFormErrors] = useState(false);
+  const [selectedVentaAbono, setSelectedVentaAbono] = useState<any | null>(null);
+  const [montoInput,       setMontoInput]       = useState("");
+  const [metodoPago,       setMetodoPago]       = useState("Efectivo");
+  const [notasInput,       setNotasInput]       = useState("");
+  const [submitting,       setSubmitting]       = useState(false);
+  const [showFormErrors,   setShowFormErrors]   = useState(false);
 
-  // Modal anular abono
-  const [anularOpen, setAnularOpen] = useState(false);
-  const [abonoAnular, setAbonoAnular] = useState<AbonoCreditoBarberoDto | null>(null);
-  const [anulando, setAnulando] = useState(false);
+  // ── Modal: anular abono ──────────────────────────────────────────────────────
+  const [anularOpen,         setAnularOpen]         = useState(false);
+  const [abonoAnular,        setAbonoAnular]        = useState<AbonoCreditoBarberoDto | null>(null);
+  const [abonoAnularBarbId,  setAbonoAnularBarbId]  = useState<number | null>(null);
+  const [anulando,           setAnulando]           = useState(false);
 
+  // ── Carga principal ──────────────────────────────────────────────────────────
   const fetchCreditos = useCallback(async (page: number, q: string) => {
     try {
       setLoading(true);
-      const res = await creditoBarberoService.getAll(page, PAGE_SIZE, q);
+      const [res, barberos, ventas] = await Promise.all([
+        creditoBarberoService.getAll(page, PAGE_SIZE, q),
+        barberosService.getBarberos().catch(() => []),
+        ventaService.getVentas().catch(() => []),
+      ]);
+
+      const bMap: Record<number, Barbero> = {};
+      (barberos || []).forEach((b: any) => { if (b.id) bMap[b.id] = b; });
+      setBarberosMap(bMap);
+
+      const vcMap: Record<number, any[]> = {};
+      (ventas || []).forEach((v: any) => {
+        const bid = Number(v.barberoId || 0);
+        if (bid > 0 && String(v.metodoPago || "").toLowerCase() === "creditobarbero") {
+          vcMap[bid] = vcMap[bid] || [];
+          vcMap[bid].push(v);
+        }
+      });
+      Object.values(vcMap).forEach(arr =>
+        arr.sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime())
+      );
+      setVentasCreditoPorBarbero(vcMap);
+
+      const aStats: Record<number, string> = {};
+      await Promise.all(res.items.map(async (c) => {
+        try {
+          const r = await creditoBarberoService.getAbonos(c.barberoId, 1, 1);
+          if (r.items.length > 0) aStats[c.barberoId] = r.items[0].fecha;
+        } catch { /* ignore */ }
+      }));
+      setAbonosStats(aStats);
+
       setCreditos(res.items);
       setTotalCount(res.totalCount);
       setTotalPages(res.totalPages);
     } catch (err: any) {
-      showErrorAlert("Error", err?.message || "No se pudo cargar el listado de créditos");
+      showErrorAlert("Error", err?.message || "No se pudo cargar el listado");
     } finally {
       setLoading(false);
     }
   }, []);
 
+  useEffect(() => { fetchCreditos(currentPage, searchTerm); }, [currentPage, searchTerm]);
+
+  // Cargar abonos al expandir una fila para poder saber qué ventas ya tienen abono
   useEffect(() => {
-    fetchCreditos(currentPage, searchTerm);
-  }, [currentPage, searchTerm]);
+    if (expandedId !== null && inlineAbonos[expandedId] === undefined && !loadingInlineAbonos[expandedId]) {
+      loadInlineAbonos(expandedId);
+    }
+  }, [expandedId]);
 
   const handleSearch = (val: string) => {
     setSearchInput(val);
@@ -176,42 +350,59 @@ export function CreditoBarberosPage() {
     setCurrentPage(1);
   };
 
-  // Ordenar por urgencia: Bloqueado primero, luego Activo, luego Sin crédito
   const ordenados = useMemo(() => {
-    const prioridad = (e: string) => {
+    const prio = (e: string) => {
       const l = e.toLowerCase();
-      if (l === "bloqueado") return 0;
-      if (l === "activo") return 1;
-      return 2;
+      return l === "bloqueado" ? 0 : l === "activo" ? 1 : 2;
     };
-    return [...creditos].sort((a, b) => prioridad(a.estado) - prioridad(b.estado));
+    return [...creditos].sort((a, b) => prio(a.estado) - prio(b.estado));
   }, [creditos]);
 
-  // Abrir modal abonos
-  const openAbonos = async (credito: CreditoBarberoDto, page = 1) => {
-    setAbonosCredito(credito);
-    setAbonosPage(page);
-    setAbonosModalOpen(true);
-    setLoadingAbonos(true);
+  // ── Abonos inline ────────────────────────────────────────────────────────────
+  const loadInlineAbonos = useCallback(async (barberoId: number) => {
+    setLoadingInlineAbonos(prev => ({ ...prev, [barberoId]: true }));
     try {
-      const res = await creditoBarberoService.getAbonos(credito.barberoId, page, 10);
-      setAbonos(res.items);
-      setAbonosTotalPages(res.totalPages);
-    } catch (err: any) {
-      showErrorAlert("Error", err?.message || "No se pudieron cargar los abonos");
+      const r = await creditoBarberoService.getAbonos(barberoId, 1, 50);
+      setInlineAbonos(prev => ({ ...prev, [barberoId]: r.items }));
+    } catch {
+      setInlineAbonos(prev => ({ ...prev, [barberoId]: [] }));
     } finally {
-      setLoadingAbonos(false);
+      setLoadingInlineAbonos(prev => ({ ...prev, [barberoId]: false }));
     }
-  };
+  }, []);
 
-  // Abrir modal registrar abono
-  const openRegistrar = (credito: CreditoBarberoDto) => {
-    setRegistrarCredito(credito);
+  const handleSwitchTab = useCallback((barberoId: number, tab: "ventas" | "abonos") => {
+    setActiveTab(prev => ({ ...prev, [barberoId]: tab }));
+    if (tab === "abonos") {
+      // Cargar si no están cargados o forzar recarga
+      loadInlineAbonos(barberoId);
+    }
+  }, [loadInlineAbonos]);
+
+  // ── Registrar abono ──────────────────────────────────────────────────────────
+  const openRegistrar = (credito: CreditoBarberoDto | null, venta: any | null = null) => {
     setMontoInput("");
     setMetodoPago("Efectivo");
     setNotasInput("");
     setShowFormErrors(false);
+    setSelectedVentaAbono(venta);
+
+    if (credito) {
+      setRegistrarCredito(credito);
+      setRegistrarStep("form");
+    } else {
+      // Desde toolbar: mostrar selector primero
+      setRegistrarCredito(null);
+      setRegistrarStep("select");
+      setBarberoSearch("");
+    }
     setRegistrarOpen(true);
+  };
+
+  const handleSelectBarberoEnModal = (credito: CreditoBarberoDto) => {
+    setRegistrarCredito(credito);
+    setSelectedVentaAbono(null);
+    setRegistrarStep("form");
   };
 
   const handleRegistrarAbono = async () => {
@@ -220,19 +411,24 @@ export function CreditoBarberosPage() {
     if (!monto || monto <= 0) return;
     if (registrarCredito && monto > registrarCredito.saldoDeuda) return;
 
+    const notasFinales = selectedVentaAbono
+      ? `[ventaId:${selectedVentaAbono.id}]${notasInput.trim() ? ` ${notasInput.trim()}` : ""}`
+      : (notasInput.trim() || undefined);
+
     try {
       setSubmitting(true);
       await creditoBarberoService.registrarAbono(registrarCredito!.barberoId, {
         usuarioId: Number(user?.id ?? 0),
         monto,
         metodoPago,
-        notas: notasInput.trim() || undefined,
+        notas: notasFinales,
       });
-      created(
-        "Abono registrado",
-        `Abono de ${formatCurrency(monto)} registrado exitosamente.`
-      );
+      created("Abono registrado", `Abono de ${formatCurrency(monto)} registrado exitosamente.`);
       setRegistrarOpen(false);
+      // Refrescar abonos inline si la tab de abonos está visible
+      if (inlineAbonos[registrarCredito!.barberoId] !== undefined) {
+        loadInlineAbonos(registrarCredito!.barberoId);
+      }
       fetchCreditos(currentPage, searchTerm);
     } catch (err: any) {
       showErrorAlert("Error", err?.message || "No se pudo registrar el abono");
@@ -241,7 +437,7 @@ export function CreditoBarberosPage() {
     }
   };
 
-  // Anular abono
+  // ── Anular abono ─────────────────────────────────────────────────────────────
   const handleAnularAbono = async () => {
     if (!abonoAnular) return;
     try {
@@ -249,10 +445,8 @@ export function CreditoBarberosPage() {
       await creditoBarberoService.anularAbono(abonoAnular.id, Number(user?.id ?? 0));
       created("Abono anulado", `Abono #${abonoAnular.id} anulado correctamente.`);
       setAnularOpen(false);
-      if (abonosCredito) {
-        openAbonos(abonosCredito, abonosPage);
-        fetchCreditos(currentPage, searchTerm);
-      }
+      if (abonoAnularBarbId) loadInlineAbonos(abonoAnularBarbId);
+      fetchCreditos(currentPage, searchTerm);
     } catch (err: any) {
       showErrorAlert("Error", err?.message || "No se pudo anular el abono");
     } finally {
@@ -260,472 +454,653 @@ export function CreditoBarberosPage() {
     }
   };
 
-  const montoNum = Number(montoInput);
-  const montoValido = montoNum > 0 && (!registrarCredito || montoNum <= registrarCredito.saldoDeuda);
+  // ── Computed para formulario ──────────────────────────────────────────────────
+  const montoNum       = Number(montoInput);
+  const montoValido    = montoNum > 0 && (!registrarCredito || montoNum <= registrarCredito.saldoDeuda);
   const saldoTrasAbono = registrarCredito ? Math.max(0, registrarCredito.saldoDeuda - montoNum) : 0;
 
+  const creditosFiltradosModal = useMemo(() => {
+    const q = barberoSearch.toLowerCase().trim();
+    if (!q) return ordenados;
+    return ordenados.filter(c =>
+      (c.barberoNombre || "").toLowerCase().includes(q) ||
+      String(c.barberoId).includes(q)
+    );
+  }, [ordenados, barberoSearch]);
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className="cred-root">
+      <style>{css}</style>
       <AlertContainer />
 
-      <div className="std-card">
-        <TableHeaderSection
-          variant="dark"
-          leftContent={
-            <button
-              className="btn-std-primary"
-              onClick={() => fetchCreditos(currentPage, searchTerm)}
-            >
-              <RefreshCw className="w-4 h-4" />
-              Actualizar
+      <div className="p-6">
+        <div className="cred-card">
+
+          {/* Toolbar */}
+          <div className="cred-toolbar">
+            <button className="btn-std-primary" onClick={() => openRegistrar(null)}>
+              <Wallet className="w-4 h-4" />
+              Registrar Abono
             </button>
-          }
-          searchValue={searchInput}
-          onSearchChange={handleSearch}
-          searchPlaceholder="Buscar por nombre de barbero o estado..."
-          rightContent={
-            <span className="std-records-count">
-              {totalCount} registro{totalCount !== 1 ? "s" : ""}
-            </span>
-          }
-        />
 
-        <div className="std-table-wrapper">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: "var(--gray-darker)", borderBottom: "1px solid var(--gray-dark)" }}>
-                <th className="text-left px-4 py-3 font-semibold" style={{ color: "var(--gray-lightest)" }}>
-                  Barbero
-                </th>
-                <th className="text-left px-4 py-3 font-semibold" style={{ color: "var(--gray-lightest)" }}>
-                  Estado
-                </th>
-                <th className="text-right px-4 py-3 font-semibold" style={{ color: "var(--gray-lightest)" }}>
-                  Saldo Deuda
-                </th>
-                <th className="text-right px-4 py-3 font-semibold hidden md:table-cell" style={{ color: "var(--gray-lightest)" }}>
-                  Cupo Disponible
-                </th>
-                <th className="px-4 py-3 font-semibold hidden lg:table-cell" style={{ color: "var(--gray-lightest)" }}>
-                  Uso del Cupo
-                </th>
-                <th className="text-left px-4 py-3 font-semibold hidden xl:table-cell" style={{ color: "var(--gray-lightest)" }}>
-                  Actualización
-                </th>
-                <th className="text-center px-4 py-3 font-semibold" style={{ color: "var(--gray-lightest)" }}>
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <TableLoadingStateRow colSpan={7} />
-              ) : ordenados.length === 0 ? (
-                <TableEmptyStateRow
-                  colSpan={7}
-                  title="Sin registros de crédito"
-                  description="No hay barberos con crédito registrado o no coinciden con la búsqueda."
-                  onReload={() => fetchCreditos(currentPage, searchTerm)}
-                />
-              ) : (
-                ordenados.map((c, idx) => (
-                  <tr
-                    key={c.id || `${c.barberoId}-${idx}`}
-                    style={{
-                      borderBottom: "1px solid var(--gray-dark)",
-                      backgroundColor: idx % 2 === 0 ? "transparent" : "color-mix(in srgb, var(--gray-darker) 30%, transparent)",
-                    }}
-                    className="hover:bg-gray-darker/40 transition-colors"
-                  >
-                    {/* Barbero */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: "color-mix(in srgb, var(--orange-primary) 15%, transparent)" }}
-                        >
-                          <User className="w-4 h-4" style={{ color: "var(--orange-primary)" }} />
-                        </div>
-                        <span className="font-medium" style={{ color: "var(--gray-lightest)" }}>
-                          {c.barberoNombre || `Barbero #${c.barberoId}`}
-                        </span>
-                      </div>
-                    </td>
+            <div className="cred-search-wrap">
+              <span className="cred-search-icon"><Search className="w-4 h-4" /></span>
+              <input
+                className="cred-search"
+                placeholder="Buscar por nombre de barbero o estado..."
+                value={searchInput}
+                onChange={e => handleSearch(e.target.value)}
+              />
+            </div>
 
-                    {/* Estado */}
-                    <td className="px-4 py-3">
-                      <EstadoBadge estado={c.estado} />
-                    </td>
+            <span className="cred-count">{totalCount} registro{totalCount !== 1 ? "s" : ""}</span>
+          </div>
 
-                    {/* Saldo Deuda */}
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      <span
-                        className="font-semibold"
-                        style={{
-                          color: c.saldoDeuda > 0
-                            ? (c.saldoDeuda >= c.cupoMaximo * 0.9 ? "var(--status-red)" : "var(--orange-primary)")
-                            : "var(--status-green)",
-                        }}
-                      >
-                        {formatCurrency(c.saldoDeuda)}
-                      </span>
-                    </td>
-
-                    {/* Cupo Disponible */}
-                    <td className="px-4 py-3 text-right tabular-nums hidden md:table-cell" style={{ color: "var(--gray-lightest)" }}>
-                      {formatCurrency(c.cupoDisponible)}
-                    </td>
-
-                    {/* Barra de progreso */}
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      <BarraProgreso saldo={c.saldoDeuda} cupo={c.cupoMaximo} />
-                    </td>
-
-                    {/* Fecha */}
-                    <td className="px-4 py-3 hidden xl:table-cell text-xs" style={{ color: "var(--gray-lighter)" }}>
-                      {formatDate(c.fechaActualizacion ?? c.fechaCreacion)}
-                    </td>
-
-                    {/* Acciones */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => openAbonos(c)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-medium border transition-colors"
-                          style={{
-                            borderColor: "var(--gray-dark)",
-                            color: "var(--gray-lightest)",
-                            backgroundColor: "transparent",
-                          }}
-                          title="Ver historial de abonos"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Abonos</span>
-                        </button>
-
-                        {c.saldoDeuda > 0 && (
-                          <button
-                            onClick={() => openRegistrar(c)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-medium transition-colors"
-                            style={{
-                              backgroundColor: "var(--orange-primary)",
-                              color: "var(--black-primary)",
-                            }}
-                            title="Registrar abono"
-                          >
-                            <DollarSign className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Abonar</span>
-                          </button>
-                        )}
-                      </div>
+          {/* Table */}
+          <div style={{ overflowX: "auto" }}>
+            <table className="cred-table">
+              <thead className="cred-thead">
+                <tr>
+                  <th style={{ textAlign: "left", paddingLeft: 20 }}>Documento</th>
+                  <th>Barbero</th>
+                  <th>Ventas a Crédito</th>
+                  <th>Saldo Deuda</th>
+                  <th>Último Abono</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
+                      Cargando créditos...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : ordenados.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
+                      No hay barberos con crédito registrado.
+                    </td>
+                  </tr>
+                ) : ordenados.map(c => {
+                  const isOpen     = expandedId === c.barberoId;
+                  const barbero    = barberosMap[c.barberoId];
+                  const ventasCred = ventasCreditoPorBarbero[c.barberoId] || [];
+                  const tab        = activeTab[c.barberoId] || "ventas";
 
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="std-full-divider" style={{ borderColor: "var(--gray-dark)" }}>
-            <div className="px-6 py-3 flex items-center justify-between">
-              <span className="text-xs" style={{ color: "var(--gray-lighter)" }}>
-                Página {currentPage} de {totalPages}
-              </span>
-              <EllipsisPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={(p) => { setCurrentPage(p); }}
-              />
-            </div>
+                  return (
+                    <React.Fragment key={c.id || c.barberoId}>
+                      {/* Fila principal */}
+                      <tr className="cred-group-row" onClick={() => setExpandedId(isOpen ? null : c.barberoId)}>
+                        {/* Documento */}
+                        <td className="cred-group-cell">
+                          <span style={{ fontWeight: 400, color: "var(--gray-lightest)" }}>
+                            {barbero?.tipoDocumento || "CC"} {barbero?.documento || "—"}
+                          </span>
+                        </td>
+
+                        {/* Barbero */}
+                        <td className="cred-group-cell">
+                          <div className="cred-group-inner">
+                            <AvatarCell barbero={barbero} />
+                            <div>
+                              <div className="cred-barber-name">{c.barberoNombre || `Barbero #${c.barberoId}`}</div>
+                              <div className="cred-barber-sub"><EstadoBadge estado={c.estado} /></div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Ventas a crédito */}
+                        <td className="cred-td">
+                          <span className="cred-num" style={{ color: "var(--white-primary)" }}>
+                            {ventasCred.length}
+                          </span>
+                        </td>
+
+                        {/* Saldo deuda */}
+                        <td className="cred-td">
+                          <span className="cred-num" style={{
+                            color: c.saldoDeuda > 0 ? "#b07070" : "var(--status-green)",
+                          }}>
+                            <DollarSign className="w-3.5 h-3.5" />
+                            {formatCurrency(c.saldoDeuda)}
+                          </span>
+                        </td>
+
+                        {/* Último abono */}
+                        <td className="cred-td" style={{ fontSize: 12 }}>
+                          {formatDate(abonosStats[c.barberoId] || null)}
+                        </td>
+
+                        {/* Acciones */}
+                        <td className="cred-td" onClick={e => e.stopPropagation()}>
+                          <button
+                            className="cred-expand-btn"
+                            onClick={() => setExpandedId(isOpen ? null : c.barberoId)}
+                          >
+                            Ver ventas
+                            <span className={`chev-custom${isOpen ? " open" : ""}`}>
+                              <ChevronDown className="w-4 h-4" />
+                            </span>
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* Acordeón */}
+                      <tr key={`exp-${c.barberoId}`}>
+                        <td colSpan={6} className="cred-exp-cell">
+                          <div className={`cred-accordion-wrap${isOpen ? " open" : ""}`}>
+                            <div className="cred-accordion-inner">
+
+                              {/* Stats bar */}
+                              <div className="cred-stats-bar">
+                                <div className="cred-stat-item">
+                                  <span className="cred-stat-label">Uso del Cupo</span>
+                                  <BarraProgreso saldo={c.saldoDeuda} cupo={c.cupoMaximo} />
+                                </div>
+                                <div className="cred-stat-item">
+                                  <span className="cred-stat-label">Deuda Actual</span>
+                                  <span className="cred-stat-val" style={{ color: c.saldoDeuda > 0 ? "#b07070" : "var(--status-green)" }}>
+                                    {formatCurrency(c.saldoDeuda)}
+                                  </span>
+                                </div>
+                                <div className="cred-stat-item">
+                                  <span className="cred-stat-label">Cupo Disponible</span>
+                                  <span className="cred-stat-val">{formatCurrency(c.cupoDisponible)}</span>
+                                </div>
+                                <div className="cred-stat-item">
+                                  <span className="cred-stat-label">Cupo Máximo</span>
+                                  <span className="cred-stat-val">{formatCurrency(c.cupoMaximo)}</span>
+                                </div>
+                                <div className="cred-stat-item">
+                                  <span className="cred-stat-label">Desde</span>
+                                  <span className="cred-stat-val">{formatDate(c.fechaCreacion)}</span>
+                                </div>
+                              </div>
+
+                              {/* Tab pills — "villeterita" */}
+                              <div className="cred-tabs">
+                                <button
+                                  className={`cred-tab${tab === "ventas" ? " active" : ""}`}
+                                  onClick={() => handleSwitchTab(c.barberoId, "ventas")}
+                                >
+                                  <Receipt className="w-3 h-3" />
+                                  Ventas a Crédito
+                                  <span style={{
+                                    marginLeft: 2,
+                                    fontSize: 10,
+                                    background: tab === "ventas" ? "rgba(216,176,129,0.18)" : "var(--gray-darker)",
+                                    borderRadius: 999,
+                                    padding: "1px 6px",
+                                    fontWeight: 700,
+                                  }}>{ventasCred.length}</span>
+                                </button>
+                                <button
+                                  className={`cred-tab${tab === "abonos" ? " active" : ""}`}
+                                  onClick={() => handleSwitchTab(c.barberoId, "abonos")}
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  Ver Abonos
+                                </button>
+                              </div>
+
+                              {/* ── Vista: Ventas a Crédito ── */}
+                              {tab === "ventas" && (
+                                <>
+                                  <table className="cred-table" style={{ borderTop: "none" }}>
+                                    <colgroup>
+                                      <col style={{ width: "10%" }} />
+                                      <col style={{ width: "14%" }} />
+                                      <col style={{ width: "32%" }} />
+                                      <col style={{ width: "15%" }} />
+                                      <col style={{ width: "14%" }} />
+                                      <col style={{ width: "15%" }} />
+                                    </colgroup>
+                                    <thead>
+                                      <tr className="cred-sub-header">
+                                        <th>Número</th>
+                                        <th>Fecha</th>
+                                        <th style={{ textAlign: "left", paddingLeft: 36 }}>Productos / Servicios</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                        <th>Acción</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {ventasCred.length === 0 ? (
+                                        <tr>
+                                          <td colSpan={6} style={{ padding: 20, textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
+                                            Sin ventas a crédito registradas.
+                                          </td>
+                                        </tr>
+                                      ) : ventasCred.map((v: any) => {
+                                        const productos = (v.productosDetalle || []) as any[];
+                                        const servicios = (v.serviciosDetalle || []) as any[];
+                                        const total = productos.length + servicios.length;
+                                        const itemsLabel = [
+                                          ...productos.map((p: any) => p.nombre || "Producto"),
+                                          ...servicios.map((s: any) => s.nombre || "Servicio"),
+                                        ].slice(0, 2).join(", ") + (total > 2 ? "..." : "");
+
+                                        return (
+                                          <tr key={v.id} className="cred-item-row">
+                                            <td className="cred-sub-td" style={{ paddingLeft: 36, textAlign: "left" }}>
+                                              <span className="cred-num">
+                                                <Hash className="w-3 h-3" />
+                                                {v.numeroVenta || v.id}
+                                              </span>
+                                            </td>
+                                            <td className="cred-sub-td" style={{ fontSize: 12 }}>
+                                              {formatDate(v.fecha)}
+                                            </td>
+                                            <td className="cred-sub-td" style={{ textAlign: "left", fontSize: 12 }}>
+                                              {itemsLabel || <span style={{ color: "var(--gray-dark)", fontStyle: "italic" }}>Sin detalle</span>}
+                                            </td>
+                                            <td className="cred-sub-td">
+                                              <span style={{ fontWeight: 600, color: "#b07070" }}>
+                                                {formatCurrency(Number(v.subtotal || v.total || 0))}
+                                              </span>
+                                            </td>
+                                            <td className="cred-sub-td">
+                                              <EstadoBadge estado={v.estado || "Completada"} />
+                                            </td>
+                                            <td className="cred-sub-td">
+                                              {(() => {
+                                                const anulada = String(v.estado || "").toLowerCase() === "anulada";
+                                                const tieneAbono = (inlineAbonos[c.barberoId] || []).some(
+                                                  a => a.estado !== "Anulado" && String(a.notas ?? "").includes(`[ventaId:${v.id}]`)
+                                                );
+                                                if (anulada || tieneAbono) return null;
+                                                return (
+                                                  <button
+                                                    className="cred-icon-btn"
+                                                    onClick={() => openRegistrar(c, v)}
+                                                    title="Registrar abono a esta venta"
+                                                    style={{ color: "var(--gray-lightest)" }}
+                                                    onMouseEnter={e => (e.currentTarget.style.color = "var(--orange-primary)")}
+                                                    onMouseLeave={e => (e.currentTarget.style.color = "var(--gray-lightest)")}
+                                                  >
+                                                    <Wallet className="w-4 h-4" />
+                                                  </button>
+                                                );
+                                              })()}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+
+                                  {/* Barra de acciones — solo en tab ventas */}
+                                  {c.saldoDeuda > 0 && (
+                                    <div className="cred-actions-bar">
+                                      <button
+                                        className="cred-action-btn"
+                                        onClick={() => openRegistrar(c, null)}
+                                      >
+                                        <DollarSign className="w-4 h-4" />
+                                        Registrar Pago General
+                                      </button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {/* ── Vista: Ver Abonos ── */}
+                              {tab === "abonos" && (
+                                <>
+                                  {loadingInlineAbonos[c.barberoId] ? (
+                                    <div style={{ padding: "28px 0", display: "flex", justifyContent: "center" }}>
+                                      <RefreshCw className="w-5 h-5 animate-spin" style={{ color: "var(--orange-primary)" }} />
+                                    </div>
+                                  ) : (inlineAbonos[c.barberoId] || []).length === 0 ? (
+                                    <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
+                                      Sin abonos registrados.
+                                    </div>
+                                  ) : (inlineAbonos[c.barberoId] || []).map(a => (
+                                    <div
+                                      key={a.id}
+                                      className="cred-abono-row"
+                                      style={{ opacity: a.estado === "Anulado" ? 0.5 : 1 }}
+                                    >
+                                      {/* Monto + estado */}
+                                      <div style={{ minWidth: 110 }}>
+                                        <span style={{
+                                          fontWeight: 700,
+                                          fontSize: 14,
+                                          color: a.estado === "Anulado" ? "var(--status-red)" : "var(--status-green)",
+                                        }}>
+                                          {a.estado === "Anulado" ? "−" : "+"}{formatCurrency(a.monto)}
+                                        </span>
+                                      </div>
+
+                                      {/* Info */}
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 12, color: "var(--gray-lighter)" }}>
+                                          {formatDateTime(a.fecha)} · {a.metodoPago ?? "—"} · {a.usuarioNombre ?? "Sistema"}
+                                        </div>
+                                        {a.notas && (
+                                          <div style={{ fontSize: 11, color: "var(--gray-dark)", fontStyle: "italic", marginTop: 2 }}>
+                                            {a.notas}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Estado badge */}
+                                      <EstadoBadge estado={a.estado} />
+
+                                      {/* Anular */}
+                                      {a.estado !== "Anulado" && (
+                                        <button
+                                          className="cred-icon-btn"
+                                          style={{ color: "var(--gray-lightest)" }}
+                                          title="Anular abono"
+                                          onClick={() => { setAbonoAnular(a); setAbonoAnularBarbId(c.barberoId); setAnularOpen(true); }}
+                                          onMouseEnter={e => (e.currentTarget.style.color = "#b07070")}
+                                          onMouseLeave={e => (e.currentTarget.style.color = "var(--gray-lightest)")}
+                                        >
+                                          <Ban className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+
+                                  {/* Acciones abonos */}
+                                  <div className="cred-actions-bar">
+                                    <button
+                                      className="cred-icon-btn"
+                                      style={{ background: "rgba(255,255,255,0.03)", padding: "6px 12px", color: "var(--gray-lightest)" }}
+                                      onClick={() => loadInlineAbonos(c.barberoId)}
+                                    >
+                                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                                      <span style={{ fontSize: 12 }}>Actualizar</span>
+                                    </button>
+                                    {c.saldoDeuda > 0 && (
+                                      <button
+                                        className="cred-action-btn"
+                                        onClick={() => openRegistrar(c, null)}
+                                      >
+                                        <DollarSign className="w-4 h-4" />
+                                        Registrar Pago
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <div className="std-pagination">
+              <span className="std-pag-info">Página {currentPage} de {totalPages}</span>
+              <EllipsisPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ─── Modal: Historial de Abonos ─── */}
-      <Dialog open={abonosModalOpen} onOpenChange={setAbonosModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: "var(--gray-darkest)", borderColor: "var(--gray-dark)" }}>
+      {/* ═══ Modal: Registrar Abono ══════════════════════════════════════════════ */}
+      <Dialog open={registrarOpen} onOpenChange={open => { if (!submitting) setRegistrarOpen(open); }}>
+        <DialogContent className="max-w-md bg-gray-darkest border-gray-dark">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2" style={{ color: "var(--white-primary)" }}>
-              <FileText className="w-5 h-5" style={{ color: "var(--orange-primary)" }} />
-              Abonos — {abonosCredito?.barberoNombre ?? "Barbero"}
-            </DialogTitle>
-            <DialogDescription style={{ color: "var(--gray-lightest)" }}>
-              Historial de pagos y abonos al crédito. Saldo actual:{" "}
-              <strong style={{ color: "var(--orange-primary)" }}>
-                {formatCurrency(abonosCredito?.saldoDeuda ?? 0)}
-              </strong>
-            </DialogDescription>
-          </DialogHeader>
-
-          {abonosCredito && abonosCredito.saldoDeuda > 0 && (
-            <div className="flex justify-end mb-2">
-              <button
-                onClick={() => {
-                  setAbonosModalOpen(false);
-                  openRegistrar(abonosCredito);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium"
-                style={{ backgroundColor: "var(--orange-primary)", color: "var(--black-primary)" }}
-              >
-                <DollarSign className="w-4 h-4" />
-                Registrar Abono
-              </button>
-            </div>
-          )}
-
-          {loadingAbonos ? (
-            <div className="flex justify-center py-8">
-              <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--orange-primary)", borderTopColor: "transparent" }} />
-            </div>
-          ) : abonos.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10" style={{ color: "var(--gray-lighter)" }}>
-              <CreditCard className="w-10 h-10" style={{ color: "var(--gray-medium)" }} />
-              <p className="text-sm">Sin abonos registrados</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {abonos.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-start gap-3 p-3 rounded-lg"
-                  style={{
-                    backgroundColor: "var(--gray-darker)",
-                    opacity: a.estado === "Anulado" ? 0.6 : 1,
-                  }}
-                >
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: a.estado === "Anulado" ? "color-mix(in srgb, var(--status-red) 15%, transparent)" : "color-mix(in srgb, var(--status-green) 15%, transparent)" }}
-                  >
-                    <DollarSign className="w-4 h-4" style={{ color: a.estado === "Anulado" ? "var(--status-red)" : "var(--status-green)" }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm" style={{ color: a.estado === "Anulado" ? "var(--status-red)" : "var(--status-green)" }}>
-                        {a.estado === "Anulado" ? "-" : "+"}{formatCurrency(a.monto)}
-                      </span>
-                      <EstadoBadge estado={a.estado} />
-                    </div>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--gray-lighter)" }}>
-                      {formatDateTime(a.fecha)} · {a.metodoPago ?? "—"} · {a.usuarioNombre ?? "Sistema"}
-                    </p>
-                    {a.notas && (
-                      <p className="text-xs mt-0.5 italic" style={{ color: "var(--gray-lighter)" }}>{a.notas}</p>
-                    )}
-                  </div>
-                  {a.estado !== "Anulado" && (
-                    <button
-                      onClick={() => { setAbonoAnular(a); setAnularOpen(true); }}
-                      className="flex-shrink-0 p-1.5 rounded transition-colors hover:bg-red-500/20"
-                      title="Anular abono"
-                    >
-                      <X className="w-4 h-4 text-red-400" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {abonosTotalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <button
-                disabled={abonosPage <= 1}
-                onClick={() => abonosCredito && openAbonos(abonosCredito, abonosPage - 1)}
-                className="p-1.5 rounded disabled:opacity-40"
-                style={{ color: "var(--gray-lightest)" }}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-xs" style={{ color: "var(--gray-lighter)" }}>
-                {abonosPage} / {abonosTotalPages}
-              </span>
-              <button
-                disabled={abonosPage >= abonosTotalPages}
-                onClick={() => abonosCredito && openAbonos(abonosCredito, abonosPage + 1)}
-                className="p-1.5 rounded disabled:opacity-40"
-                style={{ color: "var(--gray-lightest)" }}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── Modal: Registrar Abono ─── */}
-      <Dialog open={registrarOpen} onOpenChange={setRegistrarOpen}>
-        <DialogContent style={{ backgroundColor: "var(--gray-darkest)", borderColor: "var(--gray-dark)" }}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2" style={{ color: "var(--white-primary)" }}>
-              <DollarSign className="w-5 h-5" style={{ color: "var(--orange-primary)" }} />
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-orange-primary" />
               Registrar Abono
             </DialogTitle>
-            <DialogDescription style={{ color: "var(--gray-lightest)" }}>
-              {registrarCredito?.barberoNombre} · Saldo: {formatCurrency(registrarCredito?.saldoDeuda ?? 0)}
+            <DialogDescription className="text-gray-lightest">
+              {registrarStep === "select"
+                ? "Selecciona el barbero al que deseas registrar el abono."
+                : (
+                  <>
+                    {registrarCredito?.barberoNombre}
+                    {selectedVentaAbono ? ` — Venta #${selectedVentaAbono.numeroVenta || selectedVentaAbono.id}` : ""}
+                    {" · Deuda: "}
+                    <strong style={{ color: "var(--orange-primary)" }}>{formatCurrency(registrarCredito?.saldoDeuda ?? 0)}</strong>
+                  </>
+                )
+              }
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
-            {/* Monto */}
-            <div className="space-y-1.5">
-              <Label style={{ color: "var(--white-primary)", fontSize: "13px" }}>
-                Monto del abono *
-              </Label>
-              <Input
-                type="number"
-                min={1}
-                max={registrarCredito?.saldoDeuda}
-                value={montoInput}
-                onChange={(e) => setMontoInput(e.target.value)}
-                placeholder="Ej: 50000"
-                className={`elegante-input ${showFormErrors && !montoValido ? "border-red-500 ring-1 ring-red-500" : ""}`}
-              />
-              {showFormErrors && !montoValido && (
-                <p className="text-xs text-red-400">
-                  {montoNum <= 0
-                    ? "El monto debe ser mayor a 0"
-                    : `El monto no puede superar el saldo (${formatCurrency(registrarCredito?.saldoDeuda ?? 0)})`}
-                </p>
-              )}
+          {/* ── Paso 1: Seleccionar barbero ── */}
+          {registrarStep === "select" && (
+            <div className="space-y-3 pt-1">
+              {/* Buscador */}
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--gray-dark)", display: "flex", pointerEvents: "none" }}>
+                  <Search className="w-4 h-4" />
+                </span>
+                <input
+                  className="cred-search"
+                  style={{ paddingLeft: 36 }}
+                  placeholder="Buscar barbero por nombre..."
+                  value={barberoSearch}
+                  onChange={e => setBarberoSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
 
-              {montoNum > 0 && montoValido && (
-                <div className="flex items-center justify-between text-xs px-1 pt-1" style={{ color: "var(--gray-lighter)" }}>
-                  <span>Saldo tras abono:</span>
-                  <span className="font-semibold" style={{ color: saldoTrasAbono === 0 ? "var(--status-green)" : "var(--orange-primary)" }}>
-                    {formatCurrency(saldoTrasAbono)}
-                    {saldoTrasAbono === 0 && " — Deuda saldada"}
-                  </span>
+              {/* Lista de barberos */}
+              <div className="cred-selector-list">
+                {creditosFiltradosModal.length === 0 ? (
+                  <div style={{ padding: "16px 0", textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
+                    Sin resultados
+                  </div>
+                ) : creditosFiltradosModal.map(c => {
+                  const barbero = barberosMap[c.barberoId];
+                  return (
+                    <div
+                      key={c.id || c.barberoId}
+                      className={`cred-selector-item${registrarCredito?.barberoId === c.barberoId ? " selected" : ""}`}
+                      onClick={() => handleSelectBarberoEnModal(c)}
+                    >
+                      <div className="cred-avatar" style={{ width: 32, height: 32, fontSize: 11, overflow: "hidden", background: (barbero?.fotoPerfil && barbero.fotoPerfil.trim() && barbero.fotoPerfil !== "No especificada") ? "transparent" : "var(--orange-primary)" }}>
+                        {(barbero?.fotoPerfil && barbero.fotoPerfil.trim() && barbero.fotoPerfil !== "No especificada") ? (
+                          <ImageRenderer url={barbero.fotoPerfil} className="w-full h-full object-cover" fallbackVariant="person" showLabel={false} />
+                        ) : (
+                          <UserIcon className="w-4 h-4" style={{ color: "var(--black-primary)" }} />
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, color: "var(--white-primary)", fontWeight: 500 }}>
+                          {c.barberoNombre || `Barbero #${c.barberoId}`}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--gray-lighter)" }}>
+                          Deuda:{" "}
+                          <span style={{
+                            color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)",
+                            fontWeight: 600,
+                          }}>
+                            {formatCurrency(c.saldoDeuda)}
+                          </span>
+                        </div>
+                      </div>
+                      <EstadoBadge estado={c.estado} />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end pt-1 border-t border-gray-dark">
+                <button onClick={() => setRegistrarOpen(false)} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Paso 2: Formulario de abono ── */}
+          {registrarStep === "form" && (
+            <div className="space-y-4 pt-2">
+
+              {/* Tarjeta info venta si viene de una específica */}
+              {selectedVentaAbono && (
+                <div className="bg-gray-darker rounded-xl p-3 border border-gray-dark text-sm space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-gray-lightest">Venta</span>
+                    <span className="text-white-primary font-medium">
+                      #{selectedVentaAbono.numeroVenta || selectedVentaAbono.id}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-lightest">Fecha</span>
+                    <span className="text-white-primary">{formatDate(selectedVentaAbono.fecha)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-lightest">Monto venta</span>
+                    <span className="text-orange-primary font-bold">
+                      {formatCurrency(Number(selectedVentaAbono.subtotal || selectedVentaAbono.total || 0))}
+                    </span>
+                  </div>
                 </div>
               )}
-            </div>
 
-            {/* Método de pago */}
-            <div className="space-y-1.5">
-              <Label style={{ color: "var(--white-primary)", fontSize: "13px" }}>
-                Método de pago
-              </Label>
-              <Select value={metodoPago} onValueChange={setMetodoPago}>
-                <SelectTrigger className="elegante-input">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Efectivo">Efectivo</SelectItem>
-                  <SelectItem value="Transferencia">Transferencia</SelectItem>
-                  <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                  <SelectItem value="Nequi">Nequi</SelectItem>
-                  <SelectItem value="Daviplata">Daviplata</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Notas */}
-            <div className="space-y-1.5">
-              <Label style={{ color: "var(--white-primary)", fontSize: "13px" }}>
-                Notas (opcional)
-              </Label>
-              <textarea
-                value={notasInput}
-                onChange={(e) => setNotasInput(e.target.value)}
-                placeholder="Observaciones adicionales..."
-                rows={2}
-                className="elegante-input w-full resize-none px-3 py-2 text-sm rounded-md"
-                style={{ color: "var(--gray-lightest)" }}
-              />
-            </div>
-
-            {/* Botones */}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setRegistrarOpen(false)}
-                className="elegante-btn-secondary px-4 py-2 text-sm"
-                disabled={submitting}
-              >
-                Cancelar
-              </Button>
-              <button
-                onClick={handleRegistrarAbono}
-                disabled={submitting}
-                className="flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold transition-colors"
-                style={{
-                  backgroundColor: "var(--orange-primary)",
-                  color: "var(--black-primary)",
-                  opacity: submitting ? 0.7 : 1,
-                }}
-              >
-                {submitting ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <DollarSign className="w-4 h-4" />
+              {/* Monto */}
+              <div className="space-y-1.5">
+                <Label className="text-white-primary text-sm">Monto del abono *</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={montoInput ? Number(montoInput).toLocaleString("es-CO") : ""}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    if (!digits) { setMontoInput(""); return; }
+                    const n = Number(digits);
+                    const max = Math.min(registrarCredito?.saldoDeuda ?? 999_999, 999_999);
+                    setMontoInput(String(Math.min(n, max)));
+                  }}
+                  placeholder="Ej: 50.000"
+                  className={`elegante-input ${showFormErrors && !montoValido ? "border-destructive ring-1 ring-destructive" : ""}`}
+                />
+                {showFormErrors && !montoValido && (
+                  <p className="text-xs text-status-red">
+                    {montoNum <= 0 ? "El monto debe ser mayor a 0" : `Máximo: ${formatCurrency(registrarCredito?.saldoDeuda ?? 0)}`}
+                  </p>
                 )}
-                {submitting ? "Registrando..." : "Registrar Abono"}
-              </button>
+                {montoNum > 0 && montoValido && (
+                  <div className="flex justify-between text-xs px-1 text-gray-lighter">
+                    <span>Saldo tras abono:</span>
+                    <span style={{ color: saldoTrasAbono === 0 ? "var(--status-green)" : "var(--orange-primary)", fontWeight: 600 }}>
+                      {formatCurrency(saldoTrasAbono)}{saldoTrasAbono === 0 ? " — Deuda saldada" : ""}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Método de pago */}
+              <div className="space-y-1.5">
+                <Label className="text-white-primary text-sm">Método de pago</Label>
+                <Select value={metodoPago} onValueChange={setMetodoPago}>
+                  <SelectTrigger className="elegante-input">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark">
+                    {["Efectivo", "Transferencia", "Tarjeta", "Nequi", "Daviplata", "Otro"].map(m => (
+                      <SelectItem key={m} value={m} className="text-white-primary">{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Notas */}
+              <div className="space-y-1.5">
+                <Label className="text-white-primary text-sm">Notas (opcional)</Label>
+                <textarea
+                  value={notasInput}
+                  onChange={e => setNotasInput(e.target.value)}
+                  placeholder="Observaciones adicionales..."
+                  rows={2}
+                  className="elegante-input w-full resize-none px-3 py-2 text-sm rounded-md text-gray-lightest"
+                />
+              </div>
+
+              {/* Botones */}
+              <div className="flex justify-between gap-3 pt-2 border-t border-gray-dark">
+                <button
+                  onClick={() => { setRegistrarStep("select"); setBarberoSearch(""); }}
+                  disabled={submitting}
+                  className="elegante-button-secondary flex items-center gap-1.5"
+                  style={{ padding: "0.45rem 1rem", fontSize: "13px" }}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Cambiar barbero
+                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setRegistrarOpen(false)} disabled={submitting} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleRegistrarAbono}
+                    disabled={submitting}
+                    className="elegante-button-primary flex items-center gap-2"
+                    style={{ padding: "0.45rem 1rem", fontSize: "13px" }}
+                  >
+                    {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
+                    {submitting ? "Registrando..." : "Registrar"}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* ─── Modal: Confirmar Anulación de Abono ─── */}
+      {/* ═══ Modal: Confirmar Anulación de Abono ════════════════════════════════ */}
       <Dialog open={anularOpen} onOpenChange={setAnularOpen}>
-        <DialogContent style={{ backgroundColor: "var(--gray-darkest)", borderColor: "var(--gray-dark)" }}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2" style={{ color: "var(--white-primary)" }}>
-              <AlertTriangle className="w-5 h-5 text-red-400" />
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-status-red" />
               Anular Abono
             </DialogTitle>
-            <DialogDescription style={{ color: "var(--gray-lightest)" }}>
-              Esta acción revertira el monto al saldo de deuda del barbero.
+            <DialogDescription className="text-gray-lightest">
+              Esta acción revertirá el monto al saldo de deuda del barbero.
             </DialogDescription>
           </DialogHeader>
 
           {abonoAnular && (
             <div className="space-y-3 pt-1">
-              <div className="p-3 rounded-lg space-y-1.5 text-sm" style={{ backgroundColor: "var(--gray-darker)" }}>
+              <div className="bg-gray-darker p-3 rounded-lg space-y-1.5 text-sm">
                 <div className="flex justify-between">
-                  <span style={{ color: "var(--gray-lighter)" }}>Abono #</span>
-                  <span style={{ color: "var(--gray-lightest)" }}>{abonoAnular.id}</span>
+                  <span className="text-gray-lighter">Abono #</span>
+                  <span className="text-gray-lightest">{abonoAnular.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span style={{ color: "var(--gray-lighter)" }}>Monto</span>
-                  <span className="font-semibold" style={{ color: "var(--status-red)" }}>
-                    {formatCurrency(abonoAnular.monto)}
-                  </span>
+                  <span className="text-gray-lighter">Monto</span>
+                  <span className="font-semibold" style={{ color: "var(--status-red)" }}>{formatCurrency(abonoAnular.monto)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span style={{ color: "var(--gray-lighter)" }}>Fecha</span>
-                  <span style={{ color: "var(--gray-lightest)" }}>{formatDateTime(abonoAnular.fecha)}</span>
+                  <span className="text-gray-lighter">Fecha</span>
+                  <span className="text-gray-lightest">{formatDateTime(abonoAnular.fecha)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span style={{ color: "var(--gray-lighter)" }}>Método</span>
-                  <span style={{ color: "var(--gray-lightest)" }}>{abonoAnular.metodoPago ?? "—"}</span>
+                  <span className="text-gray-lighter">Método</span>
+                  <span className="text-gray-lightest">{abonoAnular.metodoPago ?? "—"}</span>
                 </div>
               </div>
-
-              <p className="text-xs px-1" style={{ color: "var(--gray-lighter)" }}>
-                El saldo de deuda del barbero aumentara en {formatCurrency(abonoAnular.monto)}.
+              <p className="text-xs text-gray-lighter px-1">
+                El saldo de deuda del barbero aumentará en {formatCurrency(abonoAnular.monto)}.
               </p>
-
               <div className="flex justify-end gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setAnularOpen(false)}
-                  className="elegante-btn-secondary px-4 py-2 text-sm"
-                  disabled={anulando}
-                >
+                <button onClick={() => setAnularOpen(false)} disabled={anulando} className="elegante-button-secondary">
                   Cancelar
-                </Button>
+                </button>
                 <button
                   onClick={handleAnularAbono}
                   disabled={anulando}
-                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-colors"
-                  style={{
-                    backgroundColor: "var(--destructive)",
-                    color: "white",
-                    opacity: anulando ? 0.7 : 1,
-                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-destructive text-white transition-colors"
+                  style={{ opacity: anulando ? 0.7 : 1 }}
                 >
                   {anulando ? <RefreshCw className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
                   {anulando ? "Anulando..." : "Confirmar Anulación"}

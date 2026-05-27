@@ -70,6 +70,7 @@ const formatDate = (date: string | Date): string => {
   if (Number.isNaN(dateObj.getTime())) return String(date || '');
 
   return dateObj.toLocaleDateString('es-CO', {
+    timeZone: 'America/Bogota',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
@@ -333,7 +334,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
           monto,
           precioUnitario: cantidad > 0 ? monto / cantidad : 0,
           estado: String(d?.estado || 'Completada'),
-          fecha: fechaObj && !Number.isNaN(fechaObj.getTime()) ? fechaObj.toLocaleDateString('es-CO') : '',
+          fecha: fechaObj && !Number.isNaN(fechaObj.getTime()) ? fechaObj.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }) : '',
           hora: fechaObj && !Number.isNaN(fechaObj.getTime())
             ? fechaObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
             : '',
@@ -1477,11 +1478,31 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   };
 
   const handleToggleEstado = async (venta: Venta) => {
-    // Solo permitir cambios entre "Completada" y "Anulada"
-    // Si la venta está anulada, no se puede cambiar a completada
     if (venta.estado === 'Anulada') {
       showErrorAlert("No se puede reactivar", "No es posible activar una venta anulada. Una vez anulada, una venta no puede ser reactivada por políticas de seguridad.");
       return;
+    }
+
+    // Bloquear anulación si la venta a crédito barbero ya tiene abonos registrados
+    if (String(venta.metodoPago || '').toLowerCase() === 'creditobarbero') {
+      const barberoId = Number((venta as any).barberoId ?? (venta as any).BarberoId ?? 0);
+      if (barberoId > 0) {
+        try {
+          const result = await creditoBarberoService.getAbonos(barberoId, 1, 100);
+          const tieneAbono = result.items.some(
+            a => a.estado !== 'Anulado' && String(a.notas ?? '').includes(`[ventaId:${venta.id}]`)
+          );
+          if (tieneAbono) {
+            showErrorAlert(
+              "No se puede anular",
+              `La venta #${venta.numeroVenta} tiene abonos registrados. Anula primero los abonos en Crédito Barberos antes de anular la venta.`
+            );
+            return;
+          }
+        } catch {
+          // Si falla la consulta, permitir continuar con la anulación
+        }
+      }
     }
 
     // Solo permitir cambiar de "Completada" a "Anulada"

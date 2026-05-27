@@ -20,6 +20,7 @@ export interface Barbero {
   estado?: boolean; // Added for compatibility
   fotoPerfil: string;
   especialidad?: string;
+  saldoDisponible?: number;
   usuarioId?: number;
   fechaCreacion?: string;
 }
@@ -97,6 +98,7 @@ class BarberosService {
       estado: isActive,
       fotoPerfil: api.fotoPerfil || api.FotoPerfil || api.imagenUrl || api.ImagenUrl || usuario.fotoPerfil || usuario.FotoPerfil || "",
       especialidad: api.especialidad || api.Especialidad || 'General',
+      saldoDisponible: api.saldoDisponible ?? api.SaldoDisponible ?? 200000,
       usuarioId: api.usuarioId || api.UsuarioId || (api.Id && api.Id !== api.id ? api.Id : 0) || (usuario.id || api.Id || 0),
       fechaCreacion: api.fechaContratacion || api.FechaContratacion || api.fechaCreacion || api.FechaCreacion || "No especificada"
     };
