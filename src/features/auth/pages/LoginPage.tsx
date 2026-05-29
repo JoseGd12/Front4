@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
@@ -22,6 +23,7 @@ interface LoginPageProps {
 export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData, onResetComplete }: LoginPageProps) {
   const { login, loginWithGoogle, resendEmailVerification } = useAuth();
   const { success } = useCustomAlert();
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -37,16 +39,26 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
 
-  // Efecto para manejar redirección desde email de recuperación
+  // Leer oobCode directo desde la URL (reset de contraseña)
   useEffect(() => {
+    const urlOobCode = searchParams.get('oobCode');
+    if (urlOobCode) {
+      console.log('🔄 oobCode detectado en URL, cambiando a vista de reset');
+      setResetToken(urlOobCode);
+      setResetEmail('');
+      setCurrentView('password-reset');
+      setCaptchaValidated(true);
+      return;
+    }
+    // Fallback al prop legacy
     if (initialResetData && initialResetData.token) {
       console.log('🔄 Inbox reset detected, switching to reset view');
       setResetToken(initialResetData.token);
       setResetEmail(initialResetData.email);
       setCurrentView('password-reset');
-      setCaptchaValidated(true); // Saltamos captcha para el flujo de reset desde link
+      setCaptchaValidated(true);
     }
-  }, [initialResetData]);
+  }, [initialResetData, searchParams]);
 
   const getLoginErrorMessage = (error: string): string => {
     const e = (error || '').toLowerCase();

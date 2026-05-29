@@ -142,6 +142,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                  onClearInitialItem={() => setPreSelectedReservation(null)}
                  preSelectedProduct={preSelectedProduct}
                  onClearPreSelectedProduct={() => setPreSelectedProduct(null)}
+                 onGoToPerfil={() => setActivePage("Cuenta")}
                />;
       case "Mis Compras":
         return <ClienteHistorialVentasPage />;
@@ -154,7 +155,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
       case "Cuenta":
         return <ClientePerfilPage />;
       default:
-        return <ClienteMisCitasPageCalendar />;
+        return <ClienteMisCitasPageCalendar onGoToPerfil={() => setActivePage("Cuenta")} />;
     }
   };
 

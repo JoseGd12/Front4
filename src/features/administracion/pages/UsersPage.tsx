@@ -485,13 +485,13 @@ export function UsersPage() {
           await firebaseAuthService.createUserWithoutAffectingSession(
             createdUser.correo,
             tempPassword,
-            { sendVerification: false, sendPasswordReset: true }
+            { sendVerification: true, sendPasswordReset: false }
           );
+          showSuccess('Correo de verificación enviado', `Se envió un email de verificación a ${createdUser.correo}. Al verificarlo, el usuario deberá usar "Olvidé mi contraseña" para acceder.`);
         } catch (firebaseErr: any) {
           const msg = String(firebaseErr?.message || '').toLowerCase();
           if (msg.includes('ya está en uso') || msg.includes('already')) {
-            await resetPassword(createdUser.correo);
-          } else {
+            showSuccess('Cuenta ya registrada', `El correo ${createdUser.correo} ya tiene cuenta en Firebase. El usuario puede iniciar sesión directamente.`);
           }
         }
       }
@@ -603,90 +603,27 @@ export function UsersPage() {
     if (!userToDelete) return;
 
     try {
-      await apiService.deleteUsuario(userToDelete.id);
-      // Verificar borrado real
-      let stillExists = false;
-      try {
-        const check = await apiService.getUsuarioById(userToDelete.id);
-        if (check && (check.id || (check as any)?.Id)) stillExists = true;
-      } catch { stillExists = false; }
-      if (stillExists) {
-        try {
-          await apiService.updateUsuarioStatus(userToDelete.id, false);
-          setUsers(prev => prev.map(u => u.id === userToDelete.id ? { ...u, status: false } : u));
-          showSuccess('Usuario desactivado', 'Este usuario tiene registros asociados. Se desactivó para conservar el historial.');
-          setUserToDelete(null);
-          setIsDeleteDialogOpen(false);
-        } catch {
-          showError('No se puede eliminar', 'Este usuario tiene registros asociados (ventas, compras, agendamientos o entregas de insumos). Solo se puede desactivar para conservar el historial.');
-        }
-        return;
-      }
-      // Intentar eliminar el perfil asociado según el rol
-      try {
-        const rol = (userToDelete.rol || '').toLowerCase();
-        const correo = userToDelete.correo;
-        const documento = userToDelete.documento;
-        const tipoDocumento = userToDelete.tipoDocumento;
+      const result = await apiService.deleteUsuario(userToDelete.id);
+      const anonimizado = (result as any)?.anonimizado === true;
 
-        if (rol.includes('cliente') || rol.includes('cajero')) {
-          const clientes = await clientesService.getClientes();
-          const match = clientes.find((c: any) => {
-            const cCorreo = (c.correo || c.Correo || '').toLowerCase();
-            const cDoc = (c.documento || c.Documento || '').trim();
-            const docFull = tipoDocumento && documento ? `${tipoDocumento} ${documento}` : documento;
-            return (correo && cCorreo === (correo || '').toLowerCase()) || (documento && (cDoc === documento || cDoc === docFull));
-          });
-          if (match?.id) {
-            await clientesService.deleteCliente(Number(match.id), { correo, documento, tipoDocumento });
-          }
-        } else if (rol.includes('barbero')) {
-          const barberos = await barberosService.getBarberos();
-          const mb = barberos.find((b: any) => {
-            const bCorreo = (b.correo || '').toLowerCase();
-            const bDoc = (b.documento || '').trim();
-            const docFull = tipoDocumento && documento ? `${tipoDocumento} ${documento}` : documento;
-            return (correo && bCorreo === (correo || '').toLowerCase()) || (documento && (bDoc === documento || bDoc === docFull));
-          });
-          if (mb?.id) {
-            await barberosService.deleteBarbero(Number(mb.id), { correo, documento, tipoDocumento });
-          }
-        }
-      } catch {
-        // Ignorar errores de limpieza de perfil para no bloquear la eliminación del usuario
-      }
-      setUsers(users.filter(u => u.id !== userToDelete.id));
-      showSuccess("Usuario eliminado", `El usuario ${userToDelete.nombres} ${userToDelete.apellidos} ha sido eliminado del sistema.`);
+      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
       setUserToDelete(null);
       setIsDeleteDialogOpen(false);
+
+      if (anonimizado) {
+        showSuccess(
+          'Usuario eliminado',
+          `Los datos de "${userToDelete.nombres} ${userToDelete.apellidos}" fueron eliminados. El historial de registros asociados se conservó y el correo/documento quedan disponibles para un nuevo usuario.`
+        );
+      } else {
+        showSuccess(
+          'Usuario eliminado',
+          `El usuario "${userToDelete.nombres} ${userToDelete.apellidos}" ha sido eliminado del sistema.`
+        );
+      }
     } catch (error: any) {
       console.error('Error deleting user:', error);
-      const errorMessage = error instanceof Error ? (error.message || '') : String(error || '');
-      const msg = errorMessage.toLowerCase();
-      const related =
-        msg.includes('409') ||
-        msg.includes('foreign') ||
-        msg.includes('constraint') ||
-        msg.includes('referenc') ||
-        msg.includes('venta') ||
-        msg.includes('compra') ||
-        msg.includes('agend') ||
-        msg.includes('cita') ||
-        msg.includes('insumo') ||
-        msg.includes('entrega');
-      if (related) {
-        try {
-          await apiService.updateUsuarioStatus(userToDelete.id, false);
-          setUsers(prev => prev.map(u => u.id === userToDelete.id ? { ...u, status: false } : u));
-          showSuccess('Usuario desactivado', 'Este usuario tiene registros asociados. Se desactivó para conservar el historial.');
-          setUserToDelete(null);
-          setIsDeleteDialogOpen(false);
-        } catch {
-          showError('No se puede eliminar', 'Este usuario tiene registros asociados (ventas, compras, agendamientos o entregas de insumos). Solo se puede desactivar para conservar el historial.');
-        }
-      } else {
-        showError('Error al eliminar usuario', 'No se pudo eliminar el usuario. Por favor, intenta nuevamente.');
-      }
+      showError('Error al eliminar usuario', 'No se pudo eliminar el usuario. Por favor, intenta nuevamente.');
     }
   };
 

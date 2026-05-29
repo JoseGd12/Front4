@@ -330,16 +330,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Determinar rolId
       const rolId = userData.role ? authSyncService.getRolId(userData.role) : AppRole.CLIENTE;
 
-      // Preparar datos adicionales para la API con valores por defecto seguros
-      const additionalData = {
+      // Solo pasar los campos que el usuario realmente proporcionó
+      const additionalData: Record<string, any> = {
         nombre: userData.name,
         apellido: userData.apellido || '',
-        telefono: userData.telefono || '0000000000',
-        documento: userData.documento || `${Date.now()}`,
-        tipoDocumento: userData.tipoDocumento || 'CC',
-        direccion: userData.direccion || 'No especificada',
-        barrio: userData.barrio || 'No especificado',
-        fechaNacimiento: userData.fechaNacimiento || new Date().toISOString().split('T')[0]
+        ...(userData.telefono ? { telefono: userData.telefono } : {}),
+        ...(userData.documento ? { documento: userData.documento, tipoDocumento: userData.tipoDocumento || 'CC' } : {}),
+        ...(userData.direccion ? { direccion: userData.direccion } : {}),
+        ...(userData.barrio ? { barrio: userData.barrio } : {}),
+        ...(userData.fechaNacimiento ? { fechaNacimiento: userData.fechaNacimiento } : {}),
       };
 
       // Registrar en Firebase y sincronizar con API

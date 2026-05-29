@@ -135,19 +135,15 @@ export class AuthSyncService {
           };
         }
 
-        // 3. Crear nuevo usuario (solo números como documento)
-        const randomDoc = `${Math.floor(Math.random() * 899999) + 100000}${Date.now().toString().slice(-4)}`;
-        
+        // 3. Crear nuevo usuario con solo los datos reales disponibles
         const nuevoUsuario: SyncUser = {
           correo: correo,
-          contrasena: 'firebase_auth', // Contraseña por defecto para usuarios de Firebase
+          contrasena: 'firebase_auth',
           rolId: rolId,
           estado: true,
           nombre: firebaseProfile.displayName?.split(' ')[0] || '',
-          apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || 'Usuario',
+          apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || '',
           fotoPerfil: firebaseProfile.photoURL || '',
-          tipoDocumento: 'OT',
-          documento: randomDoc,
           ...additionalData
         };
 
@@ -210,9 +206,9 @@ export class AuthSyncService {
           console.log('🔄 Sincronización Firebase: Creando perfil de Cliente automático...');
           await clientesService.createCliente({
             usuarioId: apiUser.id,
-            nombre: apiUser.nombre || profile.displayName?.split(' ')[0] || 'Nuevo',
-            apellido: apiUser.apellido || profile.displayName?.split(' ').slice(1).join(' ') || 'Cliente',
-            documento: apiUser.documento || `${Date.now()}`, // Documento temporal hasta completar perfil
+            nombre: apiUser.nombre || profile.displayName?.split(' ')[0] || '',
+            apellido: apiUser.apellido || profile.displayName?.split(' ').slice(1).join(' ') || '',
+            documento: apiUser.documento || '',
             correo: apiUser.correo,
             telefono: apiUser.telefono || undefined,
             fotoPerfil: apiUser.fotoPerfil || profile.photoURL || undefined
@@ -228,15 +224,15 @@ export class AuthSyncService {
           console.log('🔄 Sincronización Firebase: Creando perfil de Barbero automático...');
           await barberosService.createBarbero({
             usuarioId: apiUser.id,
-            nombre: apiUser.nombre || profile.displayName?.split(' ')[0] || 'Nuevo',
-            apellido: apiUser.apellido || profile.displayName?.split(' ').slice(1).join(' ') || 'Barbero',
-            tipoDocumento: apiUser.tipoDocumento || 'CC',
-            documento: apiUser.documento || `${Date.now()}`,
+            nombre: apiUser.nombre || profile.displayName?.split(' ')[0] || '',
+            apellido: apiUser.apellido || profile.displayName?.split(' ').slice(1).join(' ') || '',
+            tipoDocumento: apiUser.tipoDocumento || '',
+            documento: apiUser.documento || '',
             correo: apiUser.correo,
-            telefono: apiUser.telefono || 'N/A',
+            telefono: apiUser.telefono || '',
             direccion: apiUser.direccion || '',
             barrio: apiUser.barrio || '',
-            fechaNacimiento: apiUser.fechaNacimiento || new Date().toISOString().split('T')[0],
+            fechaNacimiento: apiUser.fechaNacimiento || undefined,
             rol: 'Barbero',
             status: 'active',
             especialidad: "General",
@@ -348,7 +344,7 @@ export class AuthSyncService {
       // 2. Sincronizar con API
       const syncResult = await this.syncUsuarioConApi(firebaseProfile, rolId, {
         nombre: firebaseProfile.displayName?.split(' ')[0] || '',
-        apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || 'Usuario',
+        apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || '',
         fotoPerfil: firebaseProfile.photoURL || '',
         ...additionalData
       });

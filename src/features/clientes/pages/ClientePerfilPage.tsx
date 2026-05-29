@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../shared/contexts/AuthContext";
-import { User, Mail, Shield, UserCircle, Briefcase, Phone, MapPin, Calendar, Edit, Camera, Save, X, Loader2, Upload, LogOut, DollarSign } from "lucide-react";
+import { User, Mail, Shield, UserCircle, Briefcase, Phone, Calendar, Edit, Camera, Save, X, Loader2, Upload, LogOut, DollarSign, CreditCard } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { firebaseAuthService } from "../../../shared/services/firebase";
@@ -11,7 +12,7 @@ import { apiService } from "../../../shared/services/api";
 import { clientesService } from "../services/clientesService";
 
 export function ClientePerfilPage() {
-  const { user, updateUser, resendEmailVerification, logout } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const { success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +25,16 @@ export function ClientePerfilPage() {
     apellido: "",
     email: "",
     telefono: "",
-    fotoPerfil: ""
+    fotoPerfil: "",
+    tipoDocumento: "CC",
+    documento: "",
+    fechaNacimiento: ""
+  });
+
+  const [clienteExtraData, setClienteExtraData] = useState({
+    tipoDocumento: "CC",
+    documento: "",
+    fechaNacimiento: ""
   });
 
   // Cargar datos del usuario cuando abre el diálogo
@@ -36,10 +46,13 @@ export function ClientePerfilPage() {
         apellido: nameParts.slice(1).join(" ") || "",
         email: user.email || "",
         telefono: user.telefono || "",
-        fotoPerfil: user.fotoPerfil || ""
+        fotoPerfil: user.fotoPerfil || "",
+        tipoDocumento: clienteExtraData.tipoDocumento || "CC",
+        documento: clienteExtraData.documento || "",
+        fechaNacimiento: clienteExtraData.fechaNacimiento || ""
       });
     }
-  }, [user, isEditDialogOpen]);
+  }, [user, isEditDialogOpen, clienteExtraData]);
 
   const [saldoAFavor, setSaldoAFavor] = useState<number>(0);
   const [isLoadingSaldo, setIsLoadingSaldo] = useState(true);
@@ -54,6 +67,12 @@ export function ClientePerfilPage() {
           if (cliente) {
             const disponible = await clientesService.getSaldoDisponible(Number(cliente.id));
             setSaldoAFavor(disponible);
+            const mapped = clientesService.mapApiToComponent(cliente);
+            setClienteExtraData({
+              tipoDocumento: mapped.tipoDocumento || "CC",
+              documento: mapped.numeroDocumento || "",
+              fechaNacimiento: mapped.fechaNacimiento ? String(mapped.fechaNacimiento).split('T')[0] : ""
+            });
           }
         } catch (err) {
           console.error("Error fetching saldo:", err);
@@ -127,11 +146,19 @@ export function ClientePerfilPage() {
         name: `${formData.nombre} ${formData.apellido}`.trim(),
         email: formData.email,
         telefono: formData.telefono,
-        fotoPerfil: formData.fotoPerfil
-      });
+        fotoPerfil: formData.fotoPerfil,
+        tipoDocumento: formData.tipoDocumento || undefined,
+        documento: formData.documento || undefined,
+        fechaNacimiento: formData.fechaNacimiento || undefined
+      } as any);
 
       if (result.success) {
         success("Perfil actualizado", "Tus cambios se han guardado correctamente.");
+        setClienteExtraData({
+          tipoDocumento: formData.tipoDocumento || "CC",
+          documento: formData.documento || "",
+          fechaNacimiento: formData.fechaNacimiento || ""
+        });
         setIsEditDialogOpen(false);
       } else {
         showErrorAlert("Error al actualizar", result.error || "No se pudo actualizar el perfil.");
@@ -215,6 +242,28 @@ export function ClientePerfilPage() {
                 <div className="flex items-center gap-3">
                   <Phone className="w-4 h-4 text-orange-primary/70 shrink-0" />
                   <p className="text-white-primary font-medium">{user?.telefono || "No especificado"}</p>
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+                <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Documento</p>
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-4 h-4 text-orange-primary/70 shrink-0" />
+                  <p className="text-white-primary font-medium">
+                    {clienteExtraData.documento
+                      ? `${clienteExtraData.tipoDocumento} ${clienteExtraData.documento}`
+                      : "No especificado"}
+                  </p>
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+                <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Fecha de Nacimiento</p>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-orange-primary/70 shrink-0" />
+                  <p className="text-white-primary font-medium">
+                    {clienteExtraData.fechaNacimiento
+                      ? new Date(clienteExtraData.fechaNacimiento + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
+                      : "No especificada"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -304,30 +353,65 @@ export function ClientePerfilPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Teléfono</Label>
-                <Input 
+                <Input
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value.replace(/[^0-9+\s\-()]/g, '')})}
                   onKeyDown={(e) => { if (!/[0-9+\s\-()\\b]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key)) e.preventDefault(); }}
-                  className="elegante-input" 
+                  className="elegante-input"
                   placeholder="Tu número celular"
                   inputMode="tel"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Tipo de Documento</Label>
+                <Select value={formData.tipoDocumento} onValueChange={(v) => setFormData({...formData, tipoDocumento: v})}>
+                  <SelectTrigger className="elegante-input w-full">
+                    <SelectValue placeholder="Selecciona tipo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-darkest border-gray-dark text-white-primary">
+                    <SelectItem value="CC">CC — Cédula de Ciudadanía</SelectItem>
+                    <SelectItem value="CE">CE — Cédula de Extranjería</SelectItem>
+                    <SelectItem value="TI">TI — Tarjeta de Identidad</SelectItem>
+                    <SelectItem value="NIT">NIT — Número de Identificación Tributaria</SelectItem>
+                    <SelectItem value="PP">PP — Pasaporte</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Correo Electrónico</Label>
-                <Input 
+                <Input
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="elegante-input" 
+                  className="elegante-input"
                   type="email"
                   placeholder="nombre@ejemplo.com"
                 />
                 <p className="text-[10px] text-orange-primary/70 italic leading-tight">
                   Nota: Cambiar el correo requerirá verificarlo nuevamente para poder iniciar sesión.
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Número de Documento</Label>
+                <Input
+                  value={formData.documento}
+                  onChange={(e) => setFormData({...formData, documento: e.target.value.replace(/[^0-9\-]/g, '')})}
+                  className="elegante-input"
+                  placeholder="Ej: 1234567890"
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Fecha de Nacimiento</Label>
+                <Input
+                  value={formData.fechaNacimiento}
+                  onChange={(e) => setFormData({...formData, fechaNacimiento: e.target.value})}
+                  className="elegante-input"
+                  type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Foto de Perfil</Label>

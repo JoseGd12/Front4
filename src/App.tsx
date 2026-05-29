@@ -23,7 +23,6 @@ function AppContent() {
   const [passwordPolicyChecked, setPasswordPolicyChecked] = useState(false);
 
   const [resetData, setResetData] = useState<{ email: string; token: string } | null>(null);
-  const [verifyCode, setVerifyCode] = useState<string>('');
   const [initialReservation, setInitialReservation] = useState<any>(null);
 
   useEffect(() => {
@@ -35,23 +34,18 @@ function AppContent() {
     const isVerifyPage = window.location.pathname.includes('verify-email');
     let handledSpecialLink = false;
 
-    // Detectar reset de contraseña (en /login o /reset-password)
-    if ((mode === 'resetPassword' || isResetPage) && oobCode) {
-      console.log('🎯 Detectado oobCode para reseteo:', oobCode);
-      handledSpecialLink = true;
-      setResetData({ email: '', token: oobCode });
-      // Si ya estamos en /reset-password o /login, no redirigir
-      if (!isResetPage && !isLoginPage) {
-        navigate('/login', { replace: true });
-      }
-    }
-    // Detectar verificación de email (en /verify-email)
-    else if ((mode === 'verifyEmail' || isVerifyPage) && oobCode) {
+    if (mode === 'verifyEmail' && oobCode) {
       console.log('📧 Detectado oobCode para verificación de email');
       handledSpecialLink = true;
-      setVerifyCode(oobCode);
       if (!isVerifyPage) {
-        navigate('/verify-email', { replace: true });
+        navigate(`/verify-email?oobCode=${oobCode}`, { replace: true });
+      }
+    }
+    else if (mode === 'resetPassword' && oobCode) {
+      console.log('🎯 Detectado oobCode para reseteo:', oobCode);
+      handledSpecialLink = true;
+      if (!isResetPage && !isLoginPage) {
+        navigate(`/reset-password?oobCode=${oobCode}`, { replace: true });
       }
     }
 
@@ -145,15 +139,8 @@ function AppContent() {
 
       <Route path="/verify-email" element={
         <EmailVerificationPage 
-          oobCode={verifyCode}
-          onVerificationComplete={() => {
-            setVerifyCode('');
-            navigate('/login');
-          }}
-          onBackToLogin={() => {
-            setVerifyCode('');
-            navigate('/login');
-          }}
+          onVerificationComplete={() => navigate('/login')}
+          onBackToLogin={() => navigate('/login')}
         />
       } />
 

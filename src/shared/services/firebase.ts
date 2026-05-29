@@ -71,23 +71,24 @@ export class FirebaseAuthService {
   }
 
   private getEmailVerificationActionCodeSettings(): ActionCodeSettings {
-    return {
-      url: `${window.location.origin}/verify-email`,
-      handleCodeInApp: true
-    };
-  }
-
-  private getPasswordResetActionCodeSettings(): ActionCodeSettings {
-    // URL de Vercel que puede abrir la app móvil (si está instalada) o la web
-    // Usamos /login con mode=resetPassword para que App.tsx detecte el oobCode correctamente
     const isLocalhost = window.location.hostname === 'localhost';
     const baseUrl = isLocalhost
       ? window.location.origin
       : 'https://manitobarbershop.vercel.app';
-
     return {
-      url: `${baseUrl}/login?mode=resetPassword`,
-      handleCodeInApp: true
+      url: `${baseUrl}/verify-email`,
+      handleCodeInApp: false
+    };
+  }
+
+  private getPasswordResetActionCodeSettings(): ActionCodeSettings {
+    const isLocalhost = window.location.hostname === 'localhost';
+    const baseUrl = isLocalhost
+      ? window.location.origin
+      : 'https://manitobarbershop.vercel.app';
+    return {
+      url: `${baseUrl}/reset-password`,
+      handleCodeInApp: false
     };
   }
 
@@ -145,8 +146,8 @@ export class FirebaseAuthService {
   ): Promise<void> {
     const auth2 = this.ensureSecondaryAuth();
     const result = await createUserWithEmailAndPassword(auth2, email, password);
-    const sendReset = options?.sendPasswordReset !== false; // por defecto enviar reset
-    const sendVerify = options?.sendVerification === true;   // solo si se pide explícitamente
+    const sendReset = options?.sendPasswordReset === true;   // solo si se pide explícitamente
+    const sendVerify = options?.sendVerification !== false;  // por defecto enviar verificación
     if (sendReset) {
       await this.resetPassword(email);
     } else if (sendVerify) {

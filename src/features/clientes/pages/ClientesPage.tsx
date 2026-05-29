@@ -460,18 +460,13 @@ export function ClientesPage() {
           await firebaseAuthService.createUserWithoutAffectingSession(
             mappedCliente.email,
             tempPass,
-            { sendVerification: false, sendPasswordReset: true }
+            { sendVerification: true, sendPasswordReset: false }
           );
-          created('Cuenta Firebase creada', 'Se envió enlace para configurar contraseña al cliente.');
+          created('Correo de verificación enviado', `Se envió un email de verificación a ${mappedCliente.email}. Al verificarlo, el cliente deberá usar "Olvidé mi contraseña" para acceder.`);
         } catch (fbErr: any) {
           const msg = String(fbErr?.message || '').toLowerCase();
           if (msg.includes('already')) {
-            const res = await resetPassword(mappedCliente.email);
-            if (res.success) {
-              created('Correo ya existe en Firebase', 'Se envió enlace para configurar contraseña.');
-            } else {
-              error('No se pudo enviar enlace de contraseña', 'Intenta nuevamente.');
-            }
+            created('Cuenta ya registrada', `El correo ${mappedCliente.email} ya tiene cuenta en Firebase. El cliente puede iniciar sesión directamente.`);
           } else {
             error('No se pudo crear cuenta en Firebase', 'Verifica el correo del cliente e intenta nuevamente.');
           }

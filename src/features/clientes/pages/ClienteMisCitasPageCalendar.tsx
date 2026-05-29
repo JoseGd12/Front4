@@ -27,6 +27,7 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale/es";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { PerfilIncompletoModal } from "../../../shared/components/ui/PerfilIncompletoModal";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { agendamientoService } from "../../agendamiento/services/agendamientoService";
@@ -126,14 +127,24 @@ interface ClienteMisCitasPageCalendarProps {
   onClearInitialItem?: () => void;
   preSelectedProduct?: any;
   onClearPreSelectedProduct?: () => void;
+  onGoToPerfil?: () => void;
 }
 
-export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, preSelectedProduct, onClearPreSelectedProduct }: ClienteMisCitasPageCalendarProps) {
+export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, preSelectedProduct, onClearPreSelectedProduct, onGoToPerfil }: ClienteMisCitasPageCalendarProps) {
   const { user } = useAuth();
   const { success, error, AlertContainer } = useCustomAlert();
   const [citas, setCitas] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentCliente, setCurrentCliente] = useState<any>(null);
+  const [showPerfilModal, setShowPerfilModal] = useState(false);
+  const [camposFaltantes, setCamposFaltantes] = useState<string[]>([]);
+
+  const getPerfilFaltantes = (cliente: any): string[] => {
+    const faltantes: string[] = [];
+    if (!cliente?.telefono) faltantes.push('telefono');
+    if (!cliente?.documento) faltantes.push('documento');
+    return faltantes;
+  };
 
   // Listas para los selects
   const [serviciosList, setServiciosList] = useState<any[]>([]);
@@ -334,6 +345,13 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   // abrir el formulario y guardar el producto pendiente para agregarlo al seleccionar servicio/paquete
   useEffect(() => {
     if (preSelectedProduct && !isLoading && productosList.length > 0) {
+      const faltantes = getPerfilFaltantes(currentCliente);
+      if (faltantes.length > 0) {
+        setCamposFaltantes(faltantes);
+        setShowPerfilModal(true);
+        if (onClearPreSelectedProduct) onClearPreSelectedProduct();
+        return;
+      }
       setIsEditMode(false);
       setNuevaCita({
         barberoId: 0,
@@ -668,6 +686,12 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   }, [nuevaCita, tipoServicio, barberoFormSearchTerm, servicioSearchTerm, paqueteSearchTerm, productoSearchTerm]);
 
   const handleOpenCreateModal = () => {
+    const faltantes = getPerfilFaltantes(currentCliente);
+    if (faltantes.length > 0) {
+      setCamposFaltantes(faltantes);
+      setShowPerfilModal(true);
+      return;
+    }
     const { fecha, hora } = getAutoDateTime();
     const position = {
       top: Math.max(16, (window.innerHeight - 600) / 2),
@@ -1100,6 +1124,16 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   return (
     <>
       <AlertContainer />
+
+      <PerfilIncompletoModal
+        open={showPerfilModal}
+        onClose={() => setShowPerfilModal(false)}
+        onGoToPerfil={() => {
+          setShowPerfilModal(false);
+          if (onGoToPerfil) onGoToPerfil();
+        }}
+        camposFaltantes={camposFaltantes}
+      />
 
       {isLoading ? (
         <div className="flex items-center justify-center h-64">

@@ -622,27 +622,16 @@ class ApiService {
     }
   }
 
-  async deleteUsuario(id: number): Promise<void> {
+  async deleteUsuario(id: number): Promise<{ message: string; anonimizado: boolean }> {
     try {
-      console.log(`🗑️ Intentando eliminar usuario con ID: ${id}`);
-      const response = await this.request(`/Usuarios/${id}`, {
-        method: 'DELETE',
-      });
-
+      const response = await this.request(`/Usuarios/${id}`, { method: 'DELETE' });
       const text = await response.text();
-      console.log(`✅ Usuario eliminado - Respuesta del servidor:`, text || '(sin contenido)');
-
       if (text) {
-        try {
-          const data = JSON.parse(text);
-          console.log(`📊 Datos de respuesta parseados:`, data);
-        } catch (e) {
-          console.log(`📝 Respuesta en texto plano:`, text);
-        }
+        try { return JSON.parse(text); } catch { /* no json */ }
       }
+      return { message: 'Eliminado', anonimizado: false };
     } catch (error: any) {
-      console.error('❌ Error deleting usuario:', error);
-      console.error('❌ Detalles del error:', error.message);
+      console.error('Error deleting usuario:', error);
       throw error;
     }
   }

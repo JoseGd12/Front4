@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MailCheck, CheckCircle, XCircle, Loader2, ArrowRight, Scissors, Star } from 'lucide-react';
 import { firebaseAuthService } from '../../../shared/services/firebase';
 import manitoLogo from '../../../assets/Manito.jpeg';
@@ -7,17 +8,28 @@ const LOGO_URL = manitoLogo;
 const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
 
 interface EmailVerificationPageProps {
-  oobCode: string;
   onVerificationComplete: () => void;
   onBackToLogin: () => void;
 }
 
-export function EmailVerificationPage({ oobCode, onVerificationComplete, onBackToLogin }: EmailVerificationPageProps) {
+export function EmailVerificationPage({ onVerificationComplete, onBackToLogin }: EmailVerificationPageProps) {
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [searchParams] = useSearchParams();
 
-  const handleVerify = async () => {
-    if (!oobCode) {
+  // Leer oobCode directo desde la URL
+  const oobCode = searchParams.get('oobCode');
+
+  // Verificar automáticamente al cargar si hay oobCode en la URL
+  useEffect(() => {
+    if (oobCode && status === 'idle') {
+      handleVerify(oobCode);
+    }
+  }, []);
+
+  const handleVerify = async (code?: string) => {
+    const codeToUse = code || oobCode;
+    if (!codeToUse) {
       setStatus('error');
       setErrorMessage('Enlace de verificación inválido o inexistente.');
       return;
@@ -25,7 +37,7 @@ export function EmailVerificationPage({ oobCode, onVerificationComplete, onBackT
 
     setStatus('verifying');
     try {
-      await firebaseAuthService.verifyEmailWithCode(oobCode);
+      await firebaseAuthService.verifyEmailWithCode(codeToUse);
       setStatus('success');
     } catch (error: any) {
       setStatus('error');
@@ -131,7 +143,7 @@ export function EmailVerificationPage({ oobCode, onVerificationComplete, onBackT
             </p>
             <div className="auth-access-wrapper">
               <button
-                onClick={handleVerify}
+                onClick={() => handleVerify()}
                 className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] flex items-center justify-center gap-2"
               >
                 Verificar cuenta
