@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Input } from "../../../shared/components/ui/input";
 import { NameInput } from "../../../shared/components/ui/NameInput";
+import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -909,13 +910,11 @@ export function UsersPage() {
                           <Phone className="w-4 h-4 text-orange-primary" />
                           Número de Celular *
                         </Label>
-                        <Input
+                        <PhoneInput
                           value={newUser.celular}
-                          onChange={(e) => setNewUser({ ...newUser, celular: e.target.value.replace(/[^0-9+\s\-()]/g, '') })}
-                          onKeyDown={(e) => { if (!/[0-9+\s\-()\\b]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key)) e.preventDefault(); }}
-                          className={`elegante-input w-full ${showUserFormErrors && !newUser.celular ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                          placeholder="+57 300 123 4567"
-                          inputMode="tel"
+                          onChange={(value) => setNewUser({ ...newUser, celular: value })}
+                          className={`w-full ${showUserFormErrors && !newUser.celular ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                          placeholder="3001234567"
                         />
                         {showUserFormErrors && !newUser.celular && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
                       </div>

@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Filter, Search, X } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import { Input } from "./input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 import { cn } from "./utils";
@@ -97,19 +97,7 @@ export function TableHeaderSection({
           maxWidth: "380px",
         } : undefined}
       >
-        {variant === "dark" ? (
-          <span
-            className="absolute pointer-events-none z-10 flex"
-            style={{ left: "11px", top: "50%", transform: "translateY(-50%)", color: "var(--gray-dark)" }}
-          >
-            <Search className="w-4 h-4" />
-          </span>
-        ) : (
-          <Search
-            className="absolute top-1/2 transform -translate-y-1/2 pointer-events-none z-10 text-gray-lighter"
-            style={{ left: "12px", width: "16px", height: "16px" }}
-          />
-        )}
+
         {variant === "dark" ? (
           // Input nativo igual que devoluciones: sin restricciones de shadcn
           <input
@@ -118,14 +106,14 @@ export function TableHeaderSection({
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
             className={cn("elegante-input-dark", searchInputClassName)}
-            style={{ width: "100%", paddingLeft: "36px" }}
+            style={{ width: "100%" }}
           />
         ) : (
           <Input
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className={cn("elegante-input pl-11 w-80", searchInputClassName)}
+            className={cn("elegante-input w-80", searchInputClassName)}
           />
         )}
         {searchValue && (

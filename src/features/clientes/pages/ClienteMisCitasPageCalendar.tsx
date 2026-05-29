@@ -141,8 +141,20 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
   const getPerfilFaltantes = (cliente: any): string[] => {
     const faltantes: string[] = [];
+    const docStr = (cliente?.documento || '').trim();
+    const isTempDoc = !docStr || docStr.startsWith('PASO-');
+
+    if (isTempDoc) {
+      faltantes.push('documento');
+    } else {
+      const partes = docStr.split(/\s+/);
+      if (partes.length < 2) faltantes.push('tipoDocumento');
+    }
+
+    if (!cliente?.fechaNacimiento) faltantes.push('fechaNacimiento');
     if (!cliente?.telefono) faltantes.push('telefono');
-    if (!cliente?.documento) faltantes.push('documento');
+    if (!cliente?.direccion) faltantes.push('direccion');
+    if (!cliente?.barrio) faltantes.push('barrio');
     return faltantes;
   };
 
@@ -394,6 +406,13 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   }, [preSelectedProduct, isLoading, productosList]);
 
   const handleSelectInitialItem = (item: any, currentServicios: any[], currentPaquetes: any[]) => {
+    const faltantes = getPerfilFaltantes(currentCliente);
+    if (faltantes.length > 0) {
+      setCamposFaltantes(faltantes);
+      setShowPerfilModal(true);
+      if (onClearInitialItem) onClearInitialItem();
+      return;
+    }
     setIsEditMode(false);
 
     // ── Handle barbero-type selection from landing page ──
@@ -735,6 +754,13 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     const todayStr = new Date().toISOString().split('T')[0];
     // Evitar crear citas en días pasados
     if (fechaCompleta < todayStr) return;
+
+    const faltantes = getPerfilFaltantes(currentCliente);
+    if (faltantes.length > 0) {
+      setCamposFaltantes(faltantes);
+      setShowPerfilModal(true);
+      return;
+    }
 
     const h = Math.floor(hora);
     const m = (hora % 1) * 60;

@@ -1,16 +1,36 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
-import { AlertCircle, Phone, CreditCard, User, ArrowRight } from "lucide-react";
+import { AlertCircle, Phone, CreditCard, User, ArrowRight, CalendarDays, MapPin, Home } from "lucide-react";
 
 const CAMPOS_INFO: Record<string, { label: string; descripcion: string; icono: React.ReactNode }> = {
+  documento: {
+    label: "Tipo y número de documento",
+    descripcion: "Requerido para identificarte y generar comprobantes.",
+    icono: <CreditCard className="w-4 h-4 text-orange-primary" />,
+  },
+  tipoDocumento: {
+    label: "Tipo de documento",
+    descripcion: "Indica si es CC, TI, CE u otro tipo.",
+    icono: <CreditCard className="w-4 h-4 text-orange-primary" />,
+  },
+  fechaNacimiento: {
+    label: "Fecha de nacimiento",
+    descripcion: "Necesaria para completar tu perfil correctamente.",
+    icono: <CalendarDays className="w-4 h-4 text-orange-primary" />,
+  },
   telefono: {
     label: "Número de celular",
     descripcion: "Necesario para confirmar y recordarte tu cita.",
     icono: <Phone className="w-4 h-4 text-orange-primary" />,
   },
-  documento: {
-    label: "Número de documento",
-    descripcion: "Requerido para procesar compras y generar tu comprobante.",
-    icono: <CreditCard className="w-4 h-4 text-orange-primary" />,
+  direccion: {
+    label: "Dirección",
+    descripcion: "Tu dirección de residencia o contacto.",
+    icono: <MapPin className="w-4 h-4 text-orange-primary" />,
+  },
+  barrio: {
+    label: "Barrio",
+    descripcion: "El barrio donde resides.",
+    icono: <Home className="w-4 h-4 text-orange-primary" />,
   },
 };
 
@@ -76,7 +96,7 @@ export function PerfilIncompletoModal({ open, onClose, onGoToPerfil, camposFalta
             onClick={onClose}
             className="elegante-button-secondary w-full text-sm"
           >
-            Continuar sin completar
+            Cancelar
           </button>
         </div>
       </DialogContent>

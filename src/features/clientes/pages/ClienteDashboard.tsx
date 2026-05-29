@@ -51,6 +51,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedProduct, setPreSelectedProduct] = useState<any>(null);
+  const [autoOpenPerfilEdit, setAutoOpenPerfilEdit] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -142,7 +143,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                  onClearInitialItem={() => setPreSelectedReservation(null)}
                  preSelectedProduct={preSelectedProduct}
                  onClearPreSelectedProduct={() => setPreSelectedProduct(null)}
-                 onGoToPerfil={() => setActivePage("Cuenta")}
+                 onGoToPerfil={() => { setAutoOpenPerfilEdit(true); setActivePage("Cuenta"); }}
                />;
       case "Mis Compras":
         return <ClienteHistorialVentasPage />;
@@ -153,9 +154,9 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
       case "Productos":
         return <ClienteProductosPage onSelectProduct={handleProductReservation} />;
       case "Cuenta":
-        return <ClientePerfilPage />;
+        return <ClientePerfilPage autoOpenEdit={autoOpenPerfilEdit} onAutoOpenEditDone={() => setAutoOpenPerfilEdit(false)} />;
       default:
-        return <ClienteMisCitasPageCalendar onGoToPerfil={() => setActivePage("Cuenta")} />;
+        return <ClienteMisCitasPageCalendar onGoToPerfil={() => { setAutoOpenPerfilEdit(true); setActivePage("Cuenta"); }} />;
     }
   };
 

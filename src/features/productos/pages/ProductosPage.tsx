@@ -163,15 +163,6 @@ export function ProductosPage() {
     return esProductoSoloVenta(selectedProducto as any);
   }, [selectedProducto]);
 
-  const esSoloVentaNuevoProducto = useMemo(() => {
-    const uso = (nuevoProducto as any).usoProducto;
-    if (uso === 'solo_venta') return true;
-    if (uso === 'venta_e_insumo') return false;
-    return isSaleOnly(nuevoProducto as any);
-  }, [nuevoProducto]);
-  const usoProductoValue =
-    (nuevoProducto as any).usoProducto ?? (esSoloVentaNuevoProducto ? 'solo_venta' : 'venta_e_insumo');
-
   // Cargar precio compra promedio (últimas 5 compras) cuando se abre el detalle
   useEffect(() => {
     if (!isDetailDialogOpen || !selectedProducto?.id) {
@@ -982,30 +973,7 @@ export function ProductosPage() {
                               className="elegante-input h-9 text-sm"
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                              <Package className="w-3.5 h-3.5 text-orange-primary" />
-                              Tipo de producto *
-                            </Label>
-                            <Select
-                              value={usoProductoValue}
-                              onValueChange={(val) =>
-                                setNuevoProducto({ ...nuevoProducto, usoProducto: val as any })
-                              }
-                            >
-                              <SelectTrigger className="elegante-input h-9 text-sm">
-                                <SelectValue placeholder="Selecciona el tipo" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-gray-darkest border-gray-dark">
-                                <SelectItem value="venta_e_insumo" className="text-gray-lightest hover:bg-gray-dark focus:bg-gray-dark focus:text-white-primary">
-                                  Venta e Insumo
-                                </SelectItem>
-                                <SelectItem value="solo_venta" className="text-gray-lightest hover:bg-gray-dark focus:bg-gray-dark focus:text-white-primary">
-                                  Solo Venta
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between gap-2 h-9">

@@ -3,6 +3,7 @@ import { useAuth } from "../../../shared/contexts/AuthContext";
 import { User, Mail, Shield, UserCircle, Briefcase, Phone, Calendar, Edit, Camera, Save, X, Loader2, Upload, LogOut, DollarSign, CreditCard } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
+import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
@@ -11,7 +12,12 @@ import { firebaseAuthService } from "../../../shared/services/firebase";
 import { apiService } from "../../../shared/services/api";
 import { clientesService } from "../services/clientesService";
 
-export function ClientePerfilPage() {
+interface ClientePerfilPageProps {
+  autoOpenEdit?: boolean;
+  onAutoOpenEditDone?: () => void;
+}
+
+export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClientePerfilPageProps = {}) {
   const { user, updateUser, logout } = useAuth();
   const { success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -28,14 +34,26 @@ export function ClientePerfilPage() {
     fotoPerfil: "",
     tipoDocumento: "CC",
     documento: "",
-    fechaNacimiento: ""
+    fechaNacimiento: "",
+    direccion: "",
+    barrio: ""
   });
 
   const [clienteExtraData, setClienteExtraData] = useState({
     tipoDocumento: "CC",
     documento: "",
-    fechaNacimiento: ""
+    fechaNacimiento: "",
+    direccion: "",
+    barrio: ""
   });
+
+  // Abrir edición automáticamente si viene del modal de perfil incompleto
+  useEffect(() => {
+    if (autoOpenEdit) {
+      setIsEditDialogOpen(true);
+      if (onAutoOpenEditDone) onAutoOpenEditDone();
+    }
+  }, [autoOpenEdit]);
 
   // Cargar datos del usuario cuando abre el diálogo
   useEffect(() => {
@@ -49,7 +67,9 @@ export function ClientePerfilPage() {
         fotoPerfil: user.fotoPerfil || "",
         tipoDocumento: clienteExtraData.tipoDocumento || "CC",
         documento: clienteExtraData.documento || "",
-        fechaNacimiento: clienteExtraData.fechaNacimiento || ""
+        fechaNacimiento: clienteExtraData.fechaNacimiento || "",
+        direccion: clienteExtraData.direccion || "",
+        barrio: clienteExtraData.barrio || ""
       });
     }
   }, [user, isEditDialogOpen, clienteExtraData]);
@@ -71,7 +91,9 @@ export function ClientePerfilPage() {
             setClienteExtraData({
               tipoDocumento: mapped.tipoDocumento || "CC",
               documento: mapped.numeroDocumento || "",
-              fechaNacimiento: mapped.fechaNacimiento ? String(mapped.fechaNacimiento).split('T')[0] : ""
+              fechaNacimiento: mapped.fechaNacimiento ? String(mapped.fechaNacimiento).split('T')[0] : "",
+              direccion: mapped.direccion || "",
+              barrio: mapped.barrio || ""
             });
           }
         } catch (err) {
@@ -149,7 +171,9 @@ export function ClientePerfilPage() {
         fotoPerfil: formData.fotoPerfil,
         tipoDocumento: formData.tipoDocumento || undefined,
         documento: formData.documento || undefined,
-        fechaNacimiento: formData.fechaNacimiento || undefined
+        fechaNacimiento: formData.fechaNacimiento || undefined,
+        direccion: formData.direccion || undefined,
+        barrio: formData.barrio || undefined
       } as any);
 
       if (result.success) {
@@ -157,7 +181,9 @@ export function ClientePerfilPage() {
         setClienteExtraData({
           tipoDocumento: formData.tipoDocumento || "CC",
           documento: formData.documento || "",
-          fechaNacimiento: formData.fechaNacimiento || ""
+          fechaNacimiento: formData.fechaNacimiento || "",
+          direccion: formData.direccion || "",
+          barrio: formData.barrio || ""
         });
         setIsEditDialogOpen(false);
       } else {
@@ -353,13 +379,9 @@ export function ClientePerfilPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Teléfono</Label>
-                <Input
+                <PhoneInput
                   value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value.replace(/[^0-9+\s\-()]/g, '')})}
-                  onKeyDown={(e) => { if (!/[0-9+\s\-()\\b]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End'].includes(e.key)) e.preventDefault(); }}
-                  className="elegante-input"
-                  placeholder="Tu número celular"
-                  inputMode="tel"
+                  onChange={(val) => setFormData({...formData, telefono: val})}
                 />
               </div>
               <div className="space-y-2">
@@ -411,6 +433,24 @@ export function ClientePerfilPage() {
                   className="elegante-input"
                   type="date"
                   max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Dirección</Label>
+                <Input
+                  value={formData.direccion}
+                  onChange={(e) => setFormData({...formData, direccion: e.target.value})}
+                  className="elegante-input"
+                  placeholder="Ej: Calle 10 # 5-20"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Barrio</Label>
+                <Input
+                  value={formData.barrio}
+                  onChange={(e) => setFormData({...formData, barrio: e.target.value})}
+                  className="elegante-input"
+                  placeholder="Ej: El Centro"
                 />
               </div>
               <div className="space-y-2">
