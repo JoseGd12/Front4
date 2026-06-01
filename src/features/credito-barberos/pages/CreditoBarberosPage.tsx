@@ -4,10 +4,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Ban,
   DollarSign,
   User as UserIcon,
-  AlertTriangle,
   ChevronDown,
   Wallet,
   Hash,
@@ -195,6 +193,31 @@ const css = `
   .cred-venc-chip.ok      { background:rgba(122,171,138,0.12); color:var(--status-green); border:1px solid rgba(122,171,138,0.3); }
   .cred-venc-chip.warn    { background:rgba(216,176,129,0.12); color:var(--orange-primary); border:1px solid rgba(216,176,129,0.3); }
   .cred-venc-chip.expired { background:rgba(176,112,112,0.12); color:var(--status-red); border:1px solid rgba(176,112,112,0.3); }
+
+  /* Tooltip para icon-only actions */
+  .cred-icon-action {
+    position: relative;
+  }
+  .cred-icon-action[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gray-darkest);
+    color: var(--white-primary);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    border: 1px solid var(--gray-dark);
+    z-index: 20;
+  }
+  .cred-icon-action[data-tip]:hover::after { opacity: 1; }
 `;
 
 import {
@@ -337,7 +360,7 @@ export function CreditoBarberosPage() {
   const [abonosStats, setAbonosStats]     = useState<Record<number, string>>({});
 
   // ── Tab por barbero ──────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<Record<number, "ventas" | "abonos">>({});
+  const [activeTab, setActiveTab] = useState<Record<number, "ventas" | "abonos" | "stats">>({});
   const [inlineAbonos, setInlineAbonos]                     = useState<Record<number, AbonoCreditoBarberoDto[]>>({});
   const [loadingInlineAbonos, setLoadingInlineAbonos]       = useState<Record<number, boolean>>({});
 
@@ -350,8 +373,10 @@ export function CreditoBarberosPage() {
   const [montoInput,       setMontoInput]       = useState("");
   const [metodoPago,       setMetodoPago]       = useState("Efectivo");
   const [notasInput,       setNotasInput]       = useState("");
-  const [submitting,       setSubmitting]       = useState(false);
-  const [showFormErrors,   setShowFormErrors]   = useState(false);
+  const [submitting,         setSubmitting]         = useState(false);
+  const [showFormErrors,     setShowFormErrors]     = useState(false);
+  const [montoShakeCount,    setMontoShakeCount]    = useState(0);
+  const [abonoApiError,      setAbonoApiError]      = useState<string | null>(null);
 
   // ── Modal: detalle abono ─────────────────────────────────────────────────────
   const [detalleAbonoOpen,   setDetalleAbonoOpen]   = useState(false);
@@ -361,13 +386,7 @@ export function CreditoBarberosPage() {
   const [detalleVentaOpen,   setDetalleVentaOpen]   = useState(false);
   const [detalleVenta,       setDetalleVenta]       = useState<any | null>(null);
 
-  // ── Modal: anular abono ──────────────────────────────────────────────────────
-  const [anularOpen,         setAnularOpen]         = useState(false);
-  const [abonoAnular,        setAbonoAnular]        = useState<AbonoCreditoBarberoDto | null>(null);
-  const [abonoAnularBarbId,  setAbonoAnularBarbId]  = useState<number | null>(null);
-  const [anulando,           setAnulando]           = useState(false);
-
-  // ── Modal: extender plazo ────────────────────────────────────────────────────
+// ── Modal: extender plazo ────────────────────────────────────────────────────
   const [extenderOpen,    setExtenderOpen]    = useState(false);
   const [extenderCredito, setExtenderCredito] = useState<CreditoBarberoDto | null>(null);
   const [extendiendo,     setExtendiendo]     = useState(false);
@@ -475,7 +494,7 @@ export function CreditoBarberosPage() {
     }
   }, []);
 
-  const handleSwitchTab = useCallback((barberoId: number, tab: "ventas" | "abonos") => {
+  const handleSwitchTab = useCallback((barberoId: number, tab: "ventas" | "abonos" | "stats") => {
     setActiveTab(prev => ({ ...prev, [barberoId]: tab }));
     setVentasPage(prev => ({ ...prev, [barberoId]: 1 }));
     setAbonosPage(prev => ({ ...prev, [barberoId]: 1 }));
@@ -490,6 +509,8 @@ export function CreditoBarberosPage() {
     setMetodoPago("Efectivo");
     setNotasInput("");
     setShowFormErrors(false);
+    setAbonoApiError(null);
+    setMontoShakeCount(0);
     setSelectedVentaAbono(venta);
 
     if (credito) {
@@ -511,9 +532,16 @@ export function CreditoBarberosPage() {
 
   const handleRegistrarAbono = async () => {
     setShowFormErrors(true);
+    setAbonoApiError(null);
     const monto = Number(montoInput);
-    if (!monto || monto <= 0) return;
-    if (registrarCredito && monto > registrarCredito.saldoDeuda) return;
+    if (!monto || monto <= 0) {
+      setMontoShakeCount(n => n + 1);
+      return;
+    }
+    if (registrarCredito && monto > registrarCredito.saldoDeuda) {
+      setMontoShakeCount(n => n + 1);
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -531,30 +559,15 @@ export function CreditoBarberosPage() {
       }
       fetchCreditos(currentPage, searchTerm);
     } catch (err: any) {
-      showErrorAlert("Error", err?.message || "No se pudo registrar el abono");
+      const raw: string = err?.message || "No se pudo registrar el abono";
+      setAbonoApiError(raw.replace(/^Error del servidor \(\d+\):\s*/i, "").trim());
+      setMontoShakeCount(n => n + 1);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Anular abono ─────────────────────────────────────────────────────────────
-  const handleAnularAbono = async () => {
-    if (!abonoAnular) return;
-    try {
-      setAnulando(true);
-      await creditoBarberoService.anularAbono(abonoAnular.id, Number(user?.id ?? 0));
-      created("Abono anulado", `Abono #${abonoAnular.id} anulado correctamente.`);
-      setAnularOpen(false);
-      if (abonoAnularBarbId) loadInlineAbonos(abonoAnularBarbId);
-      fetchCreditos(currentPage, searchTerm);
-    } catch (err: any) {
-      showErrorAlert("Error", err?.message || "No se pudo anular el abono");
-    } finally {
-      setAnulando(false);
-    }
-  };
-
-  // ── Extender plazo ───────────────────────────────────────────────────────────
+// ── Extender plazo ───────────────────────────────────────────────────────────
   const handleExtenderPlazo = async () => {
     if (!extenderCredito) return;
     try {
@@ -665,17 +678,30 @@ export function CreditoBarberosPage() {
                 ) : ordenados.map(c => {
                   const isOpen     = expandedId === c.barberoId;
                   const barbero    = barberosMap[c.barberoId];
-                  const ventasCred = ventasCreditoPorBarbero[c.barberoId] || [];
+                  const ventasCred = (ventasCreditoPorBarbero[c.barberoId] || []).filter((v: any) => {
+                    if (String(v.estado || "").toLowerCase() === "anulada") return false;
+                    const fechaVenta = new Date(v.fecha).getTime();
+                    const inicio = new Date(c.fechaInicio).getTime();
+                    const cierre = c.fechaCierre ? new Date(c.fechaCierre).getTime() : Infinity;
+                    return fechaVenta >= inicio && fechaVenta <= cierre;
+                  });
                   const tab        = activeTab[c.barberoId] || "ventas";
 
                   // Condiciones para botones especiales
-                  const puedeExtender = !c.extensionUsada && c.plazoDias === 7 && !esPagado(c.estado);
+                  const puedeExtender = !c.extensionUsada && !esPagado(c.estado) && new Date(c.fechaVencimiento).getTime() < Date.now();
                   const puedeNuevoCiclo = esPagado(c.estado);
 
                   return (
                     <React.Fragment key={c.id || c.barberoId}>
                       {/* Fila principal */}
-                      <tr className="cred-group-row" onClick={() => setExpandedId(isOpen ? null : c.barberoId)}>
+                      <tr className="cred-group-row" onClick={() => {
+                          if (isOpen && (activeTab[c.barberoId] ?? "ventas") === "ventas") {
+                            setExpandedId(null);
+                          } else {
+                            setExpandedId(c.barberoId);
+                            setActiveTab(prev => ({ ...prev, [c.barberoId]: "ventas" }));
+                          }
+                        }}>
                         {/* Documento */}
                         <td className="cred-group-cell">
                           <span style={{ fontWeight: 400, color: "var(--gray-lightest)" }}>
@@ -718,15 +744,43 @@ export function CreditoBarberosPage() {
 
                         {/* Acciones */}
                         <td className="cred-td" onClick={e => e.stopPropagation()}>
-                          <button
-                            className="cred-expand-btn"
-                            onClick={() => setExpandedId(isOpen ? null : c.barberoId)}
-                          >
-                            Ver detalle
-                            <span className={`chev-custom${isOpen ? " open" : ""}`}>
-                              <ChevronDown className="w-4 h-4" />
-                            </span>
-                          </button>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              className="cred-icon-action p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                              data-tip="Registrar Abono"
+                              onClick={() => openRegistrar(c)}
+                            >
+                              <Wallet className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary transition-colors" />
+                            </button>
+                            <button
+                              className="cred-icon-action p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                              data-tip="Ver Abonos"
+                              onClick={() => {
+                                if (isOpen && activeTab[c.barberoId] === "abonos") {
+                                  setExpandedId(null);
+                                } else {
+                                  setExpandedId(c.barberoId);
+                                  handleSwitchTab(c.barberoId, "abonos");
+                                }
+                              }}
+                            >
+                              <FileText className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary transition-colors" />
+                            </button>
+                            <button
+                              className="cred-icon-action p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                              data-tip="Ver Credito"
+                              onClick={() => {
+                                if (isOpen && activeTab[c.barberoId] === "stats") {
+                                  setExpandedId(null);
+                                } else {
+                                  setExpandedId(c.barberoId);
+                                  handleSwitchTab(c.barberoId, "stats");
+                                }
+                              }}
+                            >
+                              <DollarSign className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary transition-colors" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
 
@@ -736,83 +790,81 @@ export function CreditoBarberosPage() {
                           <div className={`cred-accordion-wrap${isOpen ? " open" : ""}`}>
                             <div className="cred-accordion-inner">
 
-                              {/* Stats bar */}
-                              <div className="cred-stats-bar">
-                                <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Uso del Cupo</span>
-                                  <BarraProgreso saldo={c.saldoDeuda} cupo={c.cupoMaximo} />
-                                </div>
-                                <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Deuda Actual</span>
-                                  <span className="cred-stat-val" style={{ color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)" }}>
-                                    {formatCurrency(c.saldoDeuda)}
-                                  </span>
-                                </div>
-                                <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Cupo Disponible</span>
-                                  <span className="cred-stat-val">{formatCurrency(c.cupoDisponible)}</span>
-                                </div>
-                                <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Cupo Maximo</span>
-                                  <span className="cred-stat-val">{formatCurrency(c.cupoMaximo)}</span>
-                                </div>
-                                <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Plazo</span>
-                                  <span className="cred-stat-val">
-                                    {c.plazoDias} dias
-                                    {c.extensionUsada && (
-                                      <span style={{ fontSize: 10, color: "var(--gray-dark)", marginLeft: 5, fontWeight: 400 }}>
-                                        (extendido)
-                                      </span>
-                                    )}
-                                  </span>
-                                </div>
-                                <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Inicio ciclo</span>
-                                  <span className="cred-stat-val">{formatDate(c.fechaInicio)}</span>
-                                </div>
-                                <div className="cred-stat-item">
-                                  <span className="cred-stat-label">Vencimiento</span>
-                                  <span className="cred-stat-val" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                    {formatDate(c.fechaVencimiento)}
-                                    <VencimientoChip fechaVenc={c.fechaVencimiento} estado={c.estado} />
-                                  </span>
-                                </div>
-                                {c.fechaCierre && (
-                                  <div className="cred-stat-item">
-                                    <span className="cred-stat-label">Cierre</span>
-                                    <span className="cred-stat-val" style={{ color: "var(--status-green)" }}>
-                                      {formatDate(c.fechaCierre)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
+                              {/* Vista: Ver Credito */}
+                              {tab === "stats" && (
+                                <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-                              {/* Tab pills */}
-                              <div className="cred-tabs">
-                                <button
-                                  className={`cred-tab${tab === "ventas" ? " active" : ""}`}
-                                  onClick={() => handleSwitchTab(c.barberoId, "ventas")}
-                                >
-                                  <Receipt className="w-3 h-3" />
-                                  Ventas a Credito
-                                  <span style={{
-                                    marginLeft: 2,
-                                    fontSize: 10,
-                                    background: tab === "ventas" ? "rgba(216,176,129,0.18)" : "var(--gray-darker)",
-                                    borderRadius: 999,
-                                    padding: "1px 6px",
-                                    fontWeight: 700,
-                                  }}>{ventasCred.length}</span>
-                                </button>
-                                <button
-                                  className={`cred-tab${tab === "abonos" ? " active" : ""}`}
-                                  onClick={() => handleSwitchTab(c.barberoId, "abonos")}
-                                >
-                                  <FileText className="w-3 h-3" />
-                                  Ver Abonos
-                                </button>
-                              </div>
+                                  {/* Fila 1: Deuda + barra de progreso + estado */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+                                    <div style={{ flex: "0 0 auto" }}>
+                                      <div style={{ fontSize: 11, color: "var(--gray-light)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700, marginBottom: 4 }}>Deuda actual</div>
+                                      <div style={{ fontSize: 22, fontWeight: 700, color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)" }}>
+                                        {formatCurrency(c.saldoDeuda)}
+                                      </div>
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 140 }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                                        <span style={{ fontSize: 11, color: "var(--gray-light)" }}>Uso del cupo</span>
+                                        <span style={{ fontSize: 11, color: "var(--gray-lightest)" }}>{formatCurrency(c.saldoDeuda)} / {formatCurrency(c.cupoMaximo)}</span>
+                                      </div>
+                                      <BarraProgreso saldo={c.saldoDeuda} cupo={c.cupoMaximo} />
+                                      <div style={{ fontSize: 11, color: "var(--gray-light)", marginTop: 4 }}>
+                                        Disponible: <span style={{ color: "var(--status-green)", fontWeight: 600 }}>{formatCurrency(c.cupoDisponible)}</span>
+                                      </div>
+                                    </div>
+                                    <div style={{ flex: "0 0 auto" }}>
+                                      <EstadoBadge estado={c.estado} />
+                                    </div>
+                                  </div>
+
+                                  {/* Fila 2: Info del ciclo en grid limpio */}
+                                  <div style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                                    gap: 1,
+                                    background: "var(--gray-darker)",
+                                    borderRadius: 10,
+                                    overflow: "hidden",
+                                  }}>
+                                    {[
+                                      { label: "Plazo", value: `${c.plazoDias} dias${c.extensionUsada ? " (extendido)" : ""}` },
+                                      { label: "Inicio ciclo", value: formatDate(c.fechaInicio) },
+                                      {
+                                        label: "Vencimiento",
+                                        value: formatDate(c.fechaVencimiento),
+                                        extra: <VencimientoChip fechaVenc={c.fechaVencimiento} estado={c.estado} />,
+                                      },
+                                      ...(c.fechaCierre ? [{ label: "Cierre", value: formatDate(c.fechaCierre), green: true }] : []),
+                                    ].map((item: any, i) => (
+                                      <div key={i} style={{ background: "var(--black-secondary)", padding: "12px 16px" }}>
+                                        <div style={{ fontSize: 10, color: "var(--gray-light)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700, marginBottom: 4 }}>{item.label}</div>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: item.green ? "var(--status-green)" : "var(--white-primary)", display: "flex", alignItems: "center", gap: 6 }}>
+                                          {item.value}
+                                          {item.extra}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* Fila 3: Acciones */}
+                                  {(puedeExtender || puedeNuevoCiclo) && (
+                                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                                      {puedeExtender && (
+                                        <button className="cred-action-btn-ext" onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}>
+                                          <CalendarClock className="w-4 h-4" />
+                                          Extender Plazo
+                                        </button>
+                                      )}
+                                      {puedeNuevoCiclo && (
+                                        <button className="cred-action-btn" onClick={() => { setNuevoCicloCredito(c); setNuevoCicloCupo(""); setNuevoCicloPlazos("7"); setNuevoCicloOpen(true); }}>
+                                          <PlusCircle className="w-4 h-4" />
+                                          Nuevo Ciclo
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Vista: Ventas a Credito */}
                               {tab === "ventas" && (() => {
@@ -882,7 +934,7 @@ export function CreditoBarberosPage() {
                                               {(() => {
                                                 const anulada = String(v.estado || "").toLowerCase() === "anulada";
                                                 const tieneAbono = (inlineAbonos[c.barberoId] || []).some(
-                                                  a => a.estado !== "Anulado" && a.ventaId === v.id
+                                                  a => a.ventaId === v.id
                                                 );
                                                 if (anulada || tieneAbono) return null;
                                                 return (
@@ -929,29 +981,6 @@ export function CreditoBarberosPage() {
                                         </button>
                                       </div>
                                     )}
-                                    {puedeExtender && (
-                                      <button
-                                        className="cred-action-btn-ext"
-                                        onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}
-                                      >
-                                        <CalendarClock className="w-4 h-4" />
-                                        Extender Plazo
-                                      </button>
-                                    )}
-                                    {puedeNuevoCiclo && (
-                                      <button
-                                        className="cred-action-btn"
-                                        onClick={() => {
-                                          setNuevoCicloCredito(c);
-                                          setNuevoCicloCupo("");
-                                          setNuevoCicloPlazos("7");
-                                          setNuevoCicloOpen(true);
-                                        }}
-                                      >
-                                        <PlusCircle className="w-4 h-4" />
-                                        Nuevo Ciclo
-                                      </button>
-                                    )}
                                   </div>
                                 </>
                                 );
@@ -977,7 +1006,7 @@ export function CreditoBarberosPage() {
                                     <div
                                       key={a.id}
                                       className="cred-abono-row"
-                                      style={{ opacity: a.estado === "Anulado" ? 0.5 : 1, cursor: "pointer" }}
+                                      style={{ cursor: "pointer" }}
                                       onClick={() => { setDetalleAbono(a); setDetalleAbonoOpen(true); }}
                                     >
                                       {/* Monto */}
@@ -985,9 +1014,9 @@ export function CreditoBarberosPage() {
                                         <span style={{
                                           fontWeight: 700,
                                           fontSize: 14,
-                                          color: a.estado === "Anulado" ? "var(--status-red)" : "var(--status-green)",
+                                          color: "var(--status-green)",
                                         }}>
-                                          {a.estado === "Anulado" ? "−" : "+"}{formatCurrency(a.monto)}
+                                          +{formatCurrency(a.monto)}
                                         </span>
                                       </div>
 
@@ -1010,20 +1039,6 @@ export function CreditoBarberosPage() {
 
                                       {/* Estado badge */}
                                       <EstadoBadge estado={a.estado} />
-
-                                      {/* Anular */}
-                                      {a.estado !== "Anulado" && (
-                                        <button
-                                          className="cred-icon-btn"
-                                          style={{ color: "var(--gray-lightest)" }}
-                                          title="Anular abono"
-                                          onClick={(e) => { e.stopPropagation(); setAbonoAnular(a); setAbonoAnularBarbId(c.barberoId); setAnularOpen(true); }}
-                                          onMouseEnter={e => (e.currentTarget.style.color = "var(--status-red)")}
-                                          onMouseLeave={e => (e.currentTarget.style.color = "var(--gray-lightest)")}
-                                        >
-                                          <Ban className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
                                     </div>
                                   ))}
 
@@ -1058,29 +1073,6 @@ export function CreditoBarberosPage() {
                                           <ChevronRight className="w-4 h-4" />
                                         </button>
                                       </div>
-                                    )}
-                                    {puedeExtender && (
-                                      <button
-                                        className="cred-action-btn-ext"
-                                        onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}
-                                      >
-                                        <CalendarClock className="w-4 h-4" />
-                                        Extender Plazo
-                                      </button>
-                                    )}
-                                    {puedeNuevoCiclo && (
-                                      <button
-                                        className="cred-action-btn"
-                                        onClick={() => {
-                                          setNuevoCicloCredito(c);
-                                          setNuevoCicloCupo("");
-                                          setNuevoCicloPlazos("7");
-                                          setNuevoCicloOpen(true);
-                                        }}
-                                      >
-                                        <PlusCircle className="w-4 h-4" />
-                                        Nuevo Ciclo
-                                      </button>
                                     )}
                                   </div>
                                 </>
@@ -1229,20 +1221,24 @@ export function CreditoBarberosPage() {
                   value={montoInput ? Number(montoInput).toLocaleString("es-CO") : ""}
                   onChange={e => {
                     const digits = e.target.value.replace(/\D/g, "");
+                    setAbonoApiError(null);
                     if (!digits) { setMontoInput(""); return; }
                     const n = Number(digits);
                     const max = Math.min(registrarCredito?.saldoDeuda ?? 999_999, 999_999);
                     setMontoInput(String(Math.min(n, max)));
                   }}
                   placeholder="Ej: 50.000"
-                  className={`elegante-input ${showFormErrors && !montoValido ? "border-destructive ring-1 ring-destructive" : ""}`}
+                  className={`elegante-input ${(showFormErrors && !montoValido) || abonoApiError ? "border-destructive ring-1 ring-destructive" : ""} ${montoShakeCount % 2 === 1 ? "input-required-shake-a" : montoShakeCount > 0 ? "input-required-shake-b" : ""}`}
                 />
                 {showFormErrors && !montoValido && (
-                  <p className="text-xs text-status-red">
+                  <p style={{ color: "var(--status-red)", fontSize: 14, fontWeight: 600 }}>
                     {montoNum <= 0 ? "El monto debe ser mayor a 0" : `Maximo: ${formatCurrency(registrarCredito?.saldoDeuda ?? 0)}`}
                   </p>
                 )}
-                {montoNum > 0 && montoValido && (
+                {abonoApiError && (
+                  <p className="text-xs text-status-red">{abonoApiError}</p>
+                )}
+                {montoNum > 0 && montoValido && !abonoApiError && (
                   <div className="flex justify-between text-xs px-1 text-gray-lighter">
                     <span>Saldo tras abono:</span>
                     <span style={{ color: saldoTrasAbono === 0 ? "var(--status-green)" : "var(--orange-primary)", fontWeight: 600 }}>
@@ -1307,67 +1303,6 @@ export function CreditoBarberosPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Confirmar Anulacion de Abono */}
-      <Dialog open={anularOpen} onOpenChange={setAnularOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-white-primary flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-status-red" />
-              Anular Abono
-            </DialogTitle>
-            <DialogDescription className="text-gray-lightest">
-              Esta accion revertira el monto al saldo de deuda del barbero.
-            </DialogDescription>
-          </DialogHeader>
-
-          {abonoAnular && (
-            <div className="space-y-3 pt-1">
-              <div className="bg-gray-darker p-3 rounded-lg space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-lighter">Abono #</span>
-                  <span className="text-gray-lightest">{abonoAnular.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-lighter">Monto</span>
-                  <span className="font-semibold" style={{ color: "var(--status-red)" }}>{formatCurrency(abonoAnular.monto)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-lighter">Fecha</span>
-                  <span className="text-gray-lightest">{formatDateTime(abonoAnular.fecha)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-lighter">Metodo</span>
-                  <span className="text-gray-lightest">{abonoAnular.metodoPago ?? "—"}</span>
-                </div>
-                {abonoAnular.ventaId && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-lighter">Venta asociada</span>
-                    <span className="text-orange-primary font-semibold">#{abonoAnular.ventaId}</span>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-gray-lighter px-1">
-                El saldo de deuda del barbero aumentara en {formatCurrency(abonoAnular.monto)}.
-              </p>
-              <div className="flex justify-end gap-3">
-                <button onClick={() => setAnularOpen(false)} disabled={anulando} className="elegante-button-secondary">
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleAnularAbono}
-                  disabled={anulando}
-                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold bg-destructive text-white transition-colors"
-                  style={{ opacity: anulando ? 0.7 : 1 }}
-                >
-                  {anulando ? <RefreshCw className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                  {anulando ? "Anulando..." : "Confirmar Anulacion"}
-                </button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Modal: Extender Plazo */}
       <Dialog open={extenderOpen} onOpenChange={open => { if (!extendiendo) setExtenderOpen(open); }}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
@@ -1377,7 +1312,7 @@ export function CreditoBarberosPage() {
               Extender Plazo del Ciclo
             </DialogTitle>
             <DialogDescription className="text-gray-lightest">
-              Se extendera el plazo de 7 a 14 dias. Solo se puede usar una vez por ciclo.
+              Se agregaran 7 dias adicionales al plazo del ciclo. Solo se puede usar una vez por ciclo.
             </DialogDescription>
           </DialogHeader>
 
@@ -1395,7 +1330,7 @@ export function CreditoBarberosPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-lighter">Nuevo vencimiento</span>
                   <span className="text-status-green font-semibold">
-                    {formatDate(new Date(new Date(extenderCredito.fechaInicio).getTime() + 14 * 86400000).toISOString())}
+                    {formatDate(new Date(new Date(extenderCredito.fechaInicio).getTime() + (extenderCredito.plazoDias + 7) * 86400000).toISOString())}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1596,8 +1531,8 @@ export function CreditoBarberosPage() {
               <div className="bg-gray-darker p-4 rounded-xl border border-gray-dark space-y-3">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-dark">
                   <span style={{ fontSize: 13, color: "var(--gray-lighter)" }}>Monto</span>
-                  <span style={{ fontSize: 20, fontWeight: 700, color: detalleAbono.estado === "Anulado" ? "var(--status-red)" : "var(--status-green)" }}>
-                    {detalleAbono.estado === "Anulado" ? "−" : "+"}{formatCurrency(detalleAbono.monto)}
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "var(--status-green)" }}>
+                    +{formatCurrency(detalleAbono.monto)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

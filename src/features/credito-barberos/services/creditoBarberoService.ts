@@ -53,10 +53,6 @@ export interface AbonoInput {
   ventaId?: number | null;
 }
 
-export interface AnularAbonoInput {
-  usuarioId: number;
-}
-
 export interface ExtenderPlazoInput {
   usuarioId: number;
 }
@@ -186,14 +182,6 @@ class CreditoBarberoService {
         Notas: input.notas ?? null,
         VentaId: input.ventaId ?? null,
       }),
-    });
-    return res.json();
-  }
-
-  async anularAbono(abonoId: number, usuarioId: number): Promise<any> {
-    const res = await this.request(`/credito-barbero/abono/${abonoId}/anular`, {
-      method: 'POST',
-      body: JSON.stringify({ UsuarioId: usuarioId }),
     });
     return res.json();
   }
