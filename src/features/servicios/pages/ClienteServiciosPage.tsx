@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { apiService, Servicio, Paquete } from "../../../shared/services/api";
+import { formatDuracion } from "../../../shared/utils/dateUtils";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 
 // Función para formatear moneda colombiana
@@ -236,7 +237,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                       </span>
                       <div className="flex items-center gap-1 text-gray-lighter">
                         <Clock className="w-3 h-3" />
-                        <span className="text-[10px] font-medium">{item.duracion} min</span>
+                        <span className="text-[10px] font-medium">{formatDuracion(item.duracion)}</span>
                       </div>
                     </div>
 
@@ -365,7 +366,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                               <span className="text-[10px] text-gray-lighter font-bold uppercase tracking-widest mb-1">Duración</span>
                               <div className="flex items-center gap-2 text-white-primary">
                                 <Clock className="w-5 h-5 text-orange-primary" />
-                                <span className="font-bold text-2xl">{selectedItem.duracion} <span className="text-sm font-normal text-gray-lighter">min</span></span>
+                                <span className="font-bold text-2xl">{formatDuracion(selectedItem.duracion)}</span>
                               </div>
                             </div>
                           </div>

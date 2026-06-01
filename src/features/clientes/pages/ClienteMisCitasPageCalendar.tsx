@@ -37,6 +37,7 @@ import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../../agendamiento/services/horariosService";
+import { formatDuracion } from "../../../shared/utils/dateUtils";
 import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../../agendamiento/constants";
 import {
   getHorariosBarberoParaDia,
@@ -1580,7 +1581,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
-                                  <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                                  <p className="text-gray-lighter text-xs">{formatDuracion(s.duracion || 60)}</p>
                                 </div>
                                 <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
                               </div>
@@ -1618,7 +1619,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                           <div className="flex-1 min-w-0 space-y-0.5">
                                             <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
                                             <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
-                                            <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
+                                            <p className="text-sm text-gray-lighter leading-tight">{formatDuracion(srv.duracion || 60)}</p>
                                           </div>
                                           <button
                                             type="button"
@@ -1662,7 +1663,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                       </div>
                                       <div className="min-w-0">
                                         <p className="text-sm text-gray-lightest leading-tight truncate">{paq.nombre}</p>
-                                        <p className="text-xs text-gray-lighter leading-tight">{paq.duracion || 60} min · {formatearPrecio(paq.precio)}</p>
+                                        <p className="text-xs text-gray-lighter leading-tight">{formatDuracion(paq.duracion || 60)} · {formatearPrecio(paq.precio)}</p>
                                       </div>
                                     </div>
                                     <button
@@ -1707,7 +1708,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                             <div className="flex-1 min-w-0 space-y-0.5">
                                               <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
                                               <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
-                                              <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
+                                              <p className="text-sm text-gray-lighter leading-tight">{formatDuracion(srv.duracion || 60)}</p>
                                             </div>
                                           </div>
                                         </div>
@@ -1749,7 +1750,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                                    <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                                    <p className="text-gray-lighter text-xs">{formatDuracion(p.duracion || 60)} — {p.servicios?.length || 0} servicios</p>
                                   </div>
                                   <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                                 </div>
@@ -2563,7 +2564,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       <div>
                         <p className="text-sm text-gray-lightest">{fechaLegible}</p>
                         <p className="text-sm text-gray-lighter mt-0.5">
-                          {formatHoraStr12(selectedCita.hora)}{horaFin ? ` – ${horaFin}` : ''} · {selectedCita.duracion || 60} min
+                          {formatHoraStr12(selectedCita.hora)}{horaFin ? ` – ${horaFin}` : ''} · {formatDuracion(selectedCita.duracion || 60)}
                         </p>
                       </div>
                     </div>
@@ -2575,7 +2576,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-lightest">{formatNombre(servicioNombre)}</p>
-                        <p className="text-xs text-gray-lighter mt-0.5">{selectedCita.duracion || 60} min</p>
+                        <p className="text-xs text-gray-lighter mt-0.5">{formatDuracion(selectedCita.duracion || 60)}</p>
                       </div>
                     </div>
 

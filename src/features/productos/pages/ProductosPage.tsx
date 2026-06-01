@@ -107,10 +107,24 @@ export function ProductosPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showProductoFormErrors, setShowProductoFormErrors] = useState(false);
   const [productoValidationAttempt, setProductoValidationAttempt] = useState(0);
+  const [nombreProductoError, setNombreProductoError] = useState<string | null>(null);
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [showCategoryResults, setShowCategoryResults] = useState(false);
 
   const shakeClass = productoValidationAttempt > 0 ? 'animate-shake' : '';
+
+  const NOMBRE_MIN = 2;
+  const NOMBRE_MAX = 18;
+  const ONLY_PUNCTUATION = /^[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ]+$/;
+
+  const validarNombreProducto = (nombre: string): string | null => {
+    if (!nombre.trim()) return 'Este campo es obligatorio.';
+    if (/\d/.test(nombre)) return 'El nombre no puede contener números.';
+    if (ONLY_PUNCTUATION.test(nombre)) return 'No se permiten solo signos de puntuación.';
+    if (nombre.length < NOMBRE_MIN) return `Debe tener al menos ${NOMBRE_MIN} caracteres.`;
+    if (nombre.length > NOMBRE_MAX) return `No puede superar ${NOMBRE_MAX} caracteres.`;
+    return null;
+  };
   const esProductoSoloVenta = (producto: any): boolean => {
     if (producto.tipo === 'solo_venta') return true;
     if (producto.tipo === 'venta_e_insumo') return false;
@@ -357,23 +371,24 @@ export function ProductosPage() {
   };
 
   const handleCreateProductoSubmit = async () => {
-    const isNombreValid = nuevoProducto.nombre.trim() !== '';
+    setShowProductoFormErrors(true);
+    setProductoValidationAttempt(prev => prev + 1);
+
+    const nombre = (nuevoProducto.nombre || '').trim();
     const isCategoriaValid = nuevoProducto.categoria !== '';
-    if (!isNombreValid || !isCategoriaValid) {
-      setShowProductoFormErrors(true);
-      setProductoValidationAttempt(prev => prev + 1);
-      error("Campos obligatorios", "Por favor completa el nombre y la categoría correctamente.");
-      return;
-    }
-    const nombreLower = String(nuevoProducto.nombre || '').trim().toLowerCase();
+
+    const errorNombre = validarNombreProducto(nombre);
+    setNombreProductoError(errorNombre);
+    if (errorNombre || !isCategoriaValid) return;
+
+    const nombreLower = nombre.toLowerCase();
     const existeNombre = productos.some(p => String(p.nombre || '').trim().toLowerCase() === nombreLower);
     if (existeNombre) {
-      setShowProductoFormErrors(true);
-      setProductoValidationAttempt(prev => prev + 1);
-      error("Nombre duplicado", `El nombre "${nuevoProducto.nombre.trim()}" ya existe. Por favor elige otro nombre.`);
+      setNombreProductoError('Ya existe un producto con ese nombre.');
       return;
     }
-    
+    setNombreProductoError(null);
+
     // Ejecutar creación directamente
     await confirmCreateProducto();
   };
@@ -485,30 +500,31 @@ export function ProductosPage() {
     setCategorySearchTerm(categoriaVal || '');
     setImagenPreview(producto.imagenProduc || null);
     setImageError(null);
+    setNombreProductoError(null);
     setIsDialogOpen(true);
   };
 
   const handleUpdateProducto = async () => {
-    const isNombreValid = nuevoProducto.nombre.trim() !== '';
+    setShowProductoFormErrors(true);
+    setProductoValidationAttempt(prev => prev + 1);
+
+    const nombre = (nuevoProducto.nombre || '').trim();
     const isCategoriaValid = nuevoProducto.categoria !== '';
     const ventaOk = String((nuevoProducto as any).precioVenta) !== '' && Number((nuevoProducto as any).precioVenta) >= 0;
     const compraOk = String((nuevoProducto as any).precioCompra) !== '' && Number((nuevoProducto as any).precioCompra) >= 0;
 
-    if (!isNombreValid || !isCategoriaValid || !ventaOk || !compraOk) {
-      setShowProductoFormErrors(true);
-      setProductoValidationAttempt(prev => prev + 1);
-      error("Campos obligatorios", "Por favor completa el nombre, la categoría y los precios correctamente.");
-      return;
-    }
-    const nombreLower = String(nuevoProducto.nombre || '').trim().toLowerCase();
+    const errorNombre = validarNombreProducto(nombre);
+    setNombreProductoError(errorNombre);
+    if (errorNombre || !isCategoriaValid || !ventaOk || !compraOk) return;
+
+    const nombreLower = nombre.toLowerCase();
     const existeNombre = productos.some(p => p.id !== (editingProducto?.id) && String(p.nombre || '').trim().toLowerCase() === nombreLower);
     if (existeNombre) {
-      setShowProductoFormErrors(true);
-      setProductoValidationAttempt(prev => prev + 1);
-      error("Nombre duplicado", `El nombre "${nuevoProducto.nombre.trim()}" ya existe. Por favor elige otro nombre.`);
+      setNombreProductoError('Ya existe un producto con ese nombre.');
       return;
     }
-    
+    setNombreProductoError(null);
+
     // Ejecutar actualización directamente
     await confirmUpdateProducto();
   };
@@ -845,6 +861,7 @@ export function ProductosPage() {
                         setImageError(null);
                         setShowProductoFormErrors(false);
                         setProductoValidationAttempt(0);
+                        setNombreProductoError(null);
                       }}
                     >
                       <Plus className="w-4 h-4" />
@@ -879,14 +896,21 @@ export function ProductosPage() {
                             </Label>
                             <NameInput
                               value={nuevoProducto.nombre}
-                              onChange={(val) => setNuevoProducto({ ...nuevoProducto, nombre: val })}
+                              onChange={(val) => {
+                                const capped = val.slice(0, NOMBRE_MAX);
+                                setNuevoProducto({ ...nuevoProducto, nombre: capped });
+                                if (nombreProductoError) setNombreProductoError(null);
+                              }}
                               placeholder="Ej: Cadena de Rodio"
-                              className={`elegante-input h-9 text-sm ${isNombreDuplicado ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                              className={`elegante-input h-9 text-sm ${
+                                showProductoFormErrors && (nombreProductoError || isNombreDuplicado)
+                                  ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
+                              }`}
                             />
-                            {showProductoFormErrors && !nuevoProducto.nombre.trim() && (
-                              <p className="text-[10px] text-red-400 mt-1">El nombre es obligatorio</p>
+                            {showProductoFormErrors && nombreProductoError && (
+                              <p className="text-[10px] text-red-400 mt-1">{nombreProductoError}</p>
                             )}
-                            {isNombreDuplicado && (
+                            {!nombreProductoError && isNombreDuplicado && (
                               <p className="text-[10px] text-red-400 mt-1">Nombre ya existe en el sistema.</p>
                             )}
                           </div>

@@ -42,6 +42,7 @@ export interface ProductoDetalle {
   nombre: string;
   cantidad: number;
   precio: number;
+  imagen?: string;
 }
 
 export interface ServicioDetalle {
@@ -314,14 +315,16 @@ class VentaService {
           id: String(p.id || p.Id || d.productoId || d.ProductoId),
           nombre: p.nombre || p.Nombre || d.productoNombre || d.ProductoNombre || 'Producto',
           cantidad,
-          precio: precioUnit
+          precio: precioUnit,
+          imagen: p.imagenProduc || p.imagen || p.imagenUrl || p.ImagenProduc || p.Imagen || ''
         });
       } else if (productoIdPlano) {
         productosDetalle.push({
           id: String(productoIdPlano),
           nombre: d.productoNombre || d.ProductoNombre || d.nombreProducto || d.NombreProducto || 'Producto',
           cantidad,
-          precio: precioUnit
+          precio: precioUnit,
+          imagen: d.imagenProducto || d.imagenProduc || d.imagen || ''
         });
       } else if (s) {
         serviciosDetalle.push({
@@ -355,7 +358,8 @@ class VentaService {
           id: String(p.id || p.Id || p.productoId || p.ProductoId || ''),
           nombre: p.nombre || p.Nombre || p.productoNombre || p.ProductoNombre || 'Producto',
           cantidad: Number(p.cantidad || p.Cantidad || 1),
-          precio: Number(p.precio || p.Precio || p.precioUnitario || p.PrecioUnitario || 0)
+          precio: Number(p.precio || p.Precio || p.precioUnitario || p.PrecioUnitario || 0),
+          imagen: p.imagenProduc || p.imagen || p.imagenUrl || p.ImagenProduc || p.Imagen || ''
         });
       });
     }

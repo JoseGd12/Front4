@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { formatDuracion } from "../../../shared/utils/dateUtils";
 
 // --- Mock Data ---
 const serviciosIndividuales = [
@@ -176,7 +177,7 @@ export function NuevaCitaCliente({ isOpen, onClose, clienteInfo, onSuccess }: an
                       <p className="font-bold text-white-primary">{s.nombre}</p>
                       <p className="text-orange-primary font-bold text-sm">{formatearPrecio(s.precio)}</p>
                     </div>
-                    <div className="text-right text-[10px] text-gray-lighter uppercase font-black">{s.duracion} min</div>
+                    <div className="text-right text-[10px] text-gray-lighter uppercase font-black">{formatDuracion(s.duracion)}</div>
                   </button>
                 ))}
               </div>

@@ -49,6 +49,7 @@ import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
+import { TimeInput12h } from "../../../shared/components/ui/TimeInput12h";
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
 import { horariosService, HorarioSemanalApi } from "../../agendamiento/services/horariosService";
 import { agendamientoService } from "../../agendamiento/services/agendamientoService";
@@ -1410,27 +1411,19 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                         })}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-wrap gap-4 items-end">
                       <div className="space-y-1.5">
                         <Label className="text-gray-lightest text-sm">Hora inicio</Label>
-                        <Input
-                          type="time"
+                        <TimeInput12h
                           value={nuevoBloque.horaInicio}
-                          onChange={(e) =>
-                            setNuevoBloque({ ...nuevoBloque, horaInicio: e.target.value })
-                          }
-                          className="elegante-input p-2.5"
+                          onChange={(val) => setNuevoBloque({ ...nuevoBloque, horaInicio: val })}
                         />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-gray-lightest text-sm">Hora fin</Label>
-                        <Input
-                          type="time"
+                        <TimeInput12h
                           value={nuevoBloque.horaFin}
-                          onChange={(e) =>
-                            setNuevoBloque({ ...nuevoBloque, horaFin: e.target.value })
-                          }
-                          className="elegante-input p-2.5"
+                          onChange={(val) => setNuevoBloque({ ...nuevoBloque, horaFin: val })}
                         />
                       </div>
                     </div>
@@ -1591,11 +1584,11 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Hora inicio *</Label>
-                    <Input type="time" value={cancelHoraStart} onChange={e => setCancelHoraStart(e.target.value)} className="elegante-input w-full py-1 text-xs" />
+                    <TimeInput12h value={cancelHoraStart} onChange={setCancelHoraStart} />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Hora fin *</Label>
-                    <Input type="time" value={cancelHoraEnd} onChange={e => setCancelHoraEnd(e.target.value)} className="elegante-input w-full py-1 text-xs" />
+                    <TimeInput12h value={cancelHoraEnd} onChange={setCancelHoraEnd} />
                   </div>
                 </div>
                 <div className="space-y-1">

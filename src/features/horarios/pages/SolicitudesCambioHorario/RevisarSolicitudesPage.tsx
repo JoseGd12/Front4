@@ -12,6 +12,7 @@ import { Label } from '../../../../shared/components/ui/label';
 import { useCustomAlert } from '../../../../shared/components/ui/custom-alert';
 import { TableHeaderSection } from '../../../../shared/components/ui/table-header-section';
 import { TableLoadingStateRow } from '../../../../shared/components/ui/table-loading-state-row';
+import { TimeInput12h } from '../../../../shared/components/ui/TimeInput12h';
 import { TableEmptyStateRow } from '../../../../shared/components/ui/table-empty-state-row';
 
 const COLORES_ESTADO: Record<EstadoSolicitud, { bg: string; text: string; border: string; label: string; icon: any }> = {
@@ -383,8 +384,8 @@ export default function RevisarSolicitudesPage({ usuarioId, onBack }: Props) {
 
                     <div className="grid grid-cols-3 gap-2">
                       <Input type="date" value={diaTmp} onChange={(e) => setDiaTmp(e.target.value)} className="elegante-input" />
-                      <Input type="time" value={horaInicioTmp} onChange={(e) => setHoraInicioTmp(e.target.value)} className="elegante-input" />
-                      <Input type="time" value={horaFinTmp} onChange={(e) => setHoraFinTmp(e.target.value)} className="elegante-input" />
+                      <TimeInput12h value={horaInicioTmp} onChange={setHoraInicioTmp} />
+                      <TimeInput12h value={horaFinTmp} onChange={setHoraFinTmp} />
                     </div>
 
                     <button

@@ -5,6 +5,16 @@
  * El UI las muestra siempre en formato 12h ("2:30 PM").
  */
 
+/** Formatea minutos: <60 → "30 min" | >=60 → "1h", "1h 30min" */
+export function formatDuracion(minutos: number | null | undefined): string {
+  const m = Number(minutos) || 0;
+  if (m <= 0) return '0 min';
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem === 0 ? `${h}h` : `${h}h ${rem}min`;
+}
+
 /**
  * Convierte un string de hora 24h ("14:30" o "14:30:00") a 12h ("2:30 PM").
  * Si recibe un ISO datetime, extrae la parte de hora.

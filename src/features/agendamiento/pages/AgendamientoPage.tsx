@@ -8,7 +8,9 @@ import { servicioService } from "../../servicios/services/servicioService";
 import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
+import { TimeInput12h } from "../../../shared/components/ui/TimeInput12h";
 import { horariosService } from "../services/horariosService";
+import { formatDuracion } from "../../../shared/utils/dateUtils";
 import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../constants";
 import {
   barberoTrabajaEnFecha,
@@ -2447,7 +2449,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-white-primary text-sm font-medium truncate">{s.nombre}</p>
-                              <p className="text-gray-lighter text-xs">{s.duracion || 60} min</p>
+                              <p className="text-gray-lighter text-xs">{formatDuracion(s.duracion || 60)}</p>
                             </div>
                             <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(s.precio)}</span>
                           </div>
@@ -2488,7 +2490,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                       <div className="flex-1 min-w-0 space-y-0.5">
                                         <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
                                         <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
-                                        <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
+                                        <p className="text-sm text-gray-lighter leading-tight">{formatDuracion(srv.duracion || 60)}</p>
                                       </div>
                                       <button
                                         type="button"
@@ -2532,7 +2534,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   </div>
                                   <div className="min-w-0">
                                     <p className="text-sm text-gray-lightest leading-tight truncate">{paq.nombre}</p>
-                                    <p className="text-xs text-gray-lighter leading-tight">{paq.duracion || 60} min · {formatearPrecio(paq.precio)}</p>
+                                    <p className="text-xs text-gray-lighter leading-tight">{formatDuracion(paq.duracion || 60)} · {formatearPrecio(paq.precio)}</p>
                                   </div>
                                 </div>
                                 <button
@@ -2580,7 +2582,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                         <div className="flex-1 min-w-0 space-y-0.5">
                                           <p className="text-base font-medium text-gray-lightest truncate leading-tight">{srv.nombre}</p>
                                           <p className="text-sm text-gray-lighter leading-tight">{formatearPrecio(srv.precio)}</p>
-                                          <p className="text-sm text-gray-lighter leading-tight">{srv.duracion || 60} min</p>
+                                          <p className="text-sm text-gray-lighter leading-tight">{formatDuracion(srv.duracion || 60)}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -2622,7 +2624,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
-                                <p className="text-gray-lighter text-xs">{p.duracion || 60} min — {p.servicios?.length || 0} servicios</p>
+                                <p className="text-gray-lighter text-xs">{formatDuracion(p.duracion || 60)} — {p.servicios?.length || 0} servicios</p>
                               </div>
                               <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
                             </div>
@@ -2795,31 +2797,68 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 const prod = productosList.find(p => p.id === pId);
                                 if (!prod) return null;
                                 return (
-                                  <div key={pId} className="flex-1 min-w-0 group bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent hover:border-gray-dark transition-all">
+                                  <div key={pId} className="relative flex-1 min-w-0 group bg-gray-darker/40 rounded-lg px-3 py-2 border border-transparent hover:border-gray-dark transition-all">
+                                    {/* X arriba a la derecha */}
+                                    <button
+                                      type="button"
+                                      onClick={() => { quitarProducto(pId); if (safeProdPage > 0 && pageProdEntries.length === 1) setFormProductoPage(p => p - 1); }}
+                                      className="absolute top-1 right-1 text-gray-dark hover:text-red-400 opacity-60 hover:opacity-100 transition-all cursor-pointer"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
                                     <div className="flex items-center gap-2 min-w-0">
                                       <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
                                         <ImageRenderer url={prod.imagenProduc || ""} alt={prod.nombre} className="w-full h-full border-0 bg-transparent" />
                                       </div>
-                                      <div className="flex-1 min-w-0">
+                                      <div className="flex-1 min-w-0 pr-3">
                                         <p className="text-sm text-gray-lightest font-medium truncate leading-tight">{prod.nombre}</p>
                                         <p className="text-gray-lighter leading-tight truncate" style={{ fontSize: '9px' }}>{formatearPrecio(prod.precio)}</p>
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                          <button type="button" onClick={() => removeProducto(pId)} className="text-gray-lighter hover:text-white-primary transition-colors cursor-pointer">
-                                            <Minus className="w-2.5 h-2.5" />
-                                          </button>
-                                          <span className="w-3 text-center text-gray-lightest tabular-nums" style={{ fontSize: '9px' }}>{cantidad}</span>
-                                          <button type="button" onClick={() => addProducto(pId)} className="text-gray-lighter hover:text-white-primary transition-colors cursor-pointer">
-                                            <Plus className="w-2.5 h-2.5" />
-                                          </button>
-                                        </div>
+                                        {(() => {
+                                          const stockMax = prod.stock ?? prod.cantidad ?? 0;
+                                          const atLimit = stockMax > 0 && (cantidad as number) >= stockMax;
+                                          return (
+                                            <div className="flex flex-col gap-0.5 mt-0.5">
+                                              <div className="flex items-center gap-1">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => removeProducto(pId)}
+                                                  className="text-gray-lighter hover:text-white-primary transition-colors cursor-pointer"
+                                                >
+                                                  <Minus className="w-2.5 h-2.5" />
+                                                </button>
+                                                <input
+                                                  type="number"
+                                                  min={1}
+                                                  max={stockMax > 0 ? stockMax : undefined}
+                                                  value={cantidad as number}
+                                                  onChange={(e) => {
+                                                    const raw = parseInt(e.target.value, 10);
+                                                    if (isNaN(raw) || raw < 1) return;
+                                                    const clamped = stockMax > 0 ? Math.min(raw, stockMax) : raw;
+                                                    const next = { ...nuevaCita.productoCantidades, [pId]: clamped };
+                                                    recalcularPrecioConProductos(next);
+                                                  }}
+                                                  className={`no-spin w-8 text-center tabular-nums bg-transparent border-none outline-none focus:outline-none ${atLimit ? 'text-red-400' : 'text-gray-lightest'}`}
+                                                  style={{ fontSize: '9px', MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+                                                />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => { if (!atLimit) addProducto(pId); }}
+                                                  disabled={atLimit}
+                                                  className={`transition-colors ${atLimit ? 'text-gray-dark cursor-not-allowed opacity-40' : 'text-gray-lighter hover:text-white-primary cursor-pointer'}`}
+                                                >
+                                                  <Plus className="w-2.5 h-2.5" />
+                                                </button>
+                                              </div>
+                                              {atLimit && (
+                                                <p className="text-red-400 leading-tight" style={{ fontSize: '8px' }}>
+                                                  Has llegado al límite
+                                                </p>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => { quitarProducto(pId); if (safeProdPage > 0 && pageProdEntries.length === 1) setFormProductoPage(p => p - 1); }}
-                                        className="shrink-0 text-gray-dark hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
                                     </div>
                                   </div>
                                 );
@@ -3907,7 +3946,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       </p>
                       {detalleServicios.some((s: any) => s.duracion) && (
                         <p className="text-xs text-gray-lighter mt-0.5">
-                          {detalleServicios.filter((s: any) => s.duracion).map((s: any) => `${s.nombre}: ${s.duracion} min`).join(' · ')}
+                          {detalleServicios.filter((s: any) => s.duracion).map((s: any) => `${s.nombre}: ${formatDuracion(s.duracion)}`).join(' · ')}
                         </p>
                       )}
                     </div>
@@ -4313,21 +4352,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           <div className="space-y-5 py-4">
             <div className="space-y-2">
               <Label className="text-white-primary text-sm">Hora de Inicio</Label>
-              <Input
-                type="time"
+              <TimeInput12h
                 value={editHorarioStart}
-                onChange={e => setEditHorarioStart(e.target.value)}
-                className="elegante-input w-full"
+                onChange={setEditHorarioStart}
                 disabled={isSavingHorario}
               />
             </div>
             <div className="space-y-2">
               <Label className="text-white-primary text-sm">Hora de Fin</Label>
-              <Input
-                type="time"
+              <TimeInput12h
                 value={editHorarioEnd}
-                onChange={e => setEditHorarioEnd(e.target.value)}
-                className="elegante-input w-full"
+                onChange={setEditHorarioEnd}
                 disabled={isSavingHorario}
               />
             </div>

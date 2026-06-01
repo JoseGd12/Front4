@@ -9,6 +9,7 @@ import { Input } from '../../../../shared/components/ui/input';
 import { Label } from '../../../../shared/components/ui/label';
 import { formatTo12h, parseTo24h } from '../../../../shared/utils/dateUtils';
 import { useCustomAlert } from '../../../../shared/components/ui/custom-alert';
+import { TimeInput12h } from '../../../../shared/components/ui/TimeInput12h';
 import { TableHeaderSection } from '../../../../shared/components/ui/table-header-section';
 import { ChevronLeft } from 'lucide-react';
 
@@ -189,21 +190,11 @@ export default function CrearSolicitudPage({ onNavigate, barberoId: propBarberoI
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label className="text-[10px] uppercase font-bold text-gray-lighter">Hora Inicio</Label>
-                    <Input
-                      type="time"
-                      value={horaInicioTmp}
-                      onChange={(e) => setHoraInicioTmp(e.target.value)}
-                      className="elegante-input h-9 text-xs"
-                    />
+                    <TimeInput12h value={horaInicioTmp} onChange={setHoraInicioTmp} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] uppercase font-bold text-gray-lighter">Hora Fin</Label>
-                    <Input
-                      type="time"
-                      value={horaFinTmp}
-                      onChange={(e) => setHoraFinTmp(e.target.value)}
-                      className="elegante-input h-9 text-xs"
-                    />
+                    <TimeInput12h value={horaFinTmp} onChange={setHoraFinTmp} />
                   </div>
                 </div>
                 <button

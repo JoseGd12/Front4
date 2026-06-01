@@ -211,6 +211,7 @@ import { useAuth } from "../../../shared/contexts/AuthContext";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { barberosService, type Barbero } from "../../administracion/services/barberosService";
 import { ventaService } from "../../ventas/services/ventaService";
+import { productoService } from "../../productos/services/productos";
 import {
   creditoBarberoService,
   CreditoBarberoDto,
@@ -322,11 +323,14 @@ export function CreditoBarberosPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages]   = useState(1);
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 5;
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm,  setSearchTerm]  = useState("");
   const [expandedId,  setExpandedId]  = useState<number | null>(null);
+  const SUBTAB_PAGE_SIZE = 5;
+  const [ventasPage, setVentasPage] = useState<Record<number, number>>({});
+  const [abonosPage, setAbonosPage] = useState<Record<number, number>>({});
 
   const [barberosMap, setBarberosMap]     = useState<Record<number, Barbero>>({});
   const [ventasCreditoPorBarbero, setVentasCreditoPorBarbero] = useState<Record<number, any[]>>({});
@@ -348,6 +352,14 @@ export function CreditoBarberosPage() {
   const [notasInput,       setNotasInput]       = useState("");
   const [submitting,       setSubmitting]       = useState(false);
   const [showFormErrors,   setShowFormErrors]   = useState(false);
+
+  // ── Modal: detalle abono ─────────────────────────────────────────────────────
+  const [detalleAbonoOpen,   setDetalleAbonoOpen]   = useState(false);
+  const [detalleAbono,       setDetalleAbono]       = useState<AbonoCreditoBarberoDto | null>(null);
+
+  // ── Modal: detalle venta ─────────────────────────────────────────────────────
+  const [detalleVentaOpen,   setDetalleVentaOpen]   = useState(false);
+  const [detalleVenta,       setDetalleVenta]       = useState<any | null>(null);
 
   // ── Modal: anular abono ──────────────────────────────────────────────────────
   const [anularOpen,         setAnularOpen]         = useState(false);
@@ -371,22 +383,37 @@ export function CreditoBarberosPage() {
   const fetchCreditos = useCallback(async (page: number, q: string) => {
     try {
       setLoading(true);
-      const [res, barberos, ventas] = await Promise.all([
+      const [res, barberos, ventas, productos] = await Promise.all([
         creditoBarberoService.getAll(page, PAGE_SIZE, q),
         barberosService.getBarberos().catch(() => []),
         ventaService.getVentas().catch(() => []),
+        productoService.getProductos().catch(() => []),
       ]);
 
       const bMap: Record<number, Barbero> = {};
       (barberos || []).forEach((b: any) => { if (b.id) bMap[b.id] = b; });
       setBarberosMap(bMap);
 
+      const imagenesMap = new Map<number, string>();
+      (productos || []).forEach((p: any) => {
+        const id = Number(p?.id || 0);
+        const img = String(p?.imagen || p?.imagenProduc || p?.imagenUrl || p?.Imagen || '');
+        if (id > 0 && img.trim()) imagenesMap.set(id, img);
+      });
+
       const vcMap: Record<number, any[]> = {};
       (ventas || []).forEach((v: any) => {
         const bid = Number(v.barberoId || 0);
         if (bid > 0 && String(v.metodoPago || "").toLowerCase() === "creditobarbero") {
           vcMap[bid] = vcMap[bid] || [];
-          vcMap[bid].push(v);
+          const productosEnriquecidos = (v.productosDetalle || []).map((p: any) => {
+            if (!p.imagen || !p.imagen.trim()) {
+              const img = imagenesMap.get(Number(p.id || 0));
+              if (img) return { ...p, imagen: img };
+            }
+            return p;
+          });
+          vcMap[bid].push({ ...v, productosDetalle: productosEnriquecidos });
         }
       });
       Object.values(vcMap).forEach(arr =>
@@ -417,7 +444,10 @@ export function CreditoBarberosPage() {
 
   // Cargar abonos al expandir una fila
   useEffect(() => {
-    if (expandedId !== null && inlineAbonos[expandedId] === undefined && !loadingInlineAbonos[expandedId]) {
+    if (expandedId === null) return;
+    const cred = creditos.find(c => c.barberoId === expandedId);
+    if (!cred) return;
+    if (inlineAbonos[expandedId] === undefined && !loadingInlineAbonos[expandedId]) {
       loadInlineAbonos(expandedId);
     }
   }, [expandedId]);
@@ -436,7 +466,7 @@ export function CreditoBarberosPage() {
   const loadInlineAbonos = useCallback(async (barberoId: number) => {
     setLoadingInlineAbonos(prev => ({ ...prev, [barberoId]: true }));
     try {
-      const r = await creditoBarberoService.getAbonos(barberoId, 1, 50);
+      const r = await creditoBarberoService.getAllAbonosByBarbero(barberoId, 1, 100);
       setInlineAbonos(prev => ({ ...prev, [barberoId]: r.items }));
     } catch {
       setInlineAbonos(prev => ({ ...prev, [barberoId]: [] }));
@@ -447,6 +477,8 @@ export function CreditoBarberosPage() {
 
   const handleSwitchTab = useCallback((barberoId: number, tab: "ventas" | "abonos") => {
     setActiveTab(prev => ({ ...prev, [barberoId]: tab }));
+    setVentasPage(prev => ({ ...prev, [barberoId]: 1 }));
+    setAbonosPage(prev => ({ ...prev, [barberoId]: 1 }));
     if (tab === "abonos") {
       loadInlineAbonos(barberoId);
     }
@@ -783,7 +815,11 @@ export function CreditoBarberosPage() {
                               </div>
 
                               {/* Vista: Ventas a Credito */}
-                              {tab === "ventas" && (
+                              {tab === "ventas" && (() => {
+                                const vPage = ventasPage[c.barberoId] || 1;
+                                const ventasTotalPages = Math.ceil(ventasCred.length / SUBTAB_PAGE_SIZE);
+                                const ventasPaginadas = ventasCred.slice((vPage - 1) * SUBTAB_PAGE_SIZE, vPage * SUBTAB_PAGE_SIZE);
+                                return (
                                 <>
                                   <table className="cred-table" style={{ borderTop: "none" }}>
                                     <colgroup>
@@ -811,7 +847,7 @@ export function CreditoBarberosPage() {
                                             Sin ventas a credito registradas.
                                           </td>
                                         </tr>
-                                      ) : ventasCred.map((v: any) => {
+                                      ) : ventasPaginadas.map((v: any) => {
                                         const productos = (v.productosDetalle || []) as any[];
                                         const servicios = (v.serviciosDetalle || []) as any[];
                                         const total = productos.length + servicios.length;
@@ -821,7 +857,7 @@ export function CreditoBarberosPage() {
                                         ].slice(0, 2).join(", ") + (total > 2 ? "..." : "");
 
                                         return (
-                                          <tr key={v.id} className="cred-item-row">
+                                          <tr key={v.id} className="cred-item-row" style={{ cursor: "pointer" }} onClick={() => { setDetalleVenta(v); setDetalleVentaOpen(true); }}>
                                             <td className="cred-sub-td" style={{ paddingLeft: 36, textAlign: "left" }}>
                                               <span className="cred-num">
                                                 <Hash className="w-3 h-3" />
@@ -852,7 +888,7 @@ export function CreditoBarberosPage() {
                                                 return (
                                                   <button
                                                     className="cred-icon-btn"
-                                                    onClick={() => openRegistrar(c, v)}
+                                                    onClick={(e) => { e.stopPropagation(); openRegistrar(c, v); }}
                                                     title="Registrar abono a esta venta"
                                                     style={{ color: "var(--gray-lightest)" }}
                                                     onMouseEnter={e => (e.currentTarget.style.color = "var(--orange-primary)")}
@@ -871,6 +907,28 @@ export function CreditoBarberosPage() {
 
                                   {/* Barra de acciones — tab ventas */}
                                   <div className="cred-actions-bar">
+                                    {/* Paginacion ventas */}
+                                    {ventasTotalPages > 1 && (
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: "auto" }}>
+                                        <button
+                                          className="cred-icon-btn"
+                                          disabled={vPage <= 1}
+                                          onClick={() => setVentasPage(prev => ({ ...prev, [c.barberoId]: vPage - 1 }))}
+                                        >
+                                          <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                        <span style={{ fontSize: 12, color: "var(--gray-lightest)", minWidth: 52, textAlign: "center" }}>
+                                          {vPage} / {ventasTotalPages}
+                                        </span>
+                                        <button
+                                          className="cred-icon-btn"
+                                          disabled={vPage >= ventasTotalPages}
+                                          onClick={() => setVentasPage(prev => ({ ...prev, [c.barberoId]: vPage + 1 }))}
+                                        >
+                                          <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    )}
                                     {puedeExtender && (
                                       <button
                                         className="cred-action-btn-ext"
@@ -894,35 +952,33 @@ export function CreditoBarberosPage() {
                                         Nuevo Ciclo
                                       </button>
                                     )}
-                                    {c.saldoDeuda > 0 && (
-                                      <button
-                                        className="cred-action-btn"
-                                        onClick={() => openRegistrar(c, null)}
-                                      >
-                                        <DollarSign className="w-4 h-4" />
-                                        Registrar Pago General
-                                      </button>
-                                    )}
                                   </div>
                                 </>
-                              )}
+                                );
+                              })()}
 
                               {/* Vista: Ver Abonos */}
-                              {tab === "abonos" && (
+                              {tab === "abonos" && (() => {
+                                const aPage = abonosPage[c.barberoId] || 1;
+                                const todosAbonos = inlineAbonos[c.barberoId] || [];
+                                const abonosTotalPages = Math.ceil(todosAbonos.length / SUBTAB_PAGE_SIZE);
+                                const abonosPaginados = todosAbonos.slice((aPage - 1) * SUBTAB_PAGE_SIZE, aPage * SUBTAB_PAGE_SIZE);
+                                return (
                                 <>
                                   {loadingInlineAbonos[c.barberoId] ? (
                                     <div style={{ padding: "28px 0", display: "flex", justifyContent: "center" }}>
                                       <RefreshCw className="w-5 h-5 animate-spin" style={{ color: "var(--orange-primary)" }} />
                                     </div>
-                                  ) : (inlineAbonos[c.barberoId] || []).length === 0 ? (
+                                  ) : todosAbonos.length === 0 ? (
                                     <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
                                       Sin abonos registrados.
                                     </div>
-                                  ) : (inlineAbonos[c.barberoId] || []).map(a => (
+                                  ) : abonosPaginados.map(a => (
                                     <div
                                       key={a.id}
                                       className="cred-abono-row"
-                                      style={{ opacity: a.estado === "Anulado" ? 0.5 : 1 }}
+                                      style={{ opacity: a.estado === "Anulado" ? 0.5 : 1, cursor: "pointer" }}
+                                      onClick={() => { setDetalleAbono(a); setDetalleAbonoOpen(true); }}
                                     >
                                       {/* Monto */}
                                       <div style={{ minWidth: 110 }}>
@@ -961,7 +1017,7 @@ export function CreditoBarberosPage() {
                                           className="cred-icon-btn"
                                           style={{ color: "var(--gray-lightest)" }}
                                           title="Anular abono"
-                                          onClick={() => { setAbonoAnular(a); setAbonoAnularBarbId(c.barberoId); setAnularOpen(true); }}
+                                          onClick={(e) => { e.stopPropagation(); setAbonoAnular(a); setAbonoAnularBarbId(c.barberoId); setAnularOpen(true); }}
                                           onMouseEnter={e => (e.currentTarget.style.color = "var(--status-red)")}
                                           onMouseLeave={e => (e.currentTarget.style.color = "var(--gray-lightest)")}
                                         >
@@ -976,11 +1032,33 @@ export function CreditoBarberosPage() {
                                     <button
                                       className="cred-icon-btn"
                                       style={{ background: "rgba(255,255,255,0.03)", padding: "6px 12px", color: "var(--gray-lightest)" }}
-                                      onClick={() => loadInlineAbonos(c.barberoId)}
+                                      onClick={() => { loadInlineAbonos(c.barberoId); setAbonosPage(prev => ({ ...prev, [c.barberoId]: 1 })); }}
                                     >
                                       <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                                       <span style={{ fontSize: 12 }}>Actualizar</span>
                                     </button>
+                                    {/* Paginacion abonos */}
+                                    {abonosTotalPages > 1 && (
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: "auto" }}>
+                                        <button
+                                          className="cred-icon-btn"
+                                          disabled={aPage <= 1}
+                                          onClick={() => setAbonosPage(prev => ({ ...prev, [c.barberoId]: aPage - 1 }))}
+                                        >
+                                          <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                        <span style={{ fontSize: 12, color: "var(--gray-lightest)", minWidth: 52, textAlign: "center" }}>
+                                          {aPage} / {abonosTotalPages}
+                                        </span>
+                                        <button
+                                          className="cred-icon-btn"
+                                          disabled={aPage >= abonosTotalPages}
+                                          onClick={() => setAbonosPage(prev => ({ ...prev, [c.barberoId]: aPage + 1 }))}
+                                        >
+                                          <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    )}
                                     {puedeExtender && (
                                       <button
                                         className="cred-action-btn-ext"
@@ -1004,18 +1082,10 @@ export function CreditoBarberosPage() {
                                         Nuevo Ciclo
                                       </button>
                                     )}
-                                    {c.saldoDeuda > 0 && (
-                                      <button
-                                        className="cred-action-btn"
-                                        onClick={() => openRegistrar(c, null)}
-                                      >
-                                        <DollarSign className="w-4 h-4" />
-                                        Registrar Pago
-                                      </button>
-                                    )}
                                   </div>
                                 </>
-                              )}
+                                );
+                              })()}
 
                             </div>
                           </div>
@@ -1411,6 +1481,157 @@ export function CreditoBarberosPage() {
                 >
                   {creandoCiclo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
                   {creandoCiclo ? "Creando..." : "Iniciar Ciclo"}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Detalle de Venta */}
+      <Dialog open={detalleVentaOpen} onOpenChange={setDetalleVentaOpen}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-orange-primary" />
+              Detalle de Venta
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest">
+              Venta #{detalleVenta?.numeroVenta || detalleVenta?.id}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detalleVenta && (() => {
+            const productos = (detalleVenta.productosDetalle || []) as any[];
+            const servicios = (detalleVenta.serviciosDetalle || []) as any[];
+            return (
+              <div className="space-y-3 pt-1">
+                <div className="bg-gray-darker p-4 rounded-xl border border-gray-dark space-y-3">
+
+                  <div className="flex justify-between items-center pb-3 border-b border-gray-dark">
+                    <span style={{ fontSize: 13, color: "var(--gray-lighter)" }}>Total</span>
+                    <span style={{ fontSize: 20, fontWeight: 700, color: "var(--status-red)" }}>
+                      {formatCurrency(Number(detalleVenta.subtotal || detalleVenta.total || 0))}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--gray-lighter)" }}>Estado</span>
+                    <EstadoBadge estado={detalleVenta.estado || "Completada"} />
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--gray-lighter)" }}>Fecha</span>
+                    <span style={{ color: "var(--white-primary)" }}>{formatDate(detalleVenta.fecha)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--gray-lighter)" }}>Método de pago</span>
+                    <span style={{ color: "var(--white-primary)" }}>{detalleVenta.metodoPago ?? "—"}</span>
+                  </div>
+                  {detalleVenta.numeroRecibo && (
+                    <div className="flex justify-between text-sm">
+                      <span style={{ color: "var(--gray-lighter)" }}>Recibo</span>
+                      <span style={{ color: "var(--white-primary)" }}>#{detalleVenta.numeroRecibo}</span>
+                    </div>
+                  )}
+
+                  {(productos.length > 0 || servicios.length > 0) && (
+                    <div className="pt-3 border-t border-gray-dark space-y-2">
+                      {[...productos.map((p: any) => ({ ...p, _tipo: "producto" })),
+                        ...servicios.map((s: any) => ({ ...s, _tipo: "servicio" }))
+                      ].map((item: any, i: number) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 8, flexShrink: 0, overflow: "hidden",
+                            background: "var(--gray-dark)", display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {item.imagen && item.imagen.trim() && item.imagen !== "No especificada" ? (
+                              <ImageRenderer url={item.imagen} className="w-full h-full object-cover" fallbackVariant="product" showLabel={false} />
+                            ) : (
+                              <span style={{ fontSize: 16 }}>📦</span>
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, color: "var(--white-primary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {item.nombre}
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--gray-lighter)" }}>
+                              {item._tipo === "producto" ? "Producto" : "Servicio"} · x{item.cantidad ?? 1}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--orange-primary)", flexShrink: 0 }}>
+                            {formatCurrency(Number(item.precio || 0))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button onClick={() => setDetalleVentaOpen(false)} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Detalle de Abono */}
+      <Dialog open={detalleAbonoOpen} onOpenChange={setDetalleAbonoOpen}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <FileText className="w-5 h-5 text-orange-primary" />
+              Detalle del Abono
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest">
+              Abono #{detalleAbono?.id}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detalleAbono && (
+            <div className="space-y-3 pt-1">
+              <div className="bg-gray-darker p-4 rounded-xl border border-gray-dark space-y-3">
+                <div className="flex justify-between items-center pb-3 border-b border-gray-dark">
+                  <span style={{ fontSize: 13, color: "var(--gray-lighter)" }}>Monto</span>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: detalleAbono.estado === "Anulado" ? "var(--status-red)" : "var(--status-green)" }}>
+                    {detalleAbono.estado === "Anulado" ? "−" : "+"}{formatCurrency(detalleAbono.monto)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: "var(--gray-lighter)" }}>Estado</span>
+                  <EstadoBadge estado={detalleAbono.estado} />
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: "var(--gray-lighter)" }}>Fecha</span>
+                  <span style={{ color: "var(--white-primary)" }}>{formatDateTime(detalleAbono.fecha)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: "var(--gray-lighter)" }}>Método de pago</span>
+                  <span style={{ color: "var(--white-primary)" }}>{detalleAbono.metodoPago ?? "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: "var(--gray-lighter)" }}>Registrado por</span>
+                  <span style={{ color: "var(--white-primary)" }}>{detalleAbono.usuarioNombre ?? "Sistema"}</span>
+                </div>
+                {detalleAbono.ventaId && (
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--gray-lighter)" }}>Venta asociada</span>
+                    <span style={{ color: "var(--orange-primary)", fontWeight: 600 }}>#{detalleAbono.ventaId}</span>
+                  </div>
+                )}
+                {detalleAbono.notas && (
+                  <div className="pt-3 border-t border-gray-dark">
+                    <span style={{ fontSize: 11, color: "var(--gray-lighter)", display: "block", marginBottom: 4 }}>Notas</span>
+                    <p style={{ fontSize: 13, color: "var(--gray-lightest)", fontStyle: "italic" }}>{detalleAbono.notas}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end pt-1">
+                <button onClick={() => setDetalleAbonoOpen(false)} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
+                  Cerrar
                 </button>
               </div>
             </div>

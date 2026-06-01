@@ -27,6 +27,7 @@ import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { apiService, Paquete } from "../../../shared/services/api";
+import { formatDuracion } from "../../../shared/utils/dateUtils";
 import { servicioService, Servicio } from "../../servicios/services/servicioService";
 import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
 
@@ -636,7 +637,7 @@ export function PaquetesPage() {
                 {
                   key: "duracion",
                   header: "Duración",
-                  render: (_v, row) => `${(row as unknown as Paquete).duracion} min`,
+                  render: (_v, row) => formatDuracion((row as unknown as Paquete).duracion),
                 } as ColumnDef<Record<string, unknown>>,
                 {
                   key: "precio",
@@ -911,7 +912,7 @@ export function PaquetesPage() {
                   </div>
                   <div className="px-4 py-2 bg-gray-dark rounded-lg border border-gray-medium/30">
                     <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Total</p>
-                    <p className="text-orange-primary font-bold text-lg">{(nuevoPaquete.duracion || 0)} min</p>
+                    <p className="text-orange-primary font-bold text-lg">{formatDuracion(nuevoPaquete.duracion || 0)}</p>
                   </div>
                 </div>
               </div>

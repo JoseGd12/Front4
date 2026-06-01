@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { toast } from '../../../shared/components/ui/notify';
+import { formatDuracion } from '../../../shared/utils/dateUtils';
 
 interface ModalCompletarParcialmenteProps {
   isOpen: boolean;
@@ -199,7 +200,7 @@ export function ModalCompletarParcialmente({
                           {srv.nombre}
                         </p>
                         <p className="text-xs text-gray-lighter">
-                          {srv.duracion || 60} min
+                          {formatDuracion(srv.duracion || 60)}
                         </p>
                       </div>
                       <span className="text-sm text-orange-primary font-medium shrink-0">

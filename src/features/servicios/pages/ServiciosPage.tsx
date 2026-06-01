@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { apiService, Servicio } from "../../../shared/services/api";
+import { formatDuracion } from "../../../shared/utils/dateUtils";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
 
@@ -36,6 +37,7 @@ export function ServiciosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [precioServicioInput, setPrecioServicioInput] = useState<string>('');
   const [nombreServicioDuplicado, setNombreServicioDuplicado] = useState(false);
+  const [nombreServicioError, setNombreServicioError] = useState<string | null>(null);
   const [showServicioFormErrors, setShowServicioFormErrors] = useState(false);
   const [servicioValidationAttempt, setServicioValidationAttempt] = useState(0);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -46,6 +48,19 @@ export function ServiciosPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const shakeClass = servicioValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
+
+  const NOMBRE_MIN = 2;
+  const NOMBRE_MAX = 18;
+  const ONLY_PUNCTUATION = /^[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ]+$/;
+
+  const validarNombreServicio = (nombre: string): string | null => {
+    if (!nombre.trim()) return 'Este campo es obligatorio.';
+    if (/\d/.test(nombre)) return 'El nombre no puede contener números.';
+    if (ONLY_PUNCTUATION.test(nombre)) return 'No se permiten solo signos de puntuación.';
+    if (nombre.length < NOMBRE_MIN) return `Debe tener al menos ${NOMBRE_MIN} caracteres.`;
+    if (nombre.length > NOMBRE_MAX) return `No puede superar ${NOMBRE_MAX} caracteres.`;
+    return null;
+  };
 
   // Cargar servicios desde la API. silent=true evita setLoading para no parpadear la tabla tras crear/editar/eliminar/toggle.
   const loadServicios = async (silent = false) => {
@@ -192,8 +207,9 @@ export function ServiciosPage() {
     const duracion = Number(nuevoServicio.duracion || 0);
     const precio = Number(nuevoServicio.precio || 0);
 
-    // Validación de campos obligatorios antes de llamar a la API
-    if (!nombre || duracion <= 0 || precio <= 0) {
+    const errorNombre = validarNombreServicio(nombre);
+    setNombreServicioError(errorNombre);
+    if (errorNombre || duracion <= 0 || precio <= 0) {
       setNombreServicioDuplicado(false);
       return;
     }
@@ -209,6 +225,7 @@ export function ServiciosPage() {
       return;
     }
     setNombreServicioDuplicado(false);
+    setNombreServicioError(null);
 
     try {
       setSubmitting(true);
@@ -286,7 +303,9 @@ export function ServiciosPage() {
       const duracion = Number(nuevoServicio.duracion || 0);
       const precio = Number(nuevoServicio.precio || 0);
 
-      if (!nombre || duracion <= 0 || precio <= 0) {
+      const errorNombre = validarNombreServicio(nombre);
+      setNombreServicioError(errorNombre);
+      if (errorNombre || duracion <= 0 || precio <= 0) {
         setNombreServicioDuplicado(false);
         return;
       }
@@ -302,6 +321,7 @@ export function ServiciosPage() {
         return;
       }
       setNombreServicioDuplicado(false);
+      setNombreServicioError(null);
       try {
         setSubmitting(true);
         await apiService.updateServicio(editingServicio.id, {
@@ -434,6 +454,7 @@ export function ServiciosPage() {
                       setImagePreview(null);
                       setShowServicioFormErrors(false);
                       setNombreServicioDuplicado(false);
+                      setNombreServicioError(null);
                       setServicioValidationAttempt(0);
                     }}
                   >
@@ -513,7 +534,7 @@ export function ServiciosPage() {
                 {
                   key: "duracion",
                   header: "Duración",
-                  render: (_v, row) => `${(row as unknown as Servicio).duracion} min`,
+                  render: (_v, row) => formatDuracion((row as unknown as Servicio).duracion),
                 } as ColumnDef<Record<string, unknown>>,
                 {
                   key: "precio",
@@ -628,18 +649,23 @@ export function ServiciosPage() {
                     </Label>
                     <NameInput
                       value={nuevoServicio.nombre}
-                      onChange={(val) => setNuevoServicio({ ...nuevoServicio, nombre: val })}
+                      onChange={(val) => {
+                        const capped = val.slice(0, NOMBRE_MAX);
+                        setNuevoServicio({ ...nuevoServicio, nombre: capped });
+                        if (nombreServicioError) setNombreServicioError(null);
+                        if (nombreServicioDuplicado) setNombreServicioDuplicado(false);
+                      }}
                       placeholder="Ej: Corte Moderno"
                       className={`elegante-input h-9 text-sm ${
-                        showServicioFormErrors && (!nuevoServicio.nombre.trim() || nombreServicioDuplicado)
+                        showServicioFormErrors && (nombreServicioError || nombreServicioDuplicado)
                           ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
                       }`}
                     />
-                    {showServicioFormErrors && !nuevoServicio.nombre.trim() && (
-                      <p className="text-[10px] text-red-400 mt-1">Este campo es obligatorio.</p>
+                    {showServicioFormErrors && nombreServicioError && (
+                      <p className="text-[10px] text-red-400 mt-1">{nombreServicioError}</p>
                     )}
-                    {showServicioFormErrors && nombreServicioDuplicado && nuevoServicio.nombre.trim() && (
-                      <p className="text-[10px] text-red-400 mt-1">El nombre ya existe.</p>
+                    {showServicioFormErrors && nombreServicioDuplicado && (
+                      <p className="text-[10px] text-red-400 mt-1">Ya existe un servicio con ese nombre.</p>
                     )}
                   </div>
                   <div className="space-y-1.5">
@@ -678,9 +704,13 @@ export function ServiciosPage() {
                     <Input
                       type="number"
                       min={1}
+                      max={600}
                       step={5}
                       value={nuevoServicio.duracion || ''}
-                      onChange={(e) => setNuevoServicio({ ...nuevoServicio, duracion: parseInt(e.target.value, 10) || 0 })}
+                      onChange={(e) => {
+                        const raw = parseInt(e.target.value, 10) || 0;
+                        setNuevoServicio({ ...nuevoServicio, duracion: raw > 600 ? 600 : raw });
+                      }}
                       placeholder="Ej: 30"
                       className={`elegante-input h-9 text-sm no-spin ${
                         showServicioFormErrors && (nuevoServicio.duracion || 0) <= 0 ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
@@ -688,6 +718,11 @@ export function ServiciosPage() {
                     />
                     {showServicioFormErrors && (nuevoServicio.duracion || 0) <= 0 && (
                       <p className="text-[10px] text-red-400 mt-1">La duración debe ser mayor a 0.</p>
+                    )}
+                    {(nuevoServicio.duracion || 0) > 0 && (
+                      <p className="text-[10px] text-orange-primary font-semibold mt-1">
+                        = {formatDuracion(nuevoServicio.duracion)}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -832,7 +867,7 @@ export function ServiciosPage() {
                         Duración
                       </Label>
                       <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                        {selectedServicio.duracion} min
+                        {formatDuracion(selectedServicio.duracion)}
                       </div>
                     </div>
                     <div className="space-y-1.5">

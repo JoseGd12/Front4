@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
+import { formatDuracion } from '../../../shared/utils/dateUtils';
 import { barberosService } from '../../administracion/services/barberosService';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
@@ -1293,7 +1294,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                             </div>
                             <div className="flex items-center gap-2 text-gray-400 mb-3">
                               <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
-                              <span className="text-xs font-bold uppercase tracking-widest">{servicio.duracion} min</span>
+                              <span className="text-xs font-bold uppercase tracking-widest">{formatDuracion(servicio.duracion)}</span>
                             </div>
                             <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
                             <button
@@ -1709,7 +1710,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     {selectedDetailItem.type !== 'producto' && selectedDetailItem.duracion && (
                       <span className="flex items-center gap-1.5 text-sm text-gray-400">
                         <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
-                        {selectedDetailItem.duracion} min
+                        {formatDuracion(selectedDetailItem.duracion)}
                       </span>
                     )}
                   </div>
@@ -1794,7 +1795,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#d8b081' }} />
                                   {s.nombre || s}
                                 </div>
-                                {s.duracion && <span className="text-gray-500">{s.duracion} min</span>}
+                                {s.duracion && <span className="text-gray-500">{formatDuracion(s.duracion)}</span>}
                               </div>
                             ))}
                           </div>

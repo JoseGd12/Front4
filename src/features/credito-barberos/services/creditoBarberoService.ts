@@ -150,6 +150,32 @@ class CreditoBarberoService {
     };
   }
 
+  async getAllAbonosByBarbero(barberoId: number, page = 1, pageSize = 100): Promise<PagedResult<AbonoCreditoBarberoDto>> {
+    const res = await this.request(`/credito-barbero/barbero/${barberoId}/abonos/todos?page=${page}&pageSize=${pageSize}`);
+    const data = await res.json();
+    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.Items ?? []);
+    return {
+      items: items.map(i => this.normalizeAbono(i)),
+      totalCount: Number(data.totalCount ?? data.TotalCount ?? items.length),
+      page: Number(data.page ?? data.Page ?? page),
+      pageSize: Number(data.pageSize ?? data.PageSize ?? pageSize),
+      totalPages: Number(data.totalPages ?? data.TotalPages ?? 1),
+    };
+  }
+
+  async getAbonosByCiclo(cicloId: number, page = 1, pageSize = 100): Promise<PagedResult<AbonoCreditoBarberoDto>> {
+    const res = await this.request(`/credito-barbero/${cicloId}/abonos?page=${page}&pageSize=${pageSize}`);
+    const data = await res.json();
+    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.Items ?? []);
+    return {
+      items: items.map(i => this.normalizeAbono(i)),
+      totalCount: Number(data.totalCount ?? data.TotalCount ?? items.length),
+      page: Number(data.page ?? data.Page ?? page),
+      pageSize: Number(data.pageSize ?? data.PageSize ?? pageSize),
+      totalPages: Number(data.totalPages ?? data.TotalPages ?? 1),
+    };
+  }
+
   async registrarAbono(barberoId: number, input: AbonoInput): Promise<any> {
     const res = await this.request(`/credito-barbero/barbero/${barberoId}/abono`, {
       method: 'POST',

@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { formatDuracion } from "../../../shared/utils/dateUtils";
 
 // Datos de servicios y paquetes
 const serviciosIndividuales = [
@@ -297,7 +298,7 @@ function ServiciosIndividualesMenu({
                   <div className="flex-1">
                     <h5 className="font-semibold text-white-primary text-sm">{servicio.nombre}</h5>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-lightest">{servicio.duracion} min</span>
+                      <span className="text-gray-lightest">{formatDuracion(servicio.duracion)}</span>
                       <span className="font-bold text-orange-primary">{formatearPrecio(servicio.precio)}</span>
                     </div>
                   </div>
@@ -334,7 +335,7 @@ function ServiciosIndividualesMenu({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4 text-orange-primary" />
-                    <span className="text-sm text-gray-lightest">{servicio.duracion} min</span>
+                    <span className="text-sm text-gray-lightest">{formatDuracion(servicio.duracion)}</span>
                   </div>
                   <div className="font-bold text-orange-primary">
                     {formatearPrecio(servicio.precio)}
@@ -423,7 +424,7 @@ function PaquetesEspecialesGrid({
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4 text-orange-primary" />
-                    <span className="text-sm text-gray-lightest">{paquete.duracion} min</span>
+                    <span className="text-sm text-gray-lightest">{formatDuracion(paquete.duracion)}</span>
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-gray-light line-through">

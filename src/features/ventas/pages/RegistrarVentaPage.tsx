@@ -1469,28 +1469,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     )}
                   </div>
 
-                  {/* Plazo del ciclo — solo si es crédito, verificación completa y no tiene ciclo activo */}
-                  {seleccionadoEsBarbero && nuevaVenta.metodoPago === "Crédito" && !checkingCiclo && !tieneCicloActivo && (
-                    <div className="space-y-1">
-                      <Label className="text-gray-lightest text-xs">Plazo del ciclo de crédito</Label>
-                      <Select
-                        value={String(plazoDias)}
-                        onValueChange={(val) => setPlazoDias(Number(val) as 7 | 14)}
-                      >
-                        <SelectTrigger className="elegante-input">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="elegante-card">
-                          <SelectItem value="7">1 semana (7 días)</SelectItem>
-                          <SelectItem value="14">2 semanas (14 días)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-gray-dark mt-0.5">
-                        Solo aplica al primer crédito del ciclo. Una vez iniciado no se puede cambiar (salvo extensión manual).
-                      </p>
-                    </div>
-                  )}
-
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Descuento (%)</Label>
                     <Input
@@ -1521,6 +1499,28 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                     />
                   </div>
                 </div>
+
+                {/* Plazo del ciclo — solo si es crédito, verificación completa y no tiene ciclo activo */}
+                {seleccionadoEsBarbero && nuevaVenta.metodoPago === "Crédito" && !checkingCiclo && !tieneCicloActivo && (
+                  <div className="space-y-1 mt-4 max-w-xs">
+                    <Label className="text-gray-lightest text-xs">Plazo del ciclo de crédito</Label>
+                    <Select
+                      value={String(plazoDias)}
+                      onValueChange={(val) => setPlazoDias(Number(val) as 7 | 14)}
+                    >
+                      <SelectTrigger className="elegante-input">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="elegante-card">
+                        <SelectItem value="7">1 semana (7 días)</SelectItem>
+                        <SelectItem value="14">2 semanas (14 días)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-dark mt-0.5">
+                      Solo aplica al primer crédito del ciclo. Una vez iniciado no se puede cambiar (salvo extensión manual).
+                    </p>
+                  </div>
+                )}
               </section>
 
               {/* Section 4: Products */}
