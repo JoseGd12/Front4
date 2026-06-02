@@ -4,6 +4,7 @@ export interface Compra {
     id: number;
     numeroCompra?: string;
     numeroFactura?: string;
+    numeroRecibo?: string;
     proveedorId: number;
     proveedorNombre?: string;
     proveedorDocumento?: string;
@@ -34,7 +35,8 @@ export interface DetalleCompra {
 
 export interface CreateCompraRequest {
     proveedorId: number;
-    numeroFactura?: string; // Opcional desde front, pero backend lo usa
+    numeroFactura?: string;
+    numeroRecibo?: string;
     fecha: string; // Fecha Registro
     fechaFactura: string;
     metodoPago: string;
@@ -103,13 +105,11 @@ class CompraService {
     }
 
     private mapToApiFormat(data: CreateCompraRequest): any {
-        // Generar un número de factura temporal si no se proporciona, para evitar error 500 en backend
-        const facturaDefault = Date.now().toString().slice(-6);
-
         return {
             proveedorId: data.proveedorId,
             usuarioId: data.usuarioId,
-            numeroFactura: data.numeroFactura || facturaDefault,
+            numeroFactura: data.numeroFactura,
+            numeroRecibo: data.numeroRecibo,
             fechaFactura: data.fechaFactura, // DateOnly en backend, string YYYY-MM-DD funciona
             metodoPago: data.metodoPago,
             iva: data.iva,
@@ -207,6 +207,7 @@ class CompraService {
             id: id,
             numeroCompra: `CPR-${String(id).padStart(3, '0')}`,
             numeroFactura: data.numeroFactura || data.NumeroFactura || data.numeroCompra || data.NumeroCompra || `CPR-${id}`,
+            numeroRecibo: data.numeroRecibo || data.NumeroRecibo,
             proveedorId: data.proveedorId || data.ProveedorId || 0,
             proveedorNombre: proveedorNombre,
             proveedorDocumento: proveedorDocumento,

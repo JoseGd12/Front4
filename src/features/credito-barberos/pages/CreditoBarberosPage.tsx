@@ -13,7 +13,6 @@ import {
   FileText,
   RefreshCw,
   CalendarClock,
-  PlusCircle,
 } from "lucide-react";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -391,13 +390,6 @@ export function CreditoBarberosPage() {
   const [extenderCredito, setExtenderCredito] = useState<CreditoBarberoDto | null>(null);
   const [extendiendo,     setExtendiendo]     = useState(false);
 
-  // ── Modal: nuevo ciclo ───────────────────────────────────────────────────────
-  const [nuevoCicloOpen,    setNuevoCicloOpen]    = useState(false);
-  const [nuevoCicloCredito, setNuevoCicloCredito] = useState<CreditoBarberoDto | null>(null);
-  const [nuevoCicloCupo,    setNuevoCicloCupo]    = useState("");
-  const [nuevoCicloPlazos,  setNuevoCicloPlazos]  = useState("7");
-  const [creandoCiclo,      setCreandoCiclo]      = useState(false);
-
   // ── Carga principal ──────────────────────────────────────────────────────────
   const fetchCreditos = useCallback(async (page: number, q: string) => {
     try {
@@ -585,27 +577,6 @@ export function CreditoBarberosPage() {
     }
   };
 
-  // ── Nuevo ciclo ──────────────────────────────────────────────────────────────
-  const handleNuevoCiclo = async () => {
-    if (!nuevoCicloCredito) return;
-    const limiteNum = nuevoCicloCupo.trim() ? Number(nuevoCicloCupo.replace(/\D/g, "")) : null;
-    try {
-      setCreandoCiclo(true);
-      await creditoBarberoService.nuevoCiclo(nuevoCicloCredito.barberoId, {
-        usuarioId: Number(user?.id ?? 0),
-        limiteCredito: limiteNum,
-        plazoDias: Number(nuevoCicloPlazos),
-      });
-      created("Nuevo ciclo iniciado", `Se inició un nuevo ciclo de crédito para ${nuevoCicloCredito.barberoNombre}.`);
-      setNuevoCicloOpen(false);
-      fetchCreditos(currentPage, searchTerm);
-    } catch (err: any) {
-      showErrorAlert("Error", err?.message || "No se pudo crear el nuevo ciclo");
-    } finally {
-      setCreandoCiclo(false);
-    }
-  };
-
   // ── Computed para formulario ──────────────────────────────────────────────────
   const montoNum       = Number(montoInput);
   const montoValido    = montoNum > 0 && (!registrarCredito || montoNum <= registrarCredito.saldoDeuda);
@@ -689,7 +660,6 @@ export function CreditoBarberosPage() {
 
                   // Condiciones para botones especiales
                   const puedeExtender = !c.extensionUsada && !esPagado(c.estado) && new Date(c.fechaVencimiento).getTime() < Date.now();
-                  const puedeNuevoCiclo = esPagado(c.estado);
 
                   return (
                     <React.Fragment key={c.id || c.barberoId}>
@@ -847,20 +817,12 @@ export function CreditoBarberosPage() {
                                   </div>
 
                                   {/* Fila 3: Acciones */}
-                                  {(puedeExtender || puedeNuevoCiclo) && (
+                                  {puedeExtender && (
                                     <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                                      {puedeExtender && (
-                                        <button className="cred-action-btn-ext" onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}>
-                                          <CalendarClock className="w-4 h-4" />
-                                          Extender Plazo
-                                        </button>
-                                      )}
-                                      {puedeNuevoCiclo && (
-                                        <button className="cred-action-btn" onClick={() => { setNuevoCicloCredito(c); setNuevoCicloCupo(""); setNuevoCicloPlazos("7"); setNuevoCicloOpen(true); }}>
-                                          <PlusCircle className="w-4 h-4" />
-                                          Nuevo Ciclo
-                                        </button>
-                                      )}
+                                      <button className="cred-action-btn-ext" onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}>
+                                        <CalendarClock className="w-4 h-4" />
+                                        Extender Plazo
+                                      </button>
                                     </div>
                                   )}
                                 </div>
@@ -1330,7 +1292,7 @@ export function CreditoBarberosPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-lighter">Nuevo vencimiento</span>
                   <span className="text-status-green font-semibold">
-                    {formatDate(new Date(new Date(extenderCredito.fechaInicio).getTime() + (extenderCredito.plazoDias + 7) * 86400000).toISOString())}
+                    {formatDate(new Date(Date.now() + 7 * 86400000).toISOString())}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1353,69 +1315,6 @@ export function CreditoBarberosPage() {
                 >
                   {extendiendo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
                   {extendiendo ? "Extendiendo..." : "Confirmar Extension"}
-                </button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal: Nuevo Ciclo */}
-      <Dialog open={nuevoCicloOpen} onOpenChange={open => { if (!creandoCiclo) setNuevoCicloOpen(open); }}>
-        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-white-primary flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-orange-primary" />
-              Iniciar Nuevo Ciclo de Credito
-            </DialogTitle>
-            <DialogDescription className="text-gray-lightest">
-              El ciclo anterior esta pagado. Configura el nuevo ciclo para {nuevoCicloCredito?.barberoNombre}.
-            </DialogDescription>
-          </DialogHeader>
-
-          {nuevoCicloCredito && (
-            <div className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <Label className="text-white-primary text-sm">Cupo maximo (dejar vacio para mantener ${formatCurrency(nuevoCicloCredito.cupoMaximo)})</Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  value={nuevoCicloCupo ? Number(nuevoCicloCupo).toLocaleString("es-CO") : ""}
-                  onChange={e => {
-                    const digits = e.target.value.replace(/\D/g, "");
-                    setNuevoCicloCupo(digits);
-                  }}
-                  placeholder={`Actual: ${formatCurrency(nuevoCicloCredito.cupoMaximo)}`}
-                  className="elegante-input"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-white-primary text-sm">Plazo del ciclo</Label>
-                <Select value={nuevoCicloPlazos} onValueChange={setNuevoCicloPlazos}>
-                  <SelectTrigger className="elegante-input">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-darkest border-gray-dark">
-                    <SelectItem value="7" className="text-white-primary">7 dias (1 semana)</SelectItem>
-                    <SelectItem value="14" className="text-white-primary">14 dias (2 semanas)</SelectItem>
-                    <SelectItem value="30" className="text-white-primary">30 dias (1 mes)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2 border-t border-gray-dark">
-                <button onClick={() => setNuevoCicloOpen(false)} disabled={creandoCiclo} className="elegante-button-secondary">
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleNuevoCiclo}
-                  disabled={creandoCiclo}
-                  className="elegante-button-primary flex items-center gap-2"
-                  style={{ padding: "0.45rem 1.2rem", fontSize: "13px" }}
-                >
-                  {creandoCiclo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
-                  {creandoCiclo ? "Creando..." : "Iniciar Ciclo"}
                 </button>
               </div>
             </div>

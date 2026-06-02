@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Input } from "../../../shared/components/ui/input";
 import {
   Calendar,
@@ -117,6 +117,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     metodoPago: "",
     fechaRegistro: generateCurrentDate(),
     fechaFactura: "",
+    numeroRecibo: "",
     porcentajeDescuento: 0,
     productos: [] as Array<{
       id: number;
@@ -160,6 +161,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
 
   // Submission
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Derived validation states
   const noProductosAgregados = (nuevaCompra.productos?.length || 0) === 0;
@@ -218,6 +220,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
           return Number.isFinite(id) && id > max ? id : max;
         }, 0);
         setComprasCount(maxId);
+        setNuevaCompra((prev) => ({ ...prev, numeroRecibo: String(maxId + 1) }));
 
         // Usuarios
         setUsers(usuariosData || []);
@@ -452,7 +455,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
 
   // --- Submit ---
   const handleCreateCompra = async () => {
-    if (isSubmitting) return;
+    if (isSubmittingRef.current) return;
     setShowCompraFormErrors(true);
     setCompraValidationAttempt((prev) => prev + 1);
 
@@ -461,10 +464,12 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
       return;
     }
 
-    if (!nuevaCompra.proveedorId || !nuevaCompra.metodoPago || !nuevaCompra.fechaFactura || nuevaCompra.productos.length === 0) {
+    if (!nuevaCompra.proveedorId || !nuevaCompra.metodoPago || !nuevaCompra.fechaFactura || !nuevaCompra.numeroRecibo?.trim() || nuevaCompra.productos.length === 0) {
       showErrorAlert(
         "Campos obligatorios",
-        "Por favor completa la fecha de factura, el método de pago, selecciona un proveedor y agrega al menos un producto."
+        !nuevaCompra.numeroRecibo?.trim()
+          ? "Por favor ingresa el número de recibo."
+          : "Por favor completa la fecha de factura, el método de pago, selecciona un proveedor y agrega al menos un producto."
       );
       return;
     }
@@ -502,6 +507,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
       proveedorId: Number(nuevaCompra.proveedorId),
       fecha: nuevaCompra.fechaRegistro || generateCurrentDate(),
       fechaFactura: nuevaCompra.fechaFactura,
+      numeroRecibo: nuevaCompra.numeroRecibo.trim(),
       metodoPago: nuevaCompra.metodoPago,
       iva: 0,
       descuento: descuento,
@@ -513,6 +519,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
       })),
     };
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       const compraCreada = await compraService.createCompra(compraRequest);
@@ -555,6 +562,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
       showErrorAlert("Error al crear compra", description);
       console.error(error);
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -587,21 +595,51 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
               icon={<Receipt className="w-4 h-4" />}
               className="space-y-2 py-2"
               headerRight={
-                <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-                  <div className="flex items-center gap-2" style={{ paddingRight: '20px' }}>
-                    <span className="text-white-primary font-bold">
-                      Nº Compra
+                <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-lightest font-normal text-xs sm:text-sm">
+                      Nº Recibo:*
                     </span>
-                    <span className="text-gray-lightest font-medium tabular-nums">
-                      {numeroCompra.toString().padStart(3, "0")}
+                    <div className="relative flex flex-col">
+                      <Input
+                        value={nuevaCompra.numeroRecibo}
+                        onChange={(e) => {
+                          setNuevaCompra((prev) => ({
+                            ...prev,
+                            numeroRecibo: e.target.value.slice(0, 20),
+                          }));
+                          clearValidationErrors();
+                        }}
+                        maxLength={20}
+                        style={{ width: "110px", height: "26px", padding: "2px 8px", fontSize: "12px" }}
+                        className={`elegante-input ${showCompraFormErrors && !nuevaCompra.numeroRecibo.trim()
+                          ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                          : ""
+                          }`}
+                        placeholder="Nº recibo"
+                      />
+                      {showCompraFormErrors && !nuevaCompra.numeroRecibo.trim() && (
+                        <span className="absolute top-[28px] left-0 text-[10px] text-red-400 whitespace-nowrap leading-none mt-1 animate-pulse font-medium">
+                          campo obligatorio
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-4">
+                    <span className="text-gray-lightest font-normal text-xs sm:text-sm">
+                      Nº Compra:
+                    </span>
+                    <span className="text-gray-lightest font-medium tabular-nums text-xs sm:text-sm">
+                      {numeroCompra}
                     </span>
                   </div>
-                  <div className="hidden sm:block w-px h-4 bg-gray-dark" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-white-primary font-bold">
-                      Fecha de Registro
+
+                  <div className="flex items-center gap-2 ml-4">
+                    <span className="text-gray-lightest font-normal text-xs sm:text-sm">
+                      Fecha:
                     </span>
-                    <span className="text-gray-lightest font-medium">
+                    <span className="text-gray-lightest font-medium text-xs sm:text-sm">
                       {formatDate(nuevaCompra.fechaRegistro || generateCurrentDate())}
                     </span>
                   </div>

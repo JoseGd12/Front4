@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import {
@@ -112,7 +112,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     fechaCreacion: "",
     tipoVenta: "Venta Invitado",
     metodoPago: "",
-    numeroRecibo: "",
     barberoId: null as number | null,
     barberoNombre: "",
     porcentajeDescuento: 0,
@@ -164,6 +163,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [plazoDias, setPlazoDias] = useState<7 | 14>(7);
   const [tieneCicloActivo, setTieneCicloActivo] = useState(false);
   const [checkingCiclo, setCheckingCiclo] = useState(false);
+  const [barberoEsBloqueado, setBarberoEsBloqueado] = useState(false);
+  const [estadoCredito, setEstadoCredito] = useState<string | null>(null);
 
   // Validation
   const [showVentaFormErrors, setShowVentaFormErrors] = useState(false);
@@ -171,6 +172,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [showAddServicioErrors, setShowAddServicioErrors] = useState(false);
   const [ventaValidationAttempt, setVentaValidationAttempt] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const clearValidationErrors = () => {
     if (showVentaFormErrors) setShowVentaFormErrors(false);
@@ -178,13 +180,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     if (showAddServicioErrors) setShowAddServicioErrors(false);
   };
 
-  // Verificar si el barbero ya tiene un ciclo activo/bloqueado para mostrar selector de plazo
+  // Verificar ciclo de crédito del barbero: bloqueo y estado del ciclo
   useEffect(() => {
     const barberoId = seleccionadoEsBarbero ? Number(nuevaVenta.clienteId) : null;
-    const esCredito = nuevaVenta.metodoPago === "Crédito";
 
-    if (!barberoId || !esCredito) {
+    if (!barberoId) {
       setTieneCicloActivo(false);
+      setBarberoEsBloqueado(false);
+      setEstadoCredito(null);
       return;
     }
 
@@ -192,15 +195,19 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     creditoBarberoService.getByBarbero(barberoId)
       .then(credito => {
         const estado = (credito.estado || "").toLowerCase();
-        const activo = estado === "activo" || estado.startsWith("bloqueado");
-        setTieneCicloActivo(activo);
+        const bloqueado = estado.startsWith("bloqueado");
+        const cicloActivo = estado === "activo" || bloqueado;
+        setTieneCicloActivo(cicloActivo && nuevaVenta.metodoPago === "Crédito");
+        setBarberoEsBloqueado(bloqueado);
+        setEstadoCredito(credito.estado || null);
       })
       .catch(() => {
-        // 404 u otro error = no tiene ciclo activo
         setTieneCicloActivo(false);
+        setBarberoEsBloqueado(false);
+        setEstadoCredito(null);
       })
       .finally(() => setCheckingCiclo(false));
-  }, [nuevaVenta.clienteId, nuevaVenta.metodoPago, seleccionadoEsBarbero]);
+  }, [nuevaVenta.clienteId, seleccionadoEsBarbero]);
 
   const generateCurrentDate = () => {
     return new Date().toISOString().split("T")[0] || "";
@@ -238,10 +245,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         ? Math.max(...ventasData.map((v: any) => Number(v.numeroVenta || v.id) || 0))
         : 0;
       setVentasCount(maxNumVenta);
-      setNuevaVenta((prev) => ({
-        ...prev,
-        numeroRecibo: (maxNumVenta + 1).toString().padStart(3, "0"),
-      }));
 
       // Saldo real (devoluciones - saldoUsado en ventas) directo desde la API
       const clientesActivosRaw = (clientesData || []).filter(
@@ -889,6 +892,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   };
 
   const handleCreateVenta = async () => {
+    if (isSubmittingRef.current) return;
     setShowVentaFormErrors(true);
     setVentaValidationAttempt((prev) => prev + 1);
 
@@ -903,17 +907,23 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     const productosActuales = nuevaVenta.productos || [];
     const tieneServicios = serviciosAgregados.length > 0;
 
+    if (seleccionadoEsBarbero && barberoEsBloqueado) {
+      showErrorAlert(
+        "Barbero bloqueado",
+        `Este barbero tiene el crédito bloqueado (${estadoCredito || "Bloqueado"}). No se puede registrar ninguna venta hasta que realice un abono.`
+      );
+      return;
+    }
+
     const tieneCliente = nuevaVenta.clienteId || (!seleccionadoEsBarbero && nuevaVenta.clienteNombreInvitado.trim());
-    if (!tieneCliente || !nuevaVenta.metodoPago || !nuevaVenta.numeroRecibo?.trim()) {
+    if (!tieneCliente || !nuevaVenta.metodoPago) {
       showErrorAlert(
         "Datos incompletos",
-        !nuevaVenta.numeroRecibo?.trim()
-          ? "Por favor ingresa el número de recibo."
-          : !tieneCliente
-            ? seleccionadoEsBarbero
-              ? "Por favor selecciona un barbero de la lista."
-              : "Por favor selecciona un cliente o escribe el nombre del invitado."
-            : "Por favor selecciona el método de pago."
+        !tieneCliente
+          ? seleccionadoEsBarbero
+            ? "Por favor selecciona un barbero de la lista."
+            : "Por favor selecciona un cliente o escribe el nombre del invitado."
+          : "Por favor selecciona el método de pago."
       );
       return;
     }
@@ -971,6 +981,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       return;
     }
 
+    isSubmittingRef.current = true;
     try {
       setIsSubmitting(true);
       const subtotal = calcularSubtotal();
@@ -1030,7 +1041,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               : nuevaVenta.metodoPago;
 
       const ventaData = {
-        numeroRecibo: nuevaVenta.numeroRecibo.trim(),
         numeroVenta,
         tipoVenta: nuevaVenta.tipoVenta,
         clienteId: clienteIdFinal,
@@ -1094,6 +1104,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         error?.message || "Error desconocido al crear la venta"
       );
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -1145,36 +1156,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 headerRight={
                   <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-lightest font-normal text-xs sm:text-sm">
-                        Nº Recibo:*
-                      </span>
-                      <div className="relative flex flex-col">
-                        <Input
-                          value={nuevaVenta.numeroRecibo}
-                          onChange={(e) => {
-                            setNuevaVenta((prev) => ({
-                              ...prev,
-                              numeroRecibo: e.target.value.slice(0, 10),
-                            }));
-                            clearValidationErrors();
-                          }}
-                          maxLength={10}
-                          style={{ width: "90px", height: "26px", padding: "2px 8px", fontSize: "12px" }}
-                          className={`elegante-input ${showVentaFormErrors && !nuevaVenta.numeroRecibo.trim()
-                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                            : ""
-                            }`}
-                          placeholder="Recibo"
-                        />
-                        {showVentaFormErrors && !nuevaVenta.numeroRecibo.trim() && (
-                          <span className="absolute top-[28px] left-0 text-[10px] text-red-400 whitespace-nowrap leading-none mt-1 animate-pulse font-medium">
-                            campo obligatorio
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 ml-4">
                       <span className="text-gray-lightest font-normal text-xs sm:text-sm">
                         Nº Venta:
                       </span>
@@ -1411,6 +1392,19 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                 </div>
               </FormSection>
 
+              {/* Banner bloqueo barbero */}
+              {seleccionadoEsBarbero && barberoEsBloqueado && (
+                <div className="flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3">
+                  <span className="mt-0.5 shrink-0 text-red-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-red-400">Barbero bloqueado — {estadoCredito}</p>
+                    <p className="text-xs text-red-400/80 mt-0.5">No se puede registrar ninguna venta con ningún método de pago hasta que realice un abono.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Section 3: Sale Config */}
               <section>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1435,11 +1429,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       value={nuevaVenta.metodoPago}
                       onValueChange={(val) => { handleMetodoPagoChange(val); clearValidationErrors(); }}
                       onOpenChange={() => clearValidationErrors()}
+                      disabled={seleccionadoEsBarbero && barberoEsBloqueado}
                     >
                       <SelectTrigger
-                        className={`elegante-input ${showVentaFormErrors && !nuevaVenta.metodoPago
-                          ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
-                          : ""
+                        className={`elegante-input ${seleccionadoEsBarbero && barberoEsBloqueado
+                          ? "opacity-50 cursor-not-allowed border-red-500/40"
+                          : showVentaFormErrors && !nuevaVenta.metodoPago
+                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                            : ""
                           }`}
                       >
                         <SelectValue placeholder="Selecciona el método" />

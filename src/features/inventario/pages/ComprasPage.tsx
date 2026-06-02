@@ -877,7 +877,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                 </DialogHeader>
 
                 <div className="space-y-6 pt-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-white-primary flex items-center gap-2">
                         <Hash className="w-4 h-4 text-orange-primary" />
@@ -885,6 +885,17 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                       </Label>
                       <Input
                         value={(selectedCompra.numeroCompra || String(selectedCompra.id)).replace(/^(FC|CPR)-?/i, '')}
+                        disabled
+                        className="elegante-input bg-gray-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white-primary flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-orange-primary" />
+                        Número de Recibo
+                      </Label>
+                      <Input
+                        value={(selectedCompra as any).numeroRecibo || 'N/A'}
                         disabled
                         className="elegante-input bg-gray-medium"
                       />
