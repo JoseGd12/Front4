@@ -39,6 +39,38 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
 
+  // Control de intentos fallidos
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_SECONDS = 5 * 60; // 5 minutos
+  const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [lockoutCountdown, setLockoutCountdown] = useState<number>(0);
+
+  // Countdown del bloqueo
+  useEffect(() => {
+    if (!lockoutUntil) return;
+    const interval = setInterval(() => {
+      const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setLockoutUntil(null);
+        setLockoutCountdown(0);
+        setFailedAttempts(0);
+        setError('');
+      } else {
+        setLockoutCountdown(remaining);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutUntil]);
+
+  const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil;
+
+  const formatCountdown = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  };
+
   // Leer oobCode directo desde la URL (reset de contraseña)
   useEffect(() => {
     const urlOobCode = searchParams.get('oobCode');
@@ -62,11 +94,14 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
   const getLoginErrorMessage = (error: string): string => {
     const e = (error || '').toLowerCase();
-    if (e.includes('wrong-password') || e.includes('invalid-credential') || e.includes('invalid credential') || e.includes('contraseña') || e.includes('password')) {
+    if (e.includes('user-not-found') || e.includes('no user') || e.includes('not found')) {
+      return 'La cuenta ingresada no existe. Verifica el correo o regístrate.';
+    }
+    if (e.includes('wrong-password') || e.includes('contraseña') || e.includes('password')) {
       return 'Contraseña incorrecta. Verifica e intenta de nuevo.';
     }
-    if (e.includes('user-not-found') || e.includes('no user') || e.includes('not found')) {
-      return 'No existe una cuenta con ese correo electrónico.';
+    if (e.includes('invalid-credential') || e.includes('invalid credential')) {
+      return 'La cuenta ingresada no existe o la contraseña es incorrecta.';
     }
     if (e.includes('invalid-email') || e.includes('invalid email') || e.includes('correo')) {
       return 'El correo electrónico no es válido.';
@@ -93,6 +128,12 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Verificar bloqueo por intentos fallidos
+    if (isLockedOut) {
+      setError(`Demasiados intentos fallidos. Intenta de nuevo en ${formatCountdown(lockoutCountdown)}.`);
+      return;
+    }
+
     // Verificar que el captcha esté validado
     if (!captchaValidated) {
       setError('Completa la verificación "No soy un robot" para continuar');
@@ -103,16 +144,41 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
     setError('');
 
     try {
-      // El sistema detectará automáticamente el rol del usuario desde la API
       const result = await login(formData.email, formData.password);
       if (!result.success) {
-        setError(getLoginErrorMessage(result.error || 'Credenciales inválidas'));
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
+
+        if (newAttempts >= MAX_ATTEMPTS) {
+          const until = Date.now() + LOCKOUT_SECONDS * 1000;
+          setLockoutUntil(until);
+          setLockoutCountdown(LOCKOUT_SECONDS);
+          setError('');
+        } else {
+          setError(getLoginErrorMessage(result.error || 'Credenciales inválidas'));
+        }
+
         setCaptchaValidated(false);
         setCaptchaKey(k => k + 1);
         setFormData({ email: '', password: '' });
+      } else {
+        // Login exitoso — resetear intentos
+        setFailedAttempts(0);
+        setLockoutUntil(null);
       }
     } catch (err) {
-      setError('Correo o contraseña incorrectos. Verifica tus datos.');
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        const until = Date.now() + LOCKOUT_SECONDS * 1000;
+        setLockoutUntil(until);
+        setLockoutCountdown(LOCKOUT_SECONDS);
+        setError('');
+      } else {
+        setError('Correo o contraseña incorrectos. Verifica tus datos.');
+      }
+
       setCaptchaValidated(false);
       setCaptchaKey(k => k + 1);
       setFormData({ email: '', password: '' });
@@ -367,18 +433,33 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
             {/* Captcha */}
             <div>
-              <SimpleCaptcha
-                key={captchaKey}
-                onValidate={handleCaptchaValidation}
-              />
+              {!isLockedOut && (
+                <SimpleCaptcha
+                  key={captchaKey}
+                  onValidate={handleCaptchaValidation}
+                />
+              )}
             </div>
+
+            {/* Banner de bloqueo */}
+            {isLockedOut && (
+              <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-red-900/20 border border-red-500/30">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                  <span className="text-red-400 text-sm font-semibold">Acceso no disponible</span>
+                </div>
+                <p className="text-red-300 text-sm text-center">
+                  Vuelve a intentarlo más tarde.
+                </p>
+              </div>
+            )}
 
             {/* Login button */}
             <div className="auth-access-wrapper">
               <Button
                 type="submit"
-                disabled={isLoading || !captchaValidated}
-                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${captchaValidated
+                disabled={isLoading || !captchaValidated || isLockedOut}
+                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${captchaValidated && !isLockedOut
                     ? 'bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]'
                     : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   }`}
@@ -388,6 +469,8 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                     <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                     Iniciando sesión...
                   </span>
+                ) : isLockedOut ? (
+                  'Bloqueado'
                 ) : (
                   'Iniciar Sesión'
                 )}
