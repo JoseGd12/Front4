@@ -224,7 +224,6 @@ const menuSections = [
       { icon: Gift, label: "Paquetes" },
       { icon: RotateCcw, label: "Devoluciones" },
       { icon: Users, label: "Clientes" },
-      { icon: CreditCard, label: "Crédito Barberos", page: "CreditoBarberos" },
     ],
   },
   {

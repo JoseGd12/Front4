@@ -1,4 +1,8 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, Suspense } from "react";
+
+const CreditoBarberosPage = React.lazy(() =>
+  import("../../credito-barberos/pages/CreditoBarberosPage").then(m => ({ default: m.CreditoBarberosPage }))
+);
 import { Input } from "../../../shared/components/ui/input";
 import { NameInput } from "../../../shared/components/ui/NameInput";
 import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
@@ -59,6 +63,7 @@ const ESPECIALIDADES_SUGERIDAS = [
 export function BarberosPage() {
   const { success: successAlert, error: errorAlert, AlertContainer } = useCustomAlert();
   const { resetPassword } = useAuth();
+  const [activeView, setActiveView] = useState<'barberos' | 'creditos'>('barberos');
   const [barberos, setBarberos] = useState<Barbero[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -550,17 +555,49 @@ export function BarberosPage() {
   return (
     <>
       <AlertContainer />
-      <header className="bg-black-primary border-b border-gray-dark px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-white-primary">Gestión de Barberos</h1>
-            <p className="text-sm text-gray-lightest mt-1">Administra el personal de la barbería</p>
-          </div>
-
-        </div>
+      <header className="bg-black-primary px-8 py-6">
+        <h1 className="text-2xl font-semibold text-white-primary">Barberos</h1>
+        <p className="text-sm text-gray-lightest mt-1">Administra el personal de la barbería</p>
       </header>
 
-      <main className="flex-1 overflow-auto bg-black-primary">
+      {/* Switch de vista — debajo del título, encima de la tabla */}
+      <div className="bg-black-primary pb-0 flex justify-center gap-16">
+        <button
+          type="button"
+          onClick={() => setActiveView('barberos')}
+          className={`px-6 py-3 text-lg font-semibold cursor-pointer border-b-2 ${
+            activeView === 'barberos'
+              ? 'text-orange-primary border-orange-primary'
+              : 'text-gray-lighter border-transparent hover:text-gray-lightest'
+          }`}
+          style={{ transition: 'color 200ms ease, border-color 200ms ease' }}
+        >
+          Barberos
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView('creditos')}
+          className={`px-6 py-3 text-lg font-semibold cursor-pointer border-b-2 ${
+            activeView === 'creditos'
+              ? 'text-orange-primary border-orange-primary'
+              : 'text-gray-lighter border-transparent hover:text-gray-lightest'
+          }`}
+          style={{ transition: 'color 200ms ease, border-color 200ms ease' }}
+        >
+          Deudas
+        </button>
+      </div>
+
+      {activeView === 'creditos' ? (
+        <Suspense fallback={<div className="flex items-center justify-center h-64 text-orange-primary animate-pulse text-sm">Cargando módulo de créditos...</div>}>
+          <style>{`.cred-embed .cred-root { min-height: 0 !important; } .cred-embed > .cred-root > .p-6 { padding: 0 !important; }`}</style>
+          <main className="cred-embed flex-1 overflow-auto bg-black-primary">
+            <CreditoBarberosPage />
+          </main>
+        </Suspense>
+      ) : null}
+
+      <main className={`flex-1 overflow-auto bg-black-primary${activeView === 'creditos' ? ' hidden' : ''}`}>
         <div className="std-card">
           <TableHeaderSection
             variant="dark"

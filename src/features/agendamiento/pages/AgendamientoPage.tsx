@@ -4135,7 +4135,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </button>
               <button
                 type="button"
-                className="rounded-md bg-orange-primary px-4 py-2 text-sm font-medium text-black-primary hover:opacity-90"
+                className="bg-transparent text-destructive border border-destructive hover:bg-destructive/10 font-semibold rounded-xl px-6 py-3"
                 onClick={() => handleCloseModal(true)}
               >
                 Descartar

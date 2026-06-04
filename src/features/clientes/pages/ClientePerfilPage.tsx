@@ -177,6 +177,30 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
       } as any);
 
       if (result.success) {
+        // Actualizar el registro Clientes con documento concatenado para mantener consistencia
+        if (formData.tipoDocumento && formData.documento) {
+          try {
+            const allClientes = await clientesService.getClientes();
+            const clienteRecord = allClientes.find(c => (c.correo || '').toLowerCase() === formData.email.toLowerCase());
+            if (clienteRecord) {
+              const docConcatenado = `${formData.tipoDocumento} ${formData.documento}`;
+              await clientesService.updateCliente(Number(clienteRecord.id), {
+                nombre: formData.nombre,
+                apellido: formData.apellido,
+                documento: docConcatenado,
+                correo: formData.email,
+                telefono: formData.telefono,
+                fechaNacimiento: formData.fechaNacimiento || undefined,
+                direccion: formData.direccion || undefined,
+                barrio: formData.barrio || undefined,
+                fotoPerfil: formData.fotoPerfil || undefined,
+                estado: true,
+              });
+            }
+          } catch (clienteErr) {
+            console.warn('No se pudo actualizar registro de cliente:', clienteErr);
+          }
+        }
         success("Perfil actualizado", "Tus cambios se han guardado correctamente.");
         setClienteExtraData({
           tipoDocumento: formData.tipoDocumento || "CC",
@@ -399,6 +423,55 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Foto de Perfil</Label>
+                <div className="flex flex-col gap-4">
+                   <input 
+                     type="file"
+                     ref={fileInputRef}
+                     onChange={handleFileChange}
+                     className="hidden"
+                     accept="image/*"
+                   />
+                   <button
+                     type="button"
+                     onClick={() => fileInputRef.current?.click()}
+                     disabled={isUploadingImage}
+                     className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-orange-primary/10 border border-dashed border-orange-primary/30 text-orange-primary hover:bg-orange-primary/20 transition-all text-xs font-black uppercase tracking-widest"
+                   >
+                     {isUploadingImage ? (
+                       <>
+                         <Loader2 className="w-4 h-4 animate-spin" />
+                         Subiendo...
+                       </>
+                     ) : (
+                       <>
+                         <Upload className="w-4 h-4" />
+                         Subir Nueva Foto
+                       </>
+                     )}
+                   </button>
+
+                   <div className="flex items-center gap-4 p-3 bg-black/30 rounded-xl border border-gray-dark">
+                      <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-dark border-2 border-orange-primary/20">
+                         <ImageRenderer url={formData.fotoPerfil} className="w-full h-full object-cover" showLabel={false} fallbackVariant="person" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[10px] font-black text-white-primary uppercase tracking-tight">Vista Previa</p>
+                        <p className="text-[9px] text-gray-lighter italic leading-tight">Esta es la imagen que todos verán en tu perfil.</p>
+                      </div>
+                      {formData.fotoPerfil && (
+                        <button 
+                          onClick={() => setFormData({...formData, fotoPerfil: ""})}
+                          className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors group"
+                          title="Eliminar foto"
+                        >
+                          <X className="w-4 h-4 text-gray-lighter group-hover:text-red-500" />
+                        </button>
+                      )}
+                   </div>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -453,55 +526,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                   placeholder="Ej: El Centro"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Foto de Perfil</Label>
-                <div className="flex flex-col gap-4">
-                   <input 
-                     type="file"
-                     ref={fileInputRef}
-                     onChange={handleFileChange}
-                     className="hidden"
-                     accept="image/*"
-                   />
-                   <button
-                     type="button"
-                     onClick={() => fileInputRef.current?.click()}
-                     disabled={isUploadingImage}
-                     className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-orange-primary/10 border border-dashed border-orange-primary/30 text-orange-primary hover:bg-orange-primary/20 transition-all text-xs font-black uppercase tracking-widest"
-                   >
-                     {isUploadingImage ? (
-                       <>
-                         <Loader2 className="w-4 h-4 animate-spin" />
-                         Subiendo...
-                       </>
-                     ) : (
-                       <>
-                         <Upload className="w-4 h-4" />
-                         Subir Nueva Foto
-                       </>
-                     )}
-                   </button>
-
-                   <div className="flex items-center gap-4 p-3 bg-black/30 rounded-xl border border-gray-dark">
-                      <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-dark border-2 border-orange-primary/20">
-                         <ImageRenderer url={formData.fotoPerfil} className="w-full h-full object-cover" showLabel={false} fallbackVariant="person" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[10px] font-black text-white-primary uppercase tracking-tight">Vista Previa</p>
-                        <p className="text-[9px] text-gray-lighter italic leading-tight">Esta es la imagen que todos verán en tu perfil.</p>
-                      </div>
-                      {formData.fotoPerfil && (
-                        <button 
-                          onClick={() => setFormData({...formData, fotoPerfil: ""})}
-                          className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors group"
-                          title="Eliminar foto"
-                        >
-                          <X className="w-4 h-4 text-gray-lighter group-hover:text-red-500" />
-                        </button>
-                      )}
-                   </div>
-                </div>
-              </div>
+              
             </div>
           </div>
 

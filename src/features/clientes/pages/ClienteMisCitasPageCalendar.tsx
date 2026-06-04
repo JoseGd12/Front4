@@ -13,7 +13,8 @@ import {
   Package,
   ShoppingBag,
   FileText,
-  X
+  X,
+  AlertCircle
 } from "lucide-react";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
@@ -139,6 +140,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [currentCliente, setCurrentCliente] = useState<any>(null);
   const [showPerfilModal, setShowPerfilModal] = useState(false);
   const [camposFaltantes, setCamposFaltantes] = useState<string[]>([]);
+  const [barberoHorarioError, setBarberoHorarioError] = useState<string | null>(null);
 
   const getPerfilFaltantes = (cliente: any): string[] => {
     const faltantes: string[] = [];
@@ -149,7 +151,16 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       faltantes.push('documento');
     } else {
       const partes = docStr.split(/\s+/);
-      if (partes.length < 2) faltantes.push('tipoDocumento');
+      if (partes.length < 2) {
+        // Documento tiene solo el número sin tipo. Verificar si tipoDocumento
+        // está definido como campo separado en el objeto usuario anidado.
+        const tipoSeparado = (
+          cliente?.usuario?.tipoDocumento ||
+          cliente?.tipoDocumento ||
+          ''
+        ).trim();
+        if (!tipoSeparado) faltantes.push('tipoDocumento');
+      }
     }
 
     if (!cliente?.fechaNacimiento) faltantes.push('fechaNacimiento');
@@ -650,13 +661,29 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   );
 
   useEffect(() => {
-    if (!nuevaCita.barberoId || !nuevaCita.fecha) return;
+    if (!nuevaCita.barberoId || !nuevaCita.fecha) {
+      setBarberoHorarioError(null);
+      return;
+    }
     const sigueDisponible = barberosParaFormulario.some(
       (b: any) => Number(b.id) === Number(nuevaCita.barberoId)
     );
     if (!sigueDisponible) {
-      setNuevaCita((prev) => ({ ...prev, barberoId: 0, barbero: '' }));
-      setBarberoFormSearchTerm('');
+      if (nuevaCita.hora && barberoTrabajaEnFecha(horariosList, nuevaCita.barberoId, nuevaCita.fecha)) {
+        const horariosBarbero = getHorariosBarberoParaDia(horariosList, nuevaCita.barberoId, nuevaCita.fecha);
+        const horaFinMax = horariosBarbero.reduce((maxFin: string, h: any) => {
+          return (h.horaFin || '00:00') > maxFin ? (h.horaFin || '00:00') : maxFin;
+        }, '00:00');
+        setBarberoHorarioError(
+          `La duración del servicio (${nuevaCita.duracion} min) a partir de las ${formatHoraStr12(nuevaCita.hora)} supera el horario de este barbero, que termina a las ${formatHoraStr12(horaFinMax)}. Selecciona un horario más temprano.`
+        );
+      } else {
+        setBarberoHorarioError(null);
+        setNuevaCita((prev) => ({ ...prev, barberoId: 0, barbero: '' }));
+        setBarberoFormSearchTerm('');
+      }
+    } else {
+      setBarberoHorarioError(null);
     }
   }, [barberosParaFormulario, nuevaCita.barberoId, nuevaCita.fecha]);
 
@@ -843,6 +870,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       setPaqueteSearchTerm('');
       setProductoSearchTerm('');
       setShowFormErrors(false);
+      setBarberoHorarioError(null);
       setTipoServicio('individuales');
       setEditingFecha(false);
       setEditingHora(false);
@@ -1290,6 +1318,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               onClick={() => {
                                 setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
                                 setBarberoFormSearchTerm('');
+                                setBarberoHorarioError(null);
                                 setEditingFecha(false);
                                 setEditingHora(false);
                               }}
@@ -1340,6 +1369,15 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       )}
                     </div>
                   </div>
+                  {barberoHorarioError && (
+                    <div
+                      className="flex items-start gap-2 mt-1 mb-2 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/30"
+                      style={{ marginLeft: 55, marginRight: 12 }}
+                    >
+                      <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                      <p className="text-sm text-destructive leading-snug">{barberoHorarioError}</p>
+                    </div>
+                  )}
                   <div className="border-t border-gray-dark/60 mx-4" />
                 </div>
 
@@ -1952,11 +1990,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-gray-darker text-white-primary border-gray-dark hover:bg-gray-medium">
+                <AlertDialogCancel className="bg-transparent text-orange-primary border border-orange-primary hover:bg-orange-primary/10 font-semibold rounded-xl px-6 py-3 h-auto mt-0">
                   Seguir editando
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  className="bg-red-600 text-white hover:bg-red-700"
+                  className="bg-transparent text-destructive border border-destructive hover:bg-destructive/10 font-semibold rounded-xl px-6 py-3 h-auto"
                   onClick={() => handleCloseModal(true)}
                 >
                   Descartar

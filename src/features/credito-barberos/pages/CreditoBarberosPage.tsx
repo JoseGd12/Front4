@@ -146,6 +146,12 @@ const css = `
     color:var(--orange-primary); font-weight:600;
   }
 
+  /* Sub-label (same pattern as dev-sub-label in DevolucionesPage) */
+  .cred-sub-label {
+    padding:10px 20px 8px 20px; font-size:12px; color:var(--gray-lightest);
+    border-bottom:1px solid var(--gray-darker); letter-spacing:.02em;
+  }
+
   /* Sub-table header */
   .cred-sub-header th {
     padding:9px 16px; font-size:10px; font-weight:700; color:var(--gray-dark);
@@ -835,6 +841,12 @@ export function CreditoBarberosPage() {
                                 const ventasPaginadas = ventasCred.slice((vPage - 1) * SUBTAB_PAGE_SIZE, vPage * SUBTAB_PAGE_SIZE);
                                 return (
                                 <>
+                                  <div className="cred-sub-label">
+                                    Todas las ventas de{" "}
+                                    <span style={{ color: "var(--orange-primary)", fontWeight: 600 }}>
+                                      {c.barberoNombre || `Barbero #${c.barberoId}`}
+                                    </span>
+                                  </div>
                                   <table className="cred-table" style={{ borderTop: "none" }}>
                                     <colgroup>
                                       <col style={{ width: "10%" }} />
@@ -956,53 +968,65 @@ export function CreditoBarberosPage() {
                                 const abonosPaginados = todosAbonos.slice((aPage - 1) * SUBTAB_PAGE_SIZE, aPage * SUBTAB_PAGE_SIZE);
                                 return (
                                 <>
+                                  <div className="cred-sub-label">
+                                    Todos los abonos de{" "}
+                                    <span style={{ color: "var(--orange-primary)", fontWeight: 600 }}>
+                                      {c.barberoNombre || `Barbero #${c.barberoId}`}
+                                    </span>
+                                  </div>
+                                  <table className="cred-table" style={{ borderTop: "none" }}>
+                                    <colgroup>
+                                      <col style={{ width: "20%" }} />
+                                      <col style={{ width: "30%" }} />
+                                      <col style={{ width: "25%" }} />
+                                      <col style={{ width: "25%" }} />
+                                    </colgroup>
+                                    <thead>
+                                      <tr className="cred-sub-header">
+                                        <th>Monto</th>
+                                        <th>Fecha</th>
+                                        <th>Metodo de Pago</th>
+                                        <th>Estado</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
                                   {loadingInlineAbonos[c.barberoId] ? (
-                                    <div style={{ padding: "28px 0", display: "flex", justifyContent: "center" }}>
-                                      <RefreshCw className="w-5 h-5 animate-spin" style={{ color: "var(--orange-primary)" }} />
-                                    </div>
+                                    <tr>
+                                      <td colSpan={4} style={{ padding: 28, textAlign: "center" }}>
+                                        <RefreshCw className="w-5 h-5 animate-spin inline-block" style={{ color: "var(--orange-primary)" }} />
+                                      </td>
+                                    </tr>
                                   ) : todosAbonos.length === 0 ? (
-                                    <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
-                                      Sin abonos registrados.
-                                    </div>
+                                    <tr>
+                                      <td colSpan={4} style={{ padding: 20, textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
+                                        Sin abonos registrados.
+                                      </td>
+                                    </tr>
                                   ) : abonosPaginados.map(a => (
-                                    <div
+                                    <tr
                                       key={a.id}
-                                      className="cred-abono-row"
+                                      className="cred-item-row"
                                       style={{ cursor: "pointer" }}
                                       onClick={() => { setDetalleAbono(a); setDetalleAbonoOpen(true); }}
                                     >
-                                      {/* Monto */}
-                                      <div style={{ minWidth: 110 }}>
-                                        <span style={{
-                                          fontWeight: 700,
-                                          fontSize: 14,
-                                          color: "var(--status-green)",
-                                        }}>
+                                      <td className="cred-sub-td">
+                                        <span style={{ fontWeight: 600, color: "var(--status-green)" }}>
                                           +{formatCurrency(a.monto)}
                                         </span>
-                                      </div>
-
-                                      {/* Info */}
-                                      <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: 12, color: "var(--gray-lighter)" }}>
-                                          {formatDateTime(a.fecha)} · {a.metodoPago ?? "—"} · {a.usuarioNombre ?? "Sistema"}
-                                          {a.ventaId && (
-                                            <span style={{ marginLeft: 6, color: "var(--orange-primary)", fontWeight: 600 }}>
-                                              · Venta #{a.ventaId}
-                                            </span>
-                                          )}
-                                        </div>
-                                        {a.notas && (
-                                          <div style={{ fontSize: 11, color: "var(--gray-dark)", fontStyle: "italic", marginTop: 2 }}>
-                                            {a.notas}
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {/* Estado badge */}
-                                      <EstadoBadge estado={a.estado} />
-                                    </div>
+                                      </td>
+                                      <td className="cred-sub-td" style={{ fontSize: 12 }}>
+                                        {formatDateTime(a.fecha)}
+                                      </td>
+                                      <td className="cred-sub-td" style={{ fontSize: 12 }}>
+                                        {a.metodoPago ?? "—"}
+                                      </td>
+                                      <td className="cred-sub-td">
+                                        <EstadoBadge estado={a.estado} />
+                                      </td>
+                                    </tr>
                                   ))}
+                                    </tbody>
+                                  </table>
 
                                   {/* Acciones abonos */}
                                   <div className="cred-actions-bar">
@@ -1053,12 +1077,10 @@ export function CreditoBarberosPage() {
           </div>
 
           {/* Paginacion */}
-          {totalPages > 1 && (
-            <div className="std-pagination">
-              <span className="std-pag-info">Pagina {currentPage} de {totalPages}</span>
-              <EllipsisPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-            </div>
-          )}
+          <div className="std-pagination">
+            <span className="std-pag-info">Pagina {currentPage} de {totalPages}</span>
+            <EllipsisPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          </div>
         </div>
       </div>
 
