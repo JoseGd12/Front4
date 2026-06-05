@@ -4,6 +4,10 @@ export interface Proveedor {
   id?: number;
   tipoProveedor?: 'Juridico' | 'Natural';
   nombre: string;
+  razonSocial?: string;
+  nit?: string;
+  tipoIdentificacion?: string;
+  numeroIdentificacion?: string;
   tipoIdentificacionProveedor?: string | null;
   identificacion?: string;
   correo?: string;
@@ -12,6 +16,9 @@ export interface Proveedor {
   ciudad?: string;
   departamento?: string;
   representanteLegal?: string;
+  documentoRepresentante?: string;
+  sectorEconomico?: string;
+  anosOperacion?: number;
   tipoIdentificacionRepresentante?: string | null;
   identificacionRepresentante?: string | null;
   correoRepresentante?: string;
@@ -101,6 +108,31 @@ class ProveedorService {
       console.error(`❌ Error actualizando estado de proveedor ${id}:`, error);
       throw error;
     }
+  }
+
+  // Compatibility methods
+  async obtenerProveedores(): Promise<Proveedor[]> {
+    return this.getProveedores();
+  }
+
+  async crearProveedor(data: Proveedor): Promise<Proveedor> {
+    return this.createProveedor(data);
+  }
+
+  async obtenerProveedorPorId(id: number): Promise<Proveedor> {
+    return this.getProveedorById(id);
+  }
+
+  async actualizarProveedor(id: number, data: Proveedor): Promise<Proveedor> {
+    return this.updateProveedor(id, data);
+  }
+
+  async eliminarProveedor(id: number): Promise<void> {
+    return this.deleteProveedor(id);
+  }
+
+  async cambiarEstadoProveedor(id: number, estado: boolean): Promise<void> {
+    return this.updateProveedorStatus(id, estado);
   }
 }
 

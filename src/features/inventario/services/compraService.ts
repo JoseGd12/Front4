@@ -166,13 +166,19 @@ class CompraService {
     }
 
     async anularCompra(id: number): Promise<void> {
-        try {
-            await httpClient.put(`/Compras/${id}/anular`);
-        } catch (error: any) {
-            console.error(`❌ Error anulando compra ${id}:`, error);
-            throw error;
-        }
+    try {
+      await httpClient.put(`/Compras/${id}/anular`);
+    } catch (error: any) {
+      console.error(`❌ Error anulando compra ${id}:`, error);
+      throw error;
     }
+  }
+
+  // Compatibility methods
+  async getDetallesPorCompra(id: number): Promise<DetalleCompra[]> {
+    const compra = await this.getCompraById(id);
+    return compra.detalles || [];
+  }
 }
 
 export const compraService = new CompraService();

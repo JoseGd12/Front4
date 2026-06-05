@@ -120,13 +120,17 @@ class CreditoBarberoService {
     return this.normalizeAbono(data);
   }
 
-  async extenderPlazo(creditoId: number, input: ExtenderPlazoInput): Promise<CreditoBarberoDto> {
-    const data = await httpClient.post(`/CreditoBarbero/${creditoId}/extender-plazo`, input);
+  async extenderPlazo(barberoId: number, input: ExtenderPlazoInput): Promise<CreditoBarberoDto> {
+    const credito = await this.getCreditoByBarberoId(barberoId);
+    if (!credito) throw new Error('No se encontró crédito activo para el barbero');
+    const data = await httpClient.post(`/CreditoBarbero/${credito.id}/extender-plazo`, input);
     return this.normalize(data);
   }
 
-  async iniciarNuevoCiclo(creditoId: number, input: NuevoCicloInput): Promise<CreditoBarberoDto> {
-    const data = await httpClient.post(`/CreditoBarbero/${creditoId}/nuevo-ciclo`, input);
+  async iniciarNuevoCiclo(barberoId: number, input: NuevoCicloInput): Promise<CreditoBarberoDto> {
+    const credito = await this.getCreditoByBarberoId(barberoId);
+    if (!credito) throw new Error('No se encontró crédito activo para el barbero');
+    const data = await httpClient.post(`/CreditoBarbero/${credito.id}/nuevo-ciclo`, input);
     return this.normalize(data);
   }
 
@@ -136,6 +140,36 @@ class CreditoBarberoService {
       ...data,
       items: (data.items || []).map(this.normalizeAbono)
     };
+  }
+
+  // Compatibility methods
+  async getAll(page = 1, pageSize = 20, q = ''): Promise<PagedResult<CreditoBarberoDto>> {
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    params.append('pageSize', String(pageSize));
+    if (q) params.append('q', q);
+    
+    return await httpClient.get<PagedResult<CreditoBarberoDto>>(`/CreditoBarbero?${params.toString()}`);
+  }
+
+  async getAbonos(creditoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
+    return this.getHistorialAbonos(creditoId, page, pageSize);
+  }
+
+  async getAllAbonosByBarbero(barberoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
+    const credito = await this.getCreditoByBarberoId(barberoId);
+    if (!credito) return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
+    return this.getHistorialAbonos(credito.id, page, pageSize);
+  }
+
+  async registrarAbono(barberoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
+    const credito = await this.getCreditoByBarberoId(barberoId);
+    if (!credito) throw new Error('No se encontró crédito activo para el barbero');
+    return this.crearAbono(credito.id, input);
+  }
+
+  async getByBarbero(barberoId: number): Promise<CreditoBarberoDto | null> {
+    return this.getCreditoByBarberoId(barberoId);
   }
 }
 

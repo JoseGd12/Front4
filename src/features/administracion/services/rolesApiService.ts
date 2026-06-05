@@ -122,7 +122,7 @@ class RolesApiService {
     return items.map((r: any) => this.normalizeRole(r));
   }
 
-  async getRoleById(id: string): Promise<RoleWithModules> {
+  async getRoleById(id: string | number): Promise<RoleWithModules> {
     const data = await httpClient.get(`/Roles/${id}`);
     return this.normalizeRole(data);
   }
@@ -140,7 +140,7 @@ class RolesApiService {
     return this.normalizeRole(result);
   }
 
-  async updateRole(id: string, data: UpdateRoleData): Promise<RoleWithModules> {
+  async updateRole(id: string | number, data: UpdateRoleData): Promise<RoleWithModules> {
     const apiData = {
       Id: id,
       Nombre: data.nombre,
@@ -154,8 +154,26 @@ class RolesApiService {
     return this.normalizeRole(result);
   }
 
-  async deleteRole(id: string): Promise<void> {
+  async deleteRole(id: string | number): Promise<void> {
     await httpClient.delete(`/Roles/${id}`);
+  }
+
+  // Aliases for compatibility
+  async getRolesWithModules(): Promise<RoleWithModules[]> {
+    return this.getRoles();
+  }
+
+  async createRoleWithModules(data: CreateRoleData): Promise<RoleWithModules> {
+    return this.createRole(data);
+  }
+
+  async updateRoleWithModules(id: string | number, data: UpdateRoleData): Promise<RoleWithModules> {
+    return this.updateRole(id, data);
+  }
+
+  async getRoleModules(id: string | number): Promise<RolesModulos[]> {
+    const role = await this.getRoleById(id);
+    return role.rolesModulos || [];
   }
 }
 

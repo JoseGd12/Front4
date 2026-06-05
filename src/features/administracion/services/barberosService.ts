@@ -103,10 +103,10 @@ class BarberosService {
     return [];
   }
 
-  async getBarberos(): Promise<Barbero[]> {
+  async getBarberos(page = 1, pageSize = 100): Promise<Barbero[]> {
     try {
       const merged: any[] = [];
-      const firstRaw = await httpClient.get('/Barberos?page=1&pageSize=100');
+      const firstRaw = await httpClient.get(`/Barberos?page=${page}&pageSize=${pageSize}`);
       merged.push(...this.extract(firstRaw));
       
       let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
@@ -181,8 +181,12 @@ class BarberosService {
     return httpClient.put(`/Barberos/${id}`, mapped);
   }
 
-  async deleteBarbero(id: number): Promise<void> {
+  async deleteBarbero(id: number, _options?: any): Promise<void> {
     await httpClient.delete(`/Barberos/${id}`);
+  }
+
+  async updateBarberoStatus(id: number, active: boolean): Promise<void> {
+    await httpClient.post(`/Barberos/${id}/estado`, { active });
   }
 }
 

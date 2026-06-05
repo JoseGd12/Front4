@@ -28,6 +28,9 @@ export interface ClienteAPI {
   fechaNacimiento?: string;
   estado: boolean;
   fotoPerfil?: string;
+  FotoPerfil?: string;
+  imagen?: string;
+  foto?: string;
   usuario?: any;
 }
 
@@ -37,6 +40,7 @@ export interface Cliente {
   usuarioId?: number;
   tipoDocumento: string;
   numeroDocumento: string;
+  documento?: string; // Compatibility field
   nombre: string;
   apellido: string;
   email: string;
@@ -228,7 +232,7 @@ class ClientesService {
     return await httpClient.put(`/Clientes/${id}`, apiData);
   }
 
-  async deleteCliente(id: number): Promise<void> {
+  async deleteCliente(id: number, _options?: any): Promise<void> {
     await httpClient.delete(`/Clientes/${id}`);
   }
 
@@ -236,6 +240,45 @@ class ClientesService {
     const data = await httpClient.get(`/Clientes/barbero/${barberoId}`);
     const items = this.extractItems(data);
     return items.map(c => this.mapApiToComponent(c));
+  }
+
+  // Compatibility methods
+  async getSaldoDisponible(clienteId: number): Promise<number> {
+    const c = await this.getClienteById(clienteId);
+    return Number((c as any).saldoAFavor || 0);
+  }
+
+  async getSaldosDisponibles(_arg?: any): Promise<Map<number, number>> {
+    const res = await this.getClientesPaged({ page: 1, pageSize: 1000 });
+    const saldos = new Map<number, number>();
+    res.items.forEach(c => {
+      saldos.set(Number(c.id), c.saldoAFavor || 0);
+    });
+    return saldos;
+  }
+
+  async toggleClienteEstado(id: number, active: boolean): Promise<void> {
+    await httpClient.post(`/Clientes/${id}/estado`, { active });
+  }
+
+  async createClienteRapido(nombre: string | Partial<CreateClienteData>, telefono?: string): Promise<ClienteAPI> {
+    if (typeof nombre === 'object') {
+      return this.createCliente(nombre as CreateClienteData);
+    }
+    
+    // Generar datos mínimos para registro rápido
+    const dummyDoc = `TEMP-${generarIdAleatorio()}`;
+    const dummyEmail = `cliente.${generarIdAleatorio()}@barberia.tmp`;
+    
+    const data: CreateClienteData = {
+      nombre: nombre,
+      apellido: 'Invitado',
+      documento: dummyDoc,
+      correo: dummyEmail,
+      telefono: telefono || ''
+    };
+    
+    return this.createCliente(data);
   }
 }
 

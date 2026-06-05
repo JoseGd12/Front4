@@ -320,6 +320,14 @@ class AgendamientoService {
             return { message: 'Estado actualizado', estadoActual: estado, agendamientoId: id };
         }
     }
+
+    async getVentaPorAgendamiento(agendamientoId: number): Promise<any> {
+        try {
+            return await httpClient.get(`/Ventas/agendamiento/${agendamientoId}`);
+        } catch {
+            return null;
+        }
+    }
 }
 
 export const agendamientoService = new AgendamientoService();

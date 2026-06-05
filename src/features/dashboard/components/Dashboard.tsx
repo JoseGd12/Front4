@@ -362,7 +362,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
 
         // Usar caché para los módulos, ya que no cambian frecuentemente
         const [rolePerms, allModules] = await Promise.all([
-          rolesApiService.getRoleModules(rolId),
+          rolesApiService.getRoleModules(rolId as number),
           modulosService.getModulos()
         ]);
 
@@ -516,7 +516,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
       case "Horarios":
         return <HorariosPage onNavigate={(page: string) => setActivePage(page)} />;
       case "Solicitudes de Cambio de Horario":
-        return <RevisarSolicitudesPage usuarioId={user?.id || 0} onBack={() => setActivePage("Horarios")} />;
+        return <RevisarSolicitudesPage usuarioId={Number(user?.id || 0)} onBack={() => setActivePage("Horarios")} />;
       case "Barberos":
         return <BarberosPage />;
       case "Servicios":

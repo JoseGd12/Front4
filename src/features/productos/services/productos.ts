@@ -135,11 +135,12 @@ class ProductoService {
     await httpClient.post(`/Productos/${id}/estado`, { activo });
   }
 
-  async adjustStock(id: number, delta: number): Promise<void> {
+  async adjustStock(id: number, delta: number, mode: 'increment' | 'decrement' = 'increment'): Promise<void> {
     // FE-M2: Idealmente el backend debería tener un endpoint atómico
     // Por ahora usamos el flujo actual pero centralizado
     const p = await this.getProductoById(id);
-    await this.updateProducto(id, { stock: (p.stock || 0) + delta });
+    const finalDelta = mode === 'increment' ? delta : -delta;
+    await this.updateProducto(id, { stock: (p.stock || 0) + finalDelta });
   }
 
   async getCategorias(): Promise<ApiCategoria[]> {
@@ -203,6 +204,38 @@ class ProductoService {
       IVA: p.iva,
       PorcentajeIva: p.porcentajeIva
     };
+  }
+
+  // Compatibility methods
+  async revertirStockProducto(id: number, delta: number): Promise<void> {
+    await this.adjustStock(id, delta);
+  }
+
+  async getPrecioCompraPromedio(id: number): Promise<any> {
+    try {
+      const data = await httpClient.get(`/Productos/${id}/precio-compra-promedio`);
+      return data;
+    } catch {
+      const p = await this.getProductoById(id);
+      return {
+        precioCompraPromedio: p.precioCompra || 0,
+        cantidadComprasConsideradas: 0,
+        cantidadTotalComprada: 0,
+        ultimasCompras: []
+      };
+    }
+  }
+
+  async toggleProductoActivo(id: number, active?: boolean): Promise<void> {
+    if (active === undefined) {
+      const p = await this.getProductoById(id);
+      active = !p.activo;
+    }
+    await this.updateProductoStatus(id, active);
+  }
+
+  async setProductoActivo(id: number, active: boolean): Promise<void> {
+    await this.updateProductoStatus(id, active);
   }
 }
 
