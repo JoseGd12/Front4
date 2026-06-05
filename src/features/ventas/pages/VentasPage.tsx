@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { calcSubtotal, calcDescuento, calcTotal } from "../utils/money";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import {
@@ -484,7 +485,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     const saldoDisponible = cliente?.saldoAFavor || 0;
     const subtotal = calcularSubtotal();
     const descuento = calcularDescuento(subtotal);
-    const totalSinSaldo = subtotal + calcularIva(subtotal) - descuento;
+    const totalSinSaldo = calcTotal(subtotal, descuento);
     return saldoDisponible > 0 && saldoDisponible >= totalSinSaldo;
   };
 
@@ -802,28 +803,22 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   }, [selectedVenta]);
 
 
+  // Cálculos con aritmética entera — IVA no aplica para esta barbería
   const calcularSubtotal = () => {
     let subtotal = 0;
-
-    // Calcular subtotal de productos
     if (nuevaVenta.productos && Array.isArray(nuevaVenta.productos)) {
       subtotal += nuevaVenta.productos.reduce((total, producto) =>
-        total + (producto.precio * producto.cantidad), 0
+        total + calcSubtotal(producto.precio, producto.cantidad), 0
       );
     }
-
-    // Calcular subtotal de servicios y paquetes
-    serviciosAgregados.forEach(servicioAgregado => {
-      // Usar siempre el precio almacenado (puede haber sido modificado por el usuario)
-      subtotal += (servicioAgregado.precio * servicioAgregado.cantidad);
+    serviciosAgregados.forEach(s => {
+      subtotal += calcSubtotal(s.precio, s.cantidad);
     });
-
-    console.log(`🔍 Subtotal calculado: ${subtotal}`);
     return subtotal;
   };
 
   const calcularDescuento = (subtotal: number) => {
-    return subtotal * (nuevaVenta.porcentajeDescuento / 100);
+    return calcDescuento(subtotal, nuevaVenta.porcentajeDescuento);
   };
 
   const handleCantidadProductoInputChange = (valor: string) => {
@@ -860,23 +855,15 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
   const calcularTotal = () => {
     const subtotal = calcularSubtotal();
-    const iva = calcularIva(subtotal);
-    const descuento = calcularDescuento(subtotal);
-    return Math.max(0, subtotal + iva - descuento);
+    return calcTotal(subtotal, calcularDescuento(subtotal));
   };
 
   const calcularSaldoAFavorUsado = () => {
     if (!nuevaVenta.usarSaldoAFavor || !nuevaVenta.clienteId) return 0;
     const subtotal = calcularSubtotal();
-    const iva = calcularIva(subtotal);
-    const descuento = calcularDescuento(subtotal);
-    const totalSinSaldo = subtotal + iva - descuento;
+    const totalSinSaldo = calcTotal(subtotal, calcularDescuento(subtotal));
     const saldoDisponible = clientesDisponibles.find(c => c.id === Number(nuevaVenta.clienteId))?.saldoAFavor || 0;
     return Math.min(totalSinSaldo, saldoDisponible);
-  };
-
-  const calcularIva = (subtotal: number) => {
-    return 0;
   };
 
   useEffect(() => {
@@ -1291,15 +1278,13 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     try {
       // Use the already calculated numeroVenta from component level
       const subtotal = calcularSubtotal();
-      const iva = calcularIva(subtotal);
       const descuento = calcularDescuento(subtotal);
 
-      // Calcular el monto usado de saldo a favor si aplica
       let montoSaldoUsado = 0;
       if (nuevaVenta.usarSaldoAFavor && nuevaVenta.clienteId) {
         const clienteSel = clientesDisponibles.find(c => c.id === Number(nuevaVenta.clienteId));
         const saldoDisponible = clienteSel?.saldoAFavor || 0;
-        const totalSinSaldo = subtotal + iva - descuento;
+        const totalSinSaldo = calcTotal(subtotal, descuento);
         montoSaldoUsado = Math.min(totalSinSaldo, saldoDisponible);
       }
 

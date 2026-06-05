@@ -15,7 +15,7 @@ import { firebaseAuthService } from "./shared/services/firebase";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
 function AppContent() {
-  const { isAuthenticated, isAdmin, isCliente, logout } = useAuth();
+  const { isAuthenticated, isAdmin, isCliente, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -86,6 +86,17 @@ function AppContent() {
       isMounted = false;
     };
   }, [isAuthenticated]);
+
+  // Mientras Firebase resuelve el estado de auth no renderizar rutas
+  // (evita el flash de redirect a login cuando el usuario recarga estando autenticado)
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--black-primary)' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid var(--orange-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   if (isAuthenticated && !passwordPolicyChecked) {
     return null;

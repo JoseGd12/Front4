@@ -1,5 +1,5 @@
 const RAW_API_BASE =
-  (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_API_URL) ||
+  (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_API_BASE_URL) ||
   (typeof window !== 'undefined' && (window as any)?.API_BASE_URL) ||
   '';
 const NORMALIZED_BASE = RAW_API_BASE ? String(RAW_API_BASE).replace(/\/+$/, '') : '';
@@ -55,7 +55,8 @@ export interface ServicioDetalle {
 export interface CreateVentaRequest {
   /** Si no se envía, la API lo autogenera */
   numeroRecibo?: string;
-  numeroVenta: number;
+  /** El backend asigna el número — no enviar desde el cliente */
+  numeroVenta?: number;
   tipoVenta?: string;
   clienteNombre?: string;
   clienteId: number | null;
@@ -522,69 +523,20 @@ class VentaService {
       console.log('🔍 productosDetalle:', ventaData.productosDetalle);
       console.log('🔍 serviciosDetalle:', ventaData.serviciosDetalle);
 
-      const mappedBase = this.mapToApiFormat(ventaData);
-      console.log('📤 VentaService [POST]: /Ventas - Payload completo:', JSON.stringify(mappedBase, null, 2));
-      console.log('🔍 ClienteId enviado a la API:', mappedBase.ClienteId);
-      console.log('🔍 Detalles enviados:', mappedBase.Detalles);
-      console.log('🔍 Cantidad de detalles:', mappedBase.Detalles?.length || 0);
+      const payload = this.mapToApiFormat(ventaData);
 
-      if (!mappedBase.Detalles || mappedBase.Detalles.length === 0) {
+      if (!payload.Detalles || payload.Detalles.length === 0) {
         throw new Error('No se pueden enviar detalles vacíos. Asegúrate de agregar productos o servicios válidos.');
       }
 
-      const variantes: Array<{ nombre: string; payload: any }> = [];
-
-      // V1: payload base actual
-      variantes.push({ nombre: 'base', payload: { ...mappedBase } });
-
-      // V2: algunos backends calculan estos campos y fallan si se envían
-      variantes.push({
-        nombre: 'sin-campos-calculados',
-        payload: (() => {
-          const p = { ...mappedBase };
-          delete p.NumeroVenta;
-          delete p.Fecha;
-          delete p.Estado;
-          return p;
-        })()
+      // Un solo intento — si el backend rechaza, se muestra el error real al usuario
+      const response = await this.request('/Ventas', {
+        method: 'POST',
+        body: JSON.stringify(payload),
       });
-
-      // V3: fallback financiero conservador (sin IVA explícito)
-      variantes.push({
-        nombre: 'sin-iva-explicito',
-        payload: (() => {
-          const p = { ...mappedBase };
-          const subtotal = Number(p.Subtotal || 0);
-          const descuento = Number(p.Descuento || 0);
-          p.IVA = 0;
-          p.Total = subtotal - descuento;
-          return p;
-        })()
-      });
-
-      let ultimoError: any = null;
-      for (const variante of variantes) {
-        try {
-          const jsonBody = JSON.stringify(variante.payload);
-          console.log(`📤 Intentando crear venta [${variante.nombre}]`);
-          console.log('📤 JSON serializado que se enviará:', jsonBody);
-          console.log('📤 Primeros 500 caracteres del JSON:', jsonBody.substring(0, 500));
-
-          const response = await this.request('/Ventas', {
-            method: 'POST',
-            body: jsonBody,
-          });
-          const text = await response.text();
-          const data = text ? JSON.parse(text) : {};
-          console.log(`✅ Venta creada con variante [${variante.nombre}]:`, data);
-          return await this.normalizeVentaData(data);
-        } catch (err: any) {
-          ultimoError = err;
-          console.error(`❌ Variante [${variante.nombre}] falló:`, err?.message || err);
-        }
-      }
-
-      throw ultimoError || new Error('No se pudo crear la venta con ninguna variante de payload');
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      return await this.normalizeVentaData(data);
     } catch (error: any) {
       console.error('❌ Error creando venta:', error);
       console.error('❌ Stack trace:', error.stack);

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { calcSubtotal, calcDescuento, calcTotal } from "../utils/money";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import {
@@ -280,10 +281,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     }
   };
 
-  // Computed values
-  const numeroVenta = useMemo(() => {
-    return ventasCount + 1;
-  }, [ventasCount]);
+  // El número de venta lo asigna el backend — no calcularlo en el front
+  // (dos usuarios simultáneos producirían el mismo número si se calculara aquí)
+  // Se usa solo como referencia visual antes de crear; el real viene en la respuesta.
 
   const shakeClass =
     ventaValidationAttempt % 2 === 0
@@ -362,42 +362,36 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     return cantidadProducto + cantYaAgregada > (producto.stock ?? producto.cantidad ?? 0);
   }, [productoSeleccionado, cantidadProducto, nuevaVenta.productos, productosAPI]);
 
-  // Calculations
+  // Cálculos monetarios — usando aritmética de enteros para evitar errores de float en COP
+  // IVA no aplica para esta barbería (servicios excluidos de IVA en Colombia)
   const calcularSubtotal = () => {
     let subtotal = 0;
     if (nuevaVenta.productos && Array.isArray(nuevaVenta.productos)) {
       subtotal += nuevaVenta.productos.reduce(
-        (total, producto) => total + producto.precio * producto.cantidad,
+        (total, producto) => total + calcSubtotal(producto.precio, producto.cantidad),
         0
       );
     }
     serviciosAgregados.forEach((s) => {
-      subtotal += s.precio * s.cantidad;
+      subtotal += calcSubtotal(s.precio, s.cantidad);
     });
     return subtotal;
   };
 
   const calcularDescuento = (subtotal: number) => {
-    return subtotal * (nuevaVenta.porcentajeDescuento / 100);
-  };
-
-  const calcularIva = (_subtotal: number) => {
-    return 0;
+    return calcDescuento(subtotal, nuevaVenta.porcentajeDescuento);
   };
 
   const calcularTotal = () => {
     const subtotal = calcularSubtotal();
-    const iva = calcularIva(subtotal);
-    const descuento = calcularDescuento(subtotal);
-    return Math.max(0, subtotal + iva - descuento);
+    return calcTotal(subtotal, calcularDescuento(subtotal));
   };
 
   const calcularSaldoAFavorUsado = () => {
     if (!nuevaVenta.usarSaldoAFavor || !nuevaVenta.clienteId) return 0;
     const subtotal = calcularSubtotal();
-    const iva = calcularIva(subtotal);
     const descuento = calcularDescuento(subtotal);
-    const totalSinSaldo = subtotal + iva - descuento;
+    const totalSinSaldo = calcTotal(subtotal, descuento);
     const saldoDisponible =
       clientesDisponibles.find((c) => c.id === Number(nuevaVenta.clienteId))
         ?.saldoAFavor || 0;
@@ -425,7 +419,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     const saldoDisponible = cliente?.saldoAFavor || 0;
     const subtotal = calcularSubtotal();
     const descuento = calcularDescuento(subtotal);
-    const totalSinSaldo = subtotal + calcularIva(subtotal) - descuento;
+    const totalSinSaldo = calcTotal(subtotal, descuento);
     return saldoDisponible > 0 && saldoDisponible >= totalSinSaldo;
   };
 
@@ -985,7 +979,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     try {
       setIsSubmitting(true);
       const subtotal = calcularSubtotal();
-      const iva = calcularIva(subtotal);
       const descuento = calcularDescuento(subtotal);
 
       let montoSaldoUsado = 0;
@@ -994,7 +987,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
           (c) => c.id === Number(nuevaVenta.clienteId)
         );
         const saldoDisponible = clienteSel?.saldoAFavor || 0;
-        const totalSinSaldo = subtotal + iva - descuento;
+        const totalSinSaldo = calcTotal(subtotal, descuento);
         montoSaldoUsado = Math.min(totalSinSaldo, saldoDisponible);
       }
 
@@ -1041,7 +1034,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
               : nuevaVenta.metodoPago;
 
       const ventaData = {
-        numeroVenta,
+        // numeroVenta no se envía: el backend lo asigna automáticamente
         tipoVenta: nuevaVenta.tipoVenta,
         clienteId: clienteIdFinal,
         clienteNombre: seleccionadoEsBarbero
@@ -1089,7 +1082,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       );
       created(
         "Venta creada",
-        `La venta #${ventaIdCreada > 0 ? ventaIdCreada : numeroVenta
+        `La venta #${ventaIdCreada > 0 ? ventaIdCreada : '—'
         } ha sido registrada exitosamente por $${formatCurrency(total)}.`
       );
 
@@ -1160,7 +1153,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         Nº Venta:
                       </span>
                       <span className="text-gray-lightest font-medium tabular-nums text-xs sm:text-sm">
-                        {numeroVenta.toString().padStart(3, "0")}
+                        {(ventasCount + 1).toString().padStart(3, "0")}
                       </span>
                     </div>
 

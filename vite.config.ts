@@ -3,8 +3,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  esbuild: {
+    // En producción, eliminar console.* y debugger para no exponer datos sensibles
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
+  },
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
@@ -14,6 +18,8 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'build',
+    // Eliminar console.* y debugger del bundle de producción para no exponer datos sensibles
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
@@ -60,4 +66,4 @@ export default defineConfig({
       },
     }
   },
-});
+}));

@@ -1,3 +1,17 @@
+/** Genera un ID aleatorio de 12 caracteres hex usando crypto. */
+function generarIdAleatorio(): string {
+  const arr = new Uint8Array(6);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Genera una contraseña aleatoria de 16 caracteres hex. No predecible por timestamp. */
+function generarContrasenaAleatoria(): string {
+  const arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  return 'Tmp' + Array.from(arr, b => b.toString(16).padStart(2, '0')).join('') + '!';
+}
+
 // Interfaces para la API de clientes
 export interface ClienteAPI {
   id: number;
@@ -289,7 +303,7 @@ class ClientesService {
     const apiData = {
       ...this.mapToApiFormat(clienteData),
       RolId: 3, // Rol de Cliente
-      Contrasena: (clienteData as any).contrasena || clienteData.documento || "Cliente123*" // Contraseña temporal
+      Contrasena: (clienteData as any).contrasena || clienteData.documento || generarContrasenaAleatoria()
     };
 
     console.log('🔵 Creando Usuario+Cliente vía /api/Usuarios:', apiData.Correo);
@@ -331,13 +345,13 @@ class ClientesService {
    * Retorna el cliente creado con su id listo para usar en ventas/agendamientos.
    */
   async createClienteRapido(nombre: string, telefono?: string): Promise<ClienteAPI> {
-    const ts = Date.now();
+    const uid = generarIdAleatorio();
     const partes = nombre.trim().split(/\s+/);
     const primerNombre = partes[0] || 'Cliente';
     const apellido = partes.length > 1 ? partes.slice(1).join(' ') : 'De Paso';
-    const documento = `PASO-${ts}`;
-    const correo = `paso.${ts}@manito.temp`;
-    const contrasena = `Paso${ts}*`;
+    const documento = `PASO-${uid}`;
+    const correo = `paso.${uid}@manito.temp`;
+    const contrasena = generarContrasenaAleatoria();
 
     const result = await this.createCliente({
       nombre: primerNombre,
