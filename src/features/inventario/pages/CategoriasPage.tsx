@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import {
@@ -73,6 +73,8 @@ export function CategoriasPage() {
   const shakeClass = categoriaValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
   const [duplicateNombreCreate, setDuplicateNombreCreate] = useState(false);
   const [duplicateNombreEdit, setDuplicateNombreEdit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const normalizeText = (s: string) => (s || '').trim().toLowerCase();
 
   // Cargar categorías desde la API
@@ -154,6 +156,7 @@ export function CategoriasPage() {
   };
 
   const handleCreateCategoria = async () => {
+    if (isSubmittingRef.current) return;
     if (!validateForm(nuevaCategoria)) {
       setShowCategoriaFormErrors(true);
       setCategoriaValidationAttempt(prev => prev + 1);
@@ -165,6 +168,8 @@ export function CategoriasPage() {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       const creada = await categoriaService.createCategoria({
         nombre: nuevaCategoria.nombre,
@@ -196,6 +201,9 @@ export function CategoriasPage() {
     } catch (error) {
       console.error('Error creando categoría:', error);
       setError('Error al crear la categoría');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -213,6 +221,7 @@ export function CategoriasPage() {
   };
 
   const handleUpdateCategoria = async () => {
+    if (isSubmittingRef.current) return;
     if (!selectedCategoria || !validateForm(editCategoria, true)) {
       setShowCategoriaFormErrors(true);
       setCategoriaValidationAttempt(prev => prev + 1);
@@ -224,6 +233,8 @@ export function CategoriasPage() {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       await categoriaService.updateCategoria(selectedCategoria.id, {
         id: selectedCategoria.id,
@@ -244,6 +255,9 @@ export function CategoriasPage() {
     } catch (error) {
       console.error('Error actualizando categoría:', error);
       setError('Error al actualizar la categoría');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
   const handleDeleteClick = async (categoria: Categoria) => {
@@ -411,9 +425,10 @@ export function CategoriasPage() {
                     </button>
                     <button
                       onClick={handleCreateCategoria}
+                      disabled={isSubmitting}
                       className="elegante-button-primary"
                     >
-                      Crear Categoría
+                      {isSubmitting ? 'Creando...' : 'Crear Categoría'}
                     </button>
                   </div>
                 </DialogContent>
@@ -658,9 +673,10 @@ export function CategoriasPage() {
               </button>
               <button
                 onClick={handleUpdateCategoria}
+                disabled={isSubmitting}
                 className="elegante-button-primary"
               >
-                Guardar Cambios
+                {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
           </DialogContent>

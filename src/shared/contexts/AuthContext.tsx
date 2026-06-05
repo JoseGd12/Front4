@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { authSyncService, AppRole } from '../../features/auth/services/authSyncService';
 import { firebaseAuthService } from '../services/firebase';
 import { apiService } from '../services/api';
+import { logger } from '../utils/logger';
 
 export type UserRole = 'admin' | 'cliente' | 'barbero' | 'super_admin';
 
@@ -32,6 +33,7 @@ interface AuthContextType {
   confirmPasswordReset: (token: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   isAdmin: () => boolean;
   isCliente: () => boolean;
+  isBarbero: () => boolean;
   getAllUsers: () => Promise<User[]>;
   getAllClientes: () => Promise<User[]>;
   updateUser: (userId: string, userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
@@ -77,10 +79,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const txt = String(value || '').trim().toLowerCase();
     if (!txt) return undefined;
-    if (txt === 'super_admin' || txt === 'super administrador') return 'super_admin';
-    if (txt === 'admin' || txt === 'administrador' || txt === '18') return 'admin';
+    
+    // Variaciones de Super Admin
+    if (
+      txt === 'super_admin' || 
+      txt === 'super administrador' || 
+      txt === 'superadmin' || 
+      txt === 'super_administrador' ||
+      txt === '1'
+    ) return 'super_admin';
+    
+    // Variaciones de Admin
+    if (
+      txt === 'admin' || 
+      txt === 'administrador' || 
+      txt === '18' ||
+      txt === 'gerente' ||
+      txt === '5'
+    ) return 'admin';
+    
+    // Variaciones de Barbero
     if (txt === 'barbero' || txt === '2') return 'barbero';
-    if (txt === 'cliente' || txt === '3' || txt === 'cajero' || txt === '6') return 'cliente';
+    
+    // Variaciones de Cliente
+    if (
+      txt === 'cliente' || 
+      txt === '3' || 
+      txt === 'cajero' || 
+      txt === '6' ||
+      txt === 'recepcionista' ||
+      txt === '4'
+    ) return 'cliente';
+    
     return undefined;
   };
 
@@ -88,9 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const firebaseUser = firebaseAuthService.getCurrentUser();
       if (!firebaseUser) return undefined;
-      const tokenResult = await firebaseUser.getIdTokenResult();
+      
+      // Forzar refresco de token para obtener los claims más recientes
+      const tokenResult = await firebaseUser.getIdTokenResult(true);
       const claims = tokenResult?.claims || {};
-      if ((claims as any).super_admin === true) return 'super_admin';
+      
+      logger.debug('Claims de Firebase detectados:', claims);
+
+      if ((claims as any).super_admin === true || (claims as any).superadmin === true) return 'super_admin';
       if ((claims as any).admin === true) return 'admin';
 
       const candidates = [
@@ -99,7 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         (claims as any).roleName,
         (claims as any).rolName,
         (claims as any).roleId,
-        (claims as any).rolId
+        (claims as any).rolId,
+        (claims as any).user_role
       ];
 
       for (const candidate of candidates) {
@@ -107,17 +143,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mapped) return mapped;
       }
       return undefined;
-    } catch {
+    } catch (error) {
+      logger.error('Error obteniendo claims de Firebase:', error);
       return undefined;
     }
   };
 
   const isApiSyncUnavailableError = (errorMessage?: string): boolean => {
     const msg = String(errorMessage || '').toLowerCase();
+    // Errores de red o de servidor (OnRender sleeping, 500s, 404s transitorios)
+    if (msg.includes('failed to fetch') || msg.includes('network error') || msg.includes('timeout')) return true;
     if (msg.includes('no se pudo validar tu cuenta en la api')) return true;
     if (msg.includes('500') || msg.includes('internal server error') || msg.includes('error del servidor')) return true;
     if (msg.includes('error creando usuario en la api') || msg.includes('error actualizando usuario en la api')) return true;
-    if (msg.includes('error buscando usuario')) return true;
+    if (msg.includes('error buscando usuario') || msg.includes('404')) return true;
     return false;
   };
 
@@ -141,18 +180,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const persistSessionUser = (sessionUser: User) => {
-    // Guardamos nombre/email/foto para UX, pero el rol se re-verifica al iniciar
-    localStorage.setItem('barbershop_user', JSON.stringify(sessionUser));
+    // FE-C4: Guardamos nombre/email/foto para UX (continuidad visual), 
+    // pero el ROL nunca se guarda en localStorage para evitar manipulación.
+    // El rol se re-verifica siempre desde Firebase Claims o la API en cada carga.
+    const { role: _, ...uiData } = sessionUser;
+    localStorage.setItem('barbershop_user', JSON.stringify(uiData));
+    
     setUser(sessionUser);
     setIsAuthenticated(true);
   };
 
   useEffect(() => {
-    // Verificar estado de autenticación al cargar
-    const initializeAuth = async () => {
+    // Suscribirse a cambios de estado de Firebase (esto maneja la carga inicial y cambios posteriores)
+    const unsubscribe = firebaseAuthService.onAuthStateChanged(async (firebaseUser) => {
       try {
         const storedUser = authSyncService.getStoredUser();
-        const firebaseUser = firebaseAuthService.getCurrentUser();
 
         if (firebaseUser) {
           // Hay sesión activa en Firebase: sincronizar con la API para obtener el rol real
@@ -179,45 +221,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 emailVerified: firebaseProfile.emailVerified
               };
               persistSessionUser(userData);
-            } else if (isApiSyncUnavailableError(syncResult.error)) {
-              // API no disponible: usar Firebase claims como fallback (no localStorage)
+            } else {
+              // Si el sync falla (API caída o usuario no encontrado en API)
+              // Intentamos usar el rol de Firebase Claims como segundo recurso
               const fallbackRole = await resolveFallbackRole(firebaseProfile.email);
+              
               if (fallbackRole) {
-                // Si hay datos de UI en localStorage (nombre, foto), aprovecharlos pero con el rol de claims
                 const uiData = storedUser && storedUser.email === firebaseProfile.email ? storedUser : null;
                 persistSessionUser({
                   ...buildFirebaseOnlyUser(firebaseProfile, fallbackRole),
                   name: uiData?.name || firebaseProfile.displayName || firebaseProfile.email || 'Usuario',
                   fotoPerfil: uiData?.fotoPerfil || firebaseProfile.photoURL || undefined,
                 });
+              } else if (syncResult.error?.includes('no está registrado')) {
+                // Si la API dice explícitamente que no está registrado Y no hay claims,
+                // entonces sí es un cliente nuevo o invitado.
+                persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, 'cliente'));
+              } else {
+                // Si la API falló por error de red/500 y no hay claims, NO degradar a cliente.
+                // Es mejor esperar o mostrar error que dar acceso erróneo.
+                logger.error('Error de sincronización crítico y sin claims:', syncResult.error);
               }
-              // Si no hay fallbackRole tampoco, el usuario queda sin sesión
             }
           }
-        } else if (storedUser) {
-          // No hay sesión de Firebase pero sí datos en localStorage: limpiar, la sesión expiró
+        } else {
+          // No hay sesión de Firebase: limpiar estado y localStorage
+          setUser(null);
+          setIsAuthenticated(false);
           localStorage.removeItem('barbershop_user');
         }
       } catch (error) {
-        console.error('Error inicializando autenticación:', error);
+        console.error('Error procesando cambio de estado de autenticación:', error);
       } finally {
         setIsLoading(false);
       }
-    };
-
-    initializeAuth();
-
-    // Suscribirse a cambios de estado de Firebase
-    const unsubscribe = firebaseAuthService.onAuthStateChanged(async (firebaseUser) => {
-      if (!firebaseUser && user) {
-        // Si Firebase cierra sesión, limpiar estado local
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('barbershop_user');
-      }
     });
 
-    return unsubscribe;
+    // Manejar 401 global: el token expiró o fue revocado por el servidor
+    const handle401 = async () => {
+      try { await firebaseAuthService.signOut(); } catch { /* ignorar */ }
+      setUser(null);
+      setIsAuthenticated(false);
+      localStorage.removeItem('barbershop_user');
+      // Redirigir al login sin depender del router
+      window.location.href = '/login';
+    };
+    window.addEventListener('auth:unauthorized', handle401);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('auth:unauthorized', handle401);
+    };
   }, []);
 
   const login = async (email: string, password: string, rolId?: number): Promise<{ success: boolean; error?: string }> => {
@@ -252,21 +306,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
 
         persistSessionUser(userData);
-
         return { success: true };
       } else {
-        if (isApiSyncUnavailableError(result.error)) {
-          const fallbackRole = await resolveFallbackRole(firebaseProfile.email || email);
-          if (fallbackRole) {
-            persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, fallbackRole));
-            return { success: true };
-          }
-          return {
-            success: false,
-            error: 'No se pudo validar tu rol porque la API no está disponible y no hay un rol previo guardado para este correo.'
-          };
+        // Fallback si la API falla pero Firebase fue exitoso
+        const fallbackRole = await resolveFallbackRole(firebaseProfile.email || email);
+        if (fallbackRole) {
+          persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, fallbackRole));
+          return { success: true };
         }
-        return { success: false, error: result.error || 'Error en la autenticación' };
+        
+        // Si no hay fallback y es un error de "no registrado", podría ser un cliente
+        if (result.error?.includes('no está registrado')) {
+          persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, 'cliente'));
+          return { success: true };
+        }
+
+        return { 
+          success: false, 
+          error: result.error || 'Error de sincronización con el servidor. Intenta de nuevo.' 
+        };
       }
     } catch (error: any) {
       console.error('Error en login:', error);
@@ -474,21 +532,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
 
         persistSessionUser(userData);
-
         return { success: true };
       } else {
-        if (isApiSyncUnavailableError(result.error)) {
-          const fallbackRole = await resolveFallbackRole(firebaseProfile.email);
-          if (fallbackRole) {
-            persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, fallbackRole));
-            return { success: true };
-          }
-          return {
-            success: false,
-            error: 'No se pudo validar tu rol porque la API no está disponible y no hay un rol previo guardado para este correo.'
-          };
+        // Fallback si la API falla pero Google Auth fue exitoso
+        const fallbackRole = await resolveFallbackRole(firebaseProfile.email);
+        if (fallbackRole) {
+          persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, fallbackRole));
+          return { success: true };
         }
-        return { success: false, error: result.error || 'Error con Google Sign-In' };
+        
+        // Si no hay claims y la API falló por error de red, NO asumir cliente si es un posible admin
+        if (result.error?.includes('no está registrado')) {
+          persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, 'cliente'));
+          return { success: true };
+        }
+
+        return {
+          success: false,
+          error: result.error || 'Error de sincronización con el servidor. Intenta de nuevo.'
+        };
       }
     } catch (error: any) {
       console.error('Error en loginWithGoogle:', error);
@@ -553,6 +615,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = () => user?.role === 'admin' || user?.role === 'super_admin';
   const isCliente = () => user?.role === 'cliente';
+  const isBarbero = () => user?.role === 'barbero';
 
   return (
     <AuthContext.Provider value={{
@@ -569,6 +632,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resendEmailVerification,
       isAdmin,
       isCliente,
+      isBarbero,
       getAllUsers,
       getAllClientes,
       updateUser,

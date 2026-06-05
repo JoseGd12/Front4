@@ -1,11 +1,5 @@
-const RAW_API_BASE =
-  (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_API_BASE_URL) ||
-  (typeof window !== 'undefined' && (window as any)?.API_BASE_URL) ||
-  '';
-const NORMALIZED_BASE = RAW_API_BASE ? String(RAW_API_BASE).replace(/\/+$/, '') : '';
-const API_BASE_URL = NORMALIZED_BASE
-  ? (NORMALIZED_BASE.endsWith('/api') ? NORMALIZED_BASE : `${NORMALIZED_BASE}/api`)
-  : '/api';
+import { httpClient } from '../../../shared/services/httpClient';
+import { API_BASE_URL } from '../../../shared/config/api';
 
 export interface CreditoBarberoDto {
   id: number;
@@ -64,20 +58,6 @@ export interface NuevoCicloInput {
 }
 
 class CreditoBarberoService {
-  private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const config: RequestInit = {
-      ...options,
-      headers: { 'Content-Type': 'application/json', ...options.headers },
-    };
-    const response = await fetch(url, config);
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error del servidor (${response.status}): ${errorText || response.statusText}`);
-    }
-    return response;
-  }
-
   private normalize(raw: any): CreditoBarberoDto {
     return {
       id: Number(raw.id ?? raw.Id ?? 0),
@@ -112,98 +92,50 @@ class CreditoBarberoService {
     };
   }
 
-  async getAll(page = 1, pageSize = 20, q?: string): Promise<PagedResult<CreditoBarberoDto>> {
-    let endpoint = `/credito-barbero?page=${page}&pageSize=${pageSize}`;
-    if (q?.trim()) endpoint += `&q=${encodeURIComponent(q.trim())}`;
-    const res = await this.request(endpoint);
-    const data = await res.json();
-    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.Items ?? []);
+  async getCreditos(page = 1, pageSize = 20): Promise<PagedResult<CreditoBarberoDto>> {
+    const data = await httpClient.get<PagedResult<CreditoBarberoDto>>(`/CreditoBarbero?page=${page}&pageSize=${pageSize}`);
     return {
-      items: items.map(i => this.normalize(i)),
-      totalCount: Number(data.totalCount ?? data.TotalCount ?? items.length),
-      page: Number(data.page ?? data.Page ?? page),
-      pageSize: Number(data.pageSize ?? data.PageSize ?? pageSize),
-      totalPages: Number(data.totalPages ?? data.TotalPages ?? 1),
+      ...data,
+      items: (data.items || []).map(this.normalize)
     };
   }
 
-  async getByBarbero(barberoId: number): Promise<CreditoBarberoDto> {
-    const res = await this.request(`/credito-barbero/barbero/${barberoId}`);
-    const data = await res.json();
+  async getCreditoById(id: number): Promise<CreditoBarberoDto> {
+    const data = await httpClient.get(`/CreditoBarbero/${id}`);
     return this.normalize(data);
   }
 
-  async getAbonos(barberoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
-    const res = await this.request(`/credito-barbero/barbero/${barberoId}/abonos?page=${page}&pageSize=${pageSize}`);
-    const data = await res.json();
-    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.Items ?? []);
+  async getCreditoByBarberoId(barberoId: number): Promise<CreditoBarberoDto | null> {
+    try {
+      const data = await httpClient.get(`/CreditoBarbero/barbero/${barberoId}`);
+      return this.normalize(data);
+    } catch (error: any) {
+      if (error.message.includes('404')) return null;
+      throw error;
+    }
+  }
+
+  async crearAbono(creditoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
+    const data = await httpClient.post(`/CreditoBarbero/${creditoId}/abono`, input);
+    return this.normalizeAbono(data);
+  }
+
+  async extenderPlazo(creditoId: number, input: ExtenderPlazoInput): Promise<CreditoBarberoDto> {
+    const data = await httpClient.post(`/CreditoBarbero/${creditoId}/extender-plazo`, input);
+    return this.normalize(data);
+  }
+
+  async iniciarNuevoCiclo(creditoId: number, input: NuevoCicloInput): Promise<CreditoBarberoDto> {
+    const data = await httpClient.post(`/CreditoBarbero/${creditoId}/nuevo-ciclo`, input);
+    return this.normalize(data);
+  }
+
+  async getHistorialAbonos(creditoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
+    const data = await httpClient.get<PagedResult<AbonoCreditoBarberoDto>>(`/CreditoBarbero/${creditoId}/abonos?page=${page}&pageSize=${pageSize}`);
     return {
-      items: items.map(i => this.normalizeAbono(i)),
-      totalCount: Number(data.totalCount ?? data.TotalCount ?? items.length),
-      page: Number(data.page ?? data.Page ?? page),
-      pageSize: Number(data.pageSize ?? data.PageSize ?? pageSize),
-      totalPages: Number(data.totalPages ?? data.TotalPages ?? 1),
+      ...data,
+      items: (data.items || []).map(this.normalizeAbono)
     };
-  }
-
-  async getAllAbonosByBarbero(barberoId: number, page = 1, pageSize = 100): Promise<PagedResult<AbonoCreditoBarberoDto>> {
-    const res = await this.request(`/credito-barbero/barbero/${barberoId}/abonos/todos?page=${page}&pageSize=${pageSize}`);
-    const data = await res.json();
-    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.Items ?? []);
-    return {
-      items: items.map(i => this.normalizeAbono(i)),
-      totalCount: Number(data.totalCount ?? data.TotalCount ?? items.length),
-      page: Number(data.page ?? data.Page ?? page),
-      pageSize: Number(data.pageSize ?? data.PageSize ?? pageSize),
-      totalPages: Number(data.totalPages ?? data.TotalPages ?? 1),
-    };
-  }
-
-  async getAbonosByCiclo(cicloId: number, page = 1, pageSize = 100): Promise<PagedResult<AbonoCreditoBarberoDto>> {
-    const res = await this.request(`/credito-barbero/${cicloId}/abonos?page=${page}&pageSize=${pageSize}`);
-    const data = await res.json();
-    const items: any[] = Array.isArray(data) ? data : (data.items ?? data.Items ?? []);
-    return {
-      items: items.map(i => this.normalizeAbono(i)),
-      totalCount: Number(data.totalCount ?? data.TotalCount ?? items.length),
-      page: Number(data.page ?? data.Page ?? page),
-      pageSize: Number(data.pageSize ?? data.PageSize ?? pageSize),
-      totalPages: Number(data.totalPages ?? data.TotalPages ?? 1),
-    };
-  }
-
-  async registrarAbono(barberoId: number, input: AbonoInput): Promise<any> {
-    const res = await this.request(`/credito-barbero/barbero/${barberoId}/abono`, {
-      method: 'POST',
-      body: JSON.stringify({
-        UsuarioId: input.usuarioId,
-        Monto: input.monto,
-        MetodoPago: input.metodoPago ?? 'Efectivo',
-        Notas: input.notas ?? null,
-        VentaId: input.ventaId ?? null,
-      }),
-    });
-    return res.json();
-  }
-
-  async extenderPlazo(barberoId: number, input: ExtenderPlazoInput): Promise<any> {
-    const res = await this.request(`/credito-barbero/barbero/${barberoId}/extender-plazo`, {
-      method: 'PUT',
-      body: JSON.stringify({ UsuarioId: input.usuarioId }),
-    });
-    return res.json();
-  }
-
-  async nuevoCiclo(barberoId: number, input: NuevoCicloInput): Promise<any> {
-    const res = await this.request(`/credito-barbero/barbero/${barberoId}/nuevo-ciclo`, {
-      method: 'POST',
-      body: JSON.stringify({
-        UsuarioId: input.usuarioId,
-        LimiteCredito: input.limiteCredito ?? null,
-        PlazoDias: input.plazoDias ?? 7,
-      }),
-    });
-    return res.json();
   }
 }
 

@@ -93,6 +93,8 @@ export function ClientesPage() {
   const { isAdmin, resetPassword } = useAuth();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -142,6 +144,7 @@ export function ClientesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCreateValidation, setShowCreateValidation] = useState(false);
   const [showEditValidation, setShowEditValidation] = useState(false);
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const [clienteGeneratedPassword, setClienteGeneratedPassword] = useState('');
   const [createInFirebase, setCreateInFirebase] = useState(true);
   const [usuariosAll, setUsuariosAll] = useState<any[]>([]);
@@ -332,10 +335,8 @@ export function ClientesPage() {
       return false;
     }
 
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email)) {
-      error('Email inválido', 'Por favor ingresa un email válido con el formato correcto.');
+    // Validar email (el error se muestra inline en el campo)
+    if (!isValidEmail(form.email)) {
       return false;
     }
 
@@ -397,6 +398,9 @@ export function ClientesPage() {
   };
 
   const confirmCreateCliente = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       let fotoPerfilUrl = '';
       if (selectedProfileImage) {
@@ -476,6 +480,9 @@ export function ClientesPage() {
       console.error('Error creando cliente:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       error('Error', `No se pudo crear el cliente: ${errorMessage}`);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -610,10 +617,8 @@ export function ClientesPage() {
       return false;
     }
 
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email)) {
-      error('Email inválido', 'Por favor ingresa un email válido con el formato correcto.');
+    // Validar email (el error se muestra inline en el campo)
+    if (!isValidEmail(form.email)) {
       return false;
     }
 
@@ -690,8 +695,9 @@ export function ClientesPage() {
   };
 
   const confirmEditCliente = async () => {
-    if (!selectedCliente) return;
-
+    if (!selectedCliente || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       let fotoPerfilFinal = selectedCliente.fotoPerfil || '';
       if (editSelectedProfileImage) {
@@ -741,6 +747,9 @@ export function ClientesPage() {
       console.error('Error actualizando cliente:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       error('Error', `No se pudo actualizar el cliente: ${errorMessage}`);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -1385,10 +1394,11 @@ export function ClientesPage() {
                   value={editForm.email}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   maxLength={CLIENTE_LIMITS.email}
-                  className={`elegante-input w-full ${showEditValidation && !editForm.email ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  className={`elegante-input w-full ${(showEditValidation && !editForm.email) || (showEditValidation && editForm.email && !isValidEmail(editForm.email)) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="correo@ejemplo.com"
                 />
                 {showEditValidation && !editForm.email && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
+                {showEditValidation && editForm.email && !isValidEmail(editForm.email) && <p className="text-xs text-red-400">Formato de correo inválido.</p>}
               </div>
               <div className="space-y-2">
                 <Label className="text-white-primary flex items-center gap-2">
@@ -1448,6 +1458,7 @@ export function ClientesPage() {
               </button>
               <button
                 onClick={handleSaveEditCliente}
+                disabled={isSubmitting}
                 className="elegante-button-primary"
               >
                 Guardar Cambios
@@ -1610,10 +1621,11 @@ export function ClientesPage() {
                   value={createForm.email}
                   onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                   maxLength={CLIENTE_LIMITS.email}
-                  className={`elegante-input w-full ${(showCreateValidation && !createForm.email) || isEmailDuplicateCreateCliente ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                  className={`elegante-input w-full ${(showCreateValidation && !createForm.email) || (showCreateValidation && createForm.email && !isValidEmail(createForm.email)) || isEmailDuplicateCreateCliente ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="correo@ejemplo.com"
                 />
                 {showCreateValidation && !createForm.email && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
+                {showCreateValidation && createForm.email && !isValidEmail(createForm.email) && <p className="text-xs text-red-400">Formato de correo inválido.</p>}
                 {isEmailDuplicateCreateCliente && <p className="text-xs text-red-400">Correo ya existe en el sistema.</p>}
               </div>
               <div className="space-y-2">
@@ -1676,10 +1688,11 @@ export function ClientesPage() {
               </button>
               <button
                 onClick={handleCreateCliente}
+                disabled={isSubmitting}
                 className="elegante-button-primary"
-                aria-disabled={!createForm.tipoDocumento || !createForm.numeroDocumento || !createForm.nombre || !createForm.apellido || !createForm.email || !createForm.fechaNacimiento || isDocDuplicateCreateCliente || isEmailDuplicateCreateCliente || isTooYoungCreateCliente}
+                aria-disabled={isSubmitting || !createForm.tipoDocumento || !createForm.numeroDocumento || !createForm.nombre || !createForm.apellido || !createForm.email || !createForm.fechaNacimiento || isDocDuplicateCreateCliente || isEmailDuplicateCreateCliente || isTooYoungCreateCliente}
               >
-                Crear Cliente
+                {isSubmitting ? 'Creando...' : 'Crear Cliente'}
               </button>
             </div>
           </div>
@@ -1704,9 +1717,10 @@ export function ClientesPage() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmEditCliente}
+              disabled={isSubmitting}
               className="elegante-button-primary"
             >
-              Guardar Cambios
+              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

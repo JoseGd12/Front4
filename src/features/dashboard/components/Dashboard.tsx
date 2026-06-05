@@ -360,7 +360,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         setLoadingModules(true);
         const rolId = authSyncService.getRolId(user.role);
 
-        // Obtener permisos del rol y todos los módulos concurrentemente
+        // Usar caché para los módulos, ya que no cambian frecuentemente
         const [rolePerms, allModules] = await Promise.all([
           rolesApiService.getRoleModules(rolId),
           modulosService.getModulos()

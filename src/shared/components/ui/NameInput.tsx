@@ -32,12 +32,18 @@ export function NameInput({
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
-    if (/\d/.test(raw)) {
+    
+    // Filtrar caracteres no permitidos: solo letras (incluyendo acentos y ñ) y espacios
+    // Removemos números y caracteres especiales
+    const filtered = raw.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '');
+    
+    if (raw !== filtered) {
       setShowNumberError(true);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setShowNumberError(false), 2500);
     }
-    onChange(raw);
+    
+    onChange(filtered);
   }, [onChange]);
 
   const length = value?.length ?? 0;
@@ -55,7 +61,7 @@ export function NameInput({
   if (showNumberError) {
     hintMessage = (
       <span className="text-xs text-red-400">
-        {errorMessage ?? "Este campo solo permite letras."}
+        {errorMessage ?? "Solo se permiten letras y espacios."}
       </span>
     );
   } else if (isOver) {

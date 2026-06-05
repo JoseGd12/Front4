@@ -183,12 +183,12 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [proveedoresData, productosData, categoriasData, comprasData, usuariosData] =
+        const [proveedoresData, productosResponse, categoriasData, comprasResponse, usuariosData] =
           await Promise.all([
-            proveedorService.obtenerProveedoresJuridicos().catch(() => []),
-            productoService.getProductos().catch(() => []),
-            categoriaService.getCategorias().catch(() => []),
-            compraService.getCompras().catch(() => []),
+            proveedorService.getProveedores(1, 100).catch(() => []),
+            productoService.getProductosPaged({ page: 1, pageSize: 500 }).catch(() => ({ items: [], totalCount: 0 })),
+            categoriaService.getCategoriasPaged(1, 100).catch(() => ({ items: [], totalCount: 0 })),
+            compraService.getCompras(1, 100).catch(() => []),
             apiService.getUsuarios().catch(() => []),
           ]);
 
@@ -199,9 +199,10 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
         setProveedores(filtrados);
 
         // Productos enriquecidos con categoría
-        const lista = (productosData as any[]).filter((p: any) => p.activo === true);
+        const lista = ((productosResponse as any).items || []).filter((p: any) => p.activo === true);
         const categoriasById = new Map<number, string>();
-        (categoriasData || []).forEach((c: any) => {
+        const categoriasList = (categoriasData as any).items || [];
+        categoriasList.forEach((c: any) => {
           const id = Number(c?.id ?? 0);
           if (id && c?.nombre) categoriasById.set(id, String(c.nombre));
         });
@@ -215,6 +216,7 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
         setProductos(enriquecidos);
 
         // Compras count
+        const comprasData = (comprasResponse as any).items || comprasResponse || [];
         const maxId = (comprasData || []).reduce((max: number, compra: any) => {
           const id = Number(compra?.id ?? 0);
           return Number.isFinite(id) && id > max ? id : max;

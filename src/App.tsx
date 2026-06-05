@@ -11,11 +11,12 @@ import { EmailVerificationPage } from "./features/auth/pages/EmailVerificationPa
 import { ForzarCambioPassword } from "./features/auth/components/ForzarCambioPassword";
 import { checkPasswordPolicy } from "./features/auth/services/authUtils";
 import { firebaseAuthService } from "./shared/services/firebase";
+import { logger } from "./shared/utils/logger";
 
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
 function AppContent() {
-  const { isAuthenticated, isAdmin, isCliente, logout, isLoading } = useAuth();
+  const { isAuthenticated, isAdmin, isCliente, isBarbero, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -35,14 +36,14 @@ function AppContent() {
     let handledSpecialLink = false;
 
     if (mode === 'verifyEmail' && oobCode) {
-      console.log('📧 Detectado oobCode para verificación de email');
+      logger.debug('📧 Detectado oobCode para verificación de email');
       handledSpecialLink = true;
       if (!isVerifyPage) {
         navigate(`/verify-email?oobCode=${oobCode}`, { replace: true });
       }
     }
     else if (mode === 'resetPassword' && oobCode) {
-      console.log('🎯 Detectado oobCode para reseteo:', oobCode);
+      logger.debug('🎯 Detectado oobCode para reseteo:', oobCode);
       handledSpecialLink = true;
       if (!isResetPage && !isLoginPage) {
         navigate(`/reset-password?oobCode=${oobCode}`, { replace: true });
@@ -168,7 +169,7 @@ function AppContent() {
 
       <Route path="/dashboard/*" element={
         isAuthenticated ? (
-          isAdmin() ? (
+          (isAdmin() || isBarbero()) ? (
             <Dashboard
               initialItem={initialReservation}
               onClearInitialItem={() => setInitialReservation(null)}

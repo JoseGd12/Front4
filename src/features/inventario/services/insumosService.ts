@@ -1,8 +1,7 @@
-import { auth } from '../../../shared/services/firebase';
+import { httpClient } from '../../../shared/services/httpClient';
 
 /**
  * Servicio para gestión de Insumos/Productos
- * API: http://edwisbarber.somee.com/api/Productos
  */
 
 export interface Insumo {
@@ -15,8 +14,6 @@ export interface Insumo {
   imagen: string;
   activo?: boolean;
 }
-
-const API_BASE_URL = '/api';
 
 const pickNumber = (obj: any, keys: string[], fallback = 0) => {
   for (const k of keys) {
@@ -55,210 +52,40 @@ class InsumosService {
     return [];
   }
 
-  private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    let token = null;
-    if (auth.currentUser) {
-      token = await auth.currentUser.getIdToken();
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
-      headers,
-      ...options,
-    });
-
-    if (!response.ok) {
-      let errorMessage = `HTTP error! status: ${response.status}`;
-      try {
-        const errorText = await response.text();
-        console.error('❌ Respuesta de error del servidor:', errorText);
-        errorMessage += ` - ${errorText}`;
-      } catch (e) {
-        console.error('❌ No se pudo leer el error del servidor');
-      }
-      throw new Error(errorMessage);
-    }
-
-    return response;
-  }
-
   // Obtener todos los insumos
   async getInsumos(): Promise<Insumo[]> {
     try {
-      console.log('📋 Obteniendo insumos...');
-      const response = await this.request('/Productos');
-      const text = await response.text();
-      const raw = text ? JSON.parse(text) : [];
-
-      const rawArray = this.extractArray(raw);
-
-      if (rawArray.length > 0) {
-        console.log('🧪 Producto raw[0] desde API:', rawArray[0]);
-      }
-
-      const data: Insumo[] = rawArray.map((p: any) => {
-        const categoria = (() => {
-          if (typeof p?.categoria === 'string') return p.categoria;
-          const candidates = [
-            p?.categoria?.nombre,
-            p?.Categoria?.Nombre,
-            p?.categoria?.name,
-            p?.categoriaNombre,
-            p?.CategoriaNombre,
-            p?.producto?.categoria?.nombre,
-            p?.Producto?.Categoria?.Nombre,
-            p?.producto?.categoriaNombre,
-            p?.Producto?.CategoriaNombre,
-          ];
-          const found = candidates.find((v) => typeof v === 'string' && v);
-          return found ?? '';
-        })();
-
-        return {
-          id: Number(p?.id ?? p?.productoId ?? 0),
-          nombre: String(p?.nombre ?? p?.nombreProducto ?? p?.descripcion ?? ''),
-          categoria: String(categoria),
-          stock: (() => {
-            const direct = pickNumber(p, ['stock', 'Stock', 'existencia', 'Existencia', 'cantidad', 'Cantidad', 'stockActual', 'StockActual', 'cantidadDisponible', 'CantidadDisponible'], Number.NaN);
-            if (!Number.isNaN(direct)) return direct;
-
-            const inferred = inferNumberByKeyMatch(
-              p,
-              (k) => /stock|exist/i.test(k) && !/min|max/i.test(k),
-              Number.NaN
-            );
-
-            if (!Number.isNaN(inferred)) return inferred;
-
-            // Nested common shapes
-            const nested = pickNumber(p?.inventario, ['stock', 'Stock', 'existencia', 'Existencia'], 0);
-            return nested;
-          })(),
-          minimo: (() => {
-            const direct = pickNumber(p, ['minimo', 'Minimo', 'stockMinimo', 'StockMinimo', 'minStock', 'MinStock'], Number.NaN);
-            if (!Number.isNaN(direct)) return direct;
-
-            const inferred = inferNumberByKeyMatch(
-              p,
-              (k) => /(minimo|min)/i.test(k) && /stock/i.test(k),
-              Number.NaN
-            );
-
-            if (!Number.isNaN(inferred)) return inferred;
-
-            const nested = pickNumber(p?.inventario, ['minimo', 'Minimo', 'stockMinimo', 'StockMinimo'], 0);
-            return nested;
-          })(),
-          // Precio de venta (lo que se debe sumar en el resumen)
-          precio: (() => {
-            const direct = pickNumber(
-              p,
-              [
-                'PrecioVenta',
-                'precioVenta',
-                'precio_venta',
-                'precioVentaUnitario',
-                'precio',
-                'Precio',
-                'valor',
-                'Valor',
-              ],
-              Number.NaN
-            );
-
-            if (!Number.isNaN(direct)) return direct;
-
-            // A veces viene en PascalCase/camelCase distinto o anidado
-            const inferred = inferNumberByKeyMatch(
-              p,
-              (k) => /precio.*venta|venta.*precio/i.test(k),
-              Number.NaN
-            );
-            if (!Number.isNaN(inferred)) return inferred;
-
-            const nested = pickNumber(p?.producto ?? p?.detalle, ['PrecioVenta', 'precioVenta', 'precio', 'Precio'], 0);
-            return nested;
-          })(),
-          imagen: String(p?.imagen ?? p?.Imagen ?? p?.imagenProduc ?? p?.ImagenProduc ?? p?.imagenUrl ?? p?.ImagenUrl ?? ''),
-          activo: Boolean(
-            p?.activo === true || p?.Activo === true ||
-            p?.estado === true || p?.Estado === true ||
-            p?.active === true || p?.Active === true ||
-            (p?.activo !== false && p?.Activo !== false && p?.estado !== false && p?.Estado !== false && p?.active !== false && p?.Active !== false)
-          )
-        };
-      });
-
-      console.log('✅ Insumos obtenidos:', data);
-      return data;
-    } catch (error) {
+      const raw = await httpClient.get('/Productos');
+      const data = this.extractArray(raw);
+      
+      return data.map((item: any) => ({
+        id: item.id || item.Id || 0,
+        nombre: item.nombre || item.Nombre || 'Sin nombre',
+        categoria: item.categoria?.nombre || item.Categoria?.Nombre || 'General',
+        stock: pickNumber(item, ['stock', 'Stock', 'cantidad', 'Cantidad']),
+        minimo: inferNumberByKeyMatch(item, k => k.toLowerCase().includes('minimo')),
+        precio: pickNumber(item, ['precio', 'Precio', 'costo', 'Costo']),
+        imagen: item.imagenProduc || item.ImagenProduc || item.imagen || item.Imagen || '',
+        activo: item.estado === true || item.Estado === true || item.activo === true || item.Activo === true
+      }));
+    } catch (error: any) {
       console.error('❌ Error obteniendo insumos:', error);
       throw error;
     }
   }
 
-  // Obtener un insumo por ID
-  async getInsumoById(id: number): Promise<Insumo | null> {
+  // Actualizar stock de un insumo
+  async updateStock(id: number, nuevoStock: number): Promise<void> {
     try {
-      console.log(`🔍 Obteniendo insumo ${id}...`);
-      const response = await this.request(`/Productos/${id}`);
-      const text = await response.text();
-
-      if (!text) return null;
-
-      const p: any = JSON.parse(text);
-      const categoria = (() => {
-        if (typeof p?.categoria === 'string') return p.categoria;
-        const candidates = [
-          p?.categoria?.nombre,
-          p?.Categoria?.Nombre,
-          p?.categoria?.name,
-          p?.categoriaNombre,
-          p?.CategoriaNombre,
-          p?.producto?.categoria?.nombre,
-          p?.Producto?.Categoria?.Nombre,
-          p?.producto?.categoriaNombre,
-          p?.Producto?.CategoriaNombre,
-        ];
-        const found = candidates.find((v) => typeof v === 'string' && v);
-        return found ?? '';
-      })();
-
-      const stock = pickNumber(p, ['stock', 'Stock', 'existencia', 'Existencia', 'cantidad', 'Cantidad'], 0);
-      const minimo = pickNumber(p, ['minimo', 'Minimo', 'stockMinimo', 'StockMinimo'], 0);
-      const precio = pickNumber(p, ['PrecioVenta', 'precioVenta', 'precio', 'Precio', 'valor', 'Valor'], 0);
-
-      const data: Insumo = {
-        id: Number(p?.id ?? p?.productoId ?? id),
-        nombre: String(p?.nombre ?? p?.nombreProducto ?? p?.descripcion ?? ''),
-        categoria: String(categoria),
-        stock,
-        minimo,
-        precio,
-        imagen: String(p?.imagen ?? p?.Imagen ?? p?.imagenProduc ?? p?.ImagenProduc ?? p?.imagenUrl ?? p?.ImagenUrl ?? ''),
-        activo: Boolean(
-          p?.activo === true || p?.Activo === true ||
-          p?.estado === true || p?.Estado === true ||
-          p?.active === true || p?.Active === true ||
-          (p?.activo !== false && p?.Activo !== false && p?.estado !== false && p?.Estado !== false && p?.active !== false && p?.Active !== false)
-        )
-      };
-
-      console.log(`✅ Insumo ${id} obtenido:`, data);
-      return data;
-    } catch (error) {
-      console.error(`❌ Error obteniendo insumo ${id}:`, error);
-      return null;
+      // Intentar primero con un endpoint específico de stock si existe
+      // o usar el update normal de producto
+      await httpClient.put(`/Productos/${id}`, { stock: nuevoStock });
+    } catch (error: any) {
+      console.error(`❌ Error actualizando stock de insumo ${id}:`, error);
+      throw error;
     }
   }
 }
 
 export const insumosService = new InsumosService();
+export default insumosService;

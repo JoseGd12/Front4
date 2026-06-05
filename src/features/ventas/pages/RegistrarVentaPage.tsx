@@ -40,6 +40,7 @@ import { SearchField } from "../../../shared/components/ui/SearchField";
 import { DetailPanel } from "../components/DetailPanel";
 import { barberosService, Barbero as ApiBarbero } from "../../administracion/services/barberosService";
 import { creditoBarberoService } from "../../credito-barberos/services/creditoBarberoService";
+import { logger } from "../../../shared/utils/logger";
 
 
 // Utilities
@@ -104,7 +105,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [productosAPI, setProductosAPI] = useState<ApiProducto[]>([]);
   const [clientesAPI, setClientesAPI] = useState<ClienteAPI[]>([]);
   const [barberosAPI, setBarberosAPI] = useState<ApiBarbero[]>([]);
-  const [ventasCount, setVentasCount] = useState(0);
+  // ventasCount eliminado: el número de venta lo asigna el backend
 
   const inicialNuevaVenta = {
     clienteId: null as number | null,
@@ -227,26 +228,18 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
     try {
       setLoading(true);
       const [
-        ventasData,
         serviciosData,
         productosData,
         usuariosData,
         paquetesData,
         clientesData,
       ] = await Promise.all([
-        ventaService.getVentas().catch(() => []),
         servicioService.getServicios().catch(() => []),
         productoService.getProductos().catch(() => []),
         apiService.getUsuarios().catch(() => []),
         apiService.getPaquetes().catch(() => []),
         clientesService.getClientes().catch(() => []),
       ]);
-
-      const maxNumVenta = Array.isArray(ventasData) && ventasData.length > 0
-        ? Math.max(...ventasData.map((v: any) => Number(v.numeroVenta || v.id) || 0))
-        : 0;
-      setVentasCount(maxNumVenta);
-
       // Saldo real (devoluciones - saldoUsado en ventas) directo desde la API
       const clientesActivosRaw = (clientesData || []).filter(
         (c: any) => c.estado === true
@@ -271,7 +264,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
       setBarberosAPI(barberos);
     } catch (err: any) {
-      console.error("Error cargando datos:", err);
+      logger.error("Error cargando datos:", err);
       showErrorAlert(
         "Error al cargar datos",
         "No se pudieron cargar los datos. Intenta nuevamente."
@@ -400,14 +393,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
 
   const subtotalProductos = useMemo(() => {
     return (nuevaVenta.productos || []).reduce(
-      (sum, p) => sum + p.precio * p.cantidad,
+      (sum, p) => sum + calcSubtotal(p.precio, p.cantidad),
       0
     );
   }, [nuevaVenta.productos]);
 
   const subtotalServicios = useMemo(() => {
     return serviciosAgregados.reduce(
-      (sum, s) => sum + s.precio * s.cantidad,
+      (sum, s) => sum + calcSubtotal(s.precio, s.cantidad),
       0
     );
   }, [serviciosAgregados]);
@@ -457,7 +450,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         setServicioSeleccionado("");
       }
       const totalSinServicios = (nuevaVenta.productos || []).reduce(
-        (sum, p) => sum + p.precio * p.cantidad, 0
+        (sum, p) => sum + calcSubtotal(p.precio, p.cantidad), 0
       );
       if (totalSinServicios > LIMITE_CREDITO) {
         showErrorAlert(
@@ -1091,7 +1084,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         onBack();
       }, 1500);
     } catch (error: any) {
-      console.error("Error creando venta:", error);
+      logger.error("Error creando venta:", error);
       showErrorAlert(
         "Error al crear la venta",
         error?.message || "Error desconocido al crear la venta"
@@ -1153,7 +1146,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         Nº Venta:
                       </span>
                       <span className="text-gray-lightest font-medium tabular-nums text-xs sm:text-sm">
-                        {(ventasCount + 1).toString().padStart(3, "0")}
+                        —
                       </span>
                     </div>
 

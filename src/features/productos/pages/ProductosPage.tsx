@@ -104,6 +104,8 @@ export function ProductosPage() {
   const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skipPagedRefetch = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showProductoFormErrors, setShowProductoFormErrors] = useState(false);
   const [productoValidationAttempt, setProductoValidationAttempt] = useState(0);
@@ -394,6 +396,9 @@ export function ProductosPage() {
   };
 
   const confirmCreateProducto = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       const nombreLower = String(nuevoProducto.nombre || '').trim().toLowerCase();
       const existeNombre = productos.some(p => String(p.nombre || '').trim().toLowerCase() === nombreLower);
@@ -476,6 +481,9 @@ export function ProductosPage() {
     } catch (err: any) {
       console.error('Error creating product:', err);
       error('Error al crear producto', err.message || 'No se pudo crear el producto. Inténtalo nuevamente.');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -531,6 +539,9 @@ export function ProductosPage() {
 
   const confirmUpdateProducto = async () => {
     if (!editingProducto) return;
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
     try {
       const nombreLower = String(nuevoProducto.nombre || '').trim().toLowerCase();
@@ -599,6 +610,9 @@ export function ProductosPage() {
     } catch (err: any) {
       console.error('Error updating product:', err);
       error('Error al actualizar producto', err.message || 'No se pudo actualizar el producto. Inténtalo nuevamente.');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -1163,14 +1177,21 @@ export function ProductosPage() {
                       )}
 
                     <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
-                      <button onClick={() => setIsDialogOpen(false)} className="elegante-button-secondary px-6">
+                      <button onClick={() => setIsDialogOpen(false)} disabled={isSubmitting} className="elegante-button-secondary px-6">
                         Cancelar
                       </button>
                       <button
                         onClick={editingProducto ? handleUpdateProducto : handleCreateProductoSubmit}
-                        className="elegante-button-primary px-8"
+                        disabled={isSubmitting}
+                        className="elegante-button-primary px-8 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {editingProducto ? 'Actualizar' : 'Agregar'} Producto
+                        {isSubmitting && (
+                          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        )}
+                        {isSubmitting
+                          ? (editingProducto ? 'Actualizando...' : 'Creando...')
+                          : (editingProducto ? 'Actualizar' : 'Agregar') + ' Producto'
+                        }
                       </button>
                     </div>
                     </div>

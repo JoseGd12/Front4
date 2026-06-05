@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api';
+import { httpClient } from '../../../shared/services/httpClient';
 
 export interface Servicio {
   id: number;
@@ -10,86 +10,87 @@ export interface Servicio {
   imagen?: string;
 }
 
+export interface PagedServicios {
+  items: Servicio[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 class ServicioService {
-  private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${API_BASE_URL}${endpoint}`;
+  private extract(parsed: any): any[] {
+    return Array.isArray(parsed)
+      ? parsed
+      : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items
+      : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
+      : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
+      : [];
+  }
 
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
+  private normalize(item: any): Servicio {
+    return {
+      id: item.id || item.Id,
+      nombre: item.nombre || item.Nombre,
+      precio: item.precio || item.Precio,
+      descripcion: item.descripcion || item.Descripcion,
+      duracion: item.duracion || item.Duracion || item.duracionMinutes || item.DuracionMinutes || item.duracionMinutos || item.DuracionMinutos,
+      estado: item.estado === true || item.Estado === true || item.estado === 1 || item.Estado === 1,
+      imagen: item.imagen || item.Imagen
     };
+  }
 
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    };
-
+  /**
+   * Obtiene una página de servicios (FE-M12: Optimización de paginación)
+   */
+  async getServiciosPaged(page = 1, pageSize = 50): Promise<PagedServicios> {
     try {
-      console.log(`ServicioService [${config.method || 'GET'}]: ${url}`);
-      const response = await fetch(url, config);
+      const raw = await httpClient.get(`/servicios?page=${page}&pageSize=${pageSize}`);
+      const rawItems = this.extract(raw);
+      const items = rawItems.map(item => this.normalize(item));
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ ServicioService Error [${response.status}]: ${errorText}`);
-        throw new Error(`Error del servidor (${response.status}): ${errorText || response.statusText}`);
-      }
-
-      return response;
-    } catch (error) {
-      console.error('ServicioService Network/API Error:', error);
-      throw error;
+      return {
+        items,
+        totalCount: Number(raw?.totalCount ?? items.length),
+        page: Number(raw?.page ?? page),
+        pageSize: Number(raw?.pageSize ?? pageSize),
+        totalPages: Number(raw?.totalPages ?? 1)
+      };
+    } catch (error: any) {
+      console.error('❌ Error obteniendo servicios paginados:', error);
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
     }
   }
 
+  /**
+   * @deprecated Usar getServiciosPaged para mejor rendimiento.
+   */
   async getServicios(): Promise<Servicio[]> {
-    try {
-      console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/servicios`);
-      const arr: any[] = [];
-      const extract = (parsed: any): any[] => Array.isArray(parsed)
-        ? parsed
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) ? (parsed as any).items
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).data)) ? (parsed as any).data
-        : (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).$values)) ? (parsed as any).$values
-        : [];
-      const firstResponse = await this.request('/servicios?page=1&pageSize=100');
-      const firstText = await firstResponse.text();
-      const firstParsed = firstText ? JSON.parse(firstText) : [];
-      arr.push(...extract(firstParsed));
-      let totalPages = firstParsed && typeof firstParsed === 'object' && !Array.isArray(firstParsed)
-        ? Number((firstParsed as any).totalPages ?? 1)
-        : 1;
-      totalPages = Math.min(Math.max(1, totalPages), 200);
-      if (totalPages > 1) {
-        const promises: Promise<any[]>[] = [];
-        for (let page = 2; page <= totalPages; page++) {
-          promises.push((async () => {
-            const response = await this.request(`/servicios?page=${page}&pageSize=100`);
-            const text = await response.text();
-            const parsed = text ? JSON.parse(text) : [];
-            return extract(parsed);
-          })());
-        }
-        const rest = await Promise.all(promises);
-        rest.forEach(items => arr.push(...items));
-      }
+    const res = await this.getServiciosPaged(1, 100);
+    return res.items;
+  }
 
-      const normalizedData = arr.map((item: any) => ({
-        id: item.id || item.Id,
-        nombre: item.nombre || item.Nombre,
-        precio: item.precio || item.Precio,
-        descripcion: item.descripcion || item.Descripcion,
-        duracion: item.duracion || item.Duracion || item.duracionMinutes || item.DuracionMinutes || item.duracionMinutos || item.DuracionMinutos,
-        estado: item.estado === true || item.Estado === true || item.estado === 1 || item.Estado === 1,
-        imagen: item.imagen || item.Imagen
-      }));
+  async getServicioById(id: number): Promise<Servicio> {
+    const data = await httpClient.get(`/servicios/${id}`);
+    return this.normalize(data);
+  }
 
-      return normalizedData;
-    } catch (error: any) {
-      console.error('❌ Error obteniendo servicios:', error);
-      throw error;
-    }
+  async createServicio(data: Partial<Servicio>): Promise<Servicio> {
+    const result = await httpClient.post('/servicios', data);
+    return this.normalize(result);
+  }
+
+  async updateServicio(id: number, data: Partial<Servicio>): Promise<Servicio> {
+    const result = await httpClient.put(`/servicios/${id}`, data);
+    return this.normalize(result);
+  }
+
+  async deleteServicio(id: number): Promise<void> {
+    await httpClient.delete(`/servicios/${id}`);
+  }
+
+  async updateServicioStatus(id: number, estado: boolean): Promise<void> {
+    await httpClient.post(`/servicios/${id}/estado`, { estado });
   }
 }
 

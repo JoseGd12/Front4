@@ -39,12 +39,34 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
 
-  // Control de intentos fallidos
+  // Control de intentos fallidos (FE-A2: Persistencia en sessionStorage)
   const MAX_ATTEMPTS = 5;
   const LOCKOUT_SECONDS = 5 * 60; // 5 minutos
-  const [failedAttempts, setFailedAttempts] = useState<number>(0);
-  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  
+  const [failedAttempts, setFailedAttempts] = useState<number>(() => {
+    const saved = sessionStorage.getItem('login_failed_attempts');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(() => {
+    const saved = sessionStorage.getItem('login_lockout_until');
+    return saved ? parseInt(saved, 10) : null;
+  });
+  
   const [lockoutCountdown, setLockoutCountdown] = useState<number>(0);
+
+  // Sincronizar con sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('login_failed_attempts', failedAttempts.toString());
+  }, [failedAttempts]);
+
+  useEffect(() => {
+    if (lockoutUntil) {
+      sessionStorage.setItem('login_lockout_until', lockoutUntil.toString());
+    } else {
+      sessionStorage.removeItem('login_lockout_until');
+    }
+  }, [lockoutUntil]);
 
   // Countdown del bloqueo
   useEffect(() => {

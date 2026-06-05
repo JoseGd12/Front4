@@ -1,5 +1,4 @@
-const API_BASE_URL = '/api';
-import { auth } from "../../../shared/services/firebase";
+import { httpClient } from '../../../shared/services/httpClient';
 
 /* =======================
    INTERFACE
@@ -18,45 +17,6 @@ export interface Modulo {
 
 class ModulosService {
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    let token = localStorage.getItem('authToken');
-    if (auth.currentUser) {
-      token = await auth.currentUser.getIdToken();
-    }
-
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    console.log(`➡️ Request: ${url}`);
-
-    const response = await fetch(url, config);
-
-    console.log(`⬅️ Status: ${response.status}`);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    // DELETE puede no devolver contenido
-    if (response.status === 204) {
-      return null as T;
-    }
-
-    return response.json();
-  }
-
   /* =======================
      GET ALL
   ======================= */
@@ -71,7 +31,7 @@ class ModulosService {
     params.append('pageSize', '1000');
     if (q) params.append('q', q);
 
-    const raw = await this.request<any>(`/Modulos?${params.toString()}`);
+    const raw = await httpClient.get<any>(`/Modulos?${params.toString()}`);
     let items: any[] = [];
     if (Array.isArray(raw)) {
       items = raw;
@@ -93,7 +53,7 @@ class ModulosService {
   ======================= */
 
   async getModuloById(id: number): Promise<Modulo> {
-    const raw = await this.request<any>(`/Modulos/${id}`);
+    const raw = await httpClient.get<any>(`/Modulos/${id}`);
     return {
       id: Number(raw.id ?? raw.Id ?? id),
       nombre: String(raw.nombre ?? raw.Nombre ?? ''),
@@ -106,25 +66,25 @@ class ModulosService {
      CREATE
   ======================= */
 
-  async createModulo(moduloData: Partial<Modulo>): Promise<Modulo> {
-    return this.request<Modulo>('/Modulos', {
-      method: 'POST',
-      body: JSON.stringify(moduloData),
-    });
+  async createModulo(data: Partial<Modulo>): Promise<Modulo> {
+    const apiData = {
+      Nombre: data.nombre,
+      Estado: data.estado ?? true
+    };
+    return httpClient.post('/Modulos', apiData);
   }
 
   /* =======================
      UPDATE
   ======================= */
 
-  async updateModulo(
-    id: number,
-    moduloData: Partial<Modulo>
-  ): Promise<Modulo> {
-    return this.request<Modulo>(`/Modulos/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(moduloData),
-    });
+  async updateModulo(id: number, data: Partial<Modulo>): Promise<Modulo> {
+    const apiData = {
+      Id: id,
+      Nombre: data.nombre,
+      Estado: data.estado
+    };
+    return httpClient.put(`/Modulos/${id}`, apiData);
   }
 
   /* =======================
@@ -132,14 +92,9 @@ class ModulosService {
   ======================= */
 
   async deleteModulo(id: number): Promise<void> {
-    await this.request<void>(`/Modulos/${id}`, {
-      method: 'DELETE',
-    });
+    await httpClient.delete(`/Modulos/${id}`);
   }
 }
 
-/* =======================
-   EXPORT
-======================= */
-
 export const modulosService = new ModulosService();
+export default modulosService;

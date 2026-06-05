@@ -269,7 +269,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       horariosResult,
       productosResult,
     ] = await Promise.allSettled([
-      agendamientoService.getAgendamientos(),
+      agendamientoService.getAgendamientosPaged(1, 1000), // Cargar un bloque grande para el calendario
       barberosService.getBarberos(),
       servicioService.getServicios(),
       clientesService.getClientes(),
@@ -281,13 +281,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     const getVal = <T,>(r: PromiseSettledResult<T>): T | null =>
       r.status === 'fulfilled' ? r.value : null;
 
-    const citasData     = getVal(citasResult);
+    const citasResponse = getVal(citasResult);
+    const citasData     = citasResponse ? ((citasResponse as any).items || citasResponse) : null;
     const barberosData  = getVal(barberosResult);
-    const serviciosData = getVal(serviciosResult);
-    const clientesData  = getVal(clientesResult);
+    const serviciosResponse = getVal(serviciosResult);
+    const serviciosData = serviciosResponse ? ((serviciosResponse as any).items || serviciosResponse) : null;
+    const clientesResponse  = getVal(clientesResult);
+    const clientesData  = clientesResponse ? ((clientesResponse as any).items || clientesResponse) : null;
     const paquetesData  = getVal(paquetesResult);
     const horariosData  = getVal(horariosResult);
-    const productosData = getVal(productosResult) ?? [];
+    const productosResponse = getVal(productosResult);
+    const productosData = productosResponse ? ((productosResponse as any).items || productosResponse) : [];
 
     // Actualizar estado solo para peticiones exitosas (las fallidas conservan estado previo)
     if (citasData !== null)     setCitas(citasData);
@@ -395,6 +399,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [modalLeft, setModalLeft] = useState<number | null>(null);
   const [isModalDragging, setIsModalDragging] = useState(false);
   const [isSavingCita, setIsSavingCita] = useState(false);
+  const isSavingCitaRef = useRef(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const initialFormSnapshotRef = useRef<FormSnapshot | null>(null);
@@ -1416,6 +1421,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   // Crear nueva cita
   const handleCreateCita = async () => {
+    if (isSavingCitaRef.current) return;
     if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
       setDismissedErrors(new Set());
@@ -1429,6 +1435,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       return;
     }
 
+    isSavingCitaRef.current = true;
     setIsSavingCita(true);
     try {
       await agendamientoService.createAgendamiento({
@@ -1459,6 +1466,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       const displayMsg = errorMsg.toString().replace("Error 400: ", "").replace("Error 500: ", "");
       error("No se pudo crear la cita", displayMsg);
     } finally {
+      isSavingCitaRef.current = false;
       setIsSavingCita(false);
     }
   };
@@ -1550,6 +1558,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   // Actualizar cita
   const handleUpdateCita = async () => {
+    if (isSavingCitaRef.current) return;
     if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
       setDismissedErrors(new Set());
@@ -1576,6 +1585,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       }
     }
 
+    isSavingCitaRef.current = true;
     setIsSavingCita(true);
     try {
       await agendamientoService.updateAgendamiento(selectedCita.id, {
@@ -1605,6 +1615,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       const displayMsg = errorMsg.toString().replace("Error 400: ", "").replace("Error 500: ", "");
       error("Error al actualizar", displayMsg);
     } finally {
+      isSavingCitaRef.current = false;
       setIsSavingCita(false);
     }
   };

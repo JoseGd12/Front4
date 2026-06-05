@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api';
+import { httpClient } from '../../../shared/services/httpClient';
 
 export interface Devolucion {
     id: number;
@@ -134,81 +134,26 @@ class DevolucionService {
     }
   }
 
-    async getDevoluciones(): Promise<Devolucion[]> {
-        try {
-            const arr: any[] = [];
-            const extract = (parsed: any): any[] => Array.isArray(parsed)
-              ? parsed
-              : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items
-              : (parsed && typeof parsed === 'object' && Array.isArray(parsed.data)) ? parsed.data
-              : (parsed && typeof parsed === 'object' && Array.isArray(parsed.$values)) ? parsed.$values
-              : [];
-            const firstResponse = await this.request('/Devoluciones?page=1&pageSize=100');
-            const firstText = await firstResponse.text();
-            const firstParsed = firstText ? JSON.parse(firstText) : [];
-            arr.push(...extract(firstParsed));
-            let totalPages = firstParsed && typeof firstParsed === 'object' && !Array.isArray(firstParsed)
-                ? Number((firstParsed as any).totalPages ?? 1)
-                : 1;
-            totalPages = Math.min(Math.max(1, totalPages), 200);
-            if (totalPages > 1) {
-                const promises: Promise<any[]>[] = [];
-                for (let page = 2; page <= totalPages; page++) {
-                    promises.push((async () => {
-                        const response = await this.request(`/Devoluciones?page=${page}&pageSize=100`);
-                        const text = await response.text();
-                        const parsed = text ? JSON.parse(text) : [];
-                        return extract(parsed);
-                    })());
-                }
-                const rest = await Promise.all(promises);
-                rest.forEach(items => arr.push(...items));
-            }
-            return await Promise.all(arr.map((item: any) => this.normalizeDevolucionData(item)));
-        } catch (error) {
-            console.error('Error fetching devoluciones:', error);
-            throw error;
-        }
+  async getDevoluciones(): Promise<Devolucion[]> {
+    try {
+      const data = await httpClient.get('/Devoluciones');
+      const items = Array.isArray(data) ? data : (data.items || []);
+      return await Promise.all(items.map(v => this.normalizeDevolucionData(v)));
+    } catch (error: any) {
+      console.error('❌ Error obteniendo devoluciones:', error);
+      throw error;
     }
+  }
 
-    private mapToApiFormat(data: CreateDevolucionRequest): any {
-        // Función interna para asegurar que enviamos null si el ID no es válido (> 0)
-        // Esto permite que el operador ?? en tu C# funcione correctamente.
-        const cleanId = (id: any) => {
-            const num = Number(id);
-            return (isNaN(num) || num <= 0) ? null : num;
-        };
-
-        return {
-            VentaId: cleanId(data.ventaId),
-            ClienteId: cleanId(data.clienteId),
-            UsuarioId: cleanId(data.usuarioId),
-            ProductoId: cleanId(data.productoId),
-            Cantidad: Number(data.cantidad),
-            MotivoCategoria: data.motivoCategoria,
-            MotivoDetalle: data.motivoDetalle || '',
-            Observaciones: data.observaciones || '',
-            MontoDevuelto: Number(data.montoDevuelto),
-            SaldoAFavor: Number(data.saldoAFavor)
-        };
+  async createDevolucion(data: CreateDevolucionRequest): Promise<Devolucion> {
+    try {
+      const result = await httpClient.post('/Devoluciones', data);
+      return await this.normalizeDevolucionData(result);
+    } catch (error: any) {
+      console.error('❌ Error creando devolución:', error);
+      throw error;
     }
-
-    async createDevolucion(devolucionData: CreateDevolucionRequest): Promise<Devolucion> {
-        try {
-            const apiBody = this.mapToApiFormat(devolucionData);
-            console.log('📤 Creando devolución - Datos mapeados:', apiBody);
-
-            const response = await this.request('/Devoluciones', {
-                method: 'POST',
-                body: JSON.stringify(apiBody),
-            });
-            const data = await response.json();
-            return await this.normalizeDevolucionData(data);
-        } catch (error) {
-            console.error('Error creating devolucion:', error);
-            throw error;
-        }
-    }
+  }
 
     async updateDevolucionStatus(id: number, estado: string): Promise<void> {
         try {
@@ -259,14 +204,14 @@ class DevolucionService {
         }
     }
 
-    /**
-     * @deprecated Las devoluciones NO se pueden eliminar — usar `anularDevolucion(id)`.
-     * Alias para compatibilidad: redirige a anular.
-     */
-    async deleteDevolucion(id: number): Promise<void> {
-        console.warn('deleteDevolucion está deprecated. Las devoluciones solo se pueden anular.');
-        return this.anularDevolucion(id);
+  async deleteDevolucion(id: number): Promise<void> {
+    try {
+      await httpClient.delete(`/Devoluciones/${id}`);
+    } catch (error: any) {
+      console.error(`❌ Error eliminando devolución ${id}:`, error);
+      throw error;
     }
+  }
 
     /**
      * Anula una devolución (soft delete).

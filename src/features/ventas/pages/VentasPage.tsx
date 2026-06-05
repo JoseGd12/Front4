@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { calcSubtotal, calcDescuento, calcTotal } from "../utils/money";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
@@ -48,6 +48,7 @@ import { useAuth } from "../../../shared/contexts/AuthContext";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import manitoLogo from "../../../assets/Manito.jpeg";
 import { creditoBarberoService } from "../../credito-barberos/services/creditoBarberoService";
+import { logger } from "../../../shared/utils/logger";
 
 // Función para formatear moneda colombiana con puntos para separar miles
 const formatCurrency = (amount: number): string => {
@@ -251,23 +252,26 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       setError(null);
 
       // Cargar todos los datos necesarios en paralelo
-      const [ventasData, serviciosData, productosData, usuariosData, paquetesData, clientesData, devolucionesData] = await Promise.all([
-        ventaService.getVentas().catch(() => []),
+      const [ventasResponse, serviciosData, productosData, usuariosData, paquetesData, clientesResponse, devolucionesData] = await Promise.all([
+        ventaService.getVentasPaged(1, 100).catch(() => ({ items: [], totalCount: 0 })),
         servicioService.getServicios().catch(() => []),
         productoService.getProductos().catch(() => []),
         apiService.getUsuarios().catch(() => []),
         apiService.getPaquetes().catch(() => []),
-        clientesService.getClientes().catch(() => []),
+        clientesService.getClientesPaged({ page: 1, pageSize: 100 }).catch(() => ({ items: [], totalCount: 0 })),
         devolucionService.getDevoluciones().catch(() => [])
       ]);
 
-      console.log('🔍 Ventas cargadas:', ventasData.length);
-      console.log('🔍 Servicios cargados:', serviciosData?.length || 0);
-      console.log('🔍 Paquetes cargados:', paquetesData?.length || 0);
-      console.log('🔍 Productos cargados:', productosData?.length || 0);
-      console.log('🔍 Usuarios cargados:', usuariosData?.length || 0);
-      console.log('🔍 Clientes cargados (tabla clientes):', clientesData?.length || 0);
-      console.log('🔍 Devoluciones cargadas:', devolucionesData?.length || 0);
+      const ventasData = (ventasResponse as any).items || ventasResponse || [];
+      const clientesData = (clientesResponse as any).items || clientesResponse || [];
+
+      logger.debug('🔍 Ventas cargadas:', ventasData.length);
+      logger.debug('🔍 Servicios cargados:', serviciosData?.length || 0);
+      logger.debug('🔍 Paquetes cargados:', paquetesData?.length || 0);
+      logger.debug('🔍 Productos cargados:', productosData?.length || 0);
+      logger.debug('🔍 Usuarios cargados:', usuariosData?.length || 0);
+      logger.debug('🔍 Clientes cargados (tabla clientes):', clientesData?.length || 0);
+      logger.debug('🔍 Devoluciones cargadas:', devolucionesData?.length || 0);
 
       const saldoPorCliente = new Map<number, number>();
       (devolucionesData as ApiDevolucion[] || []).forEach((d: any) => {
@@ -349,7 +353,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       // Clientes para ventas: usar SIEMPRE la tabla de clientes (IDs válidos para FK ClienteId)
       const clientesActivos = clientesConSaldo.filter((c: any) => c.estado === true);
       setClientesAPI(clientesActivos);
-      console.log('🔍 Clientes activos (con saldo calculado):', clientesActivos.length);
+      logger.debug('🔍 Clientes activos (con saldo calculado):', clientesActivos.length);
 
       // Filtrar barberos: Usuarios activos que NO son Clientes ni Administradores
       const barberos = usuariosData.filter((u: any) =>
@@ -364,15 +368,15 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       } else {
         setBarberosAPI(barberos);
       }
-      console.log('🔍 Barberos filtrados:', barberos.length);
+      logger.debug('🔍 Barberos filtrados:', barberos.length);
 
       // Verificar servicios disponibles después de cargar
       setTimeout(() => {
-        console.log('🔍 serviciosDisponibles después de cargar:', serviciosDisponibles);
+        logger.debug('🔍 serviciosDisponibles después de cargar:', serviciosDisponibles);
       }, 100);
 
     } catch (err: any) {
-      console.error('Error cargando datos:', err);
+      logger.error('Error cargando datos:', err);
       setError(err.message || 'Error al cargar los datos');
       showErrorAlert("Error al cargar datos", "No se pudieron cargar los datos. Intenta nuevamente.");
     } finally {
@@ -458,19 +462,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   const [showAddProductoErrors, setShowAddProductoErrors] = useState(false);
   const [showAddServicioErrors, setShowAddServicioErrors] = useState(false);
   const [ventaValidationAttempt, setVentaValidationAttempt] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
-  const numeroVenta = useMemo(() => {
-    const maxId = (ventas || []).reduce((max, venta) => {
-      const idFromEntity = Number((venta as any)?.id ?? 0);
-      const idFromNumero = Number((venta as any)?.numeroVenta ?? 0);
-      const candidate = Math.max(
-        Number.isFinite(idFromEntity) ? idFromEntity : 0,
-        Number.isFinite(idFromNumero) ? idFromNumero : 0
-      );
-      return candidate > max ? candidate : max;
-    }, 0);
-    return maxId + 1;
-  }, [ventas]);
+  // El número de venta lo asigna el backend — no calcularlo en el front
+  // (dos usuarios simultáneos producirían el mismo número si se calculara aquí)
   const shakeClass = ventaValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
   const noItemsAgregados = (nuevaVenta.productos?.length || 0) === 0 && serviciosAgregados.length === 0;
   const mustChooseProducto = showVentaFormErrors && noItemsAgregados && !servicioSeleccionado;
@@ -1214,7 +1210,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         showErrorAlert("Error al cargar detalles", "No se pudieron cargar los detalles de la venta.");
       }
     } catch (error: any) {
-      console.error('Error cargando detalles de venta:', error);
+      logger.error('Error cargando detalles de venta:', error);
       showErrorAlert("Error al cargar detalles", "Error al cargar los detalles de la venta.");
       // Si falla, mantener los datos básicos que tenemos
     } finally {
@@ -1223,6 +1219,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   };
 
   const handleCreateVenta = async () => {
+    if (isSubmittingRef.current) return;
     setShowVentaFormErrors(true);
     setVentaValidationAttempt((prev) => prev + 1);
 
@@ -1255,7 +1252,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     // Validar que los productos tengan IDs válidos
     const productosInvalidos = productosActuales.filter(p => !p.id || isNaN(Number(p.id)));
     if (productosInvalidos.length > 0) {
-      console.error('❌ Productos con IDs inválidos:', productosInvalidos);
+      logger.error('❌ Productos con IDs inválidos:', productosInvalidos);
       showErrorAlert("Productos inválidos", `${productosInvalidos.length} producto(s) tienen IDs inválidos.`);
       return;
     }
@@ -1275,8 +1272,9 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
-      // Use the already calculated numeroVenta from component level
       const subtotal = calcularSubtotal();
       const descuento = calcularDescuento(subtotal);
 
@@ -1311,7 +1309,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       const barberoIdFinal = nuevaVenta.barberoId ? Number(nuevaVenta.barberoId) : null;
 
       const ventaData = {
-        numeroVenta,
+        // numeroVenta no se envía: el backend lo asigna automáticamente
         tipoVenta: nuevaVenta.tipoVenta,
         clienteId: nuevaVenta.clienteId,
         usuarioId: Number(user.id),
@@ -1342,7 +1340,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
           : []
       };
 
-      console.log('🔍 VentasPage - ventaData before service call:', ventaData);
+      logger.debug('🔍 VentasPage - ventaData before service call:', ventaData);
 
       const nuevaVentaCreada = await ventaService.createVenta(ventaData);
 
@@ -1360,13 +1358,13 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
           // Crear un registro de "consumo de saldo" como devolución negativa para persistir el ajuste
           try {
             await devolucionService.createDevolucion({
-              ventaId: Number(nuevaVentaCreada.id || nuevaVentaCreada.numeroVenta || numeroVenta),
+              ventaId: Number(nuevaVentaCreada.id || nuevaVentaCreada.numeroVenta || 0),
               productoId: (productosActuales[0]?.id ? Number(productosActuales[0].id) : 0),
               servicioId: undefined,
               clienteId: Number(nuevaVenta.clienteId),
               cantidad: 0,
               motivoCategoria: 'ConsumoSaldo',
-              motivoDetalle: `Consumo de saldo por venta ${nuevaVentaCreada.numeroVenta || numeroVenta}`,
+              motivoDetalle: `Consumo de saldo por venta ${nuevaVentaCreada.numeroVenta || nuevaVentaCreada.id}`,
               montoDevuelto: 0,
               saldoAFavor: -Math.abs(montoUsado),
               usuarioId: Number(user.id),
@@ -1446,11 +1444,13 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       setIsDialogOpen(false);
 
       const ventaIdCreada = Number((nuevaVentaCreada as any)?.id ?? (nuevaVentaCreada as any)?.numeroVenta ?? 0);
-      created("Venta creada ✔️", `La venta #${ventaIdCreada > 0 ? ventaIdCreada : numeroVenta} ha sido registrada exitosamente por ${formatCurrency(total)}.`);
+      created("Venta creada ✔️", `La venta #${ventaIdCreada > 0 ? ventaIdCreada : '—'} ha sido registrada exitosamente por ${formatCurrency(total)}.`);
     } catch (error: any) {
-      console.error('Error creando venta:', error);
       const errorMessage = error?.message || 'Error desconocido al crear la venta';
       showErrorAlert("Error al crear la venta", errorMessage);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -1549,7 +1549,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
           edited("Venta anulada ✔️", `La venta ${venta.numeroVenta} ha sido anulada exitosamente.`);
         } catch (error: any) {
-          console.error('Error anulando venta:', error);
+          logger.error('Error anulando venta:', error);
           showErrorAlert("Error al anular", "No se pudo anular la venta. Intenta nuevamente.");
         }
       },
@@ -1865,7 +1865,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       doc.save(fileName);
       created("PDF generado ✔️", `La factura de la venta ${String(ventaData.id).padStart(3, "0")} fue descargada correctamente.`);
     } catch (error) {
-      console.error("Error generando PDF de venta:", error);
+      logger.error("Error generando PDF de venta:", error);
       showErrorAlert("Error al generar PDF", "No se pudo generar el PDF de la venta.");
     }
   };

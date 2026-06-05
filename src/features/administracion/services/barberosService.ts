@@ -1,8 +1,6 @@
-import { auth } from '../../../shared/services/firebase';
+import { httpClient } from '../../../shared/services/httpClient';
 import { apiService, type ApiUser } from '../../../shared/services/api';
-
-const BARBEROS_URL = '/api/Barberos';
-const USUARIOS_URL = '/api/Usuarios';
+import { logger } from '../../../shared/utils/logger';
 
 export interface Barbero {
   id: number;
@@ -44,34 +42,6 @@ export interface CreateBarberoData {
 }
 
 class BarberosService {
-  private async request(url: string, options: RequestInit = {}): Promise<Response> {
-    let token = null;
-    if (auth.currentUser) {
-      token = await auth.currentUser.getIdToken();
-    }
-
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...options.headers,
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      },
-    };
-
-    try {
-      const response = await fetch(url, config);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error ${response.status}: ${errorText}`);
-      }
-      return response;
-    } catch (error) {
-      console.error('API Error:', error);
-      throw error;
-    }
-  }
-
   // Mapeo simplificado (DTO aplanado o con navegación)
   mapApiToComponent(api: any): Barbero {
     const usuario = api.usuario || api.Usuario || {};
@@ -121,35 +91,36 @@ class BarberosService {
     };
   }
 
+  private extract(raw: any): any[] {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') {
+      if (Array.isArray(raw.items)) return raw.items;
+      if (Array.isArray(raw.data)) return raw.data;
+      if (Array.isArray(raw.$values)) return raw.$values;
+      const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
+      return firstArray || [];
+    }
+    return [];
+  }
+
   async getBarberos(): Promise<Barbero[]> {
     try {
       const merged: any[] = [];
-      const extract = (raw: any): any[] => {
-        if (Array.isArray(raw)) return raw;
-        if (raw && typeof raw === 'object') {
-          if (Array.isArray(raw.items)) return raw.items;
-          if (Array.isArray(raw.data)) return raw.data;
-          if (Array.isArray(raw.$values)) return raw.$values;
-          const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
-          return firstArray || [];
-        }
-        return [];
-      };
-      const firstResponse = await this.request(`${BARBEROS_URL}?page=1&pageSize=100`);
-      const firstRaw = await firstResponse.json();
-      merged.push(...extract(firstRaw));
+      const firstRaw = await httpClient.get('/Barberos?page=1&pageSize=100');
+      merged.push(...this.extract(firstRaw));
+      
       let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
         ? Number((firstRaw as any).totalPages ?? 1)
         : 1;
       totalPages = Math.min(Math.max(1, totalPages), 200);
+      
       if (totalPages > 1) {
         const promises: Promise<any[]>[] = [];
         for (let page = 2; page <= totalPages; page++) {
-          promises.push((async () => {
-            const response = await this.request(`${BARBEROS_URL}?page=${page}&pageSize=100`);
-            const raw = await response.json();
-            return extract(raw);
-          })());
+          promises.push(
+            httpClient.get(`/Barberos?page=${page}&pageSize=100`)
+              .then(raw => this.extract(raw))
+          );
         }
         const rest = await Promise.all(promises);
         rest.forEach(items => merged.push(...items));
@@ -158,17 +129,23 @@ class BarberosService {
     } catch (e: any) {
       const msg = String(e?.message || '').toLowerCase();
       const is404 = msg.includes('404') || msg.includes('not found');
-      if (!is404) throw e;
-      try {
-        const usuarios: ApiUser[] = await apiService.getUsuarios();
-        const soloBarberos = usuarios.filter(u => {
-          const rolNombre = (u.rol?.nombre || '').toLowerCase();
-          return u.rolId === 2 || rolNombre === 'barbero';
-        });
-        return soloBarberos.map(u => this.mapApiToComponent(u as any));
-      } catch (fallbackErr) {
-        throw e;
+      
+      // Si falla el endpoint de Barberos, intentar fallback a Usuarios filtrados
+      if (is404 || msg.includes('500')) {
+        try {
+          logger.warn('Fallo en endpoint /Barberos, intentando fallback a /Usuarios...');
+          const usuarios: ApiUser[] = await apiService.getUsuarios();
+          const soloBarberos = usuarios.filter(u => {
+            const rolNombre = (u.rol?.nombre || '').toLowerCase();
+            return u.rolId === 2 || rolNombre === 'barbero';
+          });
+          return soloBarberos.map(u => this.mapApiToComponent(u as any));
+        } catch (fallbackErr) {
+          logger.error('Error en fallback de barberos:', fallbackErr);
+          throw e;
+        }
       }
+      throw e;
     }
   }
 
@@ -191,123 +168,23 @@ class BarberosService {
       FotoPerfil: data.fotoPerfil || ''
     };
 
-    const response = await this.request(USUARIOS_URL, {
-      method: 'POST',
-      body: JSON.stringify(apiData)
-    });
-    return await response.json();
+    return httpClient.post('/Usuarios', apiData);
   }
 
-  async updateBarbero(id: number, data: any): Promise<any> {
-    const apiData = {
-      Id: id,
-      id: id,
-      UsuarioId: data.usuarioId,
-      usuarioId: data.usuarioId,
-      Nombre: data.nombre,
-      nombre: data.nombre,
-      Apellido: data.apellido,
-      apellido: data.apellido,
-      Documento: data.documento,
-      documento: data.documento,
-      Correo: data.correo,
-      correo: data.correo,
-      Telefono: data.telefono,
-      telefono: data.telefono,
-      Direccion: data.direccion,
-      direccion: data.direccion,
-      Barrio: data.barrio,
-      barrio: data.barrio,
-      FechaNacimiento: data.fechaNacimiento,
-      fechaNacimiento: data.fechaNacimiento,
-      Especialidad: data.especialidad,
-      especialidad: data.especialidad,
-      Estado: data.status === 'active' || data.estado === true,
-      estado: data.status === 'active' || data.estado === true,
-      FotoPerfil: data.fotoPerfil || '',
-      fotoPerfil: data.fotoPerfil || ''
-    };
-
-    const response = await this.request(`${BARBEROS_URL}/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(apiData)
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error al actualizar barbero: ${response.status} ${errorText}`);
-    }
-    
-    return response.status === 204 ? apiData : await response.json();
+  async getBarberoById(id: number): Promise<Barbero> {
+    const data = await httpClient.get(`/Barberos/${id}`);
+    return this.mapApiToComponent(data);
   }
 
-  async deleteBarbero(id: number, info?: { correo?: string; documento?: string; tipoDocumento?: string }): Promise<void> {
-    // 1) Intentar eliminación directa del perfil Barbero
-    try {
-      const res = await this.request(`${BARBEROS_URL}/${id}`, { method: 'DELETE' });
-      if (res.ok) return;
-    } catch (e: any) {
-      const msg = String(e?.message || '').toLowerCase();
-      const is404 = msg.includes('404') || msg.includes('not found');
-      if (!is404) throw e;
-    }
-
-    // 2) Fallback: intentar eliminar por /Usuarios/{id}
-    try {
-      await apiService.deleteUsuario(id);
-      return;
-    } catch {
-      // continuar
-    }
-
-    // 3) Buscar usuario por correo o documento y eliminarlo
-    try {
-      const usuarios: ApiUser[] = await apiService.getUsuarios();
-      const correo = info?.correo?.toLowerCase();
-      const documento = (info?.documento || '').trim();
-      const tipoDoc = (info?.tipoDocumento || '').trim().toUpperCase();
-      const docFull = tipoDoc && documento ? `${tipoDoc} ${documento}` : documento;
-      const match = usuarios.find(u => {
-        const uCorreo = (u.correo || '').toLowerCase();
-        const uDoc = (u.documento || '').trim();
-        const rolNombre = (u.rol?.nombre || '').toLowerCase();
-        const esBarbero = u.rolId === 2 || rolNombre === 'barbero';
-        return esBarbero && ((correo && uCorreo === correo) || (documento && (uDoc === documento || uDoc === docFull)));
-      });
-      if (match?.id) {
-        await apiService.deleteUsuario(match.id);
-        return;
-      }
-      throw new Error('Usuario asociado no encontrado para eliminación');
-    } catch (err) {
-      throw new Error('No se pudo eliminar el barbero ni el usuario asociado');
-    }
+  async updateBarbero(id: number, data: Partial<Barbero>): Promise<any> {
+    const mapped = this.mapComponentToApi(data);
+    return httpClient.put(`/Barberos/${id}`, mapped);
   }
 
-  async updateBarberoStatus(id: number, estado: boolean): Promise<void> {
-    try {
-      await this.request(`${BARBEROS_URL}/${id}/estado`, {
-        method: 'POST',
-        body: JSON.stringify({ estado })
-      });
-    } catch (e: any) {
-      const msg = String(e?.message || '').toLowerCase();
-      const is404 = msg.includes('404') || msg.includes('not found');
-      if (!is404) throw e;
-
-      // Fallback: Si el perfil Barbero retorna 404, actualizamos directamente en /Usuarios
-      try {
-        const usuario = await apiService.getUsuarioById(id);
-        if (usuario && usuario.id) {
-          await apiService.updateUsuario(usuario.id, { ...usuario, estado });
-          return;
-        }
-      } catch (fallbackErr) {
-        // Ignorar el error del fallback y lanzar el error original 404
-      }
-      throw e;
-    }
+  async deleteBarbero(id: number): Promise<void> {
+    await httpClient.delete(`/Barberos/${id}`);
   }
 }
 
 export const barberosService = new BarberosService();
+export default barberosService;

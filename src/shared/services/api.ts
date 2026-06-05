@@ -1,6 +1,7 @@
 import { auth } from './firebase';
-
-const API_BASE_URL = '/api';
+import { httpClient } from './httpClient';
+import { API_BASE_URL } from '../config/api';
+import { logger } from '../utils/logger';
 
 export interface PagedResponse<T> {
   items: T[];
@@ -105,32 +106,15 @@ class ApiService {
 
   async uploadImage(file: File, opts?: { productoId?: number; usuarioId?: number }): Promise<string> {
     const formData = new FormData();
-    // Campo requerido por el backend: "imagen"
     formData.append('imagen', file);
     if (opts?.productoId != null) formData.append('productoId', String(opts.productoId));
     if (opts?.usuarioId != null) formData.append('usuarioId', String(opts.usuarioId));
 
     try {
-      const url = `${API_BASE_URL}/images/subir`;
-      console.log(`API [POST]: ${url} (multipart/form-data)`);
-
-      const response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ API Error [${response.status}]: ${errorText}`);
-        throw new Error(`Error al subir imagen (${response.status}): ${errorText || response.statusText}`);
-      }
-
-      const result = await response.json();
-      const imageUrl = result.url || result;
-      console.log('📤 URL recibida:', imageUrl);
-      return imageUrl;
+      const result = await httpClient.post('/images/subir', formData);
+      return result.url || result;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       throw error;
     }
   }
@@ -138,129 +122,60 @@ class ApiService {
   async uploadProductoImagen(productoId: number, file: File): Promise<{ url: string; publicId?: string }> {
     const formData = new FormData();
     formData.append('imagen', file);
-    const url = `${API_BASE_URL}/productos/${productoId}/imagen`;
-    const resp = await fetch(url, { method: 'POST', body: formData });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Error subiendo imagen de producto (${resp.status}): ${text || resp.statusText}`);
-    }
-    return await resp.json();
+    return httpClient.post(`/productos/${productoId}/imagen`, formData);
   }
 
   async uploadUsuarioFoto(usuarioId: number, file: File): Promise<{ url: string; publicId?: string }> {
     const formData = new FormData();
     formData.append('imagen', file);
-    const url = `${API_BASE_URL}/usuarios/${usuarioId}/foto`;
-    const resp = await fetch(url, { method: 'POST', body: formData });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Error subiendo foto de usuario (${resp.status}): ${text || resp.statusText}`);
-    }
-    return await resp.json();
+    return httpClient.post(`/usuarios/${usuarioId}/foto`, formData);
   }
 
   async uploadServicioImagen(servicioId: number, file: File): Promise<{ url: string; publicId?: string }> {
     const formData = new FormData();
     formData.append('imagen', file);
-    const url = `${API_BASE_URL}/servicios/${servicioId}/imagen`;
-    const resp = await fetch(url, { method: 'POST', body: formData });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Error subiendo imagen de servicio (${resp.status}): ${text || resp.statusText}`);
-    }
-    return await resp.json();
+    return httpClient.post(`/servicios/${servicioId}/imagen`, formData);
   }
 
   async deleteProductoImagen(productoId: number, borrarCloud = true): Promise<{ eliminado: boolean; publicId?: string }> {
-    const url = `${API_BASE_URL}/images/producto/${productoId}?borrarCloud=${borrarCloud ? 'true' : 'false'}`;
-    const resp = await fetch(url, { method: 'DELETE' });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Error eliminando imagen de producto (${resp.status}): ${text || resp.statusText}`);
-    }
-    return await resp.json();
+    return httpClient.delete(`/images/producto/${productoId}?borrarCloud=${borrarCloud ? 'true' : 'false'}`);
   }
 
   async deleteUsuarioFoto(usuarioId: number, borrarCloud = true): Promise<{ eliminado: boolean; publicId?: string }> {
-    const url = `${API_BASE_URL}/images/usuario/${usuarioId}?borrarCloud=${borrarCloud ? 'true' : 'false'}`;
-    const resp = await fetch(url, { method: 'DELETE' });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Error eliminando foto de usuario (${resp.status}): ${text || resp.statusText}`);
-    }
-    return await resp.json();
+    return httpClient.delete(`/images/usuario/${usuarioId}?borrarCloud=${borrarCloud ? 'true' : 'false'}`);
   }
 
   async deleteServicioImagen(servicioId: number, borrarCloud = true): Promise<{ eliminado: boolean; publicId?: string }> {
-    const url = `${API_BASE_URL}/servicios/${servicioId}/imagen?borrarCloud=${borrarCloud ? 'true' : 'false'}`;
-    const resp = await fetch(url, { method: 'DELETE' });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Error eliminando imagen de servicio (${resp.status}): ${text || resp.statusText}`);
-    }
-    return await resp.json();
+    return httpClient.delete(`/servicios/${servicioId}/imagen?borrarCloud=${borrarCloud ? 'true' : 'false'}`);
   }
 
   private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const method = (options.method || 'GET').toUpperCase();
     const isGet = method === 'GET';
-    const buildUrl = () => {
-      return `${API_BASE_URL}${endpoint}`;
-    };
-
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
-
-    let token = null;
-    if (auth.currentUser) {
-      token = await auth.currentUser.getIdToken();
-    }
-
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-    };
 
     const maxAttempts = isGet ? 2 : 1;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const url = buildUrl();
       try {
-        console.log(`API [${method}] (intento ${attempt}/${maxAttempts}): ${url}`);
-        if (config.body) {
-          console.log(`📤 Request Body:`, config.body);
+        const response = await httpClient.request(endpoint, options);
+        
+        // Invalidar caché del recurso afectado después de cualquier mutación
+        if (!isGet) {
+          const resource = '/' + endpoint.replace(/^\//, '').split('/')[0].split('?')[0];
+          this.invalidateCache(resource);
         }
-
-        const response = await fetch(url, config);
-        if (response.ok) return response;
-
-        const errorText = await response.text();
-        const looksLikeIisNotFound =
-          response.status === 404 &&
-          /<!doctype html|http error 404|not found/i.test(errorText);
-
-        if (looksLikeIisNotFound && attempt < maxAttempts) {
-          console.warn(`⚠️ API 404 transitorio detectado en ${endpoint}. Reintentando...`);
-          await new Promise(resolve => setTimeout(resolve, 900));
-          continue;
-        }
-
-        console.error(`❌ API Error [${response.status}]: ${errorText}`);
-        throw new Error(`Error del servidor (${response.status}): ${errorText || response.statusText}`);
-      } catch (error) {
+        return response;
+      } catch (error: any) {
         lastError = error;
-        if (attempt < maxAttempts) {
-          console.warn(`⚠️ Error de red transitorio en ${endpoint}. Reintentando...`);
+        
+        // El httpClient ya maneja el lanzamiento de errores para respuestas no-ok.
+        // Solo reintentamos si es GET y no es un error de sesión (401).
+        if (isGet && attempt < maxAttempts && !error.message.includes('Sesión expirada')) {
+          console.warn(`⚠️ Error en ${endpoint} (intento ${attempt}/${maxAttempts}). Reintentando...`);
           await new Promise(resolve => setTimeout(resolve, 900));
           continue;
         }
-        console.error('Network/API Error:', error);
         throw error;
       }
     }
@@ -323,12 +238,12 @@ class ApiService {
   // ==================== MÉTODOS PARA AUTENTICACIÓN ====================
   async confirmPasswordChange(): Promise<void> {
     try {
-      console.log('🔄 Confirmando cambio de contraseña en backend...');
+      logger.debug('🔄 Confirmando cambio de contraseña en backend...');
       const url = '/auth/password-changed';
       await this.request(url, { method: 'POST' });
-      console.log('✅ Cambio de contraseña confirmado exitosamente');
+      logger.debug('✅ Cambio de contraseña confirmado exitosamente');
     } catch (error) {
-      console.error('❌ Error confirmando cambio de contraseña:', error);
+      logger.error('❌ Error confirmando cambio de contraseña:', error);
       throw error;
     }
   }
@@ -561,7 +476,7 @@ class ApiService {
       this.setCache('usuarios', normalizedData);
       return normalizedData;
     } catch (error) {
-      console.error('Error fetching usuarios:', error);
+      logger.error('Error fetching usuarios:', error);
       throw error;
     }
   }
@@ -572,7 +487,7 @@ class ApiService {
       const text = await response.text();
       return text ? JSON.parse(text) : null;
     } catch (error) {
-      console.error('Error fetching usuario by ID:', error);
+      logger.error('Error fetching usuario by ID:', error);
       return null;
     }
   }
@@ -587,7 +502,7 @@ class ApiService {
       const text = await response.text();
       return text ? JSON.parse(text) : { ...userData, id: 0 } as ApiUser;
     } catch (error) {
-      console.error('Error creating usuario:', error);
+      logger.error('Error creating usuario:', error);
       throw error;
     }
   }
@@ -603,21 +518,21 @@ class ApiService {
       const text = await response.text();
       return text ? JSON.parse(text) : { ...userData, id } as ApiUser;
     } catch (error) {
-      console.error('Error updating usuario:', error);
+      logger.error('Error updating usuario:', error);
       throw error;
     }
   }
 
   async updateUsuarioStatus(id: number, estado: boolean): Promise<void> {
     try {
-      console.log(`🔄 [POST] Actualizando estado del usuario ${id} a ${estado}`);
+      logger.debug(`🔄 [POST] Actualizando estado del usuario ${id} a ${estado}`);
       await this.request(`/Usuarios/${id}/estado`, {
         method: 'POST',
         body: JSON.stringify({ estado: estado }),
       });
-      console.log(`✅ Estado del usuario ${id} actualizado`);
+      logger.debug(`✅ Estado del usuario ${id} actualizado`);
     } catch (error) {
-      console.error('Error updating usuario status:', error);
+      logger.error('Error updating usuario status:', error);
       throw error;
     }
   }
@@ -631,7 +546,7 @@ class ApiService {
       }
       return { message: 'Eliminado', anonimizado: false };
     } catch (error: any) {
-      console.error('Error deleting usuario:', error);
+      logger.error('Error deleting usuario:', error);
       throw error;
     }
   }
@@ -641,28 +556,28 @@ class ApiService {
     const cached = this.getCached<any[]>('roles');
     if (cached) return cached;
     try {
-      console.log('📥 Obteniendo roles desde:', `${API_BASE_URL}/Roles`);
+      logger.debug('📥 Obteniendo roles desde:', `${API_BASE_URL}/Roles`);
       const data = await this.fetchAllPages('/Roles');
-      console.log('✅ Roles obtenidos:', data);
+      logger.debug('✅ Roles obtenidos:', data);
       const result = Array.isArray(data) ? data : [];
       this.setCache('roles', result);
       return result;
     } catch (error: any) {
-      console.error('❌ Error obteniendo roles:', error);
+      logger.error('❌ Error obteniendo roles:', error);
       throw error;
     }
   }
 
   async getRoleById(id: number): Promise<any> {
     try {
-      console.log(`📥 Obteniendo rol ${id} desde:`, `${API_BASE_URL}/Roles/${id}`);
+      logger.debug(`📥 Obteniendo rol ${id} desde:`, `${API_BASE_URL}/Roles/${id}`);
       const response = await this.request(`/Roles/${id}`);
       const text = await response.text();
       const data = text ? JSON.parse(text) : null;
-      console.log(`✅ Rol ${id} obtenido:`, data);
+      logger.debug(`✅ Rol ${id} obtenido:`, data);
       return data;
     } catch (error: any) {
-      console.error(`❌ Error obteniendo rol ${id}:`, error);
+      logger.error(`❌ Error obteniendo rol ${id}:`, error);
       throw error;
     }
   }
@@ -670,17 +585,17 @@ class ApiService {
   async createRole(roleData: any): Promise<any> {
     try {
       const mapped = this.mapToApiFormat({ ...roleData, Nombre: roleData.nombre, Descripcion: roleData.descripcion });
-      console.log('📤 Creando rol:', mapped);
+      logger.debug('📤 Creando rol:', mapped);
       const response = await this.request('/Roles', {
         method: 'POST',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log('✅ Rol creado:', data);
+      logger.debug('✅ Rol creado:', data);
       return data;
     } catch (error: any) {
-      console.error('❌ Error creando rol:', error);
+      logger.error('❌ Error creando rol:', error);
       throw error;
     }
   }
@@ -688,30 +603,30 @@ class ApiService {
   async updateRole(id: number, roleData: any): Promise<any> {
     try {
       const mapped = this.mapToApiFormat({ ...roleData, id });
-      console.log(`📤 Actualizando rol ${id}:`, mapped);
+      logger.debug(`📤 Actualizando rol ${id}:`, mapped);
       const response = await this.request(`/Roles/${id}`, {
         method: 'PUT',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Rol ${id} actualizado:`, data);
+      logger.debug(`✅ Rol ${id} actualizado:`, data);
       return data;
     } catch (error: any) {
-      console.error(`❌ Error actualizando rol ${id}:`, error);
+      logger.error(`❌ Error actualizando rol ${id}:`, error);
       throw error;
     }
   }
 
   async deleteRole(id: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando rol ${id}...`);
+      logger.debug(`🗑️ Eliminando rol ${id}...`);
       await this.request(`/Roles/${id}`, {
         method: 'DELETE',
       });
-      console.log(`✅ Rol ${id} eliminado`);
+      logger.debug(`✅ Rol ${id} eliminado`);
     } catch (error: any) {
-      console.error(`❌ Error eliminando rol ${id}:`, error);
+      logger.error(`❌ Error eliminando rol ${id}:`, error);
       throw error;
     }
   }
@@ -721,28 +636,28 @@ class ApiService {
     const cached = this.getCached<any[]>('modulos');
     if (cached) return cached;
     try {
-      console.log('📥 Obteniendo módulos desde:', `${API_BASE_URL}/Modulos`);
+      logger.debug('📥 Obteniendo módulos desde:', `${API_BASE_URL}/Modulos`);
       const data = await this.fetchAllPages('/Modulos');
-      console.log('✅ Módulos obtenidos:', data);
+      logger.debug('✅ Módulos obtenidos:', data);
       const result = Array.isArray(data) ? data : [];
       this.setCache('modulos', result);
       return result;
     } catch (error: any) {
-      console.error('❌ Error obteniendo módulos:', error);
+      logger.error('❌ Error obteniendo módulos:', error);
       throw error;
     }
   }
 
   async getModuloById(id: number): Promise<any> {
     try {
-      console.log(`📥 Obteniendo módulo ${id}...`);
+      logger.debug(`📥 Obteniendo módulo ${id}...`);
       const response = await this.request(`/Modulos/${id}`);
       const text = await response.text();
       const data = text ? JSON.parse(text) : null;
-      console.log(`✅ Módulo ${id} obtenido:`, data);
+      logger.debug(`✅ Módulo ${id} obtenido:`, data);
       return data;
     } catch (error: any) {
-      console.error(`❌ Error obteniendo módulo ${id}:`, error);
+      logger.error(`❌ Error obteniendo módulo ${id}:`, error);
       throw error;
     }
   }
@@ -750,17 +665,17 @@ class ApiService {
   async createModulo(moduloData: any): Promise<any> {
     try {
       const mapped = this.mapToApiFormat(moduloData);
-      console.log('📤 Creando módulo:', mapped);
+      logger.debug('📤 Creando módulo:', mapped);
       const response = await this.request('/Modulos', {
         method: 'POST',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log('✅ Módulo creado:', data);
+      logger.debug('✅ Módulo creado:', data);
       return data;
     } catch (error: any) {
-      console.error('❌ Error creando módulo:', error);
+      logger.error('❌ Error creando módulo:', error);
       throw error;
     }
   }
@@ -768,25 +683,25 @@ class ApiService {
   // ==================== MÉTODOS PARA ROLES-MÓDULOS ====================
   async getRolesModulos(): Promise<any[]> {
     try {
-      console.log('📥 Obteniendo asignaciones rol-módulo desde:', `${API_BASE_URL}/RolesModulos`);
+      logger.debug('📥 Obteniendo asignaciones rol-módulo desde:', `${API_BASE_URL}/RolesModulos`);
       const data = await this.fetchAllPages('/RolesModulos', 5);
-      console.log('✅ Asignaciones rol-módulo obtenidas:', data);
+      logger.debug('✅ Asignaciones rol-módulo obtenidas:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
-      console.error('❌ Error obteniendo asignaciones rol-módulo:', error);
+      logger.error('❌ Error obteniendo asignaciones rol-módulo:', error);
       throw error;
     }
   }
 
   async getRolesModulosByRolId(rolId: number): Promise<any[]> {
     try {
-      console.log(`📥 Obteniendo módulos del rol ${rolId}...`);
+      logger.debug(`📥 Obteniendo módulos del rol ${rolId}...`);
       const rolesModulos = await this.getRolesModulos();
       const filtered = rolesModulos.filter((rm: any) => rm.rolId === rolId);
-      console.log(`✅ Módulos del rol ${rolId}:`, filtered);
+      logger.debug(`✅ Módulos del rol ${rolId}:`, filtered);
       return filtered;
     } catch (error: any) {
-      console.error(`❌ Error obteniendo módulos del rol ${rolId}:`, error);
+      logger.error(`❌ Error obteniendo módulos del rol ${rolId}:`, error);
       throw error;
     }
   }
@@ -801,17 +716,17 @@ class ApiService {
         PuedeEditar: !!rolModuloData.puedeEditar || !!rolModuloData.PuedeEditar || false,
         PuedeEliminar: !!rolModuloData.puedeEliminar || !!rolModuloData.PuedeEliminar || false,
       };
-      console.log('📤 Asignando módulo a rol:', mapped);
+      logger.debug('📤 Asignando módulo a rol:', mapped);
       const response = await this.request('/RolesModulos', {
         method: 'POST',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log('✅ Módulo asignado al rol:', data);
+      logger.debug('✅ Módulo asignado al rol:', data);
       return data;
     } catch (error: any) {
-      console.error('❌ Error asignando módulo a rol:', error);
+      logger.error('❌ Error asignando módulo a rol:', error);
       throw error;
     }
   }
@@ -827,37 +742,37 @@ class ApiService {
         PuedeEditar: !!rolModuloData.puedeEditar || !!rolModuloData.PuedeEditar,
         PuedeEliminar: !!rolModuloData.puedeEliminar || !!rolModuloData.PuedeEliminar,
       };
-      console.log(`📤 Actualizando asignación rol-módulo ${id}:`, mapped);
+      logger.debug(`📤 Actualizando asignación rol-módulo ${id}:`, mapped);
       const response = await this.request(`/RolesModulos/${id}`, {
         method: 'PUT',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Asignación rol-módulo ${id} actualizada:`, data);
+      logger.debug(`✅ Asignación rol-módulo ${id} actualizada:`, data);
       return data;
     } catch (error: any) {
-      console.error(`❌ Error actualizando asignación rol-módulo ${id}:`, error);
+      logger.error(`❌ Error actualizando asignación rol-módulo ${id}:`, error);
       throw error;
     }
   }
 
   async deleteRolModulo(id: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando asignación rol-módulo ${id}...`);
+      logger.debug(`🗑️ Eliminando asignación rol-módulo ${id}...`);
       await this.request(`/RolesModulos/${id}`, {
         method: 'DELETE',
       });
-      console.log(`✅ Asignación rol-módulo ${id} eliminada`);
+      logger.debug(`✅ Asignación rol-módulo ${id} eliminada`);
     } catch (error: any) {
-      console.error(`❌ Error eliminando asignación rol-módulo ${id}:`, error);
+      logger.error(`❌ Error eliminando asignación rol-módulo ${id}:`, error);
       throw error;
     }
   }
 
   async deleteRolesModulosByRolId(rolId: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando todas las asignaciones del rol ${rolId}...`);
+      logger.debug(`🗑️ Eliminando todas las asignaciones del rol ${rolId}...`);
       const rolesModulos = await this.getRolesModulos();
       const modulosDelRol = rolesModulos.filter((rm: any) => rm.rolId === rolId);
 
@@ -866,9 +781,9 @@ class ApiService {
           await this.deleteRolModulo(rm.id);
         }
       }
-      console.log(`✅ Todas las asignaciones del rol ${rolId} han sido eliminadas`);
+      logger.debug(`✅ Todas las asignaciones del rol ${rolId} han sido eliminadas`);
     } catch (error: any) {
-      console.error(`❌ Error eliminando asignaciones del rol ${rolId}:`, error);
+      logger.error(`❌ Error eliminando asignaciones del rol ${rolId}:`, error);
       throw error;
     }
   }
@@ -878,14 +793,14 @@ class ApiService {
     const cached = this.getCached<Servicio[]>('servicios');
     if (cached) return cached;
     try {
-      console.log('📥 Obteniendo servicios desde:', `${API_BASE_URL}/Servicios`);
+      logger.debug('📥 Obteniendo servicios desde:', `${API_BASE_URL}/Servicios`);
       const arr = await this.fetchAllPages('/Servicios');
       const normalizedData = arr.map(item => this.normalizeServicioData(item));
-      console.log('✅ Servicios normalizados:', normalizedData);
+      logger.debug('✅ Servicios normalizados:', normalizedData);
       this.setCache('servicios', normalizedData);
       return normalizedData;
     } catch (error: any) {
-      console.error('❌ Error obteniendo servicios:', error);
+      logger.error('❌ Error obteniendo servicios:', error);
       throw error;
     }
   }
@@ -900,7 +815,7 @@ class ApiService {
     delete extra.q;
 
     const query = this.buildQuery({ page, pageSize, q, ...extra });
-    console.log('📥 Listando servicios paginados:', `${API_BASE_URL}/Servicios${query}`);
+    logger.debug('📥 Listando servicios paginados:', `${API_BASE_URL}/Servicios${query}`);
     const resp = await this.request(`/Servicios${query}`);
     const text = await resp.text();
     if (!text || !text.trim()) {
@@ -935,14 +850,14 @@ class ApiService {
 
   async getServicioById(id: number): Promise<Servicio | null> {
     try {
-      console.log(`📥 Obteniendo servicio ${id} desde:`, `${API_BASE_URL}/Servicios/${id}`);
+      logger.debug(`📥 Obteniendo servicio ${id} desde:`, `${API_BASE_URL}/Servicios/${id}`);
       const response = await this.request(`/Servicios/${id}`);
       const text = await response.text();
       const data = text ? JSON.parse(text) : null;
-      console.log(`✅ Servicio ${id} obtenido:`, data);
+      logger.debug(`✅ Servicio ${id} obtenido:`, data);
       return data ? this.normalizeServicioData(data) : null;
     } catch (error: any) {
-      console.error(`❌ Error obteniendo servicio ${id}:`, error);
+      logger.error(`❌ Error obteniendo servicio ${id}:`, error);
       throw error;
     }
   }
@@ -950,7 +865,7 @@ class ApiService {
   async createServicio(servicioData: Partial<Servicio>): Promise<Servicio> {
     try {
       const mapped = this.mapToApiFormat(servicioData);
-      console.log('📤 Creando servicio:', mapped);
+      logger.debug('📤 Creando servicio:', mapped);
       const response = await this.request('/Servicios', {
         method: 'POST',
         body: JSON.stringify(mapped),
@@ -961,7 +876,7 @@ class ApiService {
         return this.normalizeServicioData(servicioData);
       }
       const data = JSON.parse(text);
-      console.log('✅ Servicio creado:', data);
+      logger.debug('✅ Servicio creado:', data);
       return this.normalizeServicioData(data);
     } catch (error: any) {
       console.warn('❌ Error creando servicio en /Servicios, probando endpoint alterno /servicios...', error);
@@ -976,7 +891,7 @@ class ApiService {
         return this.normalizeServicioData(servicioData);
       }
       const data = JSON.parse(text);
-      console.log('✅ Servicio creado (fallback):', data);
+      logger.debug('✅ Servicio creado (fallback):', data);
       return this.normalizeServicioData(data);
     }
   }
@@ -984,14 +899,14 @@ class ApiService {
   async updateServicio(id: number, servicioData: Partial<Servicio>): Promise<Servicio> {
     try {
       const mapped = this.mapToApiFormat({ ...servicioData, id });
-      console.log(`📤 Actualizando servicio ${id}:`, mapped);
+      logger.debug(`📤 Actualizando servicio ${id}:`, mapped);
       const response = await this.request(`/Servicios/${id}`, {
         method: 'PUT',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Servicio ${id} actualizado:`, data);
+      logger.debug(`✅ Servicio ${id} actualizado:`, data);
       return this.normalizeServicioData(data);
     } catch (error: any) {
       console.warn(`❌ Error actualizando servicio ${id} en /Servicios, probando /servicios...`, error);
@@ -1002,37 +917,37 @@ class ApiService {
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Servicio ${id} actualizado (fallback):`, data);
+      logger.debug(`✅ Servicio ${id} actualizado (fallback):`, data);
       return this.normalizeServicioData(data);
     }
   }
 
   async deleteServicio(id: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando servicio ${id}...`);
+      logger.debug(`🗑️ Eliminando servicio ${id}...`);
       await this.request(`/Servicios/${id}`, {
         method: 'DELETE',
       });
-      console.log(`✅ Servicio ${id} eliminado`);
+      logger.debug(`✅ Servicio ${id} eliminado`);
     } catch (error: any) {
       console.warn(`❌ Error eliminando servicio ${id} en /Servicios, probando /servicios...`, error);
       await this.request(`/servicios/${id}`, {
         method: 'DELETE',
       });
-      console.log(`✅ Servicio ${id} eliminado (fallback)`);
+      logger.debug(`✅ Servicio ${id} eliminado (fallback)`);
     }
   }
 
   async updateServicioStatus(id: number, estado: boolean): Promise<void> {
     try {
-      console.log(`🔄 Actualizando estado del servicio ${id} a ${estado}`);
+      logger.debug(`🔄 Actualizando estado del servicio ${id} a ${estado}`);
 
       await this.request(`/Servicios/${id}/estado`, {
         method: 'PUT',
         body: JSON.stringify({ estado: estado }),
       });
 
-      console.log(`✅ Estado del servicio ${id} actualizado a ${estado}`);
+      logger.debug(`✅ Estado del servicio ${id} actualizado a ${estado}`);
     } catch (error: any) {
       console.warn(`❌ Error actualizando estado del servicio ${id} (PUT /Servicios), probando fallbacks...`, error);
       try {
@@ -1040,7 +955,7 @@ class ApiService {
           method: 'POST',
           body: JSON.stringify({ estado: estado, Estado: estado }),
         });
-        console.log(`✅ Estado del servicio ${id} actualizado (fallback POST /Servicios)`);
+        logger.debug(`✅ Estado del servicio ${id} actualizado (fallback POST /Servicios)`);
         return;
       } catch (e1) {
         console.warn(`❌ Falló POST /Servicios/${id}/estado, probando /servicios...`, e1);
@@ -1050,7 +965,7 @@ class ApiService {
           method: 'PUT',
           body: JSON.stringify({ estado: estado, Estado: estado }),
         });
-        console.log(`✅ Estado del servicio ${id} actualizado (fallback PUT /servicios)`);
+        logger.debug(`✅ Estado del servicio ${id} actualizado (fallback PUT /servicios)`);
         return;
       } catch (e2) {
         console.warn(`❌ Falló PUT /servicios/${id}/estado, probando POST /servicios...`, e2);
@@ -1059,7 +974,7 @@ class ApiService {
         method: 'POST',
         body: JSON.stringify({ estado: estado, Estado: estado }),
       });
-      console.log(`✅ Estado del servicio ${id} actualizado (fallback POST /servicios)`);
+      logger.debug(`✅ Estado del servicio ${id} actualizado (fallback POST /servicios)`);
     }
   }
 
@@ -1068,16 +983,16 @@ class ApiService {
     const cached = this.getCached<Paquete[]>('paquetes');
     if (cached) return cached;
     try {
-      console.log('📥 Obteniendo paquetes desde:', `${API_BASE_URL}/Paquetes`);
+      logger.debug('📥 Obteniendo paquetes desde:', `${API_BASE_URL}/Paquetes`);
       const parsed = await this.fetchAllPages('/Paquetes');
-      console.log('✅ Paquetes obtenidos');
+      logger.debug('✅ Paquetes obtenidos');
       const arr: any[] = Array.isArray(parsed) ? parsed : [];
       const normalizedData = arr.map(item => this.normalizePaqueteData(item));
-      console.log('✅ Paquetes normalizados:', normalizedData.length);
+      logger.debug('✅ Paquetes normalizados:', normalizedData.length);
       this.setCache('paquetes', normalizedData);
       return normalizedData;
     } catch (error: any) {
-      console.error('❌ Error obteniendo paquetes:', error);
+      logger.error('❌ Error obteniendo paquetes:', error);
       throw error;
     }
   }
@@ -1092,7 +1007,7 @@ class ApiService {
     delete extra.q;
 
     const query = this.buildQuery({ page, pageSize, q, ...extra });
-    console.log('📥 Listando paquetes paginados:', `${API_BASE_URL}/Paquetes${query}`);
+    logger.debug('📥 Listando paquetes paginados:', `${API_BASE_URL}/Paquetes${query}`);
     const resp = await this.request(`/Paquetes${query}`);
     const text = await resp.text();
     if (!text || !text.trim()) {
@@ -1127,14 +1042,14 @@ class ApiService {
 
   async getPaqueteById(id: number): Promise<Paquete | null> {
     try {
-      console.log(`📥 Obteniendo paquete ${id} desde:`, `${API_BASE_URL}/Paquetes/${id}`);
+      logger.debug(`📥 Obteniendo paquete ${id} desde:`, `${API_BASE_URL}/Paquetes/${id}`);
       const response = await this.request(`/Paquetes/${id}`);
       const text = await response.text();
       const data = text ? JSON.parse(text) : null;
-      console.log(`✅ Paquete ${id} obtenido:`, data);
+      logger.debug(`✅ Paquete ${id} obtenido:`, data);
       return data ? this.normalizePaqueteData(data) : null;
     } catch (error: any) {
-      console.error(`❌ Error obteniendo paquete ${id}:`, error);
+      logger.error(`❌ Error obteniendo paquete ${id}:`, error);
       throw error;
     }
   }
@@ -1142,17 +1057,17 @@ class ApiService {
   async createPaquete(paqueteData: Partial<Paquete>): Promise<Paquete> {
     try {
       const mapped = this.mapToApiFormat(paqueteData);
-      console.log('📤 Creando paquete:', mapped);
+      logger.debug('📤 Creando paquete:', mapped);
       const response = await this.request('/Paquetes', {
         method: 'POST',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log('✅ Paquete creado:', data);
+      logger.debug('✅ Paquete creado:', data);
       return this.normalizePaqueteData(data);
     } catch (error: any) {
-      console.error('❌ Error creando paquete:', error);
+      logger.error('❌ Error creando paquete:', error);
       throw error;
     }
   }
@@ -1160,17 +1075,17 @@ class ApiService {
   async createPaqueteCompleto(paqueteData: any): Promise<Paquete> {
     try {
       const mapped = this.mapToApiFormat(paqueteData);
-      console.log('📤 Creando paquete completo:', mapped);
+      logger.debug('📤 Creando paquete completo:', mapped);
       const response = await this.request('/Paquetes/completo', {
         method: 'POST',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log('✅ Paquete completo creado:', data);
+      logger.debug('✅ Paquete completo creado:', data);
       return this.normalizePaqueteData(data);
     } catch (error: any) {
-      console.error('❌ Error creando paquete completo:', error);
+      logger.error('❌ Error creando paquete completo:', error);
       throw error;
     }
   }
@@ -1178,17 +1093,17 @@ class ApiService {
   async updatePaquete(id: number, paqueteData: Partial<Paquete>): Promise<Paquete> {
     try {
       const mapped = this.mapToApiFormat({ ...paqueteData, id });
-      console.log(`📤 Actualizando paquete ${id}:`, mapped);
+      logger.debug(`📤 Actualizando paquete ${id}:`, mapped);
       const response = await this.request(`/Paquetes/${id}`, {
         method: 'PUT',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Paquete ${id} actualizado:`, data);
+      logger.debug(`✅ Paquete ${id} actualizado:`, data);
       return this.normalizePaqueteData(data);
     } catch (error: any) {
-      console.error(`❌ Error actualizando paquete ${id}:`, error);
+      logger.error(`❌ Error actualizando paquete ${id}:`, error);
       throw error;
     }
   }
@@ -1196,44 +1111,44 @@ class ApiService {
   async updatePaqueteDetalles(id: number, detalles: Array<{ servicioId: number; cantidad: number }>): Promise<Paquete> {
     try {
       const mapped = this.mapToApiFormat({ detalles });
-      console.log(`📤 Actualizando detalles del paquete ${id}:`, mapped);
+      logger.debug(`📤 Actualizando detalles del paquete ${id}:`, mapped);
       const response = await this.request(`/Paquetes/${id}/detalles`, {
         method: 'PUT',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : null;
-      console.log(`✅ Detalles del paquete ${id} actualizados:`, data);
+      logger.debug(`✅ Detalles del paquete ${id} actualizados:`, data);
       return data ? this.normalizePaqueteData(data) : await this.getPaqueteById(id) as Paquete;
     } catch (error: any) {
-      console.error(`❌ Error actualizando detalles del paquete ${id}:`, error);
+      logger.error(`❌ Error actualizando detalles del paquete ${id}:`, error);
       throw error;
     }
   }
 
   async deletePaquete(id: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando paquete ${id}...`);
+      logger.debug(`🗑️ Eliminando paquete ${id}...`);
       await this.request(`/Paquetes/${id}`, {
         method: 'DELETE',
       });
-      console.log(`✅ Paquete ${id} eliminado`);
+      logger.debug(`✅ Paquete ${id} eliminado`);
     } catch (error: any) {
-      console.error(`❌ Error eliminando paquete ${id}:`, error);
+      logger.error(`❌ Error eliminando paquete ${id}:`, error);
       throw error;
     }
   }
 
   async updatePaqueteStatus(id: number, activo: boolean): Promise<void> {
     try {
-      console.log(`📤 Actualizando estado del paquete ${id} a ${activo}...`);
+      logger.debug(`📤 Actualizando estado del paquete ${id} a ${activo}...`);
       await this.request(`/Paquetes/${id}/estado`, {
         method: 'PUT',
         body: JSON.stringify({ estado: activo }),
       });
-      console.log(`✅ Estado del paquete ${id} actualizado`);
+      logger.debug(`✅ Estado del paquete ${id} actualizado`);
     } catch (error: any) {
-      console.error(`❌ Error actualizando estado del paquete ${id}:`, error);
+      logger.error(`❌ Error actualizando estado del paquete ${id}:`, error);
       throw error;
     }
   }
@@ -1241,27 +1156,27 @@ class ApiService {
   // ==================== MÉTODOS PARA DETALLE PAQUETES ====================
   async getDetallePaquetes(): Promise<DetallePaquete[]> {
     try {
-      console.log('📥 Obteniendo detalles de paquetes desde:', `${API_BASE_URL}/DetallePaquetes`);
+      logger.debug('📥 Obteniendo detalles de paquetes desde:', `${API_BASE_URL}/DetallePaquetes`);
       const data = await this.fetchAllPages('/DetallePaquetes', 5);
-      console.log('✅ Detalles de paquetes obtenidos');
+      logger.debug('✅ Detalles de paquetes obtenidos');
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
-      console.log('✅ Detalles de paquetes normalizados:', normalizedData.length);
+      logger.debug('✅ Detalles de paquetes normalizados:', normalizedData.length);
       return normalizedData;
     } catch (error: any) {
-      console.error('❌ Error obteniendo detalles de paquetes:', error);
+      logger.error('❌ Error obteniendo detalles de paquetes:', error);
       throw error;
     }
   }
 
   async getDetallePaquetesByPaqueteId(paqueteId: number): Promise<DetallePaquete[]> {
     try {
-      console.log(`📥 Obteniendo detalles del paquete ${paqueteId}...`);
+      logger.debug(`📥 Obteniendo detalles del paquete ${paqueteId}...`);
       const data = await this.fetchAllPages(`/DetallePaquetes/paquete/${paqueteId}`, 5);
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
-      console.log(`✅ Detalles del paquete ${paqueteId}:`, normalizedData.length);
+      logger.debug(`✅ Detalles del paquete ${paqueteId}:`, normalizedData.length);
       return normalizedData;
     } catch (error: any) {
-      console.error(`❌ Error obteniendo detalles del paquete ${paqueteId}:`, error);
+      logger.error(`❌ Error obteniendo detalles del paquete ${paqueteId}:`, error);
       throw error;
     }
   }
@@ -1269,17 +1184,17 @@ class ApiService {
   async createDetallePaquete(detalleData: Partial<DetallePaquete>): Promise<DetallePaquete> {
     try {
       const mapped = this.mapToApiFormat(detalleData);
-      console.log('📤 Creando detalle de paquete:', mapped);
+      logger.debug('📤 Creando detalle de paquete:', mapped);
       const response = await this.request('/DetallePaquetes', {
         method: 'POST',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log('✅ Detalle de paquete creado:', data);
+      logger.debug('✅ Detalle de paquete creado:', data);
       return this.normalizeDetallePaqueteData(data);
     } catch (error: any) {
-      console.error('❌ Error creando detalle de paquete:', error);
+      logger.error('❌ Error creando detalle de paquete:', error);
       throw error;
     }
   }
@@ -1287,37 +1202,37 @@ class ApiService {
   async updateDetallePaquete(id: number, detalleData: Partial<DetallePaquete>): Promise<DetallePaquete> {
     try {
       const mapped = this.mapToApiFormat({ ...detalleData, id });
-      console.log(`📤 Actualizando detalle de paquete ${id}:`, mapped);
+      logger.debug(`📤 Actualizando detalle de paquete ${id}:`, mapped);
       const response = await this.request(`/DetallePaquetes/${id}`, {
         method: 'PUT',
         body: JSON.stringify(mapped),
       });
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Detalle de paquete ${id} actualizado:`, data);
+      logger.debug(`✅ Detalle de paquete ${id} actualizado:`, data);
       return this.normalizeDetallePaqueteData(data);
     } catch (error: any) {
-      console.error(`❌ Error actualizando detalle de paquete ${id}:`, error);
+      logger.error(`❌ Error actualizando detalle de paquete ${id}:`, error);
       throw error;
     }
   }
 
   async deleteDetallePaquete(id: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando detalle de paquete ${id}...`);
+      logger.debug(`🗑️ Eliminando detalle de paquete ${id}...`);
       await this.request(`/DetallePaquetes/${id}`, {
         method: 'DELETE',
       });
-      console.log(`✅ Detalle de paquete ${id} eliminado`);
+      logger.debug(`✅ Detalle de paquete ${id} eliminado`);
     } catch (error: any) {
-      console.error(`❌ Error eliminando detalle de paquete ${id}:`, error);
+      logger.error(`❌ Error eliminando detalle de paquete ${id}:`, error);
       throw error;
     }
   }
 
   async deleteDetallePaquetesByPaqueteId(paqueteId: number): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando todos los detalles del paquete ${paqueteId}...`);
+      logger.debug(`🗑️ Eliminando todos los detalles del paquete ${paqueteId}...`);
       const detalles = await this.getDetallePaquetesByPaqueteId(paqueteId);
 
       for (const detalle of detalles) {
@@ -1325,9 +1240,9 @@ class ApiService {
           await this.deleteDetallePaquete(detalle.id);
         }
       }
-      console.log(`✅ Todos los detalles del paquete ${paqueteId} han sido eliminados`);
+      logger.debug(`✅ Todos los detalles del paquete ${paqueteId} han sido eliminados`);
     } catch (error: any) {
-      console.error(`❌ Error eliminando detalles del paquete ${paqueteId}:`, error);
+      logger.error(`❌ Error eliminando detalles del paquete ${paqueteId}:`, error);
       throw error;
     }
   }

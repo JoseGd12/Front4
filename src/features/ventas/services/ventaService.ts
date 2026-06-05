@@ -1,11 +1,5 @@
-const RAW_API_BASE =
-  (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_API_BASE_URL) ||
-  (typeof window !== 'undefined' && (window as any)?.API_BASE_URL) ||
-  '';
-const NORMALIZED_BASE = RAW_API_BASE ? String(RAW_API_BASE).replace(/\/+$/, '') : '';
-const API_BASE_URL = NORMALIZED_BASE
-  ? (NORMALIZED_BASE.endsWith('/api') ? NORMALIZED_BASE : `${NORMALIZED_BASE}/api`)
-  : '/api';
+import { httpClient } from '../../../shared/services/httpClient';
+import { API_BASE_URL } from '../../../shared/config/api';
 
 export interface Venta {
   id: number;
@@ -81,6 +75,14 @@ export interface CreateVentaRequest {
   serviciosDetalle: ServicioDetalle[];
 }
 
+export interface PagedVentas {
+  items: Venta[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 class VentaService {
   private safeParseJson(text: string): any {
     if (!text || !text.trim()) return [];
@@ -121,42 +123,6 @@ class VentaService {
       if (firstArray) return firstArray;
     }
     return [];
-  }
-
-  private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
-
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    };
-
-    try {
-      console.log(`VentaService [${config.method || 'GET'}]: ${url}`);
-      if (config.body) {
-        console.log(`📤 Request Body:`, config.body);
-      }
-
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ VentaService Error [${response.status}]: ${errorText}`);
-        throw new Error(`Error del servidor (${response.status}): ${errorText || response.statusText}`);
-      }
-
-      return response;
-    } catch (error) {
-      console.error('VentaService Network/API Error:', error);
-      throw error;
-    }
   }
 
   private mapToApiFormat(data: any): any {
@@ -208,8 +174,6 @@ class VentaService {
             Cantidad: Number(p.cantidad || 1),
             PrecioUnitario: Number(p.precio || 0)
           });
-        } else {
-          console.warn(`⚠️ Producto con ID inválido ignorado:`, p);
         }
       });
     }
@@ -237,51 +201,12 @@ class VentaService {
             });
           }
         }
-        // Ignorar servicios personalizados (SERVPERS-*) ya que no tienen ID válido en la BD
       });
     }
 
     if (detalles.length > 0) {
       mapped.Detalles = detalles;
-    } else {
-      console.warn('⚠️ No se encontraron detalles válidos para la venta');
-      // No lanzar error aquí, dejar que el backend valide
     }
-
-    const requiereBarbero = (mapped.Detalles || []).some((d: any) => d.ServicioId || d.PaqueteId);
-    if (requiereBarbero) {
-      const barberoNum = Number(mapped.BarberoId || 0);
-      if (!barberoNum || barberoNum <= 0) {
-        throw new Error('BarberoId es requerido cuando la venta incluye servicios o paquetes');
-      }
-    }
-
-    // ClienteId es opcional (ventas de invitado no lo requieren)
-    // Validar responsable
-    if (!mapped.UsuarioId || mapped.UsuarioId <= 0) {
-      throw new Error('UsuarioId (responsable) es requerido y debe ser un número válido');
-    }
-
-    // Validar que haya detalles antes de enviar
-    if (!mapped.Detalles || mapped.Detalles.length === 0) {
-      throw new Error('La venta debe tener al menos un producto o servicio válido');
-    }
-
-    console.log('📋 Mapeo final antes de enviar:', {
-      ClienteId: mapped.ClienteId,
-      UsuarioId: mapped.UsuarioId,
-      BarberoId: mapped.BarberoId,
-      NumeroVenta: mapped.NumeroVenta,
-      Fecha: mapped.Fecha,
-      Estado: mapped.Estado,
-      MetodoPago: mapped.MetodoPago,
-      Descuento: mapped.Descuento,
-      IVA: mapped.IVA,
-      Subtotal: mapped.Subtotal,
-      Total: mapped.Total,
-      DetallesCount: mapped.Detalles?.length || 0,
-      Detalles: mapped.Detalles
-    });
 
     return mapped;
   }
@@ -289,18 +214,15 @@ class VentaService {
   private async normalizeVentaData(data: any): Promise<Venta> {
     if (!data) return {} as Venta;
 
-    // 1. Normalización de objetos principales (Soporte Pascal/camel)
     const cliente = data.cliente || data.Cliente || {};
     const barberoObj = data.barbero || data.Barbero || {};
     const usuarioResponsable = data.usuario || data.Usuario || {};
     const detallesApi = data.detalles || data.Detalles || data.detalleVenta || data.detalleVentas ||
       data.DetalleVenta || data.DetalleVentas || [];
 
-    // 2. Procesar detalles de productos y servicios
     const productosDetalle: ProductoDetalle[] = [];
     const serviciosDetalle: ServicioDetalle[] = [];
 
-    // Primero procesamos los detalles anidados si existen
     for (const d of detallesApi) {
       const p = d.producto || d.Producto;
       const s = d.servicio || d.Servicio;
@@ -352,7 +274,6 @@ class VentaService {
       }
     }
 
-    // Si no hay detalles anidados, buscamos arreglos planos (resiliencia)
     if (productosDetalle.length === 0) {
       (data.productosDetalle || data.ProductosDetalle || []).forEach((p: any) => {
         productosDetalle.push({
@@ -379,7 +300,6 @@ class VentaService {
       });
     }
 
-    // 3. Resolución de nombres con soporte para Pascal/camel y fallbacks
     const clienteNombre = (data.clienteNombreCompleto || data.ClienteNombreCompleto || data.clienteNombre || data.ClienteNombre)
       ? (data.clienteNombreCompleto || data.ClienteNombreCompleto || data.clienteNombre || data.ClienteNombre)
       : (cliente.nombre || cliente.Nombre)
@@ -401,7 +321,6 @@ class VentaService {
         ? `${usuarioResponsable.nombre || usuarioResponsable.Nombre} ${usuarioResponsable.apellido || usuarioResponsable.Apellido || ''}`.trim()
         : 'Sin asignar';
 
-    // 4. Extracción segura de IDs numéricos para evitar NaN/Nombres en campos de ID
     const getNumericId = (val: any, fallbackId?: any) => {
       const num = Number(val);
       if (!isNaN(num) && val !== null && val !== "" && typeof val !== 'object' && num > 0) return num;
@@ -409,22 +328,13 @@ class VentaService {
       return (!isNaN(fallbackNum) && fallbackId !== null && fallbackId !== "" && fallbackNum > 0) ? fallbackNum : null;
     };
 
-    const finalClienteId = getNumericId(data.clienteId || data.ClienteId, cliente.id || cliente.Id);
-    const finalBarberoId = getNumericId(data.barberoId || data.BarberoId, barberoObj.id || barberoObj.Id);
-    const finalBarberoPrestadorId = getNumericId(data.barberoPrestadorId || data.BarberoPrestadorId, null);
-
-    const barberoPrestadorNombreCompleto: string | null =
-      data.barberoPrestadorNombreCompleto || data.BarberoPrestadorNombreCompleto || null;
-
-    // 5. Retorno del objeto normalizado
     return {
       id: Number(data.id || data.Id) || 0,
-      // NumeroRecibo viene de la API ya autogenerado (formato REC-YYYY-NNNNNN)
       numeroRecibo: data.numeroRecibo || data.NumeroRecibo || null,
       numeroVenta: Number(data.numeroVenta || data.NumeroVenta || data.id || data.Id || 0),
       tipoVenta: String(data.tipoVenta || data.TipoVenta || 'Venta directa'),
       cliente: clienteNombre,
-      clienteId: finalClienteId,
+      clienteId: getNumericId(data.clienteId || data.ClienteId, cliente.id || cliente.Id),
       clienteDocumento: String(cliente.documento || cliente.Documento || data.clienteDocumento || data.ClienteDocumento || ''),
       fecha: String(data.fecha || data.Fecha || ''),
       servicios: data.servicios || data.Servicios ||
@@ -437,79 +347,62 @@ class VentaService {
       total: Number(data.total || data.Total) || 0,
       saldoAFavorUsado: Number(data.saldoAFavorUsado || data.SaldoAFavorUsado || 0),
       barbero: barberoNombre,
-      barberoId: finalBarberoId,
-      barberoPrestadorId: finalBarberoPrestadorId,
-      barberoPrestadorNombreCompleto,
+      barberoId: getNumericId(data.barberoId || data.BarberoId, barberoObj.id || barberoObj.Id),
+      barberoPrestadorId: getNumericId(data.barberoPrestadorId || data.BarberoPrestadorId, null),
+      barberoPrestadorNombreCompleto: data.barberoPrestadorNombreCompleto || data.BarberoPrestadorNombreCompleto || null,
       barberoDocumento: String(barberoObj.documento || barberoObj.Documento || (barberoUsuario as any)?.documento || (barberoUsuario as any)?.Documento || data.barberoDocumento || data.BarberoDocumento || ''),
       responsable: responsableNombre,
       estado: String(data.estado || data.Estado || 'Completada'),
       metodoPago: String(data.metodoPago || data.MetodoPago || 'Efectivo'),
-      garantiaMeses: Number(
-        (data.garantiaMeses ?? data.GarantiaMeses ?? 0)
-      ),
+      garantiaMeses: Number(data.garantiaMeses ?? data.GarantiaMeses ?? 0),
       productosDetalle,
       serviciosDetalle
     };
   }
 
-  async getVentasByClienteId(clienteId: number): Promise<Venta[]> {
+  async getVentasPaged(page = 1, pageSize = 50): Promise<PagedVentas> {
     try {
-      const response = await this.request(`/Ventas/cliente/${clienteId}`);
-      const text = await response.text();
-      const parsed = this.safeParseJson(text);
-      const arr = this.extractArrayPayload(parsed);
-      return await Promise.all(arr.map(item => this.normalizeVentaData(item)));
-    } catch (error) {
-      console.warn('Error fetching ventas by clienteId, filtering local:', error);
-      const all = await this.getVentas();
-      return all.filter(v => Number(v.clienteId) === Number(clienteId));
+      const payload = await httpClient.get(`/Ventas?page=${page}&pageSize=${pageSize}`);
+      const rawItems = this.extractArrayPayload(payload);
+      const items = await Promise.all(rawItems.map(v => this.normalizeVentaData(v)));
+      
+      return {
+        items,
+        totalCount: Number(payload?.totalCount ?? items.length),
+        page: Number(payload?.page ?? page),
+        pageSize: Number(payload?.pageSize ?? pageSize),
+        totalPages: Number(payload?.totalPages ?? 1)
+      };
+    } catch (error: any) {
+      console.error('❌ Error obteniendo ventas paginadas:', error);
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
     }
   }
 
-  async getVentas(): Promise<Venta[]> {
+  /**
+   * @deprecated Usar getVentasPaged para mejor rendimiento.
+   */
+  async getVentas(page = 1, pageSize = 20): Promise<Venta[]> {
+    const res = await this.getVentasPaged(page, pageSize);
+    return res.items;
+  }
+
+  async getVentasByClienteId(clienteId: number): Promise<Venta[]> {
     try {
-      console.log('📥 Obteniendo ventas desde:', `${API_BASE_URL}/ventas`);
-      const arr: any[] = [];
-      const firstResponse = await this.request('/Ventas?page=1&pageSize=100');
-      const firstText = await firstResponse.text();
-      const firstParsed = this.safeParseJson(firstText);
-      arr.push(...this.extractArrayPayload(firstParsed));
-      let totalPages = firstParsed && typeof firstParsed === 'object' && !Array.isArray(firstParsed)
-        ? Number((firstParsed as any).totalPages ?? 1)
-        : 1;
-      totalPages = Math.min(Math.max(1, totalPages), 200);
-      if (totalPages > 1) {
-        const promises: Promise<any[]>[] = [];
-        for (let page = 2; page <= totalPages; page++) {
-          promises.push((async () => {
-            const response = await this.request(`/Ventas?page=${page}&pageSize=100`);
-            const text = await response.text();
-            const parsed = this.safeParseJson(text);
-            return this.extractArrayPayload(parsed);
-          })());
-        }
-        const rest = await Promise.all(promises);
-        rest.forEach(items => arr.push(...items));
-      }
-      const normalizedData = await Promise.all(arr.map(item => this.normalizeVentaData(item)));
-      console.log('✅ Ventas normalizadas:', normalizedData);
-      return normalizedData;
-    } catch (error: any) {
-      console.error('❌ Error obteniendo ventas:', error);
-      throw error;
+      const payload = await httpClient.get(`/Ventas/cliente/${clienteId}`);
+      const arr = this.extractArrayPayload(payload);
+      return await Promise.all(arr.map(item => this.normalizeVentaData(item)));
+    } catch (error) {
+      console.warn('Error fetching ventas by clienteId, filtering local:', error);
+      const all = await this.getVentas(1, 1000);
+      return all.filter(v => Number(v.clienteId) === Number(clienteId));
     }
   }
 
   async getVentaById(id: number): Promise<Venta | null> {
     try {
-      console.log(`📥 Obteniendo venta ${id} desde:`, `${API_BASE_URL}/ventas/${id}`);
-      const response = await this.request(`/Ventas/${id}`);
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : null;
-      console.log(`✅ Venta ${id} obtenida:`, data);
-
+      const data = await httpClient.get(`/Ventas/${id}`);
       if (!data) return null;
-
       return await this.normalizeVentaData(data);
     } catch (error: any) {
       console.error(`❌ Error obteniendo venta ${id}:`, error);
@@ -519,27 +412,15 @@ class VentaService {
 
   async createVenta(ventaData: CreateVentaRequest): Promise<Venta> {
     try {
-      console.log('🔍 Original ventaData before mapping:', ventaData);
-      console.log('🔍 productosDetalle:', ventaData.productosDetalle);
-      console.log('🔍 serviciosDetalle:', ventaData.serviciosDetalle);
-
       const payload = this.mapToApiFormat(ventaData);
-
       if (!payload.Detalles || payload.Detalles.length === 0) {
-        throw new Error('No se pueden enviar detalles vacíos. Asegúrate de agregar productos o servicios válidos.');
+        throw new Error('La venta debe tener al menos un producto o servicio válido');
       }
-
-      // Un solo intento — si el backend rechaza, se muestra el error real al usuario
-      const response = await this.request('/Ventas', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
+      
+      const data = await httpClient.post('/Ventas', payload);
       return await this.normalizeVentaData(data);
     } catch (error: any) {
       console.error('❌ Error creando venta:', error);
-      console.error('❌ Stack trace:', error.stack);
       throw error;
     }
   }
@@ -547,14 +428,7 @@ class VentaService {
   async updateVenta(id: number, ventaData: Partial<Venta>): Promise<Venta> {
     try {
       const mapped = this.mapToApiFormat({ ...ventaData, id });
-      console.log(`📤 Actualizando venta ${id}:`, mapped);
-      const response = await this.request(`/Ventas/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(mapped),
-      });
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Venta ${id} actualizada:`, data);
+      const data = await httpClient.put(`/Ventas/${id}`, mapped);
       return await this.normalizeVentaData(data);
     } catch (error: any) {
       console.error(`❌ Error actualizando venta ${id}:`, error);
@@ -564,35 +438,20 @@ class VentaService {
 
   async anularVenta(id: number): Promise<void> {
     try {
-      console.log(`📤 Anulando venta ${id}...`);
-      await this.request(`/Ventas/${id}/anular`, {
-        method: 'PUT'
-      });
-      console.log(`✅ Venta ${id} anulada`);
+      await httpClient.put(`/Ventas/${id}/anular`);
     } catch (error: any) {
       console.error(`❌ Error anulando venta ${id}:`, error);
       throw error;
     }
   }
 
-  /**
-   * @deprecated Las ventas NO se pueden eliminar — usar `anularVenta(id)`.
-   * Este método queda como alias de `anularVenta` para no romper código existente.
-   */
   async deleteVenta(id: number): Promise<void> {
-    console.warn('deleteVenta está deprecated. Las ventas solo se pueden anular. Llamando a anularVenta.');
     return this.anularVenta(id);
   }
 
-  /**
-   * Obtiene ventas filtradas por cliente.
-   * Endpoint API: GET /Ventas/cliente/{clienteId}
-   */
   async getVentasPorCliente(clienteId: number, page = 1, pageSize = 20): Promise<any> {
     try {
-      const response = await this.request(`/Ventas/cliente/${clienteId}?page=${page}&pageSize=${pageSize}`);
-      const text = await response.text();
-      return text ? this.safeParseJson(text) : { items: [], totalCount: 0 };
+      return await httpClient.get(`/Ventas/cliente/${clienteId}?page=${page}&pageSize=${pageSize}`);
     } catch (error) {
       console.error(`❌ Error obteniendo ventas del cliente ${clienteId}:`, error);
       throw error;
@@ -601,11 +460,8 @@ class VentaService {
 
   async getVentasByBarbero(barbero: string): Promise<Venta[]> {
     try {
-      console.log(`📥 Obteniendo ventas del barbero ${barbero}...`);
-      const ventas = await this.getVentas();
-      const filtered = ventas.filter(v => v.barbero === barbero);
-      console.log(`✅ Ventas del barbero ${barbero}:`, filtered);
-      return filtered;
+      const ventas = await this.getVentas(1, 1000);
+      return ventas.filter(v => v.barbero === barbero);
     } catch (error: any) {
       console.error(`❌ Error obteniendo ventas del barbero ${barbero}:`, error);
       throw error;
@@ -614,16 +470,13 @@ class VentaService {
 
   async getVentasByFecha(fechaInicio: string, fechaFin: string): Promise<Venta[]> {
     try {
-      console.log(`📥 Obteniendo ventas entre ${fechaInicio} y ${fechaFin}...`);
-      const ventas = await this.getVentas();
-      const filtered = ventas.filter(v => {
+      const ventas = await this.getVentas(1, 1000);
+      const inicio = new Date(fechaInicio);
+      const fin = new Date(fechaFin);
+      return ventas.filter(v => {
         const ventaFecha = new Date(v.fecha);
-        const inicio = new Date(fechaInicio);
-        const fin = new Date(fechaFin);
         return ventaFecha >= inicio && ventaFecha <= fin;
       });
-      console.log(`✅ Ventas filtradas por fecha:`, filtered);
-      return filtered;
     } catch (error: any) {
       console.error(`❌ Error obteniendo ventas por fecha:`, error);
       throw error;

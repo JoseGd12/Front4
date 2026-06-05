@@ -35,6 +35,7 @@ export function ServiciosPage() {
   const [totalCountApi, setTotalCountApi] = useState(0);
   const [loadingPage, setLoadingPage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [precioServicioInput, setPrecioServicioInput] = useState<string>('');
   const [nombreServicioDuplicado, setNombreServicioDuplicado] = useState(false);
   const [nombreServicioError, setNombreServicioError] = useState<string | null>(null);
@@ -227,6 +228,8 @@ export function ServiciosPage() {
     setNombreServicioDuplicado(false);
     setNombreServicioError(null);
 
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     try {
       setSubmitting(true);
       const createdServicio = await apiService.createServicio({
@@ -271,6 +274,7 @@ export function ServiciosPage() {
         "Ocurrió un problema al crear el servicio. Verifica que todos los campos estén completos y que los valores sean válidos."
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -322,6 +326,8 @@ export function ServiciosPage() {
       }
       setNombreServicioDuplicado(false);
       setNombreServicioError(null);
+      if (submittingRef.current) return;
+      submittingRef.current = true;
       try {
         setSubmitting(true);
         await apiService.updateServicio(editingServicio.id, {
@@ -355,6 +361,7 @@ export function ServiciosPage() {
         console.error('Error actualizando servicio:', err);
         setError(err.message || 'Error al actualizar el servicio');
       } finally {
+        submittingRef.current = false;
         setSubmitting(false);
       }
     }

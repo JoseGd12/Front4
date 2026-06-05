@@ -1,3 +1,5 @@
+import { httpClient } from '../../../shared/services/httpClient';
+
 export interface Categoria {
   id: number;
   nombre: string;
@@ -19,239 +21,98 @@ export interface CategoriaUpdateRequest {
   estado: boolean;
 }
 
+export interface PagedCategorias {
+  items: Categoria[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 class CategoriaService {
-  private readonly API_BASE_URL = '/api';
-
-  private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${this.API_BASE_URL}${endpoint}`;
-
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-    };
-
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    };
-
-    try {
-      console.log(`API [${config.method || 'GET'}]: ${url}`);
-      if (config.body) {
-        console.log(`📤 Request Body:`, config.body);
-      }
-
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ API Error [${response.status}]: ${errorText}`);
-        throw new Error(`Error del servidor (${response.status}): ${errorText || response.statusText}`);
-      }
-
-      return response;
-    } catch (error) {
-      console.error('Network/API Error:', error);
-      throw error;
-    }
+  private extract(raw: any): any[] {
+    return Array.isArray(raw)
+      ? raw
+      : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
+      : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
+      : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
+      : [];
   }
 
-  async getCategorias(): Promise<Categoria[]> {
+  /**
+   * Obtiene una página de categorías (FE-M12: Optimización de paginación)
+   */
+  async getCategoriasPaged(page = 1, pageSize = 50): Promise<PagedCategorias> {
     try {
-      console.log('📥 Obteniendo categorías desde:', `${this.API_BASE_URL}/categorias`);
-      const data: any[] = [];
-      const extract = (raw: any): any[] => Array.isArray(raw)
-        ? raw
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) ? (raw as any).items
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).data)) ? (raw as any).data
-        : (raw && typeof raw === 'object' && Array.isArray((raw as any).$values)) ? (raw as any).$values
-        : [];
-      const firstResponse = await this.request('/Categorias?page=1&pageSize=100');
-      const firstText = await firstResponse.text();
-      const firstRaw = firstText ? JSON.parse(firstText) : [];
-      data.push(...extract(firstRaw));
-      let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
-        ? Number((firstRaw as any).totalPages ?? 1)
-        : 1;
-      totalPages = Math.min(Math.max(1, totalPages), 200);
-      if (totalPages > 1) {
-        const promises: Promise<any[]>[] = [];
-        for (let page = 2; page <= totalPages; page++) {
-          promises.push((async () => {
-            const response = await this.request(`/Categorias?page=${page}&pageSize=100`);
-            const text = await response.text();
-            const raw = text ? JSON.parse(text) : [];
-            return extract(raw);
-          })());
-        }
-        const rest = await Promise.all(promises);
-        rest.forEach(items => data.push(...items));
-      }
-      console.log('✅ Categorías obtenidas:', data);
-      if (Array.isArray(data)) return data;
-      return [];
+      const raw = await httpClient.get(`/Categorias?page=${page}&pageSize=${pageSize}`);
+      const items = this.extract(raw);
+      
+      return {
+        items,
+        totalCount: Number(raw?.totalCount ?? items.length),
+        page: Number(raw?.page ?? page),
+        pageSize: Number(raw?.pageSize ?? pageSize),
+        totalPages: Number(raw?.totalPages ?? 1)
+      };
     } catch (error: any) {
-      console.error('❌ Error obteniendo categorías:', error);
-      throw error;
+      console.error('❌ Error obteniendo categorías paginadas:', error);
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
     }
   }
 
-  async getCategoriaById(id: number): Promise<Categoria | null> {
+  /**
+   * @deprecated Usar getCategoriasPaged para mejor rendimiento.
+   */
+  async getCategorias(): Promise<Categoria[]> {
+    const res = await this.getCategoriasPaged(1, 100);
+    return res.items;
+  }
+
+  async getCategoriaById(id: number): Promise<Categoria> {
     try {
-      console.log(`📥 Obteniendo categoría ${id}...`);
-      const response = await this.request(`/Categorias/${id}`);
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : null;
-      console.log(`✅ Categoría ${id} obtenida:`, data);
-      return data;
+      return await httpClient.get(`/Categorias/${id}`);
     } catch (error: any) {
       console.error(`❌ Error obteniendo categoría ${id}:`, error);
       throw error;
     }
   }
 
-  async createCategoria(categoriaData: CategoriaCreateRequest): Promise<Categoria> {
+  async createCategoria(data: CategoriaCreateRequest): Promise<Categoria> {
     try {
-      const mapped = {
-        Nombre: categoriaData.nombre,
-        Descripcion: categoriaData.descripcion || null,
-        Estado: categoriaData.estado
-      };
-      console.log('📤 Creando categoría:', mapped);
-      const response = await this.request('/Categorias', {
-        method: 'POST',
-        body: JSON.stringify(mapped),
-      });
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-      console.log('✅ Categoría creada:', data);
-      return data;
+      return await httpClient.post('/Categorias', data);
     } catch (error: any) {
       console.error('❌ Error creando categoría:', error);
       throw error;
     }
   }
 
-  async updateCategoria(id: number, categoriaData: CategoriaUpdateRequest): Promise<Categoria> {
+  async updateCategoria(id: number, data: CategoriaUpdateRequest): Promise<Categoria> {
     try {
-      const mapped = {
-        Id: id,
-        Nombre: categoriaData.nombre,
-        Descripcion: categoriaData.descripcion || null,
-        Estado: categoriaData.estado
-      };
-      console.log(`📤 Actualizando categoría ${id}:`, mapped);
-      const response = await this.request(`/Categorias/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(mapped),
-      });
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-      console.log(`✅ Categoría ${id} actualizada:`, data);
-      return data;
+      return await httpClient.put(`/Categorias/${id}`, data);
     } catch (error: any) {
       console.error(`❌ Error actualizando categoría ${id}:`, error);
       throw error;
     }
   }
 
-  async updateCategoriaStatus(id: number, estado: boolean): Promise<void> {
+  async deleteCategoria(id: number): Promise<void> {
     try {
-      await this.request(`/Categorias/${id}/estado`, {
-        method: 'PUT',
-        body: JSON.stringify({ Estado: estado }),
-      });
-      console.log(`✅ Estado de categoría ${id} actualizado a ${estado}`);
-      return;
+      await httpClient.delete(`/Categorias/${id}`);
     } catch (error: any) {
-      console.warn(`❌ Error actualizando estado de categoría ${id} (PUT /Categorias), probando fallbacks...`, error);
-    }
-    try {
-      await this.request(`/Categorias/${id}/estado`, {
-        method: 'PUT',
-        body: JSON.stringify({ estado: estado }),
-      });
-      console.log(`✅ Estado de categoría ${id} actualizado a ${estado} (fallback PUT con 'estado')`);
-      return;
-    } catch (e1) {
-      console.warn(`❌ Falló PUT /Categorias/${id}/estado con 'estado', probando POST...`, e1);
-    }
-    try {
-      await this.request(`/Categorias/${id}/estado`, {
-        method: 'POST',
-        body: JSON.stringify({ Estado: estado }),
-      });
-      console.log(`✅ Estado de categoría ${id} actualizado (fallback POST con 'Estado')`);
-      return;
-    } catch (e2) {
-      console.warn(`❌ Falló POST /Categorias/${id}/estado con 'Estado', probando POST con ambos...`, e2);
-    }
-    try {
-      await this.request(`/Categorias/${id}/estado`, {
-        method: 'POST',
-        body: JSON.stringify({ estado: estado, Estado: estado }),
-      });
-      console.log(`✅ Estado de categoría ${id} actualizado (fallback POST con ambos campos)`);
-      return;
-    } catch (e3) {
-      console.warn(`❌ Falló POST /Categorias/${id}/estado con ambos campos, probando rutas en minúscula...`, e3);
-    }
-    try {
-      await this.request(`/categorias/${id}/estado`, {
-        method: 'PUT',
-        body: JSON.stringify({ Estado: estado }),
-      });
-      console.log(`✅ Estado de categoría ${id} actualizado (fallback PUT /categorias)`);
-      return;
-    } catch (e4) {
-      console.warn(`❌ Falló PUT /categorias/${id}/estado, probando POST /categorias...`, e4);
-    }
-    try {
-      await this.request(`/categorias/${id}/estado`, {
-        method: 'POST',
-        body: JSON.stringify({ Estado: estado, estado: estado }),
-      });
-      console.log(`✅ Estado de categoría ${id} actualizado (fallback POST /categorias)`);
-      return;
-    } catch (e5) {
-      console.warn(`❌ Falló POST /categorias/${id}/estado, intentando actualización completa...`, e5);
-    }
-    try {
-      const existing = await this.getCategoriaById(id);
-      if (existing) {
-        const mapped = {
-          Id: id,
-          Nombre: existing.nombre,
-          Descripcion: existing.descripcion || null,
-          Estado: estado
-        };
-        await this.request(`/Categorias/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify(mapped),
-        });
-        console.log(`✅ Estado de categoría ${id} actualizado (fallback PUT /Categorias con entidad completa)`);
-        return;
-      }
-    } catch (e6) {
-      console.error(`❌ Error actualizando estado de categoría ${id} tras múltiples intentos:`, e6);
-      throw e6;
+      console.error(`❌ Error eliminando categoría ${id}:`, error);
+      throw error;
     }
   }
 
-  async deleteCategoria(id: number): Promise<void> {
+  async updateCategoriaStatus(id: number, estado: boolean): Promise<void> {
     try {
-      console.log(`🗑️ Eliminando categoría ${id}...`);
-      await this.request(`/Categorias/${id}`, {
-        method: 'DELETE',
-      });
-      console.log(`✅ Categoría ${id} eliminada`);
+      await httpClient.post(`/Categorias/${id}/estado`, { estado });
     } catch (error: any) {
-      console.error(`❌ Error eliminando categoría ${id}:`, error);
+      console.error(`❌ Error actualizando estado de categoría ${id}:`, error);
       throw error;
     }
   }
 }
 
 export const categoriaService = new CategoriaService();
+export default categoriaService;

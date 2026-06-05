@@ -89,7 +89,7 @@ export function RegistrarVentaBarberoPage({ onBack }: RegistrarVentaBarberoPageP
   const [loading, setLoading] = useState(true);
   const [productosAPI, setProductosAPI] = useState<ApiProducto[]>([]);
   const [barberosAPI, setBarberosAPI] = useState<ApiBarbero[]>([]);
-  const [ventasCount, setVentasCount] = useState(0);
+  // ventasCount eliminado: el número de venta lo asigna el backend
 
   // Form state
   const [barberoId, setBarberoId] = useState<number | null>(null);
@@ -119,18 +119,10 @@ export function RegistrarVentaBarberoPage({ onBack }: RegistrarVentaBarberoPageP
   const loadData = async () => {
     try {
       setLoading(true);
-      const [ventasData, productosData, barberosData] = await Promise.all([
-        ventaService.getVentas().catch(() => []),
+      const [productosData, barberosData] = await Promise.all([
         productoService.getProductos().catch(() => []),
         barberosService.getBarberos().catch(() => []),
       ]);
-
-      const maxNumVenta =
-        Array.isArray(ventasData) && ventasData.length > 0
-          ? Math.max(...ventasData.map((v: any) => Number(v.numeroVenta || v.id) || 0))
-          : 0;
-      setVentasCount(maxNumVenta);
-
       // Solo productos activos con stock > 0
       setProductosAPI(
         (productosData || []).filter((p: ApiProducto) => p.activo && (p.stock ?? p.cantidad ?? 0) > 0)
@@ -150,7 +142,7 @@ export function RegistrarVentaBarberoPage({ onBack }: RegistrarVentaBarberoPageP
     }
   };
 
-  const numeroVenta = useMemo(() => ventasCount + 1, [ventasCount]);
+  // El número de venta lo asigna el backend — no calcularlo en el front
 
   // Producto seleccionado en el buscador
   const productoInfo = useMemo(
@@ -279,7 +271,7 @@ export function RegistrarVentaBarberoPage({ onBack }: RegistrarVentaBarberoPageP
       const productosTexto = productos.map((p) => `${p.nombre} (x${p.cantidad})`).join(", ");
 
       await ventaService.createVenta({
-        numeroVenta: ventasCount + 1,
+        // numeroVenta no se envía: el backend lo asigna automáticamente
         tipoVenta: "Barbero",
         clienteId: null,
         clienteDocumento: "",
@@ -348,7 +340,7 @@ export function RegistrarVentaBarberoPage({ onBack }: RegistrarVentaBarberoPageP
                 headerRight={
                   <div className="flex items-center gap-4 text-sm" style={{ color: "var(--gray-lightest)" }}>
                     <span>Fecha: {formatDate(fecha)}</span>
-                    <span>Venta #{(ventasCount + 1).toString().padStart(3, "0")}</span>
+                    <span>Venta #—</span>
                   </div>
                 }
               />

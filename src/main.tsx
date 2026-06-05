@@ -1,54 +1,24 @@
-
-  import { createRoot } from "react-dom/client";
-  import { BrowserRouter } from "react-router-dom";
-  import App from "./App.tsx";
-  import "./index.css";
-  import "./styles/globals.css";
-  import { auth } from "./shared/services/firebase";
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App.tsx";
+import "./index.css";
+import "./styles/globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
-  const originalFetch = window.fetch.bind(window);
+// Tema fijo oscuro para toda la app
+document.documentElement.classList.add("dark");
+document.documentElement.setAttribute("data-theme", "dark");
+window.localStorage.removeItem("barberia-theme");
 
-  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const rawUrl = typeof input === "string"
-      ? input
-      : input instanceof URL
-        ? input.toString()
-        : input.url;
-
-    const resolvedUrl = new URL(rawUrl, window.location.origin);
-    const isApiRequest = resolvedUrl.pathname.startsWith("/api");
-
-    if (!isApiRequest) {
-      return originalFetch(input, init);
-    }
-
-    const headers = new Headers(
-      init?.headers ??
-      (typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined)
-    );
-
-    if (!headers.has("Authorization")) {
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-    }
-
-    return originalFetch(input, { ...init, headers });
-  };
-
-  // Tema fijo oscuro para toda la app
-  document.documentElement.classList.add("dark");
-  document.documentElement.setAttribute("data-theme", "dark");
-  window.localStorage.removeItem("barberia-theme");
-
-  createRoot(document.getElementById("root")!).render(
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
     <BrowserRouter>
       <App />
       <Analytics />
       <SpeedInsights />
     </BrowserRouter>
-  );
-  
+  </React.StrictMode>
+);
+

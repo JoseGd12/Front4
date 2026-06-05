@@ -340,6 +340,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const [showFormErrors, setShowFormErrors] = useState(false);
   const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
   const [isSavingCita, setIsSavingCita] = useState(false);
+  const isSavingCitaRef = useRef(false);
   const initialFormSnapshotRef = useRef<any>(null);
   const showDiscardDialogRef = useRef(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -994,6 +995,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       if (citaDate > now) { error("Accion no permitida", "No se puede establecer una fecha futura a una cita completada."); return; }
     }
     const productosPayload = Object.entries(nuevaCita.productoCantidades).map(([id, cant]) => ({ productoId: Number(id), cantidad: cant }));
+    if (isSavingCitaRef.current) return;
+    isSavingCitaRef.current = true;
     setIsSavingCita(true);
     try {
       if (isEditMode && selectedCita) {
@@ -1023,6 +1026,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       const displayMsg = errorMsg.toString().replace("Error 400: ", "").replace("Error 500: ", "");
       error("Error", displayMsg);
     } finally {
+      isSavingCitaRef.current = false;
       setIsSavingCita(false);
     }
   };

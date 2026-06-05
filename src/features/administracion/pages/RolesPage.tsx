@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { rolesApiService, RoleWithModules, CreateRoleData, UpdateRoleData, PermisoModulo } from "../services/rolesApiService";
 import { modulosService, Modulo } from "../services/modulosService";
+import { logger } from "../../../shared/utils/logger";
 
 const API_BASE_URL = '/api';
 import { auth } from "../../../shared/services/firebase";
@@ -87,7 +88,7 @@ export function RolesPage() {
   const loadRoles = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('📋 Iniciando carga de roles y módulos...');
+      logger.debug('📋 Iniciando carga de roles y módulos...');
 
       // Cargar roles y módulos en paralelo
       const [rolesData, modulosData] = await Promise.all([
@@ -106,10 +107,10 @@ export function RolesPage() {
 
       setRoles(rolesData);
       setModulosProyecto(modulosAdaptados);
-      console.log('✅ Roles cargados correctamente:', rolesData.length);
-      console.log('✅ Módulos cargados correctamente:', modulosData.length);
+      logger.debug('✅ Roles cargados correctamente:', rolesData.length);
+      logger.debug('✅ Módulos cargados correctamente:', modulosData.length);
     } catch (err) {
-      console.error('❌ Error cargando datos:', err);
+      logger.error('❌ Error cargando datos:', err);
       showError('Error al cargar los datos. Por favor, intente nuevamente.');
     } finally {
       setLoading(false);
@@ -136,10 +137,25 @@ export function RolesPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedRoles = filteredRoles.slice(startIndex, startIndex + itemsPerPage);
 
+  // Verificar si el nombre del rol ya existe (case-insensitive)
+  const isNombreRolDuplicate = useMemo(() => {
+    const val = nuevoRol.nombre.trim().toLowerCase();
+    if (!val) return false;
+    return roles.some(r => r.nombre.trim().toLowerCase() === val);
+  }, [nuevoRol.nombre, roles]);
+
   // Validación unificada para roles
   const validateRoleData = useCallback((roleData: { nombre: string; modulos: string[] }) => {
     if (!roleData.nombre.trim()) {
       showError("El nombre del rol es obligatorio");
+      return false;
+    }
+
+    const nombreDuplicado = roles.some(
+      r => r.nombre.trim().toLowerCase() === roleData.nombre.trim().toLowerCase()
+    );
+    if (nombreDuplicado) {
+      showError("Nombre duplicado", `Ya existe un rol con el nombre "${roleData.nombre.trim()}".`);
       return false;
     }
 
@@ -281,8 +297,8 @@ export function RolesPage() {
 
     try {
       setIsCreating(true);
-      console.log('➕ Creando nuevo rol con módulos:', nuevoRol.modulos);
-      console.log('🔑 Permisos a enviar:', nuevoRol.permisos);
+      logger.debug('➕ Creando nuevo rol con módulos:', nuevoRol.modulos);
+      logger.debug('🔑 Permisos a enviar:', nuevoRol.permisos);
 
       const newRole = await rolesApiService.createRoleWithModules({
         nombre: nuevoRol.nombre.trim(),
@@ -297,15 +313,15 @@ export function RolesPage() {
         await loadRoles();
       } else {
         setRoles(prev => [...prev, newRole]);
-        console.log('✅ Rol creado con permisos:', newRole.permisosPorModulo);
+        logger.debug('✅ Rol creado con permisos:', newRole.permisosPorModulo);
       }
 
       setNuevoRol({ nombre: '', descripcion: '', modulos: [], permisos: {} });
       setIsDialogOpen(false);
       showSuccess(`Rol "${newRole.nombre}" creado exitosamente con ${newRole.modulos.length} módulo(s)`);
-      console.log('✅ Rol creado:', newRole);
+      logger.debug('✅ Rol creado:', newRole);
     } catch (err) {
-      console.error('❌ Error creando rol:', err);
+      logger.error('❌ Error creando rol:', err);
       showError(err instanceof Error ? err.message : 'Error al crear el rol. Por favor, intente nuevamente.');
     } finally {
       setIsCreating(false);
@@ -319,8 +335,8 @@ export function RolesPage() {
 
     try {
       setIsEditing(true);
-      console.log('🔧 Actualizando rol con módulos:', editingRole.modulos);
-      console.log('🔑 Permisos a actualizar:', editingRole.permisosPorModulo);
+      logger.debug('🔧 Actualizando rol con módulos:', editingRole.modulos);
+      logger.debug('🔑 Permisos a actualizar:', editingRole.permisosPorModulo);
 
       const updateData: UpdateRoleData = {
         nombre: editingRole.nombre.trim(),
@@ -343,20 +359,20 @@ export function RolesPage() {
         setRoles(prev => prev.map(rol =>
           rol.id === editingRole.id ? updatedRole : rol
         ));
-        console.log('✅ Rol actualizado con permisos:', updatedRole.permisosPorModulo);
+        logger.debug('✅ Rol actualizado con permisos:', updatedRole.permisosPorModulo);
       }
 
       setIsEditDialogOpen(false);
       setEditingRole(null);
       showSuccess(`Rol "${updatedRole.nombre}" actualizado exitosamente`);
-      console.log('✅ Rol actualizado:', updatedRole);
+      logger.debug('✅ Rol actualizado:', updatedRole);
 
       // Recargar la página para aplicar los cambios de sesión inmediatamente
       setTimeout(() => {
         window.location.reload();
       }, 1500);
     } catch (err) {
-      console.error('❌ Error actualizando rol:', err);
+      logger.error('❌ Error actualizando rol:', err);
       showError(err instanceof Error ? err.message : 'Error al actualizar el rol. Por favor, intente nuevamente.');
     } finally {
       setIsEditing(false);
@@ -409,7 +425,7 @@ export function RolesPage() {
 
     } catch (err) {
       toast.dismiss();
-      console.error('Error cambiando estado del rol:', err);
+      logger.error('Error cambiando estado del rol:', err);
       showError("Error", "No se pudo cambiar el estado del rol");
     }
   }, [roles, showSuccess, showError]);
@@ -419,15 +435,15 @@ export function RolesPage() {
     if (roleToDelete) {
       try {
         setIsDeleting(true);
-        console.log('🗑️ Eliminando rol...');
+        logger.debug('🗑️ Eliminando rol...');
         await rolesApiService.deleteRole(parseInt(roleToDelete.id));
         setRoles(prev => prev.filter(rol => rol.id !== roleToDelete.id));
         showSuccess(`Rol "${roleToDelete.nombre}" eliminado exitosamente`);
         setIsDeleteDialogOpen(false);
         setRoleToDelete(null);
-        console.log('✅ Rol eliminado correctamente.');
+        logger.debug('✅ Rol eliminado correctamente.');
       } catch (err) {
-        console.error('❌ Error eliminando rol:', err);
+        logger.error('❌ Error eliminando rol:', err);
         showError('Error al eliminar el rol. Por favor, intente nuevamente.');
       } finally {
         setIsDeleting(false);
@@ -438,7 +454,7 @@ export function RolesPage() {
   // Función para cargar los rolesmodulos de un rol específico
   const loadRolesModulosByRole = useCallback(async (roleId: string) => {
     try {
-      console.log(`📋 Cargando rolesmodulos para rol ${roleId}...`);
+      logger.debug(`📋 Cargando rolesmodulos para rol ${roleId}...`);
       const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/RolesModulos/role/${roleId}?pageSize=1000`, {
         method: 'GET',
@@ -450,7 +466,7 @@ export function RolesPage() {
       }
 
       const raw = await response.json();
-      console.log('📋 Datos crudos de rolesmodulos API:', raw);
+      logger.debug('📋 Datos crudos de rolesmodulos API:', raw);
       // Normalizar: la API puede devolver un array directo o un objeto paginado
       let rolesModulosData: any[] = [];
       if (Array.isArray(raw)) {
@@ -464,7 +480,7 @@ export function RolesPage() {
       }
       return rolesModulosData;
     } catch (error) {
-      console.error('Error cargando rolesmodulos:', error);
+      logger.error('Error cargando rolesmodulos:', error);
       return [];
     }
   }, []);
@@ -476,7 +492,7 @@ export function RolesPage() {
 
     // Cargar rolesmodulos específicos del rol
     const rolesModulosData = await loadRolesModulosByRole(rol.id);
-    console.log('📋 rolesModulosData normalizado:', rolesModulosData);
+    logger.debug('📋 rolesModulosData normalizado:', rolesModulosData);
 
     // Actualizar el rol seleccionado con los datos de rolesmodulos
     setSelectedRole(prev => ({

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { UserPlus, Loader2 } from "lucide-react";
 import { Input } from "./input";
 import { clientesService } from "../../../features/clientes/services/clientesService";
@@ -22,6 +22,7 @@ export function QuickClientForm({ searchTerm, onClientCreated, onError }: QuickC
   const [nombre, setNombre] = useState(searchTerm);
   const [telefono, setTelefono] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const isCreatingRef = useRef(false);
 
   const handleOpen = () => {
     setNombre(searchTerm || "");
@@ -31,8 +32,9 @@ export function QuickClientForm({ searchTerm, onClientCreated, onError }: QuickC
 
   const handleCreate = async () => {
     const trimmedName = nombre.trim();
-    if (!trimmedName) return;
+    if (!trimmedName || isCreatingRef.current) return;
 
+    isCreatingRef.current = true;
     setIsCreating(true);
     try {
       const cliente = await clientesService.createClienteRapido(trimmedName, telefono.trim() || undefined);
@@ -49,6 +51,7 @@ export function QuickClientForm({ searchTerm, onClientCreated, onError }: QuickC
       if (onError) onError(msg);
       else console.error(msg);
     } finally {
+      isCreatingRef.current = false;
       setIsCreating(false);
     }
   };

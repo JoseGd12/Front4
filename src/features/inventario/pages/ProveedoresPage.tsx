@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
@@ -224,6 +224,8 @@ export function ProveedoresPage() {
   const [proveedorValidationAttempt, setProveedorValidationAttempt] = useState(0);
   const shakeClass = proveedorValidationAttempt % 2 === 0 ? "input-required-shake-a" : "input-required-shake-b";
   const [duplicateErrors, setDuplicateErrors] = useState<{ nombre?: string; identificacion?: string; telefono?: string; correo?: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [formatErrors, setFormatErrors] = useState<{
     nombre?: string;
     identificacion?: string;
@@ -429,12 +431,15 @@ export function ProveedoresPage() {
     setProveedorValidationAttempt(0);
     setFormatErrors({});
     setDuplicateErrors({});
+    setIsSubmitting(false);
+    isSubmittingRef.current = false;
     setIsEditDialogOpen(false);
     setSelectedProveedor(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
 
     const esJuridico = formData.tipoProveedor === 'Juridico';
     const missingRequired = esJuridico
@@ -487,6 +492,8 @@ export function ProveedoresPage() {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       // Para Natural: copiar datos del proveedor a los campos de representante
       const dataParaEnviar = !esJuridico ? {
@@ -526,6 +533,9 @@ export function ProveedoresPage() {
       setPageError('No se pudo crear el proveedor en el servidor. Verifique los datos y su conexión.');
       setProveedorValidationAttempt(prev => prev + 1);
       // Mantener el diálogo abierto para que el usuario corrija
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -574,8 +584,7 @@ export function ProveedoresPage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!selectedProveedor) return;
+    if (!selectedProveedor || isSubmittingRef.current) return;
 
     const esJuridico = formData.tipoProveedor === 'Juridico';
     const missingRequired = esJuridico
@@ -629,6 +638,8 @@ export function ProveedoresPage() {
       return;
     }
 
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       // Para Natural: copiar datos del proveedor a los campos de representante
       const tempFormData = !esJuridico ? {
@@ -670,6 +681,9 @@ export function ProveedoresPage() {
       setSelectedProveedor(null);
       setIsDialogOpen(false);
       resetForm();
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -1226,9 +1240,10 @@ export function ProveedoresPage() {
                       </Button>
                       <Button
                         type="submit"
+                        disabled={isSubmitting}
                         className="elegante-button-primary"
                       >
-                        {isEditDialogOpen ? 'Actualizar Proveedor' : 'Agregar Proveedor'}
+                        {isSubmitting ? (isEditDialogOpen ? 'Actualizando...' : 'Agregando...') : (isEditDialogOpen ? 'Actualizar Proveedor' : 'Agregar Proveedor')}
                       </Button>
                     </div>
                   </form>

@@ -1,5 +1,6 @@
 import { ApiUser, apiService } from '../../../shared/services/api';
 import { firebaseAuthService, UserProfile } from '../../../shared/services/firebase';
+import { logger } from '../../../shared/utils/logger';
 
 export interface SyncUser {
   id?: number;
@@ -65,7 +66,7 @@ export class AuthSyncService {
         usuarioExistente = usuarios.find(u => u.correo.toLowerCase() === correo.toLowerCase()) || null;
       } catch (error) {
         lookupFailed = true;
-        console.error('Error buscando usuario existente:', error);
+        logger.error('Error buscando usuario existente:', error);
         if (allowCreateIfMissing) {
           return {
             success: false,
@@ -118,14 +119,14 @@ export class AuthSyncService {
 
           try {
             usuarioSincronizado = await apiService.updateUsuario(usuarioExistente.id, datosActualizacion);
-            console.log('Usuario actualizado exitosamente:', usuarioSincronizado);
+            logger.debug('Usuario actualizado exitosamente:', usuarioSincronizado);
           } catch (error) {
-            console.error('Error actualizando usuario:', error);
+            logger.error('Error actualizando usuario:', error);
             return { success: false, error: 'Error actualizando usuario en la API' };
           }
         } else {
           usuarioSincronizado = usuarioExistente;
-          console.log('Usuario ya existe y está sincronizado:', usuarioSincronizado);
+          logger.debug('Usuario ya existe y está sincronizado:', usuarioSincronizado);
         }
       } else {
         if (!allowCreateIfMissing) {
@@ -149,9 +150,9 @@ export class AuthSyncService {
 
         try {
           usuarioSincronizado = await apiService.createUsuario(nuevoUsuario);
-          console.log('Usuario creado exitosamente:', usuarioSincronizado);
+          logger.debug('Usuario creado exitosamente:', usuarioSincronizado);
         } catch (error) {
-          console.error('Error creando usuario:', error);
+          logger.error('Error creando usuario:', error);
           return { success: false, error: 'Error creando usuario en la API' };
         }
       }
@@ -163,7 +164,7 @@ export class AuthSyncService {
       return { success: true, user: usuarioSincronizado };
 
     } catch (error) {
-      console.error('Error en sincronización:', error);
+      logger.error('Error en sincronización:', error);
       return { success: false, error: 'Error general en sincronización' };
     }
   }
@@ -189,7 +190,7 @@ export class AuthSyncService {
       const isAdmin = actualRolId === AppRole.ADMIN || actualRolId === AppRole.SUPER_ADMIN || actualRolId === AppRole.GERENTE;
 
       if (isAdmin) {
-        console.log(`ℹ️ Usuario es Administrador (${actualRolId}), saltando creación de perfil de cliente/barbero.`);
+        logger.debug(`ℹ️ Usuario es Administrador (${actualRolId}), saltando creación de perfil de cliente/barbero.`);
         return;
       }
 
@@ -203,7 +204,7 @@ export class AuthSyncService {
         );
 
         if (!existeCliente) {
-          console.log('🔄 Sincronización Firebase: Creando perfil de Cliente automático...');
+          logger.debug('🔄 Sincronización Firebase: Creando perfil de Cliente automático...');
           await clientesService.createCliente({
             usuarioId: apiUser.id,
             nombre: apiUser.nombre || profile.displayName?.split(' ')[0] || '',
@@ -213,7 +214,7 @@ export class AuthSyncService {
             telefono: apiUser.telefono || undefined,
             fotoPerfil: apiUser.fotoPerfil || profile.photoURL || undefined
           });
-          console.log('✅ Perfil de Cliente vinculado exitosamente');
+          logger.debug('✅ Perfil de Cliente vinculado exitosamente');
         }
       } else if (isBarbero) {
         const { barberosService } = await import('../../administracion/services/barberosService');
@@ -221,7 +222,7 @@ export class AuthSyncService {
         const existeBarbero = barberos.some(b => b.usuarioId === apiUser.id || b.correo === apiUser.correo);
 
         if (!existeBarbero) {
-          console.log('🔄 Sincronización Firebase: Creando perfil de Barbero automático...');
+          logger.debug('🔄 Sincronización Firebase: Creando perfil de Barbero automático...');
           await barberosService.createBarbero({
             usuarioId: apiUser.id,
             nombre: apiUser.nombre || profile.displayName?.split(' ')[0] || '',
@@ -239,11 +240,11 @@ export class AuthSyncService {
             estado: true,
             fotoPerfil: apiUser.fotoPerfil || profile.photoURL || undefined
           });
-          console.log('✅ Perfil de Barbero vinculado exitosamente');
+          logger.debug('✅ Perfil de Barbero vinculado exitosamente');
         }
       }
     } catch (error) {
-      console.error('⚠️ Error al asegurar perfil asociado (Cliente/Barbero):', error);
+      logger.error('⚠️ Error al asegurar perfil asociado (Cliente/Barbero):', error);
       if (strictMode) {
         throw error;
       }
@@ -267,12 +268,11 @@ export class AuthSyncService {
       const syncResult = await this.syncUsuarioConApi(firebaseProfile, rolId, additionalData);
 
       if (syncResult.success && syncResult.user) {
-        // 3. Guardar en localStorage para persistencia
+        // 3. Guardar en localStorage para persistencia (SIN EL ROL por seguridad)
         localStorage.setItem('barbershop_user', JSON.stringify({
           id: syncResult.user.id.toString(),
           email: syncResult.user.correo,
           name: `${syncResult.user.nombre || ''} ${syncResult.user.apellido || ''}`.trim() || syncResult.user.correo,
-          role: this.getRoleName(syncResult.user.rolId),
           telefono: syncResult.user.telefono,
           fotoPerfil: syncResult.user.fotoPerfil,
           firebaseUid: firebaseProfile.uid,
@@ -283,7 +283,7 @@ export class AuthSyncService {
       return syncResult;
 
     } catch (error: any) {
-      console.error('Error en authenticateAndSync:', error);
+      logger.error('Error en authenticateAndSync:', error);
       return { success: false, error: error.message || 'Error de autenticación' };
     }
   }
@@ -309,7 +309,7 @@ export class AuthSyncService {
 
         if (syncResult.success && syncResult.user) {
           // 3. Guardar en localStorage (sin iniciar sesión full porque requiere verificar email)
-          console.log("Registro completo: Usuario y perfil guardados en BD.");
+          logger.debug("Registro completo: Usuario y perfil guardados en BD.");
         } else {
           throw new Error(syncResult.error || "Error sincronizando con API tras registro en Firebase.");
         }
@@ -317,12 +317,12 @@ export class AuthSyncService {
         return syncResult;
       } catch (syncError: any) {
         // Si la sincronización falla, hacemos ROLLBACK en Firebase para que el usuario no quede huérfano
-        console.error('Error en sync, ejecutando rollback en Firebase...', syncError);
+        logger.error('Error en sync, ejecutando rollback en Firebase...', syncError);
         await firebaseAuthService.deleteUser(userCredential.user);
         throw new Error("No se pudo completar tu registro. Se revirtió la cuenta, por favor intenta de nuevo.");
       }
     } catch (error: any) {
-      console.error('Error en registerAndSync:', error);
+      logger.error('Error en registerAndSync:', error);
       return { success: false, error: error.message || 'Error en el registro' };
     }
   }
@@ -350,12 +350,11 @@ export class AuthSyncService {
       });
 
       if (syncResult.success && syncResult.user) {
-        // 3. Guardar en localStorage
+        // 3. Guardar en localStorage (SIN EL ROL por seguridad)
         localStorage.setItem('barbershop_user', JSON.stringify({
           id: syncResult.user.id.toString(),
           email: syncResult.user.correo,
           name: `${syncResult.user.nombre || ''} ${syncResult.user.apellido || ''}`.trim() || syncResult.user.correo,
-          role: this.getRoleName(syncResult.user.rolId),
           telefono: syncResult.user.telefono,
           fotoPerfil: syncResult.user.fotoPerfil,
           firebaseUid: firebaseProfile.uid,
@@ -366,7 +365,7 @@ export class AuthSyncService {
       return syncResult;
 
     } catch (error: any) {
-      console.error('Error en googleSignInAndSync:', error);
+      logger.error('Error en googleSignInAndSync:', error);
       return { success: false, error: error.message || 'Error con Google Sign-In' };
     }
   }
@@ -377,7 +376,7 @@ export class AuthSyncService {
       await firebaseAuthService.signOut();
       localStorage.removeItem('barbershop_user');
     } catch (error) {
-      console.error('Error en signOut:', error);
+      logger.error('Error en signOut:', error);
       // Limpiar localStorage aunque haya error en Firebase
       localStorage.removeItem('barbershop_user');
     }
@@ -405,21 +404,21 @@ export class AuthSyncService {
     return storedUser?.emailVerified || false;
   }
 
-  // Convertir rolId a nombre de rol
-  getRoleName(rolId: number | null): string {
-    switch (rolId) {
-      case AppRole.SUPER_ADMIN:
-        return 'super_admin';
-      case AppRole.ADMIN:
-        return 'admin';
-      case AppRole.BARBERO:
-        return 'barbero';
-      case AppRole.CLIENTE:
-      case AppRole.CAJERO:
-        return 'cliente';
-      default:
-        return 'cliente';
-    }
+  /**
+   * Mapea un ID de rol numérico a su nombre de string interno.
+   */
+  getRoleName(rolId?: number | null): string {
+    const id = Number(rolId);
+    if (id === AppRole.SUPER_ADMIN) return 'super_admin';
+    if (id === AppRole.ADMIN) return 'admin';
+    if (id === AppRole.BARBERO) return 'barbero';
+    if (id === AppRole.CLIENTE) return 'cliente';
+    if (id === AppRole.RECEPCIONISTA) return 'cliente';
+    if (id === AppRole.GERENTE) return 'admin';
+    if (id === AppRole.CAJERO) return 'cliente';
+    
+    logger.warn(`ID de rol desconocido o nulo (${rolId}), asignando 'cliente' por defecto`);
+    return 'cliente';
   }
 
   // Obtener rolId desde nombre de rol

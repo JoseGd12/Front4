@@ -1,3 +1,5 @@
+import { httpClient } from '../../../shared/services/httpClient';
+
 /** Genera un ID aleatorio de 12 caracteres hex usando crypto. */
 function generarIdAleatorio(): string {
   const arr = new Uint8Array(6);
@@ -65,23 +67,15 @@ export interface CreateClienteData {
   fotoPerfil?: string;
 }
 
-const API_BASE_URL = '/api/Clientes';
-const USUARIOS_API_URL = '/api/Usuarios';
-import { apiService, type ApiUser } from '../../../shared/services/api';
-import { auth } from '../../../shared/services/firebase';
+export interface PagedClientes {
+  items: Cliente[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
 
 class ClientesService {
-  private async getAuthHeaders(): Promise<Record<string, string>> {
-    let token: string | null = localStorage.getItem('authToken');
-    if (auth.currentUser) {
-      token = await auth.currentUser.getIdToken();
-    }
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  }
-
   // Mapear datos de la API al formato del componente (usando campos aplanados)
   mapApiToComponent(apiCliente: any): Cliente {
     const documentoStr = apiCliente.documento || (apiCliente.usuario?.documento) || '';
@@ -112,352 +106,138 @@ class ClientesService {
   private mapToApiFormat(data: any): any {
     return {
       Nombre: data.nombre,
-      nombre: data.nombre,
       Apellido: data.apellido,
-      apellido: data.apellido,
       Documento: data.documento,
-      documento: data.documento,
       Correo: data.correo,
-      correo: data.correo,
       Telefono: data.telefono,
-      telefono: data.telefono,
       Direccion: data.direccion,
-      direccion: data.direccion,
       Barrio: data.barrio,
-      barrio: data.barrio,
       FechaNacimiento: data.fechaNacimiento,
-      fechaNacimiento: data.fechaNacimiento,
       FotoPerfil: data.fotoPerfil || '',
-      fotoPerfil: data.fotoPerfil || '',
       Estado: data.estado !== undefined ? data.estado : true,
-      estado: data.estado !== undefined ? data.estado : true,
-      UsuarioId: data.usuarioId,
-      usuarioId: data.usuarioId
+      UsuarioId: data.usuarioId
     };
   }
 
-  async getClientes(): Promise<ClienteAPI[]> {
-    const headers = await this.getAuthHeaders();
-    const merged: any[] = [];
-    const first = await fetch(`${API_BASE_URL}?page=1&pageSize=100`, { headers });
-    if (!first.ok) throw new Error(`Error: ${first.status}`);
-    const firstText = await first.text();
-    const firstRaw = firstText ? JSON.parse(firstText) : [];
-    const extract = (raw: any): any[] => {
-      if (Array.isArray(raw)) return raw;
-      if (raw && typeof raw === 'object') {
-        if (Array.isArray(raw.items)) return raw.items;
-        if (Array.isArray(raw.data)) return raw.data;
-        if (Array.isArray(raw.$values)) return raw.$values;
-        const firstArray = Object.values(raw).find((v: any) => Array.isArray(v)) as any[] | undefined;
-        return firstArray || [];
-      }
-      return [];
-    };
-    merged.push(...extract(firstRaw));
-    let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
-      ? Number((firstRaw as any).totalPages ?? 1)
-      : 1;
-    totalPages = Math.min(Math.max(1, totalPages), 200);
-    if (totalPages > 1) {
-      const promises: Promise<any[]>[] = [];
-      for (let page = 2; page <= totalPages; page++) {
-        promises.push((async () => {
-          const response = await fetch(`${API_BASE_URL}?page=${page}&pageSize=100`, { headers });
-          if (!response.ok) return [];
-          const text = await response.text();
-          const raw = text ? JSON.parse(text) : [];
-          return extract(raw);
-        })());
-      }
-      const rest = await Promise.all(promises);
-      rest.forEach(items => merged.push(...items));
+  private extractItems(raw: any): any[] {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') {
+      if (Array.isArray(raw.items)) return raw.items;
+      if (Array.isArray(raw.data)) return raw.data;
+      if (Array.isArray(raw.$values)) return raw.$values;
     }
-    return merged.map((item: any) => ({
-        id: item.id || item.Id,
-        nombre: item.nombre || item.Nombre,
-        apellido: item.apellido || item.Apellido,
-        documento: item.documento || item.Documento,
-        correo: item.correo || item.Correo || item.email || item.Email,
-        telefono: item.telefono || item.Telefono,
-        direccion: item.direccion || item.Direccion,
-        barrio: item.barrio || item.Barrio,
-        fechaNacimiento: (item.fechaNacimiento || item.FechaNacimiento) ? String(item.fechaNacimiento || item.FechaNacimiento).split('T')[0] : '',
-        fotoPerfil: item.fotoPerfil || item.FotoPerfil,
-        estado: (item.estado === true || item.Estado === true) && (item.usuario || item.Usuario ? ((item.usuario || item.Usuario).estado === true || (item.usuario || item.Usuario).Estado === true) : true),
-        usuario: item.usuario || item.Usuario
-      }));
-  }
-
-  async getClientesPaged(args: { page?: number; pageSize?: number; q?: string } & Record<string, any> = {}): Promise<{ items: Cliente[]; totalCount: number; page: number; pageSize: number; totalPages: number; }> {
-    const page = Math.max(1, Number(args.page ?? 1));
-    const pageSize = Math.max(1, Number(args.pageSize ?? 5));
-    const q = args.q ?? '';
-    const extra = { ...args };
-    delete extra.page;
-    delete extra.pageSize;
-    delete extra.q;
-
-    const headers = await this.getAuthHeaders();
-    const qs = new URLSearchParams();
-    qs.append('page', String(page));
-    qs.append('pageSize', String(pageSize));
-    if (q) qs.append('q', q);
-    Object.entries(extra).forEach(([k, v]) => {
-      if (v === undefined || v === null || v === '') return;
-      qs.append(k, String(v));
-    });
-    const url = `${API_BASE_URL}?${qs.toString()}`;
-    const response = await fetch(url, { headers });
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    const text = await response.text();
-    if (!text || !text.trim()) {
-      return { items: [], totalCount: 0, page, pageSize, totalPages: 1 };
-    }
-    let data: any;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = [];
-    }
-    if (data && typeof data === 'object' && 'items' in data) {
-      const itemsRaw = Array.isArray(data.items) ? data.items : [];
-      const items = itemsRaw.map((item: any) => this.mapApiToComponent({
-        ...item,
-        usuario: item.usuario || item.Usuario
-      }));
-      const totalCount = Number(data.totalCount ?? items.length);
-      const totalPages = Number(data.totalPages ?? Math.max(1, Math.ceil(totalCount / (Number(data.pageSize) || pageSize))));
-      return {
-        items,
-        totalCount,
-        page: Number(data.page ?? page),
-        pageSize: Number(data.pageSize ?? pageSize),
-        totalPages
-      };
-    }
-    const arr: any[] = Array.isArray(data) ? data : [];
-    const mapped = arr.map((item: any) => this.mapApiToComponent(item));
-    const totalCount = mapped.length;
-    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-    const start = (page - 1) * pageSize;
-    const items = mapped.slice(start, start + pageSize);
-    return { items, totalCount, page, pageSize, totalPages };
-  }
-
-  async getClienteById(id: number): Promise<ClienteAPI> {
-    const headers = await this.getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/${id}`, { headers });
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
-  }
-
-  async getSaldoDisponible(id: number): Promise<number> {
-    const headers = await this.getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/${id}/saldo-disponible`, { headers });
-    if (!response.ok) return 0;
-    const text = await response.text();
-    if (!text || !text.trim()) return 0;
-    try {
-      const data = JSON.parse(text);
-      return Number(data?.disponible ?? data?.Disponible ?? 0) || 0;
-    } catch {
-      return 0;
-    }
-  }
-
-  async getSaldosDisponibles(ids: number[]): Promise<Map<number, number>> {
-    const map = new Map<number, number>();
-    if (!Array.isArray(ids) || ids.length === 0) return map;
-    const unique = Array.from(new Set(ids.filter(n => Number(n) > 0).map(Number)));
-    const results = await Promise.all(
-      unique.map(id => this.getSaldoDisponible(id).then(v => [id, v] as const).catch(() => [id, 0] as const))
-    );
-    results.forEach(([id, v]) => map.set(id, v));
-    return map;
-  }
-
-  // Creación robusta: si ya tiene usuarioId usa POST /api/clientes, si no usa POST /api/Usuarios
-  async createCliente(clienteData: CreateClienteData): Promise<any> {
-    if (clienteData.usuarioId) {
-      // Flujo 1: El usuario ya existe en Usuarios, solo creamos el perfil cliente
-      const apiData = {
-        ...this.mapToApiFormat(clienteData),
-        UsuarioId: clienteData.usuarioId
-      };
-      console.log('🔵 Creando Perfil Cliente directo en /api/clientes:', apiData.Correo);
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(API_BASE_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(apiData)
-      });
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Error en API Clientes ${response.status}: ${err}`);
-      }
-      return await response.json();
-    }
-
-    // Flujo 2: El usuario no existe, creamos todo vía Usuarios API (que internamente crea el perfil)
-    const apiData = {
-      ...this.mapToApiFormat(clienteData),
-      RolId: 3, // Rol de Cliente
-      Contrasena: (clienteData as any).contrasena || clienteData.documento || generarContrasenaAleatoria()
-    };
-
-    console.log('🔵 Creando Usuario+Cliente vía /api/Usuarios:', apiData.Correo);
-
-    const headers = await this.getAuthHeaders();
-    const response = await fetch(USUARIOS_API_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(apiData),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error en API Usuarios ${response.status}: ${errorText}`);
-    }
-
-    const createdUsuario = await response.json();
-    try {
-      const todosClientes = await this.getClientes();
-      const perfilCliente = (todosClientes || []).find((c: any) => {
-        const u = c.usuario || c.Usuario;
-        const uId = (u && (u.id || u.Id)) || c.usuarioId;
-        const uCorreo = String((u && (u.correo || u.Correo)) || c.correo || '').toLowerCase();
-        const createdCorreo = String(createdUsuario?.correo || createdUsuario?.Correo || '').toLowerCase();
-        return Number(uId) === Number(createdUsuario?.id || createdUsuario?.Id) || (!!createdCorreo && uCorreo === createdCorreo);
-      });
-      if (perfilCliente) {
-        return perfilCliente;
-      }
-    } catch {
-      // ignorar fallos de búsqueda del perfil y retornar usuario creado
-    }
-    return createdUsuario;
+    return [];
   }
 
   /**
-   * Registro rápido de "cliente de paso": solo requiere nombre y opcionalmente teléfono.
-   * Genera automáticamente documento, correo y contraseña temporales.
-   * Retorna el cliente creado con su id listo para usar en ventas/agendamientos.
+   * Obtiene una página de clientes (FE-M12: Optimización de paginación)
    */
-  async createClienteRapido(nombre: string, telefono?: string): Promise<ClienteAPI> {
-    const uid = generarIdAleatorio();
-    const partes = nombre.trim().split(/\s+/);
-    const primerNombre = partes[0] || 'Cliente';
-    const apellido = partes.length > 1 ? partes.slice(1).join(' ') : 'De Paso';
-    const documento = `PASO-${uid}`;
-    const correo = `paso.${uid}@manito.temp`;
-    const contrasena = generarContrasenaAleatoria();
+  async getClientesPaged(args: { page?: number; pageSize?: number; q?: string } & Record<string, any> = {}): Promise<PagedClientes> {
+    const page = Math.max(1, Number(args.page ?? 1));
+    const pageSize = Math.max(1, Number(args.pageSize ?? 50));
+    const q = args.q ?? '';
+    
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    params.append('pageSize', String(pageSize));
+    if (q) params.append('q', q);
 
-    const result = await this.createCliente({
-      nombre: primerNombre,
-      apellido,
-      documento,
-      correo,
-      telefono: telefono || '',
+    Object.entries(args).forEach(([k, v]) => {
+      if (['page', 'pageSize', 'q'].includes(k)) return;
+      if (v != null && v !== '') params.append(k, String(v));
     });
 
-    // createCliente usa Flow 2 (sin usuarioId) → POST /api/Usuarios con RolId=3
-    // El resultado puede ser el usuario creado o el perfil cliente encontrado
-    // Necesitamos el id del Cliente (no del Usuario)
-    const clienteId = result?.id || result?.Id || 0;
-    if (!clienteId) {
-      throw new Error('No se pudo obtener el ID del cliente creado.');
-    }
+    try {
+      const data = await httpClient.get(`/Clientes?${params.toString()}`);
+      const rawItems = this.extractItems(data);
+      
+      const items = rawItems.map((item: any) => this.mapApiToComponent({
+        ...item,
+        usuario: item.usuario || item.Usuario
+      }));
 
+      return {
+        items,
+        totalCount: Number(data.totalCount ?? items.length),
+        page: Number(data.page ?? page),
+        pageSize: Number(data.pageSize ?? pageSize),
+        totalPages: Number(data.totalPages ?? 1)
+      };
+    } catch (error) {
+      console.error('Error fetching clientes paged:', error);
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
+    }
+  }
+
+  /**
+   * @deprecated Usar getClientesPaged para mejor rendimiento.
+   */
+  async getClientes(): Promise<ClienteAPI[]> {
+    const res = await this.getClientesPaged({ page: 1, pageSize: 100 });
+    return res.items.map(c => ({
+      id: Number(c.id),
+      nombre: c.nombre,
+      apellido: c.apellido,
+      documento: c.numeroDocumento,
+      correo: c.email,
+      telefono: c.telefono,
+      direccion: c.direccion,
+      barrio: c.barrio,
+      fechaNacimiento: c.fechaNacimiento,
+      fotoPerfil: c.fotoPerfil,
+      estado: c.activo,
+      usuarioId: c.usuarioId
+    }));
+  }
+
+  async getClienteById(id: number): Promise<ClienteAPI> {
+    return await httpClient.get(`/Clientes/${id}`);
+  }
+
+  async createCliente(data: CreateClienteData): Promise<ClienteAPI> {
+    const apiData = this.mapToApiFormat(data);
+    return await httpClient.post('/Clientes', apiData);
+  }
+
+  async createClienteWithUser(data: CreateClienteData): Promise<any> {
+    const password = generarContrasenaAleatoria();
+    const userData = {
+      Nombre: data.nombre,
+      Apellido: data.apellido,
+      Documento: data.documento,
+      Correo: data.correo,
+      Contrasena: password,
+      RolId: 3, // Cliente
+      Telefono: data.telefono,
+      Direccion: data.direccion,
+      Barrio: data.barrio,
+      FechaNacimiento: data.fechaNacimiento,
+      Estado: true,
+      FotoPerfil: data.fotoPerfil || ''
+    };
+
+    const userResult = await httpClient.post('/Usuarios', userData);
     return {
-      id: clienteId,
-      nombre: primerNombre,
-      apellido,
-      documento,
-      correo,
-      telefono: telefono || '',
-      estado: true,
+      cliente: this.mapApiToComponent(userResult),
+      contrasena: password
     };
   }
 
-  async updateCliente(id: number, clienteData: any): Promise<any> {
-    const apiData = {
-      Id: id,
-      id: id,
-      ...this.mapToApiFormat(clienteData)
-    };
-    
-    const headers = await this.getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify(apiData)
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error al actualizar cliente: ${response.status} ${errorText}`);
-    }
-    
-    return response.status === 204 ? apiData : await response.json();
+  async updateCliente(id: number, data: Partial<Cliente>): Promise<ClienteAPI> {
+    const apiData = this.mapToApiFormat(data);
+    return await httpClient.put(`/Clientes/${id}`, apiData);
   }
 
-  async deleteCliente(id: number, info?: { correo?: string; documento?: string; tipoDocumento?: string }): Promise<void> {
-    // 1) Intentar eliminar perfil Cliente directamente
-    try {
-      const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/${id}`, { method: 'DELETE', headers });
-      if (response.ok) return;
-      const errText = await response.text();
-      throw new Error(`Error ${response.status}: ${errText}`);
-    } catch (e: any) {
-      const msg = String(e?.message || '').toLowerCase();
-      const is404 = msg.includes('404') || msg.includes('not found');
-      if (!is404) throw e;
-    }
-
-    // 2) Fallback: El backend no tiene /Clientes o el ID es de Usuario.
-    //    Probar eliminar en /Usuarios/{id}
-    try {
-      await apiService.deleteUsuario(id);
-      return;
-    } catch (_) {
-      // Continuar con búsqueda por correo/documento
-    }
-
-    // 3) Buscar usuario por correo o documento y eliminarlo
-    try {
-      const usuarios: ApiUser[] = await apiService.getUsuarios();
-      const correo = info?.correo?.toLowerCase();
-      const documento = (info?.documento || '').trim();
-      const tipoDoc = (info?.tipoDocumento || '').trim().toUpperCase();
-      const docFull = tipoDoc && documento ? `${tipoDoc} ${documento}` : documento;
-
-      const match = usuarios.find(u => {
-        const uCorreo = (u.correo || '').toLowerCase();
-        const uDoc = (u.documento || '').trim();
-        return (correo && uCorreo === correo) || (documento && (uDoc === documento || uDoc === docFull));
-      });
-
-      if (match?.id) {
-        await apiService.deleteUsuario(match.id);
-        return;
-      }
-      throw new Error('Usuario asociado no encontrado para eliminación');
-    } catch (err) {
-      throw new Error('No se pudo eliminar el cliente ni el usuario asociado');
-    }
+  async deleteCliente(id: number): Promise<void> {
+    await httpClient.delete(`/Clientes/${id}`);
   }
 
-  async toggleClienteEstado(id: number, estado: boolean): Promise<void> {
-    const headers = await this.getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/${id}/estado`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ estado }),
-    });
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
+  async getClientesDeBarbero(barberoId: number): Promise<Cliente[]> {
+    const data = await httpClient.get(`/Clientes/barbero/${barberoId}`);
+    const items = this.extractItems(data);
+    return items.map(c => this.mapApiToComponent(c));
   }
 }
 
 export const clientesService = new ClientesService();
+export default clientesService;
