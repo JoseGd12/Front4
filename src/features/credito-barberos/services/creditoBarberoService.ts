@@ -165,6 +165,18 @@ class CreditoBarberoService {
   async registrarAbono(barberoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
     const credito = await this.getCreditoByBarberoId(barberoId);
     if (!credito) throw new Error('No se encontró crédito activo para el barbero');
+
+    // FE-M16: Validar que el abono no exceda la deuda pendiente
+    const monto = Number(input.monto);
+    if (isNaN(monto) || monto <= 0) {
+      throw new Error('El monto del abono debe ser mayor a 0');
+    }
+    if (monto > credito.saldoDeuda) {
+      throw new Error(
+        `El abono ($${monto.toLocaleString('es-CO')}) no puede superar la deuda pendiente ($${credito.saldoDeuda.toLocaleString('es-CO')})`
+      );
+    }
+
     return this.crearAbono(credito.id, input);
   }
 

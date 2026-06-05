@@ -453,7 +453,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
             return user?.role === 'super_admin';
           }
           // Solo admin y super_admin pueden ver Crédito Barberos
-          if (item.label === "Crédito Barberos" || item.page === "CreditoBarberos") {
+          if (item.label === "Crédito Barberos" || (item as any).page === "CreditoBarberos") {
             return user?.role === 'super_admin' || user?.role === 'admin';
           }
           return checkModuleAccess(item.label);

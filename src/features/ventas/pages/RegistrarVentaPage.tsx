@@ -719,14 +719,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
           ""
         );
       } else {
-        const preciosFallback: { [key: string]: number } = {
-          "Corte Clásico": 25000,
-          "Barba Completa": 20000,
-          "Corte + Barba": 40000,
-          "Tinte Cabello": 80000,
-          "Tratamiento Capilar": 35000,
-        };
-        precioServicio = preciosFallback[servicioSeleccionado] || 0;
+        // Sin precio definido — el usuario debe seleccionar un servicio con precio real de la API
+        precioServicio = 0;
         servicioId = `SERVPERS-${Date.now()}`;
       }
     }

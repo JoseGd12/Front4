@@ -19,6 +19,7 @@ export interface Proveedor {
   documentoRepresentante?: string;
   sectorEconomico?: string;
   anosOperacion?: number;
+  paginaWeb?: string;
   tipoIdentificacionRepresentante?: string | null;
   identificacionRepresentante?: string | null;
   correoRepresentante?: string;

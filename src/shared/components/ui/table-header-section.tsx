@@ -18,8 +18,9 @@ type TableHeaderStatusFilterConfig = {
 
 type TableHeaderSectionProps = {
   leftContent?: ReactNode;
-  searchValue: string;
-  onSearchChange: (value: string) => void;
+  /** Omitir para ocultar la barra de búsqueda */
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
   statusFilter?: TableHeaderStatusFilterConfig;
   extraFilters?: ReactNode;
@@ -40,7 +41,7 @@ type TableHeaderSectionProps = {
 
 export function TableHeaderSection({
   leftContent,
-  searchValue,
+  searchValue = '',
   onSearchChange,
   searchPlaceholder = "Buscar...",
   statusFilter,
@@ -89,44 +90,44 @@ export function TableHeaderSection({
       } : undefined}
     >
       {leftContent}
-      <div
-        className={cn("relative", searchContainerClassName)}
-        style={variant === "dark" ? {
-          flex: "1",
-          minWidth: "200px",
-          maxWidth: "380px",
-        } : undefined}
-      >
-
-        {variant === "dark" ? (
-          // Input nativo igual que devoluciones: sin restricciones de shadcn
-          <input
-            type="text"
-            placeholder={searchPlaceholder}
-            value={searchValue}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className={cn("elegante-input-dark", searchInputClassName)}
-            style={{ width: "100%" }}
-          />
-        ) : (
-          <Input
-            placeholder={searchPlaceholder}
-            value={searchValue}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className={cn("elegante-input w-80", searchInputClassName)}
-          />
-        )}
-        {searchValue && (
-          <button
-            type="button"
-            onClick={() => onSearchChange("")}
-            title="Limpiar búsqueda"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+      {onSearchChange && (
+        <div
+          className={cn("relative", searchContainerClassName)}
+          style={variant === "dark" ? {
+            flex: "1",
+            minWidth: "200px",
+            maxWidth: "380px",
+          } : undefined}
+        >
+          {variant === "dark" ? (
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className={cn("elegante-input-dark", searchInputClassName)}
+              style={{ width: "100%" }}
+            />
+          ) : (
+            <Input
+              placeholder={searchPlaceholder}
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className={cn("elegante-input w-80", searchInputClassName)}
+            />
+          )}
+          {searchValue && (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              title="Limpiar búsqueda"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
       {statusFilter && (
         <div className="flex items-center gap-3">
           <Filter className="w-4 h-4 text-gray-lightest" />
@@ -145,9 +146,14 @@ export function TableHeaderSection({
         </div>
       )}
       {extraFilters}
-      {/* En variant=dark: contador siempre a la derecha en la misma línea (margin-left: auto via std-records-count) */}
-      {variant === "dark" ? renderRecords : null}
-      {/* En variant=default: mantener comportamiento original con rightContent */}
+      {/* En variant=dark: contador y rightContent a la derecha */}
+      {variant === "dark" && (renderRecords || rightContent) && (
+        <div className="flex items-center gap-3 ml-auto">
+          {rightContent}
+          {renderRecords}
+        </div>
+      )}
+      {/* En variant=default: comportamiento original */}
       {variant !== "dark" && (rightContent || recordsText) && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 ml-auto">
           {rightContent}

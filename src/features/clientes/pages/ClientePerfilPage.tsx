@@ -188,13 +188,13 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                 nombre: formData.nombre,
                 apellido: formData.apellido,
                 documento: docConcatenado,
-                correo: formData.email,
+                email: formData.email,
                 telefono: formData.telefono,
                 fechaNacimiento: formData.fechaNacimiento || undefined,
                 direccion: formData.direccion || undefined,
                 barrio: formData.barrio || undefined,
                 fotoPerfil: formData.fotoPerfil || undefined,
-                estado: true,
+                activo: true,
               });
             }
           } catch (clienteErr) {

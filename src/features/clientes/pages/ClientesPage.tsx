@@ -1075,8 +1075,8 @@ export function ClientesPage() {
 
             return (
               <StandardTable
-                columns={clienteColumns}
-                data={displayedClientes as unknown as Cliente[]}
+                columns={clienteColumns as any}
+                data={displayedClientes as any}
                 loading={loading}
                 emptyTitle="No se encontraron clientes"
                 emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
