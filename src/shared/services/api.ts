@@ -636,40 +636,6 @@ class ApiService {
     }
   }
 
-  async authenticateUser(correo: string, contrasena: string): Promise<ApiUser | null> {
-    try {
-      // Este método ahora solo debe usarse para sincronización con Firebase
-      // La autenticación principal debe manejarse a través de Firebase Auth
-      console.warn('⚠️ authenticateUser está deprecado. Usa Firebase Auth para autenticación.');
-
-      const usuarios = await this.getUsuarios();
-      const user = usuarios.find(u => u.correo === correo);
-
-      if (!user) {
-        console.log('Usuario no encontrado:', correo);
-        return null;
-      }
-
-      // Solo permitir autenticación local para usuarios sincronizados con Firebase
-      if (user.contrasena === 'firebase_auth') {
-        console.log('Usuario sincronizado con Firebase. Usa Firebase Auth para autenticación.');
-        return null;
-      }
-
-      // Comparación normal de contraseñas para usuarios legacy
-      if (user.contrasena === contrasena) {
-        console.log('Autenticación local exitosa (legacy):', user.correo);
-        return user;
-      }
-
-      console.log('Contraseña incorrecta para:', correo);
-      return null;
-    } catch (error: any) {
-      console.error('Error en autenticación:', error);
-      throw error;
-    }
-  }
-
   // ==================== MÉTODOS PARA ROLES ====================
   async getRoles(): Promise<any[]> {
     const cached = this.getCached<any[]>('roles');

@@ -60,14 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const ROLE_CACHE_KEY = 'barbershop_role_cache';
-
-  const roleToRolId = (role?: UserRole): number => {
-    if (role === 'super_admin') return AppRole.SUPER_ADMIN;
-    if (role === 'admin') return AppRole.ADMIN;
-    if (role === 'barbero') return AppRole.BARBERO;
-    return AppRole.CLIENTE;
-  };
+  // Limpiar el antiguo cache de roles del localStorage (ya no se usa — era un vector de escalación)
+  localStorage.removeItem('barbershop_role_cache');
 
   const rolIdToRole = (rolId?: number | null): UserRole | undefined => {
     if (rolId === AppRole.SUPER_ADMIN) return 'super_admin';
@@ -75,36 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (rolId === AppRole.BARBERO) return 'barbero';
     if (rolId === AppRole.CLIENTE || rolId === AppRole.CAJERO) return 'cliente';
     return undefined;
-  };
-
-  const readRoleCache = (): Record<string, UserRole> => {
-    try {
-      const raw = localStorage.getItem(ROLE_CACHE_KEY);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch {
-      return {};
-    }
-  };
-
-  const writeRoleCache = (cache: Record<string, UserRole>) => {
-    localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(cache));
-  };
-
-  const cacheRoleForEmail = (email: string, role: UserRole) => {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    if (!normalizedEmail) return;
-    const cache = readRoleCache();
-    cache[normalizedEmail] = role;
-    writeRoleCache(cache);
-  };
-
-  const getCachedRoleByEmail = (email?: string | null): UserRole | undefined => {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    if (!normalizedEmail) return undefined;
-    const cache = readRoleCache();
-    return cache[normalizedEmail];
   };
 
   const normalizeRoleFromUnknown = (value: unknown): UserRole | undefined => {
@@ -170,16 +134,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     emailVerified: firebaseProfile.emailVerified
   });
 
-  const resolveFallbackRole = async (email?: string | null): Promise<UserRole | undefined> => {
-    const cachedRole = getCachedRoleByEmail(email);
-    if (cachedRole) return cachedRole;
+  // El fallback de rol solo usa Firebase claims — nunca localStorage
+  // (evita escalación de privilegios por edición manual de localStorage)
+  const resolveFallbackRole = async (_email?: string | null): Promise<UserRole | undefined> => {
     return await getRoleFromFirebaseClaims();
   };
 
   const persistSessionUser = (sessionUser: User) => {
-    if (sessionUser.email && sessionUser.role) {
-      cacheRoleForEmail(sessionUser.email, sessionUser.role);
-    }
+    // Guardamos nombre/email/foto para UX, pero el rol se re-verifica al iniciar
     localStorage.setItem('barbershop_user', JSON.stringify(sessionUser));
     setUser(sessionUser);
     setIsAuthenticated(true);
@@ -189,24 +151,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Verificar estado de autenticación al cargar
     const initializeAuth = async () => {
       try {
-        // 1. Verificar si hay usuario guardado en localStorage
         const storedUser = authSyncService.getStoredUser();
-
-        if (storedUser) {
-          if (storedUser.email && storedUser.role) {
-            cacheRoleForEmail(storedUser.email, storedUser.role);
-          }
-          setUser(storedUser);
-          setIsAuthenticated(true);
-        }
-
-        // 2. Verificar estado de Firebase
         const firebaseUser = firebaseAuthService.getCurrentUser();
-        if (firebaseUser && !storedUser) {
-          // Si hay usuario en Firebase pero no en localStorage, sincronizar
+
+        if (firebaseUser) {
+          // Hay sesión activa en Firebase: sincronizar con la API para obtener el rol real
           const firebaseProfile = firebaseAuthService.getUserProfile(firebaseUser);
+
           if (firebaseProfile.email) {
-            // Intentar obtener rolId por defecto (cliente)
             const syncResult = await authSyncService.syncUsuarioConApi(
               firebaseProfile,
               AppRole.CLIENTE,
@@ -215,14 +167,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             );
 
             if (syncResult.success && syncResult.user) {
+              // Rol viene de la API — fuente de verdad
               const userData: User = {
                 id: syncResult.user.id.toString(),
                 email: syncResult.user.correo,
                 name: `${syncResult.user.nombre || ''} ${syncResult.user.apellido || ''}`.trim() || syncResult.user.correo,
-                role: (() => {
-                  const roleName = authSyncService.getRoleName(syncResult.user.rolId || 0);
-                  return roleName as UserRole;
-                })(),
+                role: authSyncService.getRoleName(syncResult.user.rolId || 0) as UserRole,
                 telefono: syncResult.user.telefono ?? undefined,
                 fotoPerfil: syncResult.user.fotoPerfil ?? undefined,
                 firebaseUid: firebaseProfile.uid,
@@ -230,12 +180,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               };
               persistSessionUser(userData);
             } else if (isApiSyncUnavailableError(syncResult.error)) {
+              // API no disponible: usar Firebase claims como fallback (no localStorage)
               const fallbackRole = await resolveFallbackRole(firebaseProfile.email);
               if (fallbackRole) {
-                persistSessionUser(buildFirebaseOnlyUser(firebaseProfile, fallbackRole));
+                // Si hay datos de UI en localStorage (nombre, foto), aprovecharlos pero con el rol de claims
+                const uiData = storedUser && storedUser.email === firebaseProfile.email ? storedUser : null;
+                persistSessionUser({
+                  ...buildFirebaseOnlyUser(firebaseProfile, fallbackRole),
+                  name: uiData?.name || firebaseProfile.displayName || firebaseProfile.email || 'Usuario',
+                  fotoPerfil: uiData?.fotoPerfil || firebaseProfile.photoURL || undefined,
+                });
               }
+              // Si no hay fallbackRole tampoco, el usuario queda sin sesión
             }
           }
+        } else if (storedUser) {
+          // No hay sesión de Firebase pero sí datos en localStorage: limpiar, la sesión expiró
+          localStorage.removeItem('barbershop_user');
         }
       } catch (error) {
         console.error('Error inicializando autenticación:', error);
@@ -267,7 +228,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userCredential = await firebaseAuthService.signIn(email, password);
       const firebaseProfile = firebaseAuthService.getUserProfile(userCredential.user);
 
-      const selectedRolId = rolId ?? roleToRolId(getCachedRoleByEmail(email));
+      // El rol lo devuelve la API tras sync — no lo leemos del localStorage
+      const selectedRolId = rolId ?? AppRole.CLIENTE;
 
       // Sincronizar con API usando el rol detectado
       const result = await authSyncService.syncUsuarioConApi(
@@ -489,7 +451,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Primero autenticar con Google para obtener el email
       const userCredential = await firebaseAuthService.signInWithGoogle();
       const firebaseProfile = firebaseAuthService.getUserProfile(userCredential.user);
-      const selectedRolId = rolId ?? roleToRolId(getCachedRoleByEmail(firebaseProfile.email));
+      const selectedRolId = rolId ?? AppRole.CLIENTE;
 
       // Sincronizar con API usando el rol detectado
       const result = await authSyncService.syncUsuarioConApi(
