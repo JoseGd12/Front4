@@ -14,7 +14,6 @@ dist/
 .DS_Store
 
 # Variables de entorno — NUNCA versionar (contienen secrets reales)
-.env
 .env.*
 !.env.example
 .env.local
