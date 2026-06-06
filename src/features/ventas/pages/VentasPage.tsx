@@ -35,6 +35,7 @@ import { Label } from "../../../shared/components/ui/label";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
+import { StandardTable, resolveStatusVariant } from "../../../shared/components/ui/standard-table";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { ventaService, Venta } from "../services/ventaService";
@@ -588,22 +589,6 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     };
   }, [filteredVentas]);
 
-  const getEstadoColor = (estado: string) => {
-    const estadoNormalizado = (estado || '').toLowerCase().trim();
-    if (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado') {
-      return 'std-badge-negative';
-    }
-    if (estadoNormalizado === 'completada' || estadoNormalizado === 'completado' || estadoNormalizado === 'activo') {
-      return 'std-badge-positive';
-    }
-    if (estadoNormalizado === 'pendiente') {
-      return 'std-badge-neutral';
-    }
-    if (estadoNormalizado === 'procesado') {
-      return 'std-badge-info';
-    }
-    return 'std-badge-neutral';
-  };
 
   const getProductoDetalleImage = (producto: any): string => {
     const nombreProducto = String(producto?.nombre || '').trim().toLowerCase();
@@ -1995,96 +1980,81 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     <col style={{ width: "10%" }} />
                     <col style={{ width: "15%" }} />
                   </colgroup>
-                  <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
-                    <tr className="border-b border-gray-dark">
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Número</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Documento Cliente / Barbero</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Nombre Cliente / Barbero</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Total</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Fecha de Registro</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Estado</th>
-                      <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Acciones</th>
+                  <StandardTable.Header className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
+                    <tr>
+                      <StandardTable.HeadCell>Número</StandardTable.HeadCell>
+                      <StandardTable.HeadCell>Documento Cliente / Barbero</StandardTable.HeadCell>
+                      <StandardTable.HeadCell>Nombre Cliente / Barbero</StandardTable.HeadCell>
+                      <StandardTable.HeadCell>Total</StandardTable.HeadCell>
+                      <StandardTable.HeadCell>Fecha de Registro</StandardTable.HeadCell>
+                      <StandardTable.HeadCell>Estado</StandardTable.HeadCell>
+                      <StandardTable.HeadCell>Acciones</StandardTable.HeadCell>
                     </tr>
-                  </thead>
-                  <tbody className="std-tbody">
+                  </StandardTable.Header>
+                  <StandardTable.Body>
                     {loading ? (
                       <TableLoadingStateRow
                         colSpan={7}
                         title="Cargando ventas..."
                       />
                     ) : displayedVentas.length > 0 ? displayedVentas.map((venta) => (
-                      <tr key={venta.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                        <td className="py-4 px-4 text-center">
+                      <StandardTable.Row key={venta.id}>
+                        <StandardTable.Cell>
                           <div className="flex items-center justify-center gap-2">
                             <Hash className="w-4 h-4 text-orange-primary" />
-                            <span className="text-gray-lighter">{String((venta as any).numeroVenta ?? venta.id).padStart(3, "0")}</span>
+                            <span>{String((venta as any).numeroVenta ?? venta.id).padStart(3, "0")}</span>
                           </div>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="text-center">
-                            <span className="text-gray-lighter">
-                              {(() => {
-                                const isBarberoVenta = String(venta.tipoVenta || '').toLowerCase().includes('barbero');
-                                if (isBarberoVenta) {
-                                  return venta.barberoDocumento || 'N/A';
-                                }
-                                return venta.clienteDocumento || 'N/A';
-                              })()}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="text-center">
-                            <span className="text-gray-lighter">
-                              {(() => {
-                                const isBarberoVenta = String(venta.tipoVenta || '').toLowerCase().includes('barbero');
-                                if (isBarberoVenta) {
-                                  return normalizeBarbero(venta.barbero);
-                                }
-                                return normalizeCliente(venta.cliente);
-                              })()}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter font-normal">
-                            ${(() => {
-                              // Ventas a crédito barbero: el cobro es diferido, se muestra $0 en el listado
-                              if (String(venta.metodoPago || '').toLowerCase() === 'creditobarbero') {
-                                return formatCurrency(0);
-                              }
-                              const sumDev = devoluciones
-                                .filter((d) => {
-                                  const motivoDet = String((d as any).motivoDetalle || '').toLowerCase();
-                                  const motivoCat = String((d as any).motivo || (d as any).motivoCategoria || '').toLowerCase();
-                                  const esConsumoSaldo = (motivoDet.includes('consumo') && motivoDet.includes('saldo')) || (motivoCat.includes('consumo') && motivoCat.includes('saldo'));
-                                  const estado = String((d as any).estado || '').toLowerCase().trim();
-                                  const noAnulada = estado !== 'anulada' && estado !== 'anulado';
-                                  return Number((d as any).ventaId) === Number(venta.id) && noAnulada && !esConsumoSaldo;
-                                })
-                                .reduce((acc, d) => acc + (Number((d as any).monto) || 0), 0);
-                              const expSaldo = Number((venta as any).SaldoAFavorUsado ?? (venta as any).saldoAFavorUsado ?? (venta as any).SaldoAFavor ?? (venta as any).saldoAfavor ?? 0);
-                              const saldoUsado = expSaldo > 0
-                                ? expSaldo
-                                : (() => {
-                                  const should = (Number(venta.subtotal) || 0) + (Number((venta as any).iva) || 0) - (Number(venta.descuento) || 0);
-                                  const diff = should - (Number(venta.total) || 0);
-                                  return diff > 0.01 ? diff : 0;
-                                })();
-                              const listadoTotalAjustado = Math.max(0, (Number(venta.subtotal) || 0) - saldoUsado - sumDev);
-                              return formatCurrency(listadoTotalAjustado);
-                            })()}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-gray-lighter">{formatDate(venta.fecha)}</span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className={`std-badge ${getEstadoColor(venta.estado)}`}>
-                            {venta.estado}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
+                        </StandardTable.Cell>
+                        <StandardTable.Cell>
+                          {(() => {
+                            const isBarberoVenta = String(venta.tipoVenta || '').toLowerCase().includes('barbero');
+                            return isBarberoVenta ? venta.barberoDocumento || 'N/A' : venta.clienteDocumento || 'N/A';
+                          })()}
+                        </StandardTable.Cell>
+                        <StandardTable.Cell>
+                          {(() => {
+                            const isBarberoVenta = String(venta.tipoVenta || '').toLowerCase().includes('barbero');
+                            return isBarberoVenta ? normalizeBarbero(venta.barbero) : normalizeCliente(venta.cliente);
+                          })()}
+                        </StandardTable.Cell>
+                        <StandardTable.Cell>
+                          ${(() => {
+                            // Ventas a crédito barbero: el cobro es diferido, se muestra $0 en el listado
+                            if (String(venta.metodoPago || '').toLowerCase() === 'creditobarbero') {
+                              return formatCurrency(0);
+                            }
+                            const sumDev = devoluciones
+                              .filter((d) => {
+                                const motivoDet = String((d as any).motivoDetalle || '').toLowerCase();
+                                const motivoCat = String((d as any).motivo || (d as any).motivoCategoria || '').toLowerCase();
+                                const esConsumoSaldo = (motivoDet.includes('consumo') && motivoDet.includes('saldo')) || (motivoCat.includes('consumo') && motivoCat.includes('saldo'));
+                                const estado = String((d as any).estado || '').toLowerCase().trim();
+                                const noAnulada = estado !== 'anulada' && estado !== 'anulado';
+                                return Number((d as any).ventaId) === Number(venta.id) && noAnulada && !esConsumoSaldo;
+                              })
+                              .reduce((acc, d) => acc + (Number((d as any).monto) || 0), 0);
+                            const expSaldo = Number((venta as any).SaldoAFavorUsado ?? (venta as any).saldoAFavorUsado ?? (venta as any).SaldoAFavor ?? (venta as any).saldoAfavor ?? 0);
+                            const saldoUsado = expSaldo > 0
+                              ? expSaldo
+                              : (() => {
+                                const should = (Number(venta.subtotal) || 0) + (Number((venta as any).iva) || 0) - (Number(venta.descuento) || 0);
+                                const diff = should - (Number(venta.total) || 0);
+                                return diff > 0.01 ? diff : 0;
+                              })();
+                            const listadoTotalAjustado = Math.max(0, (Number(venta.subtotal) || 0) - saldoUsado - sumDev);
+                            return formatCurrency(listadoTotalAjustado);
+                          })()}
+                        </StandardTable.Cell>
+                        <StandardTable.Cell>
+                          {formatDate(venta.fecha)}
+                        </StandardTable.Cell>
+                        <StandardTable.Cell>
+                          <StandardTable.StatusBadge
+                            variant={resolveStatusVariant(venta.estado)}
+                            label={venta.estado}
+                          />
+                        </StandardTable.Cell>
+                        <StandardTable.Cell>
                           <div className="flex items-center justify-center gap-2">
                             {venta.estado === 'Completada' && (
                               <button
@@ -2119,8 +2089,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                               <FileDown className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
                             </button>
                           </div>
-                        </td>
-                      </tr>
+                        </StandardTable.Cell>
+                      </StandardTable.Row>
                     )) : (
                       <TableEmptyStateRow
                         colSpan={7}
@@ -2129,7 +2099,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         onReload={cargarVentas}
                       />
                     )}
-                  </tbody>
+                  </StandardTable.Body>
                 </table>
               </div>
 
@@ -2352,11 +2322,10 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         Estado
                       </Label>
                       <div className="h-10 flex items-center">
-                        <span className={`std-badge ${getEstadoColor(selectedVenta.estado)}`}>
-                          {(selectedVenta.estado || '').toLowerCase().trim() === 'anulada' || (selectedVenta.estado || '').toLowerCase().trim() === 'anulado'
-                            ? 'Anulada'
-                            : 'Completada'}
-                        </span>
+                        <StandardTable.StatusBadge
+                          variant={resolveStatusVariant(selectedVenta.estado)}
+                          label={(selectedVenta.estado || '').toLowerCase().trim() === 'anulada' || (selectedVenta.estado || '').toLowerCase().trim() === 'anulado' ? 'Anulada' : 'Completada'}
+                        />
                       </div>
                     </div>
                   </div>

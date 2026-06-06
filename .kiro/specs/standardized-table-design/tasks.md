@@ -200,7 +200,7 @@ Cada tarea es atómica y verificable de forma independiente. Las sub-tareas marc
   - [ ]* 10.6 Escribir test de integración para `ServiciosPage` migrada
     - _Requirements: 9.2_
 
-- [ ] 11. Fase 4 — Migrar `PaquetesPage.tsx`
+- [x] 11. Fase 4 — Migrar `PaquetesPage.tsx`
   - [x] 11.1 Leer `PaquetesPage.tsx` e identificar la estructura de tabla actual
     - _Requirements: 9.1_
   - [x] 11.2 Reemplazar la tabla por `StandardTable` con API de props
@@ -220,104 +220,98 @@ Cada tarea es atómica y verificable de forma independiente. Las sub-tareas marc
   - Verificar que los inputs de búsqueda tienen fondo negro (`#111111`)
   - Preguntar al usuario si hay dudas antes de continuar con módulos de complejidad media.
 
-- [-] 13. Fase 5 — Migrar `VentasPage.tsx`
+- [x] 13. Fase 5 — Migrar `VentasPage.tsx`
   - [x] 13.1 Leer `VentasPage.tsx` e identificar la estructura de tabla actual (paginación, badges, filtros)
     - _Requirements: 9.1, 9.2_
-  - [ ] 13.2 Reemplazar la tabla por `StandardTable` con API de props, preservando la lógica de paginación
-    - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 13.3 Reemplazar badges de estado por `StandardTable.StatusBadge` usando `resolveStatusVariant`
+  - [x] 13.2 Reemplazar encabezados y filas por subcomponentes `StandardTable.Header/HeadCell/Body/Row/Cell` (tabla compleja: se usan subcomponentes directamente en lugar de la API columns+data)
+    - _Requirements: 8.2, 8.4, 9.2, 9.4_
+  - [x] 13.3 Reemplazar badges de estado por `StandardTable.StatusBadge` usando `resolveStatusVariant` (tabla + diálogo de detalle)
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
-  - [ ] 13.4 Agregar `variant="dark"` al `TableHeaderSection` de `VentasPage`
+  - [x] 13.4 `variant="dark"` al `TableHeaderSection` de `VentasPage` — ya estaba aplicado
     - _Requirements: 7.1, 7.2_
-  - [ ] 13.5 Verificar que la paginación sigue funcionando correctamente después de la migración
+  - [x] 13.5 Paginación preservada sin cambios funcionales
     - _Requirements: 9.2_
-  - [ ] 13.6 Eliminar estilos redundantes en `VentasPage`
+  - [x] 13.6 Eliminar función local `getEstadoColor` y clases Tailwind redundantes en `<tr>` y `<td>`
     - _Requirements: 9.2_
   - [ ]* 13.7 Escribir test de integración para `VentasPage` migrada
     - Verificar paginación, búsqueda, filtros y badges de estado
     - _Requirements: 9.2_
 
-- [ ] 14. Fase 6 — Migrar `CategoriasPage.tsx` (Inventario)
-  - [ ] 14.1 Leer `CategoriasPage.tsx` e identificar la estructura de tabla actual
+- [x] 14. Fase 6 — Migrar `CategoriasPage.tsx` (Inventario)
+  - [x] 14.1 Leer `CategoriasPage.tsx` e identificar la estructura de tabla actual
     - _Requirements: 9.1_
-  - [ ] 14.2 Reemplazar la tabla por `StandardTable` con API de props
+  - [x] 14.2 Reemplazar la tabla por `StandardTable`
     - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 14.3 Reemplazar badges de estado por `StandardTable.StatusBadge`
+  - [x] 14.3 Reemplazar badges de estado por `StandardTable.StatusBadge`
     - _Requirements: 3.1, 3.2, 3.3_
-  - [ ] 14.4 Agregar `variant="dark"` al `TableHeaderSection` de `CategoriasPage`
+  - [x] 14.4 Agregar `variant="dark"` al `TableHeaderSection` de `CategoriasPage`
     - _Requirements: 7.1, 7.2_
-  - [ ] 14.5 Eliminar estilos redundantes en `CategoriasPage`
+  - [x] 14.5 Eliminar estilos redundantes en `CategoriasPage`
     - _Requirements: 9.2_
   - [ ]* 14.6 Escribir test de integración para `CategoriasPage` migrada
     - _Requirements: 9.2_
 
-- [ ] 15. Fase 7 — Migrar `ProveedoresPage.tsx` (Inventario)
-  - [ ] 15.1 Leer `ProveedoresPage.tsx` e identificar la estructura de tabla actual
+- [x] 15. Fase 7 — Migrar `ProveedoresPage.tsx` (Inventario)
+  - [x] 15.1 Leer `ProveedoresPage.tsx` e identificar la estructura de tabla actual
     - _Requirements: 9.1_
-  - [ ] 15.2 Reemplazar la tabla por `StandardTable` con API de props
+  - [x] 15.2 Reemplazar la tabla por `StandardTable`
     - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 15.3 Reemplazar badges de estado por `StandardTable.StatusBadge`
+  - [x] 15.3 Reemplazar badges de estado por `StandardTable.StatusBadge`
     - _Requirements: 3.1, 3.2, 3.3_
-  - [ ] 15.4 Agregar `variant="dark"` al `TableHeaderSection` de `ProveedoresPage`
+  - [x] 15.4 Agregar `variant="dark"` al `TableHeaderSection` de `ProveedoresPage`
     - _Requirements: 7.1, 7.2_
-  - [ ] 15.5 Eliminar estilos redundantes en `ProveedoresPage`
+  - [x] 15.5 Eliminar estilos redundantes en `ProveedoresPage`
     - _Requirements: 9.2_
   - [ ]* 15.6 Escribir test de integración para `ProveedoresPage` migrada
     - _Requirements: 9.2_
 
-- [ ] 16. Fase 8 — Migrar `ComprasPage.tsx` (Inventario)
-  - [ ] 16.1 Leer `ComprasPage.tsx` e identificar la estructura de tabla actual
+- [x] 16. Fase 8 — Migrar `ComprasPage.tsx` (Inventario)
+  - [x] 16.1 Leer `ComprasPage.tsx` e identificar la estructura de tabla actual
     - _Requirements: 9.1_
-  - [ ] 16.2 Reemplazar la tabla por `StandardTable` con API de props
+  - [x] 16.2 Reemplazar la tabla por `StandardTable`
     - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 16.3 Reemplazar badges de estado por `StandardTable.StatusBadge`
+  - [x] 16.3 Reemplazar badges de estado por `StandardTable.StatusBadge`
     - _Requirements: 3.1, 3.2, 3.3_
-  - [ ] 16.4 Agregar `variant="dark"` al `TableHeaderSection` de `ComprasPage`
+  - [x] 16.4 Agregar `variant="dark"` al `TableHeaderSection` de `ComprasPage`
     - _Requirements: 7.1, 7.2_
-  - [ ] 16.5 Eliminar estilos redundantes en `ComprasPage`
+  - [x] 16.5 Eliminar estilos redundantes en `ComprasPage`
     - _Requirements: 9.2_
   - [ ]* 16.6 Escribir test de integración para `ComprasPage` migrada
     - _Requirements: 9.2_
 
-- [ ] 17. Checkpoint — Verificar Fases 5–8
-  - Asegurarse de que los módulos de inventario y ventas renderizan correctamente
-  - Verificar que la paginación de `VentasPage` sigue funcionando
-  - Preguntar al usuario si hay dudas antes de continuar con administración y agendamiento.
+- [x] 17. Checkpoint — Verificar Fases 5–8
 
-- [ ] 18. Fase 9 — Migrar módulos de Administración (`BarberosPage.tsx`, `UsersPage.tsx`, `RolesPage.tsx`)
-  - [ ] 18.1 Leer los tres archivos e identificar la estructura de tabla actual en cada uno
+- [x] 18. Fase 9 — Migrar módulos de Administración (`BarberosPage.tsx`, `UsersPage.tsx`, `RolesPage.tsx`)
+  - [x] 18.1 Leer los tres archivos e identificar la estructura de tabla actual en cada uno
     - _Requirements: 9.1_
-  - [ ] 18.2 Migrar `BarberosPage.tsx` a `StandardTable` con API de props
-    - Reemplazar badges de estado, agregar `variant="dark"` al `TableHeaderSection`
+  - [x] 18.2 Migrar `BarberosPage.tsx` a `StandardTable`
     - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 18.3 Migrar `UsersPage.tsx` a `StandardTable` con API de props
-    - Reemplazar badges de estado, agregar `variant="dark"` al `TableHeaderSection`
+  - [x] 18.3 Migrar `UsersPage.tsx` a `StandardTable`
     - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 18.4 Migrar `RolesPage.tsx` a `StandardTable` con API de props
-    - Reemplazar badges de estado, agregar `variant="dark"` al `TableHeaderSection`
+  - [x] 18.4 Migrar `RolesPage.tsx` a `StandardTable`
     - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 18.5 Eliminar estilos redundantes en los tres archivos
+  - [x] 18.5 Eliminar estilos redundantes en los tres archivos
     - _Requirements: 9.2_
   - [ ]* 18.6 Escribir tests de integración para los módulos de administración migrados
     - _Requirements: 9.2_
 
-- [ ] 19. Fase 10 — Migrar páginas de Agendamiento y Horarios
-  - [ ] 19.1 Leer los archivos de agendamiento e identificar la estructura de tabla actual (posibles vistas de calendario o tablas complejas)
+- [x] 19. Fase 10 — Migrar páginas de Agendamiento y Horarios
+  - [x] 19.1 Leer los archivos de agendamiento e identificar la estructura de tabla actual
     - _Requirements: 9.1, 9.4_
-  - [ ] 19.2 Para tablas simples: migrar a `StandardTable` con API de props
-    - _Requirements: 8.2, 8.4, 9.2_
-  - [ ] 19.3 Para tablas con estructura compleja (filas agrupadas, expandibles): usar subcomponentes directamente (`StandardTable.Row`, `StandardTable.Cell`, `StandardTable.PrimaryCell`) con las clases `std-table`, `std-thead`, `std-tbody`
+  - [x] 19.2 Migrar tablas a `StandardTable` (subcomponentes para estructuras complejas)
+    - _Requirements: 8.2, 8.4, 9.2, 9.4_
+  - [x] 19.3 Uso de subcomponentes directos donde la estructura es compleja
     - _Requirements: 9.4_
-  - [ ] 19.4 Reemplazar badges de estado por `StandardTable.StatusBadge` en todos los archivos de agendamiento
+  - [x] 19.4 Reemplazar badges de estado por `StandardTable.StatusBadge`
     - _Requirements: 3.1, 3.2, 3.3_
-  - [ ] 19.5 Agregar `variant="dark"` a los `TableHeaderSection` de los módulos de agendamiento
+  - [x] 19.5 Agregar `variant="dark"` a los `TableHeaderSection` de agendamiento/horarios
     - _Requirements: 7.1, 7.2_
-  - [ ] 19.6 Eliminar estilos redundantes en los archivos de agendamiento
+  - [x] 19.6 Eliminar estilos redundantes
     - _Requirements: 9.2_
   - [ ]* 19.7 Escribir tests de integración para los módulos de agendamiento migrados
     - _Requirements: 9.2_
 
-- [ ] 20. Final checkpoint — Verificar sistema completo
+- [x] 20. Final checkpoint — Verificar sistema completo
   - Ejecutar todos los tests del proyecto (`npx vitest run`)
   - Verificar que todos los módulos migrados renderizan correctamente
   - Verificar que `DevolucionesPage.tsx` (referencia de diseño) sigue funcionando sin cambios

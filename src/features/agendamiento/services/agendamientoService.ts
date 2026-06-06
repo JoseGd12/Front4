@@ -83,6 +83,49 @@ export interface PagedAgendamientos {
     totalPages: number;
 }
 
+/** FE-M8: datos mínimos de un slot para validar solapamiento. */
+export interface SlotCita {
+    barberoId: number;
+    fecha: string;   // 'YYYY-MM-DD'
+    hora: string;    // 'HH:MM'
+    duracion: number; // minutos
+}
+
+/**
+ * FE-M8: detecta si una cita nueva se solapa con alguna cita existente del mismo
+ * barbero en la misma fecha. Devuelve la primera cita en conflicto o null.
+ *
+ * Dos intervalos [iniA, finA) y [iniB, finB) se solapan si iniA < finB && iniB < finA.
+ * Ignora citas canceladas/anuladas y, si se indica, la cita que se está editando.
+ *
+ * El backend sigue siendo la autoridad (también valida server-side, ver BE-A4);
+ * esta función da feedback inmediato y evita viajes innecesarios al servidor.
+ */
+export function detectarConflictoHorario(
+    nueva: SlotCita,
+    citasExistentes: Agendamiento[],
+    excluirId?: number
+): Agendamiento | null {
+    const toMin = (h: string) => {
+        const [hh, mm] = (h || '0:0').split(':').map(Number);
+        return (hh || 0) * 60 + (mm || 0);
+    };
+    const iniNueva = toMin(nueva.hora);
+    const finNueva = iniNueva + (nueva.duracion || 0);
+
+    for (const c of citasExistentes) {
+        if (excluirId != null && c.id === excluirId) continue;
+        if (c.barberoId !== nueva.barberoId) continue;
+        if (c.fecha !== nueva.fecha) continue;
+        const estado = (c.estado || '').toLowerCase().trim();
+        if (estado === 'cancelada' || estado === 'cancelado' || estado === 'anulada' || estado === 'anulado') continue;
+        const iniC = toMin(c.hora);
+        const finC = iniC + (c.duracion || 0);
+        if (iniNueva < finC && iniC < finNueva) return c;
+    }
+    return null;
+}
+
 class AgendamientoService {
     private mapApiToComponent(api: any): Agendamiento {
         if (!api) return this.getDefaultAgendamiento();
@@ -158,9 +201,19 @@ class AgendamientoService {
 
     async getAgendamientosByClienteId(clienteId: number): Promise<Agendamiento[]> {
         try {
-            const raw = await httpClient.get(`/Agendamientos/cliente/${clienteId}?page=1&pageSize=100`);
-            const data = this.extractItems(raw);
-            return data.map(item => this.mapApiToComponent(item));
+            // FE-M6: iterar todas las páginas (antes solo traía las primeras 100 citas).
+            const pageSize = 100;
+            const MAX_PAGINAS = 50; // tope de seguridad: 5000 citas
+            let page = 1;
+            let totalPages = 1;
+            const acumulado: any[] = [];
+            do {
+                const raw = await httpClient.get(`/Agendamientos/cliente/${clienteId}?page=${page}&pageSize=${pageSize}`);
+                acumulado.push(...this.extractItems(raw));
+                totalPages = Number(raw?.totalPages ?? 1);
+                page++;
+            } while (page <= totalPages && page <= MAX_PAGINAS);
+            return acumulado.map(item => this.mapApiToComponent(item));
         } catch (e) {
             console.warn('Error fetching agendamientos by cliente ID:', e);
             return [];
@@ -189,12 +242,22 @@ class AgendamientoService {
     }
 
     /**
-     * @deprecated Usar getAgendamientosPaged para mejor rendimiento.
-     * Mantenido por compatibilidad pero limitado a las primeras 2 páginas.
+     * Trae TODOS los agendamientos iterando todas las páginas (FE-M6).
+     * Para vistas paginadas usar getAgendamientosPaged (más eficiente).
      */
     async getAgendamientos(): Promise<Agendamiento[]> {
-        const res = await this.getAgendamientosPaged(1, 100);
-        return res.items;
+        const pageSize = 100;
+        const MAX_PAGINAS = 50; // tope de seguridad: 5000 citas
+        let page = 1;
+        let totalPages = 1;
+        const acumulado: Agendamiento[] = [];
+        do {
+            const res = await this.getAgendamientosPaged(page, pageSize);
+            acumulado.push(...res.items);
+            totalPages = res.totalPages || 1;
+            page++;
+        } while (page <= totalPages && page <= MAX_PAGINAS);
+        return acumulado;
     }
 
     async getAgendamientoById(id: number): Promise<Agendamiento> {
@@ -202,7 +265,18 @@ class AgendamientoService {
         return this.mapApiToComponent(result);
     }
 
-    async createAgendamiento(data: CreateAgendamientoData): Promise<Agendamiento> {
+    async createAgendamiento(data: CreateAgendamientoData, citasExistentes?: Agendamiento[]): Promise<Agendamiento> {
+        // FE-M8: si la UI provee las citas ya cargadas, validar solapamiento antes de enviar.
+        if (citasExistentes && citasExistentes.length > 0) {
+            const conflicto = detectarConflictoHorario(
+                { barberoId: data.barberoId, fecha: data.fecha, hora: data.hora, duracion: data.duracion },
+                citasExistentes
+            );
+            if (conflicto) {
+                throw new Error(`El barbero ya tiene una cita a las ${conflicto.hora} que se solapa con este horario.`);
+            }
+        }
+
         const [y, m, d] = (data.fecha || '').split('-').map(Number);
         const [h, min] = (data.hora || '00:00').split(':').map(Number);
 
@@ -247,7 +321,19 @@ class AgendamientoService {
         }
     }
 
-    async updateAgendamiento(id: number, data: CreateAgendamientoData): Promise<Agendamiento> {
+    async updateAgendamiento(id: number, data: CreateAgendamientoData, citasExistentes?: Agendamiento[]): Promise<Agendamiento> {
+        // FE-M8: validar solapamiento excluyendo la propia cita que se está editando.
+        if (citasExistentes && citasExistentes.length > 0) {
+            const conflicto = detectarConflictoHorario(
+                { barberoId: data.barberoId, fecha: data.fecha, hora: data.hora, duracion: data.duracion },
+                citasExistentes,
+                id
+            );
+            if (conflicto) {
+                throw new Error(`El barbero ya tiene una cita a las ${conflicto.hora} que se solapa con este horario.`);
+            }
+        }
+
         const [y, m, d] = (data.fecha || '').split('-').map(Number);
         const [h, min] = (data.hora || '00:00').split(':').map(Number);
 

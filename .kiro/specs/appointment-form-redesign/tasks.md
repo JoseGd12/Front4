@@ -45,7 +45,7 @@ Rediseño del formulario de agendamiento en dos archivos (`AgendamientoPage.tsx`
     - Agregar separador `border-t border-gray-dark/60` debajo de la fila
     - _Requirements: 1.3, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-  - [ ] 2.3 Implementar Fila_Formulario del Switch_Tipo dentro del Modal_Formulario en `AgendamientoPage.tsx`
+  - [x] 2.3 Implementar Fila_Formulario del Switch_Tipo dentro del Modal_Formulario en `AgendamientoPage.tsx`
     - Ícono `<Scissors />` o `<Package />` según `tipoServicio` en columna de 72px
     - Renderizar el Switch_Tipo con los botones "Individuales" / "Paquetes" según el diseño
     - Al cambiar a "Paquetes": `setTipoServicio('paquetes')` y limpiar `servicioIds`, `servicioId`, `servicio`
@@ -161,7 +161,7 @@ Rediseño del formulario de agendamiento en dos archivos (`AgendamientoPage.tsx`
     - **Validates: Requirements 8.3**
     - Usar `fast-check`: generar strings arbitrarios; simular `onChange` del textarea; verificar que `nuevaCita.notas` es exactamente igual al texto ingresado
 
-- [ ] 6. Checkpoint final — Verificar consistencia del modal entre vistas
+- [x] 6. Checkpoint final — Verificar consistencia del modal entre vistas
   - Verificar que Vista_Admin y Vista_Cliente aplican el mismo patrón de Modal_Formulario con `createPortal` y estructura idéntica.
   - Verificar que ambos modales usan el mismo estilo del popover existente: `bg-gray-darkest`, `border-gray-dark/60`, sombras, animaciones.
   - Verificar que ambos modales aplican el mismo patrón de Fila_Formulario (ícono 72px + contenido) para todos los campos equivalentes.

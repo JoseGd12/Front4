@@ -136,11 +136,12 @@ class ProductoService {
   }
 
   async adjustStock(id: number, delta: number, mode: 'increment' | 'decrement' = 'increment'): Promise<void> {
-    // FE-M2: Idealmente el backend debería tener un endpoint atómico
-    // Por ahora usamos el flujo actual pero centralizado
-    const p = await this.getProductoById(id);
+    // FE-M2: ajuste atómico vía endpoint dedicado del backend
+    // (POST /Productos/{id}/ajustar-stock hace Stock = Stock + delta en una sola
+    // operación SQL). Evita el patrón read-modify-write que perdía actualizaciones
+    // concurrentes.
     const finalDelta = mode === 'increment' ? delta : -delta;
-    await this.updateProducto(id, { stock: (p.stock || 0) + finalDelta });
+    await httpClient.post(`/Productos/${id}/ajustar-stock`, { delta: finalDelta });
   }
 
   async getCategorias(): Promise<ApiCategoria[]> {
