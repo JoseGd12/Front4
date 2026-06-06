@@ -84,12 +84,12 @@ class RolesApiService {
     let moduloIds: string[] = [];
     let permisosPorModulo: Record<string, PermisoModulo> = {};
 
-    // Si viene del array rolesModulos, extraer los IDs y permisos
+    // Si viene del array rolesModulos (endpoint de detalle), extraer los IDs y permisos
     const rolesModulosRaw = apiRole.rolesModulos || apiRole.RolesModulos || apiRole.roles_modulos;
-    
-    if (Array.isArray(rolesModulosRaw)) {
+
+    if (Array.isArray(rolesModulosRaw) && rolesModulosRaw.length > 0) {
       moduloIds = rolesModulosRaw.map(rm => String(rm.moduloId || rm.ModuloId || ''));
-      
+
       rolesModulosRaw.forEach(rm => {
         const modId = String(rm.moduloId || rm.ModuloId || '');
         if (modId) {
@@ -101,6 +101,12 @@ class RolesApiService {
           };
         }
       });
+    } else {
+      // Endpoint de listado: el backend devuelve el campo "modulos" con array de IDs directamente
+      const modulosRaw = apiRole.modulos || apiRole.Modulos;
+      if (Array.isArray(modulosRaw)) {
+        moduloIds = modulosRaw.map((id: any) => String(id));
+      }
     }
 
     return {
