@@ -1079,10 +1079,9 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                   };
 
                   return (
-                    <>
+                    <React.Fragment key={horario.id}>
                       {/* Fila principal */}
                       <tr
-                        key={`row-${horario.id}`}
                         className={`border-b border-gray-dark transition-colors cursor-pointer ${isExpanded ? 'bg-orange-primary/5' : 'hover:bg-gray-darker'}`}
                         onClick={() => setExpandedId(isExpanded ? null : horario.id)}
                       >
@@ -1256,7 +1255,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                           </div>
                         </td>
                       </tr>
-                    </>
+                    </React.Fragment>
                   );
                 }) : (
                   <TableEmptyStateRow

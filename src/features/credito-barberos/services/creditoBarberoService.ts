@@ -93,7 +93,7 @@ class CreditoBarberoService {
   }
 
   async getCreditos(page = 1, pageSize = 20): Promise<PagedResult<CreditoBarberoDto>> {
-    const data = await httpClient.get<PagedResult<CreditoBarberoDto>>(`/CreditoBarbero?page=${page}&pageSize=${pageSize}`);
+    const data = await httpClient.get<PagedResult<CreditoBarberoDto>>(`/credito-barbero?page=${page}&pageSize=${pageSize}`);
     return {
       ...data,
       items: (data.items || []).map(this.normalize)
@@ -101,13 +101,13 @@ class CreditoBarberoService {
   }
 
   async getCreditoById(id: number): Promise<CreditoBarberoDto> {
-    const data = await httpClient.get(`/CreditoBarbero/${id}`);
+    const data = await httpClient.get(`/credito-barbero/${id}`);
     return this.normalize(data);
   }
 
   async getCreditoByBarberoId(barberoId: number): Promise<CreditoBarberoDto | null> {
     try {
-      const data = await httpClient.get(`/CreditoBarbero/barbero/${barberoId}`);
+      const data = await httpClient.get(`/credito-barbero/barbero/${barberoId}`);
       return this.normalize(data);
     } catch (error: any) {
       if (error.message.includes('404')) return null;
@@ -116,26 +116,22 @@ class CreditoBarberoService {
   }
 
   async crearAbono(creditoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
-    const data = await httpClient.post(`/CreditoBarbero/${creditoId}/abono`, input);
+    const data = await httpClient.post(`/credito-barbero/${creditoId}/abono`, input);
     return this.normalizeAbono(data);
   }
 
   async extenderPlazo(barberoId: number, input: ExtenderPlazoInput): Promise<CreditoBarberoDto> {
-    const credito = await this.getCreditoByBarberoId(barberoId);
-    if (!credito) throw new Error('No se encontró crédito activo para el barbero');
-    const data = await httpClient.post(`/CreditoBarbero/${credito.id}/extender-plazo`, input);
+    const data = await httpClient.put(`/credito-barbero/barbero/${barberoId}/extender-plazo`, input);
     return this.normalize(data);
   }
 
   async iniciarNuevoCiclo(barberoId: number, input: NuevoCicloInput): Promise<CreditoBarberoDto> {
-    const credito = await this.getCreditoByBarberoId(barberoId);
-    if (!credito) throw new Error('No se encontró crédito activo para el barbero');
-    const data = await httpClient.post(`/CreditoBarbero/${credito.id}/nuevo-ciclo`, input);
+    const data = await httpClient.post(`/credito-barbero/barbero/${barberoId}/nuevo-ciclo`, input);
     return this.normalize(data);
   }
 
   async getHistorialAbonos(creditoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
-    const data = await httpClient.get<PagedResult<AbonoCreditoBarberoDto>>(`/CreditoBarbero/${creditoId}/abonos?page=${page}&pageSize=${pageSize}`);
+    const data = await httpClient.get<PagedResult<AbonoCreditoBarberoDto>>(`/credito-barbero/${creditoId}/abonos?page=${page}&pageSize=${pageSize}`);
     return {
       ...data,
       items: (data.items || []).map(this.normalizeAbono)
@@ -149,11 +145,23 @@ class CreditoBarberoService {
     params.append('pageSize', String(pageSize));
     if (q) params.append('q', q);
     
-    return await httpClient.get<PagedResult<CreditoBarberoDto>>(`/CreditoBarbero?${params.toString()}`);
+    return await httpClient.get<PagedResult<CreditoBarberoDto>>(`/credito-barbero?${params.toString()}`);
   }
 
-  async getAbonos(creditoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
-    return this.getHistorialAbonos(creditoId, page, pageSize);
+  // getAbonos recibe barberoId (usado en el listado principal para mostrar el último abono)
+  async getAbonos(barberoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
+    try {
+      const data = await httpClient.get<PagedResult<AbonoCreditoBarberoDto>>(
+        `/credito-barbero/barbero/${barberoId}/abonos?page=${page}&pageSize=${pageSize}`
+      );
+      return {
+        ...data,
+        items: (data.items || []).map((r: any) => this.normalizeAbono(r))
+      };
+    } catch (error: any) {
+      if (error.message?.includes('404')) return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
+      throw error;
+    }
   }
 
   async getAllAbonosByBarbero(barberoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
