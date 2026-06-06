@@ -10,6 +10,7 @@
  */
 
 const API_BASE_URL = '/api';
+import { auth } from '../../../shared/services/firebase';
 
 export type EstadoSolicitud = 'Pendiente' | 'Sugerida' | 'Aprobada' | 'Rechazada';
 export type OrigenSugerencia = 'Barbero' | 'Admin';
@@ -70,10 +71,13 @@ export interface ResponderInput {
 class SolicitudesCambioHorarioService {
   private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const url = `${API_BASE_URL}${endpoint}`;
+    const currentUser = auth.currentUser;
+    const token = currentUser ? await currentUser.getIdToken() : null;
     const config: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
       },
     };

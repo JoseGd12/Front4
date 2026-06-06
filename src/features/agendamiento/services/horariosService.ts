@@ -1,4 +1,5 @@
 import { normalizeDiaNombre } from '../utils/scheduleUtils';
+import { auth } from '../../../shared/services/firebase';
 
 const API_BASE_URL = '/api';
 
@@ -38,9 +39,14 @@ class HorariosService {
     private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
         const url = `${API_BASE_URL}${endpoint}`;
 
+        // Obtener token de Firebase para el header Authorization
+        const currentUser = auth.currentUser;
+        const token = currentUser ? await currentUser.getIdToken() : null;
+
         const config: RequestInit = {
             ...options,
             headers: {
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 ...options.headers,
             },
         };

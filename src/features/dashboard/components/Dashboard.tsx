@@ -356,11 +356,20 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         setLoadingModules(false);
         return;
       }
+
+      // Admin y super_admin ven todo — no necesitan consultar RolesModulos
+      const role = (user.role || "").toLowerCase();
+      if (role === "admin" || role === "super_admin" || role === "administrador" || role === "super administrador") {
+        setAllowedModules(ALL_MENU_LABELS);
+        setLoadingModules(false);
+        return;
+      }
+
+      // Roles menores (barbero, cajero, recepcionista, cliente) consultan la API
       try {
         setLoadingModules(true);
         const rolId = authSyncService.getRolId(user.role);
 
-        // Usar caché para los módulos, ya que no cambian frecuentemente
         const [rolePerms, allModules] = await Promise.all([
           rolesApiService.getRoleModules(rolId as number),
           modulosService.getModulos()
@@ -379,7 +388,6 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         setAllowedModules(allowedNames.length > 0 ? allowedNames : getFallbackModulesForRole(user.role));
       } catch (error) {
         console.error("Error fetching role modules:", error);
-        // Si la API falla (ej. 500), mostrar todos los módulos a admin/super_admin para que pueda usar el sistema
         setAllowedModules(getFallbackModulesForRole(user.role));
       } finally {
         setLoadingModules(false);
