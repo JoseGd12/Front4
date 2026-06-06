@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "../../../shared/components/ui/badge";
 import { Calendar, DollarSign, Users, Scissors, Package, Clock, Download, ChevronDown, ChevronUp, RotateCcw, FileDown, FileSpreadsheet } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType, PieChart, Pie } from "recharts";
 import { useThemeColors } from "../../../shared/utils/themeColors";
 import { Skeleton } from "../../../shared/components/ui/skeleton";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
@@ -62,6 +62,29 @@ type Insumo = {
   categoria?: string | null;
 };
 
+type AgendamientoStat = {
+  fechaHora: string;
+  estado: string;
+  clienteId?: number | null;
+  cliente?: string | null;
+  barbero?: string | null;
+};
+
+type CompraDetalleStat = {
+  productoNombre: string | null;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+};
+
+type CompraStat = {
+  fechaRegistro: string;
+  total: number;
+  proveedor: string | null;
+  estado: string | null;
+  detalles: CompraDetalleStat[];
+};
+
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   let token = localStorage.getItem("authToken");
   if (auth.currentUser) {
@@ -74,7 +97,7 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   return fetch(url, { ...options, headers });
 };
 
-const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: Agendamiento[], insumos: Insumo[] }> => {
+const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: Agendamiento[], insumos: Insumo[], agendamientosStats: AgendamientoStat[], comprasStats: CompraStat[] }> => {
   const dashRes = await fetchWithAuth("/api/Dashboard").catch(() => null);
   if (dashRes && dashRes.ok) {
     const jd = await dashRes.json();
@@ -161,11 +184,32 @@ const fetchDashboardData = async (): Promise<{ ventas: Venta[], agendamientos: A
       categoria: (p.categoriaNombre ?? p.CategoriaNombre) ?? (p.categoria ?? null)
     }));
 
-    return { ventas: todasLasVentas, agendamientos, insumos };
+    const agendamientosStats: AgendamientoStat[] = (Array.isArray(jd?.agendamientosStats) ? jd.agendamientosStats : []).map((a: any) => ({
+      fechaHora: a.fechaHora ?? a.FechaHora ?? "",
+      estado: String((a.estado ?? a.Estado) ?? "").toLowerCase(),
+      clienteId: (a.clienteId ?? a.ClienteId) ?? null,
+      cliente: a.cliente ?? a.Cliente ?? null,
+      barbero: a.barbero ?? a.Barbero ?? null,
+    }));
+
+    const comprasStats: CompraStat[] = (Array.isArray(jd?.comprasStats) ? jd.comprasStats : []).map((c: any) => ({
+      fechaRegistro: c.fechaRegistro ?? c.FechaRegistro ?? "",
+      total: Number(c.total ?? c.Total ?? 0),
+      proveedor: c.proveedor ?? c.Proveedor ?? null,
+      estado: c.estado ?? c.Estado ?? null,
+      detalles: (Array.isArray(c.detalles) ? c.detalles : []).map((d: any) => ({
+        productoNombre: d.productoNombre ?? d.ProductoNombre ?? null,
+        cantidad: Number(d.cantidad ?? d.Cantidad ?? 0),
+        precioUnitario: Number(d.precioUnitario ?? d.PrecioUnitario ?? 0),
+        subtotal: Number(d.subtotal ?? d.Subtotal ?? 0),
+      })),
+    }));
+
+    return { ventas: todasLasVentas, agendamientos, insumos, agendamientosStats, comprasStats };
   }
 
   // Fallback si falla el dashboard
-  return { ventas: [], agendamientos: [], insumos: [] };
+  return { ventas: [], agendamientos: [], insumos: [], agendamientosStats: [], comprasStats: [] };
 };
 
 const formatCurrencyValue = (amount: number) =>
@@ -197,6 +241,8 @@ export function DashboardPage() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [agendamientos, setAgendamientos] = useState<Agendamiento[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [agendamientosStats, setAgendamientosStats] = useState<AgendamientoStat[]>([]);
+  const [comprasStats, setComprasStats] = useState<CompraStat[]>([]);
   const [barberosSistema, setBarberosSistema] = useState<BarberoEntity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -210,20 +256,25 @@ export function DashboardPage() {
   const reportButtonRef = useRef<HTMLButtonElement | null>(null);
   const [reportWidth, setReportWidth] = useState<number>(0);
 
-  const [showBarberosDropdown, setShowBarberosDropdown] = useState(false);
+  const [periodoHorasPico, setPeriodoHorasPico] = useState<"dia" | "semana" | "mes">("dia");
+  const [anioHorasPico, setAnioHorasPico] = useState<number>(new Date().getFullYear());
+  const [mesSeleccionadoDrilldown, setMesSeleccionadoDrilldown] = useState<number | null>(null);
+
   const [filtroBarberosPeriodo, setFiltroBarberosPeriodo] = useState<"hoy" | "semanal" | "mensual" | "anual">("hoy");
   const [selectedBarberoGanancia, setSelectedBarberoGanancia] = useState<string>("Todos");
+  const [barberoSearchOpen, setBarberoSearchOpen] = useState(false);
   const [barberoSearch, setBarberoSearch] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const barberoSelectRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowBarberosDropdown(false);
+    const handleOutside = (e: MouseEvent) => {
+      if (barberoSelectRef.current && !barberoSelectRef.current.contains(e.target as Node)) {
+        setBarberoSearchOpen(false);
+        setBarberoSearch("");
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
   useEffect(() => {
@@ -246,7 +297,9 @@ export function DashboardPage() {
         setVentas(data.ventas);
         setAgendamientos(data.agendamientos);
         setInsumos(data.insumos);
-        
+        setAgendamientosStats(data.agendamientosStats);
+        setComprasStats(data.comprasStats);
+
         const soloBarberos = usuariosData.filter((u: any) => {
           const rolNombre = (u.rol?.nombre || "").toLowerCase();
           return u.rolId === 2 || rolNombre === "barbero";
@@ -1317,6 +1370,226 @@ export function DashboardPage() {
     ],
     []
   );
+  // ===== Análisis de compras (últimos 90 días) =====
+
+  // Gasto total por semana/mes para ver tendencia
+  const comprasHistoricas = useMemo(() => {
+    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const buckets: { key: string; total: number }[] = [];
+    for (let i = 2; i >= 0; i--) {
+      const ref = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+      const end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
+      const label = monthNames[ref.getMonth()] ?? "";
+      const total = comprasStats
+        .filter((c) => c.fechaRegistro && new Date(c.fechaRegistro) >= start && new Date(c.fechaRegistro) <= end)
+        .reduce((s, c) => s + c.total, 0);
+      buckets.push({ key: label, total });
+    }
+    return buckets;
+  }, [comprasStats]);
+
+  // Gasto por proveedor (top 6)
+  const gastoProveedores = useMemo(() => {
+    const map = new Map<string, number>();
+    comprasStats.forEach((c) => {
+      const prov = c.proveedor || "Sin proveedor";
+      map.set(prov, (map.get(prov) || 0) + c.total);
+    });
+    return Array.from(map.entries())
+      .map(([proveedor, total]) => ({ proveedor, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+  }, [comprasStats]);
+
+  // Productos más comprados (top 8 por gasto)
+  const productosMasComprados = useMemo(() => {
+    const map = new Map<string, { nombre: string; cantidad: number; gasto: number }>();
+    comprasStats.forEach((c) => {
+      c.detalles.forEach((d) => {
+        const nombre = d.productoNombre || "Producto";
+        const e = map.get(nombre) || { nombre, cantidad: 0, gasto: 0 };
+        e.cantidad += d.cantidad;
+        e.gasto += d.subtotal;
+        map.set(nombre, e);
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => b.gasto - a.gasto).slice(0, 8);
+  }, [comprasStats]);
+
+  // Resumen numérico de compras
+  const resumenCompras = useMemo(() => {
+    const totalGastado = comprasStats.reduce((s, c) => s + c.total, 0);
+    const numCompras = comprasStats.length;
+    const promedioPorCompra = numCompras > 0 ? totalGastado / numCompras : 0;
+    const proveedoresUnicos = new Set(comprasStats.map((c) => c.proveedor || "")).size;
+    return { totalGastado, numCompras, promedioPorCompra, proveedoresUnicos };
+  }, [comprasStats]);
+
+  // ===== Resumen semanal rápido =====
+  const resumenSemanal = useMemo(() => {
+    const citasSemana = agendamientosStats.filter((a) => {
+      if (!a.fechaHora) return false;
+      const dt = new Date(a.fechaHora);
+      return dt >= startOfWeek && dt <= endOfWeek;
+    });
+    const canceladas = citasSemana.filter((a) => esCitaCancelada(a.estado)).length;
+    const confirmadas = citasSemana.filter((a) => !esCitaCancelada(a.estado)).length;
+
+    const ventasSemana = ventas.filter((v) => {
+      const dt = new Date(v.fecha);
+      return dt >= startOfWeek && dt <= endOfWeek && isVentaActiva(v.estado);
+    });
+    const ingresos = ventasSemana.reduce((s, v) => s + Number(v.total || 0), 0);
+    const serviciosVendidos = ventasSemana.reduce((s, v) => {
+      const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
+      return s + sd.reduce((ss, d) => ss + Number(d.cantidad || 1), 0);
+    }, 0);
+
+    return { confirmadas, canceladas, ingresos, serviciosVendidos };
+  }, [agendamientosStats, ventas, startOfWeek, endOfWeek]);
+
+  // ===== Análisis de operación, equipo y clientes (últimos 90 días) =====
+  const esCitaCancelada = (estado: string) => {
+    const st = String(estado || "").toLowerCase();
+    return st === "cancelada" || st === "cancelado" || st === "anulada";
+  };
+
+  // 1. Estados de citas + tasa de cancelación
+  const estadosCitas = useMemo(() => {
+    const buckets: Record<string, number> = { completada: 0, confirmada: 0, pendiente: 0, cancelada: 0, otro: 0 };
+    agendamientosStats.forEach((a) => {
+      const st = String(a.estado || "").toLowerCase();
+      if (st === "completada" || st === "en-curso") buckets.completada++;
+      else if (st === "confirmada") buckets.confirmada++;
+      else if (st === "pendiente") buckets.pendiente++;
+      else if (esCitaCancelada(st)) buckets.cancelada++;
+      else buckets.otro++;
+    });
+    const total = Object.values(buckets).reduce((s, n) => s + n, 0);
+    const data = [
+      { name: "Completadas", value: buckets.completada, fill: "#22c55e" },
+      { name: "Confirmadas", value: buckets.confirmada, fill: colors.gold },
+      { name: "Pendientes", value: buckets.pendiente, fill: "#888888" },
+      { name: "Canceladas", value: buckets.cancelada, fill: "#b07070" },
+      { name: "Otras", value: buckets.otro, fill: "#3b6473" },
+    ].filter((d) => d.value > 0);
+    const tasaCancelacion = total > 0 ? (buckets.cancelada / total) * 100 : 0;
+    return { data, total, tasaCancelacion };
+  }, [agendamientosStats, colors.gold]);
+
+  // 2. Horas pico (demanda por hora del día, citas no canceladas)
+  const horasPico = useMemo(() => {
+    const conteo = new Map<number, number>();
+    agendamientosStats.forEach((a) => {
+      if (esCitaCancelada(a.estado) || !a.fechaHora) return;
+      const h = new Date(a.fechaHora).getHours();
+      if (Number.isNaN(h)) return;
+      conteo.set(h, (conteo.get(h) || 0) + 1);
+    });
+    const arr: { hora: string; citas: number }[] = [];
+    for (let h = 9; h <= 23; h++) {
+      const label = h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`;
+      arr.push({ hora: label, citas: conteo.get(h) || 0 });
+    }
+    return arr;
+  }, [agendamientosStats]);
+
+  // Vista semana: ingresos por día de la semana en el año seleccionado
+  const dataSemanaHorasPico = useMemo(() => {
+    const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const totales = new Array(7).fill(0);
+    ventas.filter(v => new Date(v.fecha).getFullYear() === anioHorasPico && isVentaActiva(v.estado)).forEach(v => {
+      const d = new Date(v.fecha).getDay();
+      totales[d] += Number(v.total || 0);
+    });
+    // Ordenar Lun-Dom (índice 1-6, luego 0)
+    return [1, 2, 3, 4, 5, 6, 0].map(i => ({ label: dias[i], ingresos: totales[i] }));
+  }, [ventas, anioHorasPico]);
+
+  // Vista mes: ingresos por mes en el año seleccionado
+  const dataMesHorasPico = useMemo(() => {
+    const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const totales = new Array(12).fill(0);
+    ventas.filter(v => new Date(v.fecha).getFullYear() === anioHorasPico && isVentaActiva(v.estado)).forEach(v => {
+      const m = new Date(v.fecha).getMonth();
+      totales[m] += Number(v.total || 0);
+    });
+    return meses.map((label, i) => ({ label, ingresos: totales[i], mesIndex: i }));
+  }, [ventas, anioHorasPico]);
+
+  // Drilldown: ingresos por día del mes seleccionado
+  const dataDiasMes = useMemo(() => {
+    if (mesSeleccionadoDrilldown === null) return [];
+    const diasEnMes = new Date(anioHorasPico, mesSeleccionadoDrilldown + 1, 0).getDate();
+    const totales = new Array(diasEnMes).fill(0);
+    ventas
+      .filter(v => {
+        const d = new Date(v.fecha);
+        return d.getFullYear() === anioHorasPico && d.getMonth() === mesSeleccionadoDrilldown && isVentaActiva(v.estado);
+      })
+      .forEach(v => {
+        totales[new Date(v.fecha).getDate() - 1] += Number(v.total || 0);
+      });
+    return totales.map((ingresos, i) => ({ label: String(i + 1), ingresos }));
+  }, [ventas, anioHorasPico, mesSeleccionadoDrilldown]);
+
+  // 3. Ranking de barberos por rendimiento (citas atendidas + servicios vendidos)
+  const rankingBarberos = useMemo(() => {
+    const map = new Map<string, { barbero: string; citas: number; servicios: number }>();
+    agendamientosStats.forEach((a) => {
+      const name = (a.barbero || "").trim();
+      if (!name || name === "Sin asignar") return;
+      const st = String(a.estado || "").toLowerCase();
+      const e = map.get(name) || { barbero: name, citas: 0, servicios: 0 };
+      if (!esCitaCancelada(st)) e.citas++;
+      map.set(name, e);
+    });
+    ventas.forEach((v) => {
+      const name = (v.barbero || "").trim();
+      if (!name || name === "Sin asignar" || !isVentaActiva(v.estado)) return;
+      const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
+      const count = sd.reduce((s, d) => s + Number(d.cantidad || 1), 0);
+      const e = map.get(name) || { barbero: name, citas: 0, servicios: 0 };
+      e.servicios += count;
+      map.set(name, e);
+    });
+    return Array.from(map.values())
+      .filter((x) => x.citas > 0 || x.servicios > 0)
+      .sort((a, b) => b.citas + b.servicios - (a.citas + a.servicios))
+      .slice(0, 6);
+  }, [agendamientosStats, ventas]);
+
+  // 4. Clientes: recurrentes vs ocasionales + top por frecuencia
+  const clientesAnalisis = useMemo(() => {
+    const map = new Map<string, { nombre: string; visitas: number }>();
+    const add = (id: number | null | undefined, nombre: string | null | undefined) => {
+      const key = id != null ? `id:${id}` : nombre ? `n:${nombre.toLowerCase().trim()}` : null;
+      if (!key) return;
+      const e = map.get(key) || { nombre: nombre || "Cliente", visitas: 0 };
+      e.visitas++;
+      if (nombre) e.nombre = nombre;
+      map.set(key, e);
+    };
+    agendamientosStats.forEach((a) => {
+      if (esCitaCancelada(a.estado)) return;
+      add(a.clienteId, a.cliente);
+    });
+    ventas.forEach((v) => {
+      if (!isVentaActiva(v.estado)) return;
+      add(v.clienteId, v.cliente);
+    });
+    const arr = Array.from(map.values());
+    const recurrentes = arr.filter((c) => c.visitas >= 2).length;
+    const ocasionales = arr.filter((c) => c.visitas === 1).length;
+    const top = [...arr].sort((a, b) => b.visitas - a.visitas).slice(0, 5);
+    const data = [
+      { name: "Recurrentes", value: recurrentes, fill: colors.gold },
+      { name: "Ocasionales", value: ocasionales, fill: "#3b6473" },
+    ].filter((d) => d.value > 0);
+    return { recurrentes, ocasionales, total: arr.length, top, data };
+  }, [agendamientosStats, ventas, colors.gold]);
+
   const [periodoPrincipal, setPeriodoPrincipal] = useState<PeriodoClave>("mensual");
   const dataGraficaPrincipal = ingresosHistoricosPorPeriodo[periodoPrincipal];
 
@@ -1354,6 +1627,8 @@ export function DashboardPage() {
                   setVentas(data.ventas);
                   setAgendamientos(data.agendamientos);
                   setInsumos(data.insumos);
+                  setAgendamientosStats(data.agendamientosStats);
+                  setComprasStats(data.comprasStats);
                 }).catch(() => {
                   setErrorMsg("No se pudo cargar la información del backend");
                 }).finally(() => {
@@ -1372,7 +1647,7 @@ export function DashboardPage() {
 
       <main className="flex-1 overflow-auto p-8 bg-black-primary">
         {/* Indicadores resumidos */}
-        <section className="mt-5 mb-12">
+        <section className="mt-5 mb-16">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <h3 className="text-2xl font-bold text-white-primary mb-2">Indicadores del Día</h3>
@@ -1465,6 +1740,8 @@ export function DashboardPage() {
                     setVentas(data.ventas);
                     setAgendamientos(data.agendamientos);
                     setInsumos(data.insumos);
+                    setAgendamientosStats(data.agendamientosStats);
+                    setComprasStats(data.comprasStats);
                   }).catch(() => {
                     setErrorMsg("No se pudo cargar la información del backend");
                   }).finally(() => setIsLoading(false));
@@ -1476,7 +1753,7 @@ export function DashboardPage() {
               </button>
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
             {isLoading
               ? Array.from({ length: 4 }).map((_, idx) => (
                 <div key={`metric-skeleton-${idx}`} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 shadow-xl">
@@ -1487,84 +1764,116 @@ export function DashboardPage() {
               ))
               : metrics.map(metric => {
                 const Icon = metric.icon;
+                const isGanancia = metric.id === "ganancia-barberia" || metric.id === "ganancias-barberos";
+
                 if (metric.id === "ganancias-barberos") {
                   return (
-                    <div key={metric.title} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 flex items-center justify-between shadow-xl relative">
-                      <div>
-                        <p className="text-sm text-gray-lightest uppercase tracking-[0.2em]">{metric.title}</p>
-                        <p className="text-3xl font-bold text-white-primary mt-2">{metric.value}</p>
-                        <span className={`text-sm font-semibold ${metric.isPositive ? "text-green-400" : "text-red-400"}`}>
-                          {metric.change}
-                        </span>
-                      </div>
-                      <div className="relative" ref={dropdownRef}>
-                        <button 
-                          onClick={() => setShowBarberosDropdown(!showBarberosDropdown)}
-                          className="w-12 h-12 rounded-2xl bg-black/40 border border-gray-dark flex items-center justify-center hover:bg-black/60 transition-colors"
-                        >
-                          <Icon className={`w-6 h-6 ${metric.iconColor}`} />
-                        </button>
-                        
-                        {showBarberosDropdown && (
-                          <div className="absolute top-14 right-0 w-48 bg-gray-darkest border border-gray-dark rounded-lg shadow-2xl z-50 p-3">
-                            <p className="text-xs text-gray-500 uppercase font-bold mb-2">Periodo</p>
-                            <select 
-                              className="w-full bg-black-primary text-white-primary p-2 rounded mb-3 border border-gray-dark text-sm"
-                              value={filtroBarberosPeriodo}
-                              onChange={(e) => setFiltroBarberosPeriodo(e.target.value as any)}
-                            >
-                              <option value="hoy">Hoy</option>
-                              <option value="semanal">Semanal</option>
-                              <option value="mensual">Mensual</option>
-                              <option value="anual">Anual</option>
-                            </select>
-                            
-                            <p className="text-xs text-gray-500 uppercase font-bold mb-2">Barbero</p>
-                            <input 
-                              type="text" 
-                              placeholder="Buscar..." 
-                              value={barberoSearch} 
-                              onChange={(e) => setBarberoSearch(e.target.value)} 
-                              className="w-full bg-black-primary text-white-primary p-2 rounded border border-gray-dark text-sm outline-none placeholder:text-gray-500 mb-2"
-                            />
-                            <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
-                              <button 
-                                onClick={() => {
-                                  setSelectedBarberoGanancia("Todos");
-                                  setShowBarberosDropdown(false);
-                                }}
-                                className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${selectedBarberoGanancia === "Todos" ? 'bg-gray-dark text-primary-gold font-medium' : 'hover:bg-gray-dark text-gray-lightest'}`}
-                              >
-                                Todos
-                              </button>
-                              {listaBarberosUnicos.filter(b => b.toLowerCase().includes(barberoSearch.toLowerCase())).map(b => (
-                                <button 
-                                  key={b}
-                                  onClick={() => {
-                                    setSelectedBarberoGanancia(b);
-                                    setShowBarberosDropdown(false);
-                                  }}
-                                  className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${selectedBarberoGanancia === b ? 'bg-gray-dark text-primary-gold font-medium' : 'hover:bg-gray-dark text-gray-lightest'}`}
-                                >
-                                  {b}
-                                </button>
-                              ))}
-                            </div>
+                    <div key={metric.title} className="rounded-2xl border border-orange-primary/40 bg-gray-darkest shadow-xl" style={{ padding: "0" }}>
+                      <div className="h-[3px] bg-orange-primary rounded-t-2xl" />
+                      <div className="p-4 flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
+                          <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
+                            <Icon className="w-3.5 h-3.5 text-orange-primary" />
                           </div>
-                        )}
+                        </div>
+                        <p className="text-3xl font-bold text-white-primary leading-none">{metric.value}</p>
+
+                        {/* Filtro de periodo — pills */}
+                        <div className="flex items-center rounded-lg border border-gray-dark overflow-hidden">
+                          {(["hoy", "semanal", "mensual", "anual"] as const).map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => setFiltroBarberosPeriodo(p)}
+                              className={`flex-1 py-1 text-[11px] font-semibold transition-colors ${filtroBarberosPeriodo === p ? "bg-orange-primary text-black-primary" : "text-gray-lightest hover:bg-white/5"}`}
+                            >
+                              {p === "hoy" ? "Hoy" : p === "semanal" ? "Sem" : p === "mensual" ? "Mes" : "Año"}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Filtro de barbero — buscador personalizado */}
+                        <div className="relative" ref={barberoSelectRef}>
+                          <button
+                            type="button"
+                            onClick={() => { setBarberoSearchOpen(!barberoSearchOpen); setBarberoSearch(""); }}
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-gray-darker border border-gray-dark hover:border-orange-primary/50 transition-colors text-xs"
+                          >
+                            <span className={selectedBarberoGanancia === "Todos" ? "text-gray-lightest" : "text-orange-primary font-semibold truncate"}>
+                              {selectedBarberoGanancia === "Todos" ? "Todos los barberos" : selectedBarberoGanancia}
+                            </span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-gray-lightest shrink-0 transition-transform ${barberoSearchOpen ? "rotate-180" : ""}`} />
+                          </button>
+
+                          {barberoSearchOpen && (
+                            <div className="absolute bottom-full mb-1 left-0 right-0 rounded-xl shadow-2xl z-[300] overflow-hidden" style={{ backgroundColor: "#1a1919", border: "1px solid rgba(216,176,129,0.3)" }}>
+                              {/* Input de búsqueda */}
+                              <div className="p-2" style={{ borderBottom: "1px solid #3a3a3a" }}>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  placeholder="Buscar barbero..."
+                                  value={barberoSearch}
+                                  onChange={(e) => setBarberoSearch(e.target.value)}
+                                  className="w-full text-white-primary text-xs px-3 py-2 rounded-lg outline-none placeholder:text-gray-light transition-colors"
+                                  style={{ backgroundColor: "#2a2a2a", border: "1px solid #3a3a3a" }}
+                                />
+                              </div>
+                              {/* Lista filtrada — máx. 5 items visibles con scroll */}
+                              <div className="overflow-y-auto py-1" style={{ maxHeight: "160px", backgroundColor: "#1a1919" }}>
+                                {["Todos", ...listaBarberosUnicos]
+                                  .filter(b => b === "Todos" || b.toLowerCase().includes(barberoSearch.toLowerCase()))
+                                  .map(b => (
+                                    <button
+                                      key={b}
+                                      type="button"
+                                      onClick={() => { setSelectedBarberoGanancia(b); setBarberoSearchOpen(false); setBarberoSearch(""); }}
+                                      style={{ backgroundColor: selectedBarberoGanancia === b ? "rgba(216,176,129,0.15)" : "transparent" }}
+                                      className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
+                                        selectedBarberoGanancia === b
+                                          ? "text-orange-primary font-semibold"
+                                          : "text-gray-lightest hover:bg-gray-dark"
+                                      }`}
+                                    >
+                                      {selectedBarberoGanancia === b && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-primary shrink-0" />
+                                      )}
+                                      {b === "Todos" ? "Todos los barberos" : b}
+                                    </button>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (metric.id === "ganancia-barberia") {
+                  return (
+                    <div key={metric.title} className="rounded-2xl border border-orange-primary/40 bg-gray-darkest shadow-xl" style={{ padding: "0" }}>
+                      <div className="h-[3px] bg-orange-primary rounded-t-2xl" />
+                      <div className="p-5">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
+                          <div className="w-8 h-8 rounded-xl bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
+                            <Icon className="w-4 h-4 text-orange-primary" />
+                          </div>
+                        </div>
+                        <p className="text-3xl font-bold text-white-primary mb-1">{metric.value}</p>
+                        <p className="text-xs text-gray-lightest mt-1">{metric.change}</p>
                       </div>
                     </div>
                   );
                 }
 
                 return (
-                  <div key={metric.title} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 flex items-center justify-between shadow-xl">
+                  <div key={metric.title} className={`rounded-2xl border bg-gray-darkest p-5 shadow-xl flex items-center justify-between ${isGanancia ? "border-orange-primary/40" : "border-gray-dark"}`}>
                     <div>
                       <p className="text-sm text-gray-lightest uppercase tracking-[0.2em]">{metric.title}</p>
                       <p className="text-3xl font-bold text-white-primary mt-2">{metric.value}</p>
-                      <span className={`text-sm font-semibold ${metric.isPositive ? "text-green-400" : "text-red-400"}`}>
-                        {metric.change}
-                      </span>
+                      <span className="text-sm font-semibold text-gray-lightest">{metric.change}</span>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-black/40 border border-gray-dark flex items-center justify-center">
                       <Icon className={`w-6 h-6 ${metric.iconColor}`} />
@@ -1574,33 +1883,72 @@ export function DashboardPage() {
               })}
           </div>
         </section>
-        <hr />
-        <br />
-        {/* Gráfica comparativa y KPIs */}
-        <section className="w-full grid gap-8 xl:grid-cols-[2.2fr_1fr] items-start mb-12">
+        {/* Rendimiento por periodo — ancho completo */}
+        <section className="mb-12">
           <div className="elegante-card">
-            <div className="flex flex-wrap items-center gap-4 pb-6 border-b border-gray-dark">
-              <div className="flex-1 min-w-[220px]">
-                <h4 className="text-lg font-bold text-white-primary mb-1">Ingresos Productos vs Servicios</h4>
-                <p className="text-sm text-gray-lightest">
-                  Comparativa por {periodoLabels[periodoIngresos].toLowerCase()} (monto y unidades vendidas)
-                </p>
+            <div className="pb-4 border-b border-gray-dark flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {periodoHorasPico === "mes" && mesSeleccionadoDrilldown !== null && (
+                  <button
+                    onClick={() => setMesSeleccionadoDrilldown(null)}
+                    className="flex items-center gap-1 text-sm text-orange-primary hover:opacity-75 transition-opacity"
+                  >
+                    ← Volver
+                  </button>
+                )}
+                <div>
+                  <h4 className="text-lg font-bold text-white-primary mb-1">
+                    {periodoHorasPico === "dia"
+                      ? "Horas pico"
+                      : periodoHorasPico === "semana"
+                      ? "Días con más ingresos"
+                      : mesSeleccionadoDrilldown !== null
+                      ? `Días de ${["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mesSeleccionadoDrilldown]} ${anioHorasPico}`
+                      : "Meses con más ingresos"}
+                  </h4>
+                  <p className="text-sm text-gray-lightest">
+                    {periodoHorasPico === "dia"
+                      ? "Cantidad de citas por hora del día (últimos 90 días)"
+                      : periodoHorasPico === "semana"
+                      ? `Ingresos totales por día de la semana — ${anioHorasPico}`
+                      : mesSeleccionadoDrilldown !== null
+                      ? "Ingresos por día del mes"
+                      : `Ingresos totales por mes — ${anioHorasPico} • Haz clic en un mes para ver sus días`}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-3 ml-auto">
-                <Badge className="bg-orange-primary/10 text-orange-primary border border-orange-primary/40">
-                  {participacionServicios >= participacionProductos ? "Servicios" : "Productos"} dominan ({Math.max(participacionServicios, participacionProductos).toFixed(1)}%)
-                </Badge>
-                <div className="flex items-center rounded-full border border-gray-dark overflow-hidden">
-                  {(["semanal", "mensual", "anual"] as PeriodoClave[]).map((periodo) => (
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Selector de año con controles (solo para semana y mes) */}
+                {periodoHorasPico !== "dia" && (
+                  <div className="flex items-center rounded-lg border border-gray-dark overflow-hidden">
                     <button
-                      key={periodo}
-                      onClick={() => setPeriodoIngresos(periodo)}
-                      className={`px-4 py-1.5 text-sm font-medium transition-colors ${periodoIngresos === periodo
-                        ? "bg-orange-primary text-black-primary"
-                        : "text-gray-lightest hover:bg-white/5"
-                        }`}
+                      onClick={() => { if (anioHorasPico > 2025) { setAnioHorasPico(anioHorasPico - 1); setMesSeleccionadoDrilldown(null); } }}
+                      disabled={anioHorasPico <= 2025}
+                      className="px-3 py-1.5 text-sm text-gray-lightest hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
-                      {periodoLabels[periodo]}
+                      ‹
+                    </button>
+                    <span className="px-3 py-1.5 text-sm font-semibold text-white-primary border-x border-gray-dark select-none min-w-[52px] text-center">
+                      {anioHorasPico}
+                    </span>
+                    <button
+                      onClick={() => { if (anioHorasPico < new Date().getFullYear()) { setAnioHorasPico(anioHorasPico + 1); setMesSeleccionadoDrilldown(null); } }}
+                      disabled={anioHorasPico >= new Date().getFullYear()}
+                      className="px-3 py-1.5 text-sm text-gray-lightest hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+                {/* Selector de modo */}
+                <div className="flex items-center rounded-lg border border-gray-dark overflow-hidden">
+                  {(["dia", "semana", "mes"] as const).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => { setPeriodoHorasPico(p); setMesSeleccionadoDrilldown(null); }}
+                      className={`px-4 py-1.5 text-sm font-medium transition-colors ${periodoHorasPico === p ? "bg-orange-primary text-black-primary" : "text-gray-lightest hover:bg-white/5"}`}
+                    >
+                      {p === "dia" ? "Día" : p === "semana" ? "Semana" : "Mes"}
                     </button>
                   ))}
                 </div>
@@ -1611,89 +1959,90 @@ export function DashboardPage() {
                 <Skeleton className="h-full w-full rounded-xl" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={comparativaIngresos}
-                    barCategoryGap={60}
-                    barGap={0}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 30 }}
-                  >
-                    <defs>
-                      <linearGradient id="productosGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={colors.gold} stopOpacity={1} />
-                        <stop offset="100%" stopColor={colors.goldAlt} stopOpacity={0.7} />
-                      </linearGradient>
-                      <linearGradient id="serviciosGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={colors.primary} stopOpacity={1} />
-                        <stop offset="100%" stopColor={colors.primaryDark} stopOpacity={0.7} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                    <XAxis
-                      dataKey="nombre"
-                      interval={0}
-                      tickLine={false}
-                      axisLine={{ stroke: '#3a3a3a' }}
-                      height={30}
-                      tickFormatter={(_value, index) => {
-                        const item = comparativaIngresos[index];
-                        if (!item || item.esSeparador) return "";
-                        return index === 0
-                          ? "Productos"
-                          : item.groupLabel === "Servicios"
-                            ? "Servicios"
-                            : "";
+                  {periodoHorasPico === "dia" ? (
+                    <BarChart data={horasPico} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
+                      <XAxis dataKey="hora" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} interval={0} />
+                      <YAxis stroke="#888" allowDecimals={false} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: "#ffffff10" }}
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        formatter={(value: any) => [`${value} citas`, "Citas"]}
+                      />
+                      <Bar dataKey="citas" radius={[8, 8, 0, 0]} fill={colors.gold} />
+                    </BarChart>
+                  ) : periodoHorasPico === "semana" ? (
+                    <BarChart data={dataSemanaHorasPico} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
+                      <XAxis dataKey="label" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} />
+                      <YAxis stroke="#888" tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: "#ffffff10" }}
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
+                      />
+                      <Bar dataKey="ingresos" radius={[8, 8, 0, 0]} fill={colors.gold}>
+                        {dataSemanaHorasPico.map((e, i) => {
+                          const max = Math.max(...dataSemanaHorasPico.map(x => x.ingresos));
+                          return <Cell key={`s-${i}`} fill={e.ingresos === max && max > 0 ? "#22c55e" : colors.gold} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  ) : mesSeleccionadoDrilldown === null ? (
+                    <BarChart
+                      data={dataMesHorasPico}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                      onClick={(data: any) => {
+                        const idx = data?.activePayload?.[0]?.payload?.mesIndex;
+                        if (idx !== undefined) setMesSeleccionadoDrilldown(idx);
                       }}
-                    />
-                    <YAxis
-                      stroke="#888888"
-                      tickFormatter={(value) => formatAxisValue(value as number)}
-                      tick={{ fill: '#888888', fontSize: 12 }}
-                      axisLine={{ stroke: '#3a3a3a' }}
-                    />
-                    <Tooltip
-                      cursor={{ fill: `${colors.primary}20` }}
-                      content={renderIngresosTooltip}
-                    />
-                    <Legend
-                      wrapperStyle={{ paddingTop: 0, paddingBottom: 12 }}
-                      formatter={(value) => (
-                        <span className="text-sm text-gray-lightest">
-                          {value === "Productos" ? "Productos" : "Servicios"}
-                        </span>
-                      )}
-                      payload={[
-                        { value: "Productos", type: "square", color: colors.gold },
-                        { value: "Servicios", type: "square", color: "#3b6473" },
-                      ]}
-                    />
-                    <Bar
-                      dataKey="monto"
-                      radius={[12, 12, 0, 0]}
-                      maxBarSize={48}
                     >
-                      {comparativaIngresos.map((entry, index) =>
-                        entry.esSeparador ? (
-                          <Cell key={`sep-${index}`} fill="transparent" />
-                        ) : (
-                          <Cell
-                            key={`cell-${entry.nombre}-${index}`}
-                            fill={
-                              entry.grupo === "Productos"
-                                ? "url(#productosGradient)"
-                                : "#3b6473"
-                            }
-                            stroke={entry.grupo === "Productos" ? colors.goldAlt : "#3b6473"}
-                            strokeWidth={entry.grupo === "Productos" ? 0 : 1.2}
-                          />
-                        )
-                      )}
-                    </Bar>
-                  </BarChart>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
+                      <XAxis dataKey="label" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} />
+                      <YAxis stroke="#888" tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: "#ffffff18" }}
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
+                      />
+                      <Bar dataKey="ingresos" radius={[8, 8, 0, 0]} fill={colors.gold} cursor="pointer">
+                        {dataMesHorasPico.map((e, i) => {
+                          const max = Math.max(...dataMesHorasPico.map(x => x.ingresos));
+                          return <Cell key={`m-${i}`} fill={e.ingresos === max && max > 0 ? "#22c55e" : colors.gold} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  ) : (
+                    <BarChart data={dataDiasMes} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
+                      <XAxis dataKey="label" stroke="#888" tick={{ fill: "#ccc", fontSize: 11 }} label={{ value: "Día", position: "insideBottom", offset: -2, fill: "#888", fontSize: 12 }} />
+                      <YAxis stroke="#888" tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: "#ffffff10" }}
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
+                        labelFormatter={(label: any) => `Día ${label}`}
+                      />
+                      <Bar dataKey="ingresos" radius={[6, 6, 0, 0]} fill={colors.gold}>
+                        {dataDiasMes.map((e, i) => {
+                          const max = Math.max(...dataDiasMes.map(x => x.ingresos));
+                          return <Cell key={`d-${i}`} fill={e.ingresos === max && max > 0 ? "#22c55e" : colors.gold} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  )}
                 </ResponsiveContainer>
               )}
             </div>
           </div>
-          <hr />
         </section>
 
 
@@ -1781,7 +2130,340 @@ export function DashboardPage() {
         </div>
 
 
-        <hr />
+
+        {/* Operación, Equipo y Clientes (últimos 90 días) */}
+        <section className="mb-10" style={{ marginTop: "40px" }}>
+          <div className="mb-6">
+            <h3 className="text-2xl font-bold text-white-primary mb-2">Operación, Equipo y Clientes</h3>
+            <p className="text-gray-lightest font-medium">
+              Indicadores de citas, rendimiento de barberos y fidelidad de clientes (últimos 90 días).
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Resumen semanal rápido */}
+            <div className="elegante-card flex flex-col justify-between">
+              <div className="pb-4 border-b border-gray-dark">
+                <h4 className="text-lg font-bold text-white-primary mb-1">Resumen de la semana</h4>
+                <p className="text-sm text-gray-lightest">Actividad acumulada desde el lunes</p>
+              </div>
+              <div className="pt-4 grid grid-cols-2 gap-4 flex-1">
+                {isLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
+                      <Skeleton className="h-3 w-24 mb-3" />
+                      <Skeleton className="h-8 w-16" />
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
+                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Citas activas</p>
+                      <p className="text-4xl font-bold text-white-primary">{resumenSemanal.confirmadas}</p>
+                      <p className="text-xs text-gray-lightest mt-1">confirmadas + pendientes</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
+                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Cancelaciones</p>
+                      <p className={`text-4xl font-bold ${resumenSemanal.canceladas > 0 ? "text-red-400" : "text-green-400"}`}>
+                        {resumenSemanal.canceladas}
+                      </p>
+                      <p className="text-xs text-gray-lightest mt-1">citas canceladas</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
+                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Ingresos</p>
+                      <p className="text-2xl font-bold text-orange-primary">${formatCurrencyValue(resumenSemanal.ingresos)}</p>
+                      <p className="text-xs text-gray-lightest mt-1">en ventas registradas</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
+                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Servicios vendidos</p>
+                      <p className="text-4xl font-bold text-white-primary">{resumenSemanal.serviciosVendidos}</p>
+                      <p className="text-xs text-gray-lightest mt-1">unidades de servicio</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Estados de citas + tasa de cancelación */}
+            <div className="elegante-card">
+              <div className="pb-4 border-b border-gray-dark flex items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-lg font-bold text-white-primary mb-1">Estados de las citas</h4>
+                  <p className="text-sm text-gray-lightest">Distribución de {estadosCitas.total} citas</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-lightest uppercase tracking-[0.2em]">Cancelación</p>
+                  <p className={`text-2xl font-bold ${estadosCitas.tasaCancelacion > 15 ? "text-red-400" : "text-green-400"}`}>
+                    {estadosCitas.tasaCancelacion.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+              <div className="pt-4" style={{ height: "300px" }}>
+                {isLoading ? (
+                  <Skeleton className="h-full w-full rounded-xl" />
+                ) : estadosCitas.total === 0 ? (
+                  <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin citas registradas en el periodo.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={estadosCitas.data}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={65}
+                        outerRadius={95}
+                        paddingAngle={2}
+                        stroke="none"
+                      >
+                        {estadosCitas.data.map((e, i) => (
+                          <Cell key={`estado-${i}`} fill={e.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        formatter={(value: any, name: any) => [`${value} citas`, name]}
+                      />
+                      <Legend formatter={(value) => <span className="text-sm text-gray-lightest">{value}</span>} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Ranking de barberos */}
+            <div className="elegante-card">
+              <div className="pb-4 border-b border-gray-dark">
+                <h4 className="text-lg font-bold text-white-primary mb-1">Rendimiento por barbero</h4>
+                <p className="text-sm text-gray-lightest">Citas atendidas y servicios vendidos por barbero</p>
+              </div>
+              <div className="pt-4" style={{ height: "320px" }}>
+                {isLoading ? (
+                  <Skeleton className="h-full w-full rounded-xl" />
+                ) : rankingBarberos.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Aún no hay actividad de barberos registrada.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={rankingBarberos} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" horizontal={false} />
+                      <XAxis type="number" stroke="#888" allowDecimals={false} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <YAxis type="category" dataKey="barbero" stroke="#888" width={110} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: "#ffffff10" }}
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                      />
+                      <Legend formatter={(value) => <span className="text-sm text-gray-lightest">{value}</span>} />
+                      <Bar dataKey="citas" name="Citas agendadas" fill={colors.gold} radius={[0, 4, 4, 0]} maxBarSize={14} />
+                      <Bar dataKey="servicios" name="Servicios vendidos" fill="#22c55e" radius={[0, 4, 4, 0]} maxBarSize={14} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Clientes: recurrentes vs ocasionales + top */}
+            <div className="elegante-card">
+              <div className="pb-4 border-b border-gray-dark">
+                <h4 className="text-lg font-bold text-white-primary mb-1">Clientes</h4>
+                <p className="text-sm text-gray-lightest">Recurrentes vs ocasionales y los más frecuentes</p>
+              </div>
+              <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div style={{ height: "230px" }}>
+                  {isLoading ? (
+                    <Skeleton className="h-full w-full rounded-xl" />
+                  ) : clientesAnalisis.total === 0 ? (
+                    <div className="flex h-full items-center justify-center text-gray-lightest text-sm text-center">Sin clientes registrados.</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={clientesAnalisis.data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2} stroke="none">
+                          {clientesAnalisis.data.map((e, i) => (
+                            <Cell key={`cli-${i}`} fill={e.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                          formatter={(value: any, name: any) => [`${value} clientes`, name]}
+                        />
+                        <Legend formatter={(value) => <span className="text-xs text-gray-lightest">{value}</span>} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-3">Top clientes</p>
+                  <div className="space-y-2">
+                    {clientesAnalisis.top.length === 0 ? (
+                      <p className="text-sm text-gray-lightest">Sin datos.</p>
+                    ) : (
+                      clientesAnalisis.top.map((c, i) => (
+                        <div key={`top-cli-${i}`} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-darker/50 border border-gray-dark">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-6 h-6 rounded-full bg-orange-primary/15 text-orange-primary text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                            <span className="text-sm text-white-primary truncate">{c.nombre}</span>
+                          </div>
+                          <span className="text-xs text-gray-lightest flex-shrink-0">{c.visitas} visitas</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        {/* Compras (últimos 90 días) */}
+        <section className="mb-10" style={{ marginTop: "40px" }}>
+          <div className="mb-6">
+            <h3 className="text-2xl font-bold text-white-primary mb-2">Compras</h3>
+            <p className="text-gray-lightest font-medium">
+              Gasto en inventario, proveedores y productos más adquiridos (últimos 90 días).
+            </p>
+          </div>
+
+          {/* KPIs de compras */}
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            {[
+              { label: "Gasto total", value: `$${formatCurrencyValue(resumenCompras.totalGastado)}`, sub: "90 días" },
+              { label: "Órdenes de compra", value: String(resumenCompras.numCompras), sub: "registradas" },
+              { label: "Promedio por compra", value: `$${formatCurrencyValue(resumenCompras.promedioPorCompra)}`, sub: "por orden" },
+              { label: "Proveedores", value: String(resumenCompras.proveedoresUnicos), sub: "activos en el periodo" },
+            ].map((k) =>
+              isLoading ? (
+                <div key={k.label} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 shadow-xl">
+                  <Skeleton className="h-4 w-28 mb-3" />
+                  <Skeleton className="h-8 w-20 mb-2" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ) : (
+                <div key={k.label} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 shadow-xl">
+                  <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-1">{k.label}</p>
+                  <p className="text-3xl font-bold text-white-primary">{k.value}</p>
+                  <p className="text-xs text-gray-lightest mt-1">{k.sub}</p>
+                </div>
+              )
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Tendencia de gasto mensual */}
+            <div className="elegante-card">
+              <div className="pb-4 border-b border-gray-dark">
+                <h4 className="text-lg font-bold text-white-primary mb-1">Gasto mensual en compras</h4>
+                <p className="text-sm text-gray-lightest">Evolución del gasto en los últimos 3 meses</p>
+              </div>
+              <div className="pt-4" style={{ height: "280px" }}>
+                {isLoading ? (
+                  <Skeleton className="h-full w-full rounded-xl" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={comprasHistoricas} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
+                      <XAxis dataKey="key" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} />
+                      <YAxis stroke="#888" tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: "#ffffff10" }}
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Gasto"]}
+                      />
+                      <Bar dataKey="total" name="Gasto" radius={[10, 10, 0, 0]} maxBarSize={56} fill="#3b6473" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Gasto por proveedor */}
+            <div className="elegante-card">
+              <div className="pb-4 border-b border-gray-dark">
+                <h4 className="text-lg font-bold text-white-primary mb-1">Gasto por proveedor</h4>
+                <p className="text-sm text-gray-lightest">Top {gastoProveedores.length} proveedores por monto</p>
+              </div>
+              <div className="pt-4" style={{ height: "280px" }}>
+                {isLoading ? (
+                  <Skeleton className="h-full w-full rounded-xl" />
+                ) : gastoProveedores.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin compras registradas en el periodo.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={gastoProveedores} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" horizontal={false} />
+                      <XAxis type="number" stroke="#888" tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: "#ccc", fontSize: 11 }} />
+                      <YAxis type="category" dataKey="proveedor" stroke="#888" width={120} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: "#ffffff10" }}
+                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Gasto"]}
+                      />
+                      <Bar dataKey="total" name="Gasto" radius={[0, 8, 8, 0]} fill={colors.gold} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Productos más comprados */}
+          <div className="elegante-card">
+            <div className="pb-4 border-b border-gray-dark">
+              <h4 className="text-lg font-bold text-white-primary mb-1">Productos más comprados</h4>
+              <p className="text-sm text-gray-lightest">Top {productosMasComprados.length} productos por gasto total</p>
+            </div>
+            <div className="pt-4" style={{ height: "280px" }}>
+              {isLoading ? (
+                <Skeleton className="h-full w-full rounded-xl" />
+              ) : productosMasComprados.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin detalle de productos en el periodo.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={productosMasComprados} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
+                    <XAxis
+                      dataKey="nombre"
+                      stroke="#888"
+                      tick={{ fill: "#ccc", fontSize: 11 }}
+                      angle={-30}
+                      textAnchor="end"
+                      interval={0}
+                      height={60}
+                    />
+                    <YAxis stroke="#888" tickFormatter={(v) => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
+                    <Tooltip
+                      cursor={{ fill: "#ffffff10" }}
+                      contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                        itemStyle={{ color: "#d0d0d0" }}
+                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                      formatter={(value: any, _n: any, props: any) => [
+                        `$${formatCurrencyValue(value as number)} · ${props.payload.cantidad} uds`,
+                        props.payload.nombre
+                      ]}
+                    />
+                    <Bar dataKey="gasto" name="Gasto total" radius={[8, 8, 0, 0]} maxBarSize={48}>
+                      {productosMasComprados.map((_e, i) => (
+                        <Cell key={`pc-${i}`} fill={i % 2 === 0 ? colors.gold : "#3b6473"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* Bloque de rendimiento */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10"
           style={{ marginTop: '40px' }}>
@@ -1826,11 +2508,11 @@ export function DashboardPage() {
                     />
                     <Tooltip
                       cursor={{ fill: "#ffffff10" }}
-                      contentStyle={{ backgroundColor: "#0b0b0b", border: `1px solid ${colors.primary}`, color: "#ffffff" }}
-                      labelStyle={{ color: "#ffffff" }}
-                      itemStyle={{ color: "#ffffff" }}
+                      contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                      itemStyle={{ color: "#d0d0d0" }}
+                      labelStyle={{ color: "#ffffff", fontWeight: 600 }}
                       formatter={(value: any, _name: any, props: any) => [
-                        `$${formatCurrencyValue(value as number)} • ${props.payload.unidades} uds`,
+                        `$${formatCurrencyValue(value as number)} • ${props.payload.unidades} unidades`,
                         props.payload.producto
                       ]}
                     />
@@ -1852,7 +2534,7 @@ export function DashboardPage() {
                           key={`cell-rec-${index}`}
                           fill={
                             tipoRecientes === "productos"
-                              ? "url(#productosGradient)"
+                              ? colors.gold
                               : entry.tipo === "Paquete"
                                 ? "#22c55e"
                                 : "#3b82f6"

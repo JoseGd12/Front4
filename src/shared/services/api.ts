@@ -637,7 +637,7 @@ class ApiService {
     if (cached) return cached;
     try {
       logger.debug('📥 Obteniendo módulos desde:', `${API_BASE_URL}/Modulos`);
-      const data = await this.fetchAllPages('/Modulos');
+      const data = await this.fetchAllPages('/Modulos', 200);
       logger.debug('✅ Módulos obtenidos:', data);
       const result = Array.isArray(data) ? data : [];
       this.setCache('modulos', result);
@@ -684,7 +684,7 @@ class ApiService {
   async getRolesModulos(): Promise<any[]> {
     try {
       logger.debug('📥 Obteniendo asignaciones rol-módulo desde:', `${API_BASE_URL}/RolesModulos`);
-      const data = await this.fetchAllPages('/RolesModulos', 5);
+      const data = await this.fetchAllPages('/RolesModulos', 100);
       logger.debug('✅ Asignaciones rol-módulo obtenidas:', data);
       return Array.isArray(data) ? data : [];
     } catch (error: any) {
@@ -1157,7 +1157,7 @@ class ApiService {
   async getDetallePaquetes(): Promise<DetallePaquete[]> {
     try {
       logger.debug('📥 Obteniendo detalles de paquetes desde:', `${API_BASE_URL}/DetallePaquetes`);
-      const data = await this.fetchAllPages('/DetallePaquetes', 5);
+      const data = await this.fetchAllPages('/DetallePaquetes', 100);
       logger.debug('✅ Detalles de paquetes obtenidos');
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
       logger.debug('✅ Detalles de paquetes normalizados:', normalizedData.length);
@@ -1171,7 +1171,7 @@ class ApiService {
   async getDetallePaquetesByPaqueteId(paqueteId: number): Promise<DetallePaquete[]> {
     try {
       logger.debug(`📥 Obteniendo detalles del paquete ${paqueteId}...`);
-      const data = await this.fetchAllPages(`/DetallePaquetes/paquete/${paqueteId}`, 5);
+      const data = await this.fetchAllPages(`/DetallePaquetes/paquete/${paqueteId}`, 100);
       const normalizedData = Array.isArray(data) ? data.map(item => this.normalizeDetallePaqueteData(item)) : [];
       logger.debug(`✅ Detalles del paquete ${paqueteId}:`, normalizedData.length);
       return normalizedData;
