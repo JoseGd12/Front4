@@ -166,9 +166,9 @@ class CompraService {
     }
 
     async anularCompra(id: number): Promise<void> {
-    try {
-      await httpClient.put(`/Compras/${id}/anular`);
-    } catch (error: any) {
+        try {
+            await httpClient.post(`/Compras/${id}/anular`);
+        } catch (error: any) {
       console.error(`❌ Error anulando compra ${id}:`, error);
       throw error;
     }

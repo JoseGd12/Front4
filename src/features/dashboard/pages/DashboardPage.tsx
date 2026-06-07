@@ -1427,6 +1427,11 @@ export function DashboardPage() {
   }, [comprasStats]);
 
   // ===== Resumen semanal rápido =====
+  const esCitaCancelada = (estado: string) => {
+    const st = String(estado || "").toLowerCase();
+    return st === "cancelada" || st === "cancelado" || st === "anulada";
+  };
+
   const resumenSemanal = useMemo(() => {
     const citasSemana = agendamientosStats.filter((a) => {
       if (!a.fechaHora) return false;
@@ -1450,11 +1455,6 @@ export function DashboardPage() {
   }, [agendamientosStats, ventas, startOfWeek, endOfWeek]);
 
   // ===== Análisis de operación, equipo y clientes (últimos 90 días) =====
-  const esCitaCancelada = (estado: string) => {
-    const st = String(estado || "").toLowerCase();
-    return st === "cancelada" || st === "cancelado" || st === "anulada";
-  };
-
   // 1. Estados de citas + tasa de cancelación
   const estadosCitas = useMemo(() => {
     const buckets: Record<string, number> = { completada: 0, confirmada: 0, pendiente: 0, cancelada: 0, otro: 0 };

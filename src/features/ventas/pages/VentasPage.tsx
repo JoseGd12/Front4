@@ -2153,24 +2153,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                 </DialogHeader>
 
                 <div className="space-y-6 pt-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-gray-lightest flex items-center gap-2">
-                        <Hash className="w-4 h-4 text-orange-primary" />
-                        Número de Recibo
-                      </Label>
-                      <Input
-                        value={(() => {
-                          const rec = (selectedVenta as any).numeroRecibo;
-                          const numPart = (rec || String(selectedVenta.numeroVenta || selectedVenta.id)).split('-').pop();
-                          if (!numPart) return 'N/A';
-                          const n = parseInt(numPart, 10);
-                          return isNaN(n) ? numPart : n.toString().padStart(3, '0');
-                        })()}
-                        disabled
-                        className="elegante-input bg-gray-medium"
-                      />
-                    </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-gray-lightest flex items-center gap-2">
                         <Hash className="w-4 h-4 text-orange-primary" />

@@ -438,7 +438,7 @@ class VentaService {
 
   async anularVenta(id: number): Promise<void> {
     try {
-      await httpClient.put(`/Ventas/${id}/anular`);
+      await httpClient.post(`/Ventas/${id}/anular`);
     } catch (error: any) {
       console.error(`❌ Error anulando venta ${id}:`, error);
       throw error;

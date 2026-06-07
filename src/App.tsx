@@ -1,4 +1,4 @@
-  import { useState, useEffect } from "react";
+  import { useState, useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
 import { Toaster } from "sonner";
 import { AlertProvider, GlobalAlertContainer } from "./shared/components/ui/custom-alert";
@@ -19,6 +19,8 @@ function AppContent() {
   const { isAuthenticated, isAdmin, isCliente, isBarbero, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => { isAuthenticatedRef.current = isAuthenticated; }, [isAuthenticated]);
 
   const [passwordPolicyReason, setPasswordPolicyReason] = useState<'first_login' | 'expired' | null>(null);
   const [passwordPolicyChecked, setPasswordPolicyChecked] = useState(false);

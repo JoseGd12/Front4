@@ -115,8 +115,8 @@ class CreditoBarberoService {
     }
   }
 
-  async crearAbono(creditoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
-    const data = await httpClient.post(`/credito-barbero/${creditoId}/abono`, input);
+  async crearAbono(barberoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
+    const data = await httpClient.post(`/credito-barbero/barbero/${barberoId}/abono`, input);
     return this.normalizeAbono(data);
   }
 
@@ -144,8 +144,12 @@ class CreditoBarberoService {
     params.append('page', String(page));
     params.append('pageSize', String(pageSize));
     if (q) params.append('q', q);
-    
-    return await httpClient.get<PagedResult<CreditoBarberoDto>>(`/credito-barbero?${params.toString()}`);
+
+    const data = await httpClient.get<PagedResult<any>>(`/credito-barbero?${params.toString()}`);
+    return {
+      ...data,
+      items: (data.items || []).map((r: any) => this.normalize(r)),
+    };
   }
 
   // getAbonos recibe barberoId (usado en el listado principal para mostrar el último abono)
@@ -170,22 +174,9 @@ class CreditoBarberoService {
     return this.getHistorialAbonos(credito.id, page, pageSize);
   }
 
+  // Registra un abono directo al barbero — el backend resuelve el ciclo activo internamente
   async registrarAbono(barberoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
-    const credito = await this.getCreditoByBarberoId(barberoId);
-    if (!credito) throw new Error('No se encontró crédito activo para el barbero');
-
-    // FE-M16: Validar que el abono no exceda la deuda pendiente
-    const monto = Number(input.monto);
-    if (isNaN(monto) || monto <= 0) {
-      throw new Error('El monto del abono debe ser mayor a 0');
-    }
-    if (monto > credito.saldoDeuda) {
-      throw new Error(
-        `El abono ($${monto.toLocaleString('es-CO')}) no puede superar la deuda pendiente ($${credito.saldoDeuda.toLocaleString('es-CO')})`
-      );
-    }
-
-    return this.crearAbono(credito.id, input);
+    return this.crearAbono(barberoId, input);
   }
 
   async getByBarbero(barberoId: number): Promise<CreditoBarberoDto | null> {
