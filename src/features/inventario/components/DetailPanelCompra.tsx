@@ -158,7 +158,7 @@ export function DetailPanelCompra({
                         <Input
                           type="text"
                           inputMode="numeric"
-                          value={precioVisual}
+                          value={precioVisual ? Number(precioVisual).toLocaleString('es-CO') : ''}
                           onKeyDown={(e) => {
                             if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') {
                               e.preventDefault();
@@ -166,12 +166,12 @@ export function DetailPanelCompra({
                           }}
                           onPaste={(e) => {
                             const text = e.clipboardData?.getData('text') || '';
-                            const cleaned = text.replace(/\D+/g, '').slice(0, 6);
+                            const cleaned = text.replace(/\D+/g, '').slice(0, 9);
                             e.preventDefault();
                             onTarjetaInputChange?.(p.id, 'precio', cleaned);
                           }}
                           onChange={(e) => {
-                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 6);
+                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 9);
                             onTarjetaInputChange?.(p.id, 'precio', cleaned);
                           }}
                           className="w-20 h-7 text-xs text-right tabular-nums elegante-input no-spin py-0 px-1.5"
@@ -184,7 +184,7 @@ export function DetailPanelCompra({
                         <Input
                           type="text"
                           inputMode="numeric"
-                          value={precioVentaVisual}
+                          value={precioVentaVisual ? Number(precioVentaVisual).toLocaleString('es-CO') : ''}
                           onKeyDown={(e) => {
                             if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E' || e.key === '.') {
                               e.preventDefault();
@@ -192,12 +192,12 @@ export function DetailPanelCompra({
                           }}
                           onPaste={(e) => {
                             const text = e.clipboardData?.getData('text') || '';
-                            const cleaned = text.replace(/\D+/g, '').slice(0, 6);
+                            const cleaned = text.replace(/\D+/g, '').slice(0, 9);
                             e.preventDefault();
                             onTarjetaInputChange?.(p.id, 'precioVenta', cleaned);
                           }}
                           onChange={(e) => {
-                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 6);
+                            const cleaned = e.target.value.replace(/\D+/g, '').slice(0, 9);
                             onTarjetaInputChange?.(p.id, 'precioVenta', cleaned);
                           }}
                           className="w-20 h-7 text-xs text-right tabular-nums elegante-input no-spin py-0 px-1.5"

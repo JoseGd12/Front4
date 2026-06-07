@@ -339,28 +339,11 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       String(compraId),
       async () => {
         try {
-          // 1. Obtener detalles ANTES de anular, para asegurar que tenemos las cantidades originales
-          const detallesCompra = await compraService.getDetallesPorCompra(compraId);
-
-          // 2. Anular la compra en el backend (esto revierte stock de ventas automáticamente)
+          // 1. Anular la compra en el backend (esto revierte stock automáticamente)
           await compraService.anularCompra(compraId);
 
           // Actualizar estado localmente de inmediato
           setCompras(prev => prev.map(c => c.id === compraId ? { ...c, estado: 'Anulada' } : c));
-
-          // 3. Revertir manualmente el stock usando los detalles capturados
-          try {
-            for (const detalle of detallesCompra) {
-              const productoId = Number(detalle.productoId);
-              if (!productoId) continue;
-              const cantidadTotal = Number(detalle.cantidad || 0);
-              if (cantidadTotal > 0) {
-                await productoService.revertirStockProducto(productoId, cantidadTotal);
-              }
-            }
-          } catch (revertError) {
-             console.error("Error al revertir stock en el cliente:", revertError);
-          }
 
           await loadCompras().catch(() => { });
         } catch (error: any) {

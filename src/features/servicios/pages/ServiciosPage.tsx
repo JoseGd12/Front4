@@ -289,7 +289,7 @@ export function ServiciosPage() {
       estado: servicio.estado,
       imagen: servicio.imagen || ''
     });
-    setPrecioServicioInput(servicio.precio != null ? String(servicio.precio) : '');
+    setPrecioServicioInput(servicio.precio != null ? Number(servicio.precio).toLocaleString('es-CO') : '');
     setImagePreview(servicio.imagen || null);
     setImageFile(null);
     setShowServicioFormErrors(false);
@@ -681,23 +681,26 @@ export function ServiciosPage() {
                       Precio ($) *
                     </Label>
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={precioServicioInput}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        if (val.length <= 15) {
-                          setPrecioServicioInput(val);
+                        // Quitar todo excepto dígitos
+                        const raw = e.target.value.replace(/\D/g, '');
+                        if (raw.length <= 12) {
+                          // Formatear con puntos de miles
+                          const formatted = raw === '' ? '' : Number(raw).toLocaleString('es-CO');
+                          setPrecioServicioInput(formatted);
                           setNuevoServicio(prev => ({
                             ...prev,
-                            precio: val.trim() === '' ? 0 : Math.max(0, Number(val) || 0)
+                            precio: raw === '' ? 0 : Math.max(0, Number(raw))
                           }));
                         }
                       }}
                       className={`elegante-input h-9 text-sm no-spin ${
                         showServicioFormErrors && (nuevoServicio.precio || 0) <= 0 ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
                       }`}
-                      min={0}
-                      step={100}
+                      placeholder="0"
                     />
                     {showServicioFormErrors && (nuevoServicio.precio || 0) <= 0 && (
                       <p className="text-[10px] text-red-400 mt-1">El precio debe ser mayor a cero.</p>

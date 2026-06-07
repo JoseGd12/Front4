@@ -1487,16 +1487,6 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         try {
           await ventaService.anularVenta(venta.id);
 
-          // Revertir el stock de los productos vendidos
-          if (venta.productosDetalle && Array.isArray(venta.productosDetalle)) {
-            for (const p of venta.productosDetalle) {
-              const pId = Number((p as any).id || (p as any).productoId || (p as any).ProductoId);
-              if (!isNaN(pId)) {
-                await productoService.adjustStock(pId, p.cantidad, 'increment');
-              }
-            }
-          }
-
           // Restaurar saldo a favor si esta venta había consumido saldo (anular devoluciones negativas ligadas a la venta)
           try {
             const devs = await devolucionService.getDevoluciones();
@@ -1531,8 +1521,6 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
           ));
           // Recargar datos para recalcular saldos
           cargarVentas();
-
-          edited("Venta anulada ✔️", `La venta ${venta.numeroVenta} ha sido anulada exitosamente.`);
         } catch (error: any) {
           logger.error('Error anulando venta:', error);
           showErrorAlert("Error al anular", "No se pudo anular la venta. Intenta nuevamente.");

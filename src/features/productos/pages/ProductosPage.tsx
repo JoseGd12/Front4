@@ -1230,13 +1230,13 @@ export function ProductosPage() {
             <div className="std-table-wrapper">
               <table className="std-table">
                 <colgroup>
-                  <col style={{ width: '72px' }} />   {/* Imagen */}
-                  <col style={{ width: '180px' }} />  {/* Nombre */}
-                  <col style={{ width: '130px' }} />  {/* Precio venta */}
-                  <col style={{ width: '130px' }} />  {/* Precio compra */}
-                  <col style={{ width: '100px' }} />  {/* Stock */}
-                  <col style={{ width: '110px' }} />  {/* Estado */}
-                  <col style={{ width: '160px' }} />  {/* Acciones */}
+                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '180px' }} />
+                  <col style={{ width: '130px' }} />
+                  <col style={{ width: '130px' }} />
+                  <col style={{ width: '100px' }} />
+                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '160px' }} />
                 </colgroup>
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">

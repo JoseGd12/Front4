@@ -106,7 +106,7 @@ class CategoriaService {
 
   async updateCategoriaStatus(id: number, estado: boolean): Promise<void> {
     try {
-      await httpClient.post(`/Categorias/${id}/estado`, { estado });
+      await httpClient.put(`/Categorias/${id}/estado`, { estado });
     } catch (error: any) {
       console.error(`❌ Error actualizando estado de categoría ${id}:`, error);
       throw error;

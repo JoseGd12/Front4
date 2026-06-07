@@ -427,6 +427,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const { created, success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
   const { confirmEditAction, DoubleConfirmationContainer } = useDoubleConfirmation();
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
+  const [clientesList, setClientesList] = useState<any[]>([]);
   const [ventasDisponibles, setVentasDisponibles] = useState<any[]>([]);
   const [saldosDisponiblesPorCliente, setSaldosDisponiblesPorCliente] = useState<Map<number, number>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
@@ -463,6 +464,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         categoriaService.getCategorias().catch(() => [])
       ]);
 
+      setClientesList(clientes);
+
       const categoriasById = new Map<number, string>();
       (categorias || []).forEach((c: any) => {
         const id = Number(c?.id ?? 0);
@@ -491,7 +494,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       setImagenesProductosCatalogo(Object.fromEntries(imagenesProductoMap.entries()));
 
       // Crear mapa de clienteId -> info de cliente para búsqueda rápida
-      const clientesMapa = new Map<number, { documento: string; tipoDocumento?: string; nombreCompleto?: string; imagen?: string }>();
+      const clientesMapa = new Map<number, { documento: string; tipoDocumento?: string; nombreCompleto?: string; imagen?: string; saldoAFavor?: number }>();
       clientes.forEach(cliente => {
         if (cliente.id) {
           const documentoStr = cliente.documento || '';
@@ -504,7 +507,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
             documento: numeroDocumento,
             tipoDocumento: tipoDocumento,
             nombreCompleto,
-            imagen: String(cliente.fotoPerfil || cliente.FotoPerfil || cliente.imagen || cliente.foto || '')
+            imagen: String(cliente.fotoPerfil || cliente.FotoPerfil || cliente.imagen || cliente.foto || ''),
+            saldoAFavor: Number(cliente.saldoAFavor || 0)
           });
         }
       });
@@ -745,6 +749,76 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const showMotivoError = showDevolucionFormErrors && !nuevaDevolucion.motivoCategoria;
 
   // Filtros y paginación - Actualizado para eliminar búsqueda por producto
+  const toggleExpand = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  // Funciones auxiliares
+  const getEstadoColor = (estado: string) => {
+    const e = (estado || '').toLowerCase().trim();
+    if (e === 'completada' || e === 'completado' || e === 'activo') return "bg-[#f0d9b5] text-[#7a4f1e] border border-[#d4b483]";
+    if (e === 'anulada' || e === 'anulado') return "bg-[#7a5230] text-[#f0d9b5] border border-[#5c3a1e]";
+    if (e === 'pendiente') return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
+    if (e === 'procesado') return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+    return "bg-gray-medium text-gray-lighter";
+  };
+
+  const getMotivoLabel = (motivoCategoria: string) => {
+    const motivo = MOTIVOS_DEVOLUCION.find(m => m.value === motivoCategoria);
+    return motivo ? motivo.label : motivoCategoria;
+  };
+
+  const badgeClass = (estado: string) => {
+    const e = (estado || '').toLowerCase().trim();
+    if (e === "completada" || e === "completado" || e === "activo") return "badge badge-completada";
+    if (e === "anulada" || e === "anulado") return "badge badge-anulada";
+    return "badge badge-pendiente";
+  };
+
+  const normalizeEstadoVenta = (estado: string) => {
+    return String(estado || '').toLowerCase().trim();
+  };
+
+  // Función para calcular el saldo disponible actual de un cliente por ID
+  const getSaldoTotalCliente = (clienteId: string): number => {
+    const id = Number(clienteId);
+    if (isNaN(id) || id <= 0) return 0;
+
+    // 1. Prioridad: Saldo real desde el backend (neto) si está en el mapa de saldos dinámicos
+    if (saldosDisponiblesPorCliente.has(id)) {
+      return saldosDisponiblesPorCliente.get(id)!;
+    }
+
+    // 2. Segunda opción: Buscar en la lista de clientes cargada
+    const clienteEncontrado = clientesList.find(c => Number(c.id || c.Id) === id);
+    if (clienteEncontrado) {
+      const saldo = Number(clienteEncontrado.saldoAFavor || clienteEncontrado.SaldoAFavor || clienteEncontrado.saldoFavor || 0);
+      if (saldo > 0) return saldo;
+    }
+    
+    // 3. Fallback: Suma de saldos a favor de devoluciones completadas para este cliente
+    const sumaDevs = devoluciones
+      .filter(d => String(d.clienteId) === String(clienteId) && (String(d.estado).toLowerCase() === 'completada' || String(d.estado).toLowerCase() === 'activo'))
+      .reduce((total, d) => total + (Number(d.saldoAFavor) || 0), 0);
+    
+    return sumaDevs;
+  };
+
+  // Retorna el saldo disponible actual del cliente (no el monto histórico de la devolución)
+  const getSaldoDisponible = (dev: Devolucion): number => {
+    const id = Number(dev.clienteId);
+    // Los barberos no tienen saldo a favor
+    const esBarbero = !!(dev.barberoId && dev.barberoId > 0) && (!dev.clienteId || dev.clienteId === '0' || dev.clienteId === '');
+    if (esBarbero) return 0;
+
+    if (!isNaN(id) && id > 0 && saldosDisponiblesPorCliente.has(id)) {
+      return saldosDisponiblesPorCliente.get(id)!;
+    }
+    
+    // Si no está en el mapa, calculamos el saldo total para ese cliente
+    return getSaldoTotalCliente(dev.clienteId);
+  };
+
   const filteredDevoluciones = useMemo(() => devoluciones.filter(devolucion => {
     const query = normalizeSearchText(searchTerm);
     const searchableText = normalizeSearchText([
@@ -784,21 +858,15 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
 
     filteredDevoluciones.forEach((devolucion) => {
       // Determinar si es devolución de cliente o de barbero
-      const esBarbero = !!(devolucion.barberoId && devolucion.barberoId > 0) && !devolucion.clienteId;
+      const esBarbero = !!(devolucion.barberoId && devolucion.barberoId > 0) && (!devolucion.clienteId || devolucion.clienteId === '0' || devolucion.clienteId === '');
       const groupKey = esBarbero
         ? `barbero-${devolucion.barberoId}`
         : `cliente-${devolucion.clienteId || devolucion.cliente || 'sin-cliente'}`;
 
       const existing = map.get(groupKey);
-      // Usar el saldo disponible actual del cliente, no el monto histórico de cada devolución
-      const clienteIdNum = Number(devolucion.clienteId);
-      const saldo = (clienteIdNum > 0 && saldosDisponiblesPorCliente.has(clienteIdNum))
-        ? saldosDisponiblesPorCliente.get(clienteIdNum)!
-        : Number(devolucion.saldoAFavor || 0);
 
       if (existing) {
         existing.items.push(devolucion);
-        // No acumular: el saldoTotal ya representa el balance actual del cliente (no sumar por cada devolución)
         existing.totalDevoluciones += 1;
         return;
       }
@@ -808,6 +876,9 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
       const tipoDoc = docParts.length > 1 ? docParts[0] : 'CC';
       const numDoc = docParts.length > 1 ? docParts.slice(1).join(' ') : docRaw;
 
+      // El saldo total debe ser 0 para barberos. Para clientes, usamos la función unificada.
+      const saldoTotal = esBarbero ? 0 : getSaldoTotalCliente(devolucion.clienteId);
+
       map.set(groupKey, {
         cliente: esBarbero
           ? (devolucion.barbero || 'Barbero')
@@ -816,7 +887,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         rol: esBarbero ? 'Barbero' : 'Cliente',
         documento: numDoc || '—',
         tipoDocumento: tipoDoc,
-        saldoTotal: String(devolucion.estado).toLowerCase() === 'completada' ? saldo : 0,
+        saldoTotal: saldoTotal,
         totalDevoluciones: 1,
         ultimaDevolucion: devolucion.fecha,
         imagen: devolucion.userImagen || '',
@@ -843,56 +914,6 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
   const totalPages = Math.max(1, Math.ceil(groupedDevoluciones.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedGrupos = groupedDevoluciones.slice(startIndex, startIndex + itemsPerPage);
-
-  const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  };
-
-  // Funciones auxiliares
-  const getEstadoColor = (estado: string) => {
-    const e = (estado || '').toLowerCase().trim();
-    if (e === 'completada' || e === 'completado' || e === 'activo') return "bg-[#f0d9b5] text-[#7a4f1e] border border-[#d4b483]";
-    if (e === 'anulada' || e === 'anulado') return "bg-[#7a5230] text-[#f0d9b5] border border-[#5c3a1e]";
-    if (e === 'pendiente') return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
-    if (e === 'procesado') return "bg-blue-500/10 text-blue-400 border border-blue-500/20";
-    return "bg-gray-medium text-gray-lighter";
-  };
-
-  const getMotivoLabel = (motivoCategoria: string) => {
-    const motivo = MOTIVOS_DEVOLUCION.find(m => m.value === motivoCategoria);
-    return motivo ? motivo.label : motivoCategoria;
-  };
-
-  const badgeClass = (estado: string) => {
-    const e = (estado || '').toLowerCase().trim();
-    if (e === "completada" || e === "completado" || e === "activo") return "badge badge-completada";
-    if (e === "anulada" || e === "anulado") return "badge badge-anulada";
-    return "badge badge-pendiente";
-  };
-
-  const normalizeEstadoVenta = (estado: string) => {
-    return String(estado || '').toLowerCase().trim();
-  };
-
-  // Retorna el saldo disponible actual del cliente (no el monto histórico de la devolución)
-  const getSaldoDisponible = (dev: Devolucion): number => {
-    const clienteId = Number(dev.clienteId);
-    if (clienteId > 0 && saldosDisponiblesPorCliente.has(clienteId)) {
-      return saldosDisponiblesPorCliente.get(clienteId)!;
-    }
-    return dev.saldoAFavor;
-  };
-
-  // Función para calcular el saldo disponible actual de un cliente por ID
-  const getSaldoTotalCliente = (clienteId: string): number => {
-    const id = Number(clienteId);
-    if (id > 0 && saldosDisponiblesPorCliente.has(id)) {
-      return saldosDisponiblesPorCliente.get(id)!;
-    }
-    return devoluciones
-      .filter(d => d.clienteId === clienteId && d.estado === 'Completada')
-      .reduce((total, d) => total + d.saldoAFavor, 0);
-  };
 
   const handleVentaChange = async (ventaIdStr: string) => {
     const ventaId = Number(ventaIdStr);
@@ -1678,94 +1699,99 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                                         </td>
                                       </tr>
                                     ) : (
-                                      devsFiltradas.map((dev) => (
-                                        <tr key={dev.id} className="dev-item-row">
+                                      devsFiltradas.map((dev) => {
+                                        const isDevBarbero = !!(dev.barberoId && dev.barberoId > 0) && (!dev.clienteId || dev.clienteId === '0' || dev.clienteId === '');
+                                        const saldoIndividual = isDevBarbero ? 0 : (Number(dev.saldoAFavor) || 0);
+                                        
+                                        return (
+                                          <tr key={dev.id} className="dev-item-row">
 
-                                          {/* Número */}
-                                          <td
-                                            className="dev-td"
-                                            style={{ paddingLeft: "52px", textAlign: "left" }}
-                                          >
-                                            <span className="dev-num">
-                                              <Hash className="w-3 h-3" />
-                                              {dev.id}
-                                            </span>
-                                          </td>
-
-                                          {/* Tipo */}
-                                          <td className="dev-td">
-                                            {dev.ventaId ? 'Venta' : '—'}
-                                          </td>
-
-                                          {/* Monto */}
-                                          <td
-                                            className="dev-td"
-                                            style={{ fontWeight: 400, color: T.grayLightest }}
-                                          >
-                                            ${formatCurrency(dev.monto)}
-                                          </td>
-
-                                          {/* Saldo a Favor */}
-                                          <td className="dev-td">
-                                            <span
-                                              style={{
-                                                color: getSaldoDisponible(dev) > 0 ? (isAdminOrSuperAdmin ? T.red : T.green) : T.grayDark,
-                                                fontWeight: 400,
-                                              }}
+                                            {/* Número */}
+                                            <td
+                                              className="dev-td"
+                                              style={{ paddingLeft: "52px", textAlign: "left" }}
                                             >
-                                              ${formatCurrency(getSaldoDisponible(dev))}
-                                            </span>
-                                          </td>
+                                              <span className="dev-num">
+                                                <Hash className="w-3 h-3" />
+                                                {dev.id}
+                                              </span>
+                                            </td>
 
-                                          {/* Fecha */}
-                                          <td className="dev-td">{dev.fecha}</td>
+                                            {/* Tipo */}
+                                            <td className="dev-td">
+                                              {dev.ventaId ? 'Venta' : '—'}
+                                            </td>
 
-                                          {/* Estado */}
-                                          <td className="dev-td">
-                                            <span className={badgeClass(dev.estado)}>
-                                              {dev.estado}
-                                            </span>
-                                          </td>
-
-                                          {/* Acciones */}
-                                          <td className="dev-td">
-                                            <div
-                                              style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                gap: "4px",
-                                              }}
+                                            {/* Monto */}
+                                            <td
+                                              className="dev-td"
+                                              style={{ fontWeight: 400, color: T.grayLightest }}
                                             >
-                                              <button
-                                                className="dev-icon-btn ban"
-                                                title="Anular devolución"
-                                                disabled={dev.estado !== "Completada"}
-                                                onClick={() => handleToggleEstado(dev)}
-                                              >
-                                                <Ban className="w-4 h-4" />
-                                              </button>
-                                              <button
-                                                className="dev-icon-btn eye"
-                                                title="Ver detalle"
-                                                onClick={() => {
-                                                  setSelectedDevolucion(dev);
-                                                  setIsDetailDialogOpen(true);
+                                              ${formatCurrency(dev.monto)}
+                                            </td>
+
+                                            {/* Saldo a Favor (de esta devolución) */}
+                                            <td className="dev-td">
+                                              <span
+                                                style={{
+                                                  color: saldoIndividual > 0 ? (isAdminOrSuperAdmin ? T.red : T.green) : T.grayDark,
+                                                  fontWeight: 400,
                                                 }}
                                               >
-                                                <Eye className="w-4 h-4" />
-                                              </button>
-                                              <button
-                                                className="dev-icon-btn pdf"
-                                                title="Descargar PDF"
-                                                onClick={() => generateIndividualPdf(dev)}
+                                                ${formatCurrency(saldoIndividual)}
+                                              </span>
+                                            </td>
+
+                                            {/* Fecha */}
+                                            <td className="dev-td">{dev.fecha}</td>
+
+                                            {/* Estado */}
+                                            <td className="dev-td">
+                                              <span className={badgeClass(dev.estado)}>
+                                                {dev.estado}
+                                              </span>
+                                            </td>
+
+                                            {/* Acciones */}
+                                            <td className="dev-td">
+                                              <div
+                                                style={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  justifyContent: "center",
+                                                  gap: "4px",
+                                                }}
                                               >
-                                                <FileDown className="w-4 h-4" />
-                                              </button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))
+                                                <button
+                                                  className="dev-icon-btn ban"
+                                                  title="Anular devolución"
+                                                  disabled={dev.estado !== "Completada"}
+                                                  onClick={() => handleToggleEstado(dev)}
+                                                >
+                                                  <Ban className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                  className="dev-icon-btn eye"
+                                                  title="Ver detalle"
+                                                  onClick={() => {
+                                                    setSelectedDevolucion(dev);
+                                                    setIsDetailDialogOpen(true);
+                                                  }}
+                                                >
+                                                  <Eye className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                  className="dev-icon-btn pdf"
+                                                  title="Descargar PDF"
+                                                  onClick={() => generateIndividualPdf(dev)}
+                                                >
+                                                  <FileDown className="w-4 h-4" />
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })
                                     )}
                                   </tbody>
                                 </table>

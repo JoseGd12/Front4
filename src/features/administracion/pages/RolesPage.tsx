@@ -22,7 +22,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "../../../shared/components/ui/notify";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -144,17 +143,32 @@ export function RolesPage() {
     return roles.some(r => r.nombre.trim().toLowerCase() === val);
   }, [nuevoRol.nombre, roles]);
 
+  const isEditingNombreDuplicate = useMemo(() => {
+    if (!editingRole) return false;
+    const val = editingRole.nombre.trim().toLowerCase();
+    if (!val) return false;
+    return roles.some(r => r.id !== editingRole.id && r.nombre.trim().toLowerCase() === val);
+  }, [editingRole, roles]);
+
   // Validación unificada para roles
-  const validateRoleData = useCallback((roleData: { nombre: string; modulos: string[] }) => {
+  const validateRoleData = useCallback((roleData: { nombre: string; modulos: string[] }, excludeId?: string) => {
     if (!roleData.nombre.trim()) {
       showError("El nombre del rol es obligatorio");
       return false;
     }
 
     const nombreDuplicado = roles.some(
-      r => r.nombre.trim().toLowerCase() === roleData.nombre.trim().toLowerCase()
+      r => (excludeId ? r.id !== excludeId : true) && 
+           r.nombre.trim().toLowerCase() === roleData.nombre.trim().toLowerCase()
     );
-    if (nombreDuplicado) {
+
+    // Si estamos creando (excludeId es undefined) y el nombre existe, es duplicado.
+    // Si estamos editando (excludeId existe) y encontramos OTRO rol con el mismo nombre, es duplicado.
+    const isActuallyDuplicate = excludeId 
+      ? roles.some(r => r.id !== excludeId && r.nombre.trim().toLowerCase() === roleData.nombre.trim().toLowerCase())
+      : roles.some(r => r.nombre.trim().toLowerCase() === roleData.nombre.trim().toLowerCase());
+
+    if (isActuallyDuplicate) {
       showError("Nombre duplicado", `Ya existe un rol con el nombre "${roleData.nombre.trim()}".`);
       return false;
     }
@@ -173,7 +187,7 @@ export function RolesPage() {
     }
 
     return true;
-  }, [showError, modulosProyecto]);
+  }, [showError, modulosProyecto, roles]);
 
   // Funciones para manejar la selección de módulos
   const toggleModulo = useCallback((moduloId: string, isEditing: boolean = false) => {
@@ -331,7 +345,7 @@ export function RolesPage() {
   // Función para editar rol
   const handleEditRole = useCallback(async () => {
     setHasTriedToSubmit(true);
-    if (!editingRole || !validateRoleData(editingRole)) return;
+    if (!editingRole || !validateRoleData(editingRole, editingRole.id)) return;
 
     try {
       setIsEditing(true);
@@ -391,8 +405,6 @@ export function RolesPage() {
     }
 
     try {
-      const loadingToast = toast.loading("Cambiando estado...");
-
       // Actualizar el estado del rol
       const updateData: UpdateRoleData = {
         nombre: role.nombre,
@@ -402,7 +414,7 @@ export function RolesPage() {
         estado: newStatus
       };
 
-      const updatedRole = await rolesApiService.updateRoleWithModules(
+      await rolesApiService.updateRoleWithModules(
         parseInt(roleId),
         updateData
       );
@@ -416,15 +428,12 @@ export function RolesPage() {
         )
       );
 
-      toast.dismiss(loadingToast);
-
       showSuccess(
         newStatus ? "Rol activado" : "Rol desactivado",
         `El rol "${role.nombre}" ahora está ${newStatus ? "activo" : "inactivo"}`
       );
 
     } catch (err) {
-      toast.dismiss();
       logger.error('Error cambiando estado del rol:', err);
       showError("Error", "No se pudo cambiar el estado del rol");
     }
@@ -841,10 +850,13 @@ export function RolesPage() {
                     value={nuevoRol.nombre}
                     onChange={(val) => setNuevoRol({ ...nuevoRol, nombre: val })}
                     placeholder="Ej: Content Manager"
-                    className={`elegante-input w-full ${hasTriedToSubmit && !nuevoRol.nombre.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                    className={`elegante-input w-full ${hasTriedToSubmit && (!nuevoRol.nombre.trim() || isNombreRolDuplicate) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   />
                   {hasTriedToSubmit && !nuevoRol.nombre.trim() && (
                     <p className="text-xs text-red-500 mt-1">Este campo es obligatorio.</p>
+                  )}
+                  {isNombreRolDuplicate && (
+                    <p className="text-xs text-red-500 mt-1">Este nombre de rol ya existe.</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -986,10 +998,13 @@ export function RolesPage() {
                     <NameInput
                       value={editingRole.nombre}
                       onChange={(val) => setEditingRole({ ...editingRole, nombre: val })}
-                      className={`elegante-input w-full ${hasTriedToSubmit && !editingRole.nombre.trim() ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                      className={`elegante-input w-full ${hasTriedToSubmit && (!editingRole.nombre.trim() || isEditingNombreDuplicate) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                     />
                     {hasTriedToSubmit && !editingRole.nombre.trim() && (
                       <p className="text-xs text-red-500 mt-1">Este campo es obligatorio.</p>
+                    )}
+                    {isEditingNombreDuplicate && (
+                      <p className="text-xs text-red-500 mt-1">Este nombre de rol ya existe.</p>
                     )}
                   </div>
                   <div className="space-y-2">

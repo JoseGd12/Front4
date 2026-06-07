@@ -20,11 +20,11 @@ class HttpClient {
     return crypto.randomUUID();
   }
 
-  private async getHeaders(method: string, customHeaders: HeadersInit = {}): Promise<Headers> {
+  private async getHeaders(method: string, body: any, customHeaders: HeadersInit = {}): Promise<Headers> {
     const headers = new Headers(customHeaders);
 
     const hasBody = !['GET', 'DELETE', 'HEAD'].includes(method.toUpperCase());
-    if (hasBody && !(customHeaders instanceof FormData) && !headers.has('Content-Type')) {
+    if (hasBody && !(body instanceof FormData) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
 
@@ -62,7 +62,7 @@ class HttpClient {
     const url = endpoint.startsWith('http') ? endpoint : `${base}${path}`;
     
     const method = (options.method || 'GET').toUpperCase();
-    const headers = await this.getHeaders(method, options.headers);
+    const headers = await this.getHeaders(method, options.body, options.headers);
     
     const config: RequestInit = {
       ...options,

@@ -21,19 +21,7 @@ const css = `
   .cred-card { background:var(--gray-darkest); border:1px solid var(--gray-darker); border-radius:14px; overflow:hidden; }
 
   /* Toolbar */
-  .cred-toolbar {
-    display:flex; align-items:center; gap:14px; padding:16px 20px;
-    border-bottom:1px solid var(--gray-darker); flex-wrap:wrap; background:var(--gray-darkest);
-  }
   .cred-search-wrap { position:relative; flex:1; min-width:180px; max-width:360px; }
-  .cred-search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--gray-dark); pointer-events:none; display:flex; }
-  .cred-search {
-    width:100%; padding:9px 14px 9px 36px; background:var(--black-secondary);
-    border:1px solid var(--gray-darker); border-radius:8px; color:var(--white-primary);
-    font-size:13px; outline:none; font-family:inherit; transition:border-color .15s;
-  }
-  .cred-search::placeholder { color:var(--gray-dark); }
-  .cred-search:focus { border-color:var(--orange-primary); }
   .cred-count { margin-left:auto; font-size:13px; color:var(--gray-lightest); white-space:nowrap; }
 
   /* Main table */
@@ -225,6 +213,7 @@ const css = `
   .cred-icon-action[data-tip]:hover::after { opacity: 1; }
 `;
 
+import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "../../../shared/components/ui/dialog";
@@ -351,10 +340,11 @@ export function CreditoBarberosPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages]   = useState(1);
-  const PAGE_SIZE = 5;
+  const PAGE_SIZE = 5; // Fetch a large enough page to filter on frontend
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm,  setSearchTerm]  = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("sin-pagar");
   const [expandedId,  setExpandedId]  = useState<number | null>(null);
   const SUBTAB_PAGE_SIZE = 5;
   const [ventasPage, setVentasPage] = useState<Record<number, number>>({});
@@ -457,7 +447,7 @@ export function CreditoBarberosPage() {
     }
   }, []);
 
-  useEffect(() => { fetchCreditos(currentPage, searchTerm); }, [currentPage, searchTerm]);
+  useEffect(() => { fetchCreditos(1, searchTerm); }, [searchTerm, fetchCreditos]);
 
   // Cargar abonos al expandir una fila
   useEffect(() => {
@@ -469,15 +459,45 @@ export function CreditoBarberosPage() {
     }
   }, [expandedId]);
 
-  const handleSearch = (val: string) => {
-    setSearchInput(val);
-    setSearchTerm(val);
-    setCurrentPage(1);
-  };
+  const filteredAndOrdered = useMemo(() => {
+    let result = [...creditos];
 
-  const ordenados = useMemo(() => {
-    return [...creditos].sort((a, b) => estadoPrioridad(a.estado) - estadoPrioridad(b.estado));
-  }, [creditos]);
+    // Filter by status
+    if (statusFilter !== "todos") {
+      if (statusFilter === "sin-pagar") {
+        result = result.filter(c => !esPagado(c.estado));
+      } else if (statusFilter === "bloqueado") {
+        result = result.filter(c => esBloqueado(c.estado));
+      } else {
+        result = result.filter(c => c.estado.toLowerCase() === statusFilter.toLowerCase());
+      }
+    }
+
+    // Filter by search term (if not already handled by server)
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase().trim();
+      result = result.filter(c =>
+        (c.barberoNombre || "").toLowerCase().includes(q) ||
+        String(c.barberoId).includes(q) ||
+        c.estado.toLowerCase().includes(q)
+      );
+    }
+
+    return result.sort((a, b) => estadoPrioridad(a.estado) - estadoPrioridad(b.estado));
+  }, [creditos, statusFilter, searchTerm]);
+
+  // Pagination for the filtered list
+  const UI_PAGE_SIZE = 8;
+  const uiTotalPages = Math.max(1, Math.ceil(filteredAndOrdered.length / UI_PAGE_SIZE));
+  const displayedCreditos = useMemo(() => {
+    const start = (currentPage - 1) * UI_PAGE_SIZE;
+    return filteredAndOrdered.slice(start, start + UI_PAGE_SIZE);
+  }, [filteredAndOrdered, currentPage]);
+
+  useEffect(() => {
+    // Reset to first page when filter changes
+    setCurrentPage(1);
+  }, [statusFilter, searchTerm]);
 
   // ── Abonos inline ────────────────────────────────────────────────────────────
   const loadInlineAbonos = useCallback(async (barberoId: number) => {
@@ -555,7 +575,7 @@ export function CreditoBarberosPage() {
       if (inlineAbonos[registrarCredito!.barberoId] !== undefined) {
         loadInlineAbonos(registrarCredito!.barberoId);
       }
-      fetchCreditos(currentPage, searchTerm);
+      fetchCreditos(1, searchTerm);
     } catch (err: any) {
       const raw: string = err?.message || "No se pudo registrar el abono";
       setAbonoApiError(raw.replace(/^Error del servidor \(\d+\):\s*/i, "").trim());
@@ -575,7 +595,7 @@ export function CreditoBarberosPage() {
       });
       created("Plazo extendido", `El plazo del ciclo de ${extenderCredito.barberoNombre} se extendió a 14 dias.`);
       setExtenderOpen(false);
-      fetchCreditos(currentPage, searchTerm);
+      fetchCreditos(1, searchTerm);
     } catch (err: any) {
       showErrorAlert("Error", err?.message || "No se pudo extender el plazo");
     } finally {
@@ -588,14 +608,19 @@ export function CreditoBarberosPage() {
   const montoValido    = montoNum > 0 && (!registrarCredito || montoNum <= registrarCredito.saldoDeuda);
   const saldoTrasAbono = registrarCredito ? Math.max(0, registrarCredito.saldoDeuda - montoNum) : 0;
 
+  const handleSearch = (val: string) => {
+    setSearchInput(val);
+    setSearchTerm(val);
+  };
+
   const creditosFiltradosModal = useMemo(() => {
     const q = barberoSearch.toLowerCase().trim();
-    if (!q) return ordenados;
-    return ordenados.filter(c =>
+    if (!q) return filteredAndOrdered;
+    return filteredAndOrdered.filter(c =>
       (c.barberoNombre || "").toLowerCase().includes(q) ||
       String(c.barberoId).includes(q)
     );
-  }, [ordenados, barberoSearch]);
+  }, [filteredAndOrdered, barberoSearch]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -607,24 +632,32 @@ export function CreditoBarberosPage() {
         <div className="cred-card">
 
           {/* Toolbar */}
-          <div className="cred-toolbar">
-            <button className="btn-std-primary" onClick={() => openRegistrar(null)}>
-              <Wallet className="w-4 h-4" />
-              Registrar Abono
-            </button>
-
-            <div className="cred-search-wrap">
-              <span className="cred-search-icon"><Search className="w-4 h-4" /></span>
-              <input
-                className="cred-search"
-                placeholder="Buscar por nombre de barbero o estado..."
-                value={searchInput}
-                onChange={e => handleSearch(e.target.value)}
-              />
-            </div>
-
-            <span className="cred-count">{totalCount} registro{totalCount !== 1 ? "s" : ""}</span>
-          </div>
+          <TableHeaderSection
+            variant="dark"
+            className="px-5 pt-4"
+            leftContent={(
+              <button className="btn-std-primary" onClick={() => openRegistrar(null)}>
+                <Wallet className="w-4 h-4" />
+                Registrar Abono
+              </button>
+            )}
+            searchValue={searchInput}
+            onSearchChange={handleSearch}
+            searchPlaceholder="Buscar por nombre de barbero..."
+            statusFilter={{
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: [
+                { value: "sin-pagar", label: "Sin pagar (Deuda)" },
+                { value: "todos", label: "Todos los estados" },
+                { value: "activo", label: "Solo Activos" },
+                { value: "pagado", label: "Solo Pagados" },
+                { value: "bloqueado", label: "Solo Bloqueados" },
+              ],
+            }}
+            recordsText={`${filteredAndOrdered.length} registro${filteredAndOrdered.length !== 1 ? "s" : ""}`}
+            recordsPlacement="right"
+          />
 
           {/* Table */}
           <div style={{ overflowX: "auto" }}>
@@ -646,13 +679,13 @@ export function CreditoBarberosPage() {
                       Cargando creditos...
                     </td>
                   </tr>
-                ) : ordenados.length === 0 ? (
+                ) : displayedCreditos.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
                       No hay barberos con credito registrado.
                     </td>
                   </tr>
-                ) : ordenados.map(c => {
+                ) : displayedCreditos.map(c => {
                   const isOpen     = expandedId === c.barberoId;
                   const barbero    = barberosMap[c.barberoId];
                   const ventasCred = (ventasCreditoPorBarbero[c.barberoId] || []).filter((v: any) => {
@@ -1078,8 +1111,8 @@ export function CreditoBarberosPage() {
 
           {/* Paginacion */}
           <div className="std-pagination">
-            <span className="std-pag-info">Pagina {currentPage} de {totalPages}</span>
-            <EllipsisPagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            <span className="std-pag-info">Pagina {currentPage} de {uiTotalPages}</span>
+            <EllipsisPagination currentPage={currentPage} totalPages={uiTotalPages} onPageChange={setCurrentPage} />
           </div>
         </div>
       </div>

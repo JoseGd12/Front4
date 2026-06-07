@@ -90,7 +90,7 @@ class ServicioService {
   }
 
   async updateServicioStatus(id: number, estado: boolean): Promise<void> {
-    await httpClient.post(`/servicios/${id}/estado`, { estado });
+    await httpClient.put(`/servicios/${id}/estado`, { estado });
   }
 }
 

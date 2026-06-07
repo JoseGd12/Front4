@@ -132,7 +132,7 @@ class ProductoService {
   }
 
   async updateProductoStatus(id: number, activo: boolean): Promise<void> {
-    await httpClient.post(`/Productos/${id}/estado`, { activo });
+    await httpClient.put(`/Productos/${id}/estado`, { estado: activo });
   }
 
   async adjustStock(id: number, delta: number, mode: 'increment' | 'decrement' = 'increment'): Promise<void> {
@@ -196,12 +196,12 @@ class ProductoService {
       Nombre: p.nombre,
       Descripcion: p.descripcion,
       CategoriaId: p.categoriaId || p.categoria?.id,
-      Precio: p.precio || p.precioVenta,
-      PrecioBase: p.precioBase,
+      PrecioVenta: p.precioVenta ?? p.precio,
+      PrecioCompra: p.precioCompra,
       Stock: p.stock ?? p.cantidad,
       Marca: p.marca,
       ImagenProduc: p.imagenProduc || p.imagen,
-      Activo: p.activo ?? p.estado,
+      Estado: p.activo ?? p.estado,
       IVA: p.iva,
       PorcentajeIva: p.porcentajeIva
     };

@@ -37,42 +37,6 @@ export interface CreateDevolucionRequest {
 }
 
 class DevolucionService {
-    private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-        const url = `${API_BASE_URL}${endpoint}`;
-
-        const defaultHeaders = {
-            'Content-Type': 'application/json',
-        };
-
-        const config: RequestInit = {
-            ...options,
-            headers: {
-                ...defaultHeaders,
-                ...options.headers,
-            },
-        };
-
-        try {
-            console.log(`🚀 DevolucionService [${config.method || 'GET'}]: ${url}`);
-            const response = await fetch(url, config);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`❌ DevolucionService Error [${response.status}]: ${errorText}`);
-                throw new Error(`Error del servidor (${response.status}): ${errorText || response.statusText}`);
-            }
-
-            return response;
-        } catch (error: any) {
-            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-                console.error('🛑 ERROR DE RED/CORS: La petición fue bloqueada o el servidor cerró la conexión.');
-                console.warn('Posibles causas:\n1. Referencias circulares en C# (quita los .Include del PUT).\n2. El hosting Somee bloquea verbos PUT/DELETE.\n3. Error de CORS en el Preflight (OPTIONS).');
-            }
-            console.error('DevolucionService Network/API Error:', error);
-            throw error;
-        }
-    }
-
     private async normalizeDevolucionData(data: any): Promise<Devolucion> {
         if (!data) return {} as Devolucion;
 
@@ -121,12 +85,10 @@ class DevolucionService {
 
   async getDevolucionesByClienteId(clienteId: number): Promise<Devolucion[]> {
     try {
-        const response = await this.request(`/Devoluciones/cliente/${clienteId}`);
-        const text = await response.text();
-        const parsed = text ? JSON.parse(text) : [];
-        const arr: any[] = Array.isArray(parsed)
-          ? parsed
-          : (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) ? parsed.items : [];
+        const payload = await httpClient.get(`/Devoluciones/cliente/${clienteId}`);
+        const arr: any[] = Array.isArray(payload)
+          ? payload
+          : (payload && typeof payload === 'object' && Array.isArray(payload.items)) ? payload.items : [];
         return await Promise.all(arr.map((item: any) => this.normalizeDevolucionData(item)));
     } catch (error) {
         console.warn('Error fetching devoluciones by clienteId, filtering local:', error);
@@ -137,7 +99,8 @@ class DevolucionService {
 
   async getDevoluciones(): Promise<Devolucion[]> {
     try {
-      const data = await httpClient.get('/Devoluciones');
+      // FE-M12: Aumentar pageSize para obtener más registros en el listado inicial
+      const data = await httpClient.get('/Devoluciones?pageSize=500');
       const items = Array.isArray(data) ? data : (data.items || []);
       return await Promise.all(items.map(v => this.normalizeDevolucionData(v)));
     } catch (error: any) {
@@ -161,10 +124,7 @@ class DevolucionService {
             console.log(`📤 [POST] Actualizando estado devolución ${id} a: ${estado}`);
 
             // Cambiamos a POST para evitar bloqueos del servidor Somee
-            await this.request(`/Devoluciones/${id}/estado`, {
-                method: 'POST',
-                body: JSON.stringify({ estado: estado }),
-            });
+            await httpClient.post(`/Devoluciones/${id}/estado`, { estado: estado });
         } catch (error) {
             console.error(`Error al actualizar estado de Devolucion ${id}:`, error);
             throw error;
@@ -195,10 +155,7 @@ class DevolucionService {
                 }))
             };
             console.log('📤 Creando devolución en lote:', payload);
-            await this.request('/Devoluciones/lote', {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            });
+            await httpClient.post('/Devoluciones/lote', payload);
         } catch (error) {
             console.error('Error creating devolucion batch:', error);
             throw error;
@@ -220,9 +177,7 @@ class DevolucionService {
      */
     async anularDevolucion(id: number): Promise<void> {
         try {
-            await this.request(`/Devoluciones/${id}/anular`, {
-                method: 'POST',
-            });
+            await httpClient.post(`/Devoluciones/${id}/anular`);
         } catch (error) {
             console.error(`Error anulando devolucion ${id}:`, error);
             throw error;
@@ -235,9 +190,7 @@ class DevolucionService {
      */
     async getDevolucionesPorCliente(clienteId: number, page = 1, pageSize = 20): Promise<any> {
         try {
-            const response = await this.request(`/Devoluciones/cliente/${clienteId}?page=${page}&pageSize=${pageSize}`);
-            const text = await response.text();
-            return text ? JSON.parse(text) : { items: [], totalCount: 0 };
+            return await httpClient.get(`/Devoluciones/cliente/${clienteId}?page=${page}&pageSize=${pageSize}`);
         } catch (error) {
             console.error(`Error obteniendo devoluciones del cliente ${clienteId}:`, error);
             throw error;

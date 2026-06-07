@@ -156,13 +156,17 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
       setLoading(true);
       const [devs, sales, clientes, productos, categorias] = await Promise.all([
         devolucionService.getDevoluciones().catch(() => []),
-        ventaService.getVentas().catch(() => []),
-        clientesService.getClientes().catch(() => []),
+        ventaService.getVentas(1, 100).catch(() => []),
+        clientesService.getClientesPaged({ page: 1, pageSize: 200 }).catch(() => ({ items: [], totalCount: 0 })),
         productoService.getProductos().catch(() => []),
         categoriaService.getCategorias().catch(() => []),
       ]);
 
+      const salesList = Array.isArray(sales) ? sales : ((sales as any).items || []);
+      const clientesList = Array.isArray(clientes) ? clientes : ((clientes as any).items || []);
+
       setDevolucionesCount(Array.isArray(devs) ? devs.length : 0);
+      const devolucionesValidas = (devs || []).filter((d: any) => d.estado !== 'Anulada');
       setDevoluciones(devs || []);
 
       const categoriasById = new Map<number, string>();
@@ -178,36 +182,51 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
         if (id > 0 && imagen.trim()) imagenesMap[id] = imagen;
       });
       setImagenesProductosCatalogo(imagenesMap);
+
       // Mapa de clientes
       const clientesMapa = new Map<number, { documento: string; tipoDocumento?: string; nombreCompleto?: string }>();
-      (clientes || []).forEach((cliente: any) => {
-        if (cliente.id) {
-          const documentoStr = cliente.documento || '';
+      (clientesList || []).forEach((cliente: any) => {
+        const id = Number(cliente.id || cliente.Id);
+        if (id) {
+          const documentoStr = cliente.documento || cliente.numeroDocumento || '';
           const partesDocumento = documentoStr.split(' ');
-          const tipoDocumento = partesDocumento.length > 1 ? partesDocumento[0] : 'CC';
+          const tipoDocumento = partesDocumento.length > 1 ? partesDocumento[0] : (cliente.tipoDocumento || 'CC');
           const numeroDocumento = partesDocumento.length > 1 ? partesDocumento.slice(1).join(' ') : documentoStr;
           const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellido || ''}`.trim();
-          clientesMapa.set(cliente.id, { documento: numeroDocumento, tipoDocumento, nombreCompleto });
+          clientesMapa.set(id, { documento: numeroDocumento, tipoDocumento, nombreCompleto });
         }
       });
 
       // Formatear ventas
       const normalizeEstadoVenta = (estado: string) => String(estado || '').toLowerCase().trim();
-      const formattedSales = (sales || []).map((s: any) => {
+      const formattedSales = (salesList || []).map((s: any) => {
         const clienteIdNum = Number(s.clienteId || 0);
         const clienteInfo = clienteIdNum > 0 ? clientesMapa.get(clienteIdNum) : undefined;
-        let clienteNombre = typeof s.cliente === 'string' ? s.cliente : '';
-        if (!clienteNombre || clienteNombre.toLowerCase() === 'cliente') {
-          clienteNombre = clienteInfo?.nombreCompleto || clienteNombre || 'Cliente';
+        
+        let clienteNombre = String(s.cliente || '');
+        
+        // Si el cliente es genérico o vacío, intentar mejorar con info de mapa o barbero
+        if (!clienteNombre || clienteNombre.toLowerCase() === 'cliente' || clienteNombre.toLowerCase() === 'venta directa') {
+          if (clienteInfo?.nombreCompleto) {
+            clienteNombre = clienteInfo.nombreCompleto;
+          } else if (s.barbero && s.barbero !== 'Sin asignar') {
+            clienteNombre = s.barbero;
+          } else if (s.clienteNombreCompleto) {
+            clienteNombre = s.clienteNombreCompleto;
+          }
         }
+
         const clienteDocumento = String(
-          s.clienteDocumento || (clienteInfo?.documento ? `${clienteInfo?.tipoDocumento || 'CC'} ${clienteInfo.documento}` : '')
+          s.clienteDocumento || 
+          (clienteInfo?.documento ? `${clienteInfo?.tipoDocumento || 'CC'} ${clienteInfo.documento}` : '') ||
+          s.barberoDocumento || 
+          ''
         );
 
         return {
           id: s.id,
           numeroVenta: String(s.numeroVenta || s.id),
-          cliente: clienteNombre,
+          cliente: clienteNombre || 'Cliente',
           clienteDocumento,
           clienteId: s.clienteId,
           barberoId: s.barberoId,
@@ -216,13 +235,23 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
           garantiaMeses: Number(s.garantiaMeses || 1),
           total: s.total,
           estado: s.estado || 'Completada',
-          productos: (s.productosDetalle || []).map((p: any) => ({
-            id: Number(p.id || p.productoId || p.ProductoId || 0),
-            nombre: p.nombre,
-            precio: Number(p.precio || 0),
-            cantidad: Number(p.cantidad || 0),
-            imagen: String(p.imagen || p.imagenProduc || p.imagenUrl || imagenesMap[Number(p.id || p.productoId || 0)] || '')
-          }))
+          productos: (s.productosDetalle || []).map((p: any) => {
+            const pid = Number(p.id || p.productoId || p.ProductoId || 0);
+            
+            // Calcular cantidad ya devuelta para este producto en esta venta
+            const cantDevuelta = devolucionesValidas
+              .filter((d: any) => Number(d.ventaId) === Number(s.id) && Number(d.productoId) === pid)
+              .reduce((sum: number, d: any) => sum + Number(d.cantidad || 0), 0);
+
+            return {
+              id: pid,
+              nombre: p.nombre,
+              precio: Number(p.precio || 0),
+              cantidadOriginal: Number(p.cantidad || 0),
+              cantidad: Math.max(0, Number(p.cantidad || 0) - cantDevuelta),
+              imagen: String(p.imagen || p.imagenProduc || p.imagenUrl || imagenesMap[pid] || '')
+            };
+          })
         };
       });
 

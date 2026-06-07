@@ -102,7 +102,7 @@ class ClientesService {
       fechaRegistro: new Date().toLocaleDateString(),
       activo: apiCliente.estado === true || apiCliente.Estado === true,
       fotoPerfil: apiCliente.fotoPerfil || apiCliente.FotoPerfil || apiCliente.imagenUrl || '',
-      saldoAFavor: Number(apiCliente.saldoAFavor || apiCliente.SaldoAFavor || 0)
+      saldoAFavor: Number(apiCliente.saldoAFavor || apiCliente.SaldoAFavor || apiCliente.saldoFavor || apiCliente.SaldoFavor || 0)
     };
   }
 
@@ -176,8 +176,8 @@ class ClientesService {
   /**
    * @deprecated Usar getClientesPaged para mejor rendimiento.
    */
-  async getClientes(): Promise<ClienteAPI[]> {
-    const res = await this.getClientesPaged({ page: 1, pageSize: 100 });
+  async getClientes(): Promise<any[]> {
+    const res = await this.getClientesPaged({ page: 1, pageSize: 500 });
     return res.items.map(c => ({
       id: Number(c.id),
       nombre: c.nombre,
@@ -190,7 +190,8 @@ class ClientesService {
       fechaNacimiento: c.fechaNacimiento,
       fotoPerfil: c.fotoPerfil,
       estado: c.activo,
-      usuarioId: c.usuarioId
+      usuarioId: c.usuarioId,
+      saldoAFavor: c.saldoAFavor
     }));
   }
 
