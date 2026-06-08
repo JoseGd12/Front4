@@ -16,6 +16,7 @@
   --gray-lightest: #d0d0d0;
   --orange-primary: #d8b081;
   --orange-secondary: #d8b081;
+  --orange-lighter: #eedcb8;
   --orange-darker: #c4a06d;
   --white-primary: #FFFFFF;
   --white-secondary: #F5F5F5;
@@ -122,6 +123,7 @@
   --color-gray-lightest: var(--gray-lightest);
   --color-orange-primary: var(--orange-primary);
   --color-orange-secondary: var(--orange-secondary);
+  --color-orange-lighter: var(--orange-lighter);
   --color-orange-darker: var(--orange-darker);
   --color-white-primary: var(--white-primary);
   --color-white-secondary: var(--white-secondary);

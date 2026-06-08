@@ -590,16 +590,44 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     ]
   );
 
+  const [barberoHorarioWarning, setBarberoHorarioWarning] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!nuevaCita.barberoId || !nuevaCita.fecha) return;
+    if (!nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
+      setBarberoHorarioWarning(null);
+      return;
+    }
     const sigueDisponible = barberosParaFormulario.some(
       (b) => Number(b.id) === Number(nuevaCita.barberoId)
     );
     if (!sigueDisponible) {
-      setNuevaCita((prev) => ({ ...prev, barberoId: 0, barbero: '' }));
-      setBarberoFormSearchTerm('');
+      const horariosBarbero = getHorariosBarberoParaDia(horariosList, nuevaCita.barberoId, nuevaCita.fecha);
+      if (horariosBarbero.length > 0) {
+        const [hh, mm] = nuevaCita.hora.split(':').map(Number);
+        const inicioMin = hh * 60 + mm;
+        const finCitaMin = inicioMin + nuevaCita.duracion;
+        const bloque = horariosBarbero.find(h => {
+          const s = parseHoraAMinutos(h.horaInicio || '00:00');
+          const e = parseHoraAMinutos(h.horaFin || '23:59');
+          return inicioMin >= s && inicioMin < e;
+        });
+        if (bloque) {
+          const horaFinStr = bloque.horaFin || '';
+          const finBloqueMin = parseHoraAMinutos(horaFinStr);
+          const exceso = finCitaMin - finBloqueMin;
+          if (exceso > 0) {
+            setBarberoHorarioWarning(
+              `El barbero termina su jornada a las ${formatHoraStr12(horaFinStr)}. Los servicios seleccionados suman ${nuevaCita.duracion} min y superan ese límite por ${exceso} min.`
+            );
+            return;
+          }
+        }
+      }
+      setBarberoHorarioWarning(null);
+    } else {
+      setBarberoHorarioWarning(null);
     }
-  }, [barberosParaFormulario, nuevaCita.barberoId, nuevaCita.fecha]);
+  }, [barberosParaFormulario, nuevaCita.barberoId, nuevaCita.fecha, nuevaCita.hora, nuevaCita.duracion]);
 
   // Cerrar dropdowns al hacer clic fuera
   useEffect(() => {
@@ -2682,6 +2710,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           onClick={() => {
                             setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
                             setBarberoFormSearchTerm('');
+                            setBarberoHorarioWarning(null);
                           }}
                           className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-white-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                           title="Cambiar barbero"
@@ -2716,6 +2745,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       onClear={() => {
                         setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
                         setBarberoFormSearchTerm('');
+                        setBarberoHorarioWarning(null);
                       }}
                       renderItem={(b) => (
                         <div className="flex items-center gap-3 w-full">
@@ -2741,6 +2771,19 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   )}
                 </div>
               </div>
+
+              {barberoHorarioWarning && (
+                <div className="flex items-center gap-0 py-1 px-2.5">
+                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
+                    <svg className="w-5 h-5 text-orange-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0 ml-2 mr-4 px-3 py-1.5 rounded-lg bg-orange-primary/10 border border-orange-primary/30">
+                    <p className="text-sm text-orange-primary leading-relaxed">{barberoHorarioWarning}</p>
+                  </div>
+                </div>
+              )}
 
               {/* ── Fila: Producto ── */}
               <div className="flex items-start gap-0 py-1.5 px-2">
@@ -4119,7 +4162,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           aria-hidden={!showDiscardDialog}
         >
           <div
-            className="absolute inset-0 bg-black/70"
+            className="absolute inset-0 bg-black/80"
             onClick={() => setShowDiscardDialog(false)}
           />
           <div
@@ -4127,7 +4170,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             aria-modal="true"
             aria-labelledby="discard-dialog-title"
             aria-describedby="discard-dialog-desc"
-            className="relative w-full max-w-md rounded-lg border border-gray-dark bg-gray-darkest p-6 shadow-xl"
+            className="relative w-full max-w-md rounded-xl border border-gray-dark bg-gray-darkest p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="discard-dialog-title" className="text-lg font-semibold text-white-primary">
@@ -4139,14 +4182,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                className="elegante-button-secondary"
+                className="elegante-button-primary rounded-xl"
                 onClick={() => setShowDiscardDialog(false)}
               >
                 Seguir editando
               </button>
               <button
                 type="button"
-                className="bg-transparent text-destructive border border-destructive hover:bg-destructive/10 font-semibold rounded-xl px-6 py-3"
+                className="bg-transparent text-gray-lightest border border-gray-dark hover:bg-gray-dark font-semibold rounded-xl px-6 py-3 transition-colors"
                 onClick={() => handleCloseModal(true)}
               >
                 Descartar

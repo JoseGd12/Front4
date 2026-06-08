@@ -100,27 +100,23 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
           </div>
 
           <div className="space-y-3">
-            <div className="auth-access-wrapper">
-              <Button
-                onClick={onBack}
-                className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
-              >
-                Volver al inicio de sesión
-              </Button>
-            </div>
+            <Button
+              onClick={onBack}
+              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+            >
+              Volver al inicio de sesión
+            </Button>
 
-            <div className="auth-access-wrapper !w-auto !p-2 !mt-1">
-              <button
-                onClick={() => {
-                  setSuccess(false);
-                  setEmail('');
-                  setError('');
-                }}
-                className="w-full text-xs text-[#d8b081] hover:text-[#e8c091] transition-colors underline uppercase tracking-widest font-bold"
-              >
-                Enviar a otro email
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setEmail('');
+                setError('');
+              }}
+              className="w-full text-xs text-orange-primary hover:text-white-primary transition-colors underline uppercase tracking-widest font-bold mt-1 p-2"
+            >
+              Enviar a otro email
+            </button>
           </div>
         </div>
       </div>
@@ -190,7 +186,7 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
           </div>
 
           {/* Send button */}
-          <div className="auth-access-wrapper">
+          <div>
             <Button
               type="submit"
               disabled={isLoading || !email.trim()}
@@ -213,16 +209,14 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
 
           {/* Back link */}
           <div className="flex justify-center mt-6">
-            <div className="auth-access-wrapper !w-auto !py-2 !px-4">
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Volver al inicio de sesión
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver al inicio de sesión
+            </button>
           </div>
         </form>
       </div>

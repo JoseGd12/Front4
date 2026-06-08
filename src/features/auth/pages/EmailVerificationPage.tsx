@@ -141,7 +141,7 @@ export function EmailVerificationPage({ onVerificationComplete, onBackToLogin }:
             <p className="text-gray-400 mb-8 leading-relaxed">
               Estás a un paso de activar tu cuenta. Confirma tu correo para comenzar.
             </p>
-            <div className="auth-access-wrapper">
+            <div>
               <button
                 onClick={() => handleVerify()}
                 className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] flex items-center justify-center gap-2"
@@ -172,7 +172,7 @@ export function EmailVerificationPage({ onVerificationComplete, onBackToLogin }:
             <p className="text-gray-400 mb-8 leading-relaxed">
               Tu cuenta ha sido activada. Ya puedes disfrutar de todos nuestros servicios.
             </p>
-            <div className="auth-access-wrapper">
+            <div>
               <button
                 onClick={onVerificationComplete}
                 className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] flex items-center justify-center gap-2"
@@ -191,7 +191,7 @@ export function EmailVerificationPage({ onVerificationComplete, onBackToLogin }:
             </div>
             <h1 className="text-3xl font-bold text-white mb-4 font-title">Error</h1>
             <p className="text-gray-400 mb-8 leading-relaxed">{errorMessage}</p>
-            <div className="auth-access-wrapper">
+            <div>
               <button
                 onClick={onBackToLogin}
                 className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"

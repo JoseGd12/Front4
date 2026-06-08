@@ -270,14 +270,12 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
           <p className="text-gray-400 mb-8 leading-relaxed">
             El enlace de recuperación ha expirado o no es válido. Por favor, solicita un nuevo enlace de recuperación.
           </p>
-          <div className="auth-access-wrapper">
-            <Button
-              onClick={onBack}
-              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
-            >
-              Solicitar nuevo enlace
-            </Button>
-          </div>
+          <Button
+            onClick={onBack}
+            className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+          >
+            Solicitar nuevo enlace
+          </Button>
         </div>
       );
     }
@@ -294,14 +292,12 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
           <p className="text-gray-400 mb-8 leading-relaxed">
             Tu contraseña ha sido cambiada exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.
           </p>
-          <div className="auth-access-wrapper">
-            <Button
-              onClick={onComplete}
-              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
-            >
-              Ir a iniciar sesión
-            </Button>
-          </div>
+          <Button
+            onClick={onComplete}
+            className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+          >
+            Ir a iniciar sesión
+          </Button>
         </div>
       );
     }
@@ -407,7 +403,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
             )}
           </div>
 
-          <div className="auth-access-wrapper pt-2">
+          <div className="pt-2">
             <Button
               type="submit"
               disabled={isLoading || !passwords.newPassword || !passwords.confirmPassword || passwords.newPassword !== passwords.confirmPassword || !passwordValidations.minLength}
@@ -429,16 +425,14 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
           </div>
 
           <div className="flex justify-center mt-6">
-            <div className="auth-access-wrapper !w-auto !py-2 !px-4">
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Volver al inicio de sesión
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver al inicio de sesión
+            </button>
           </div>
         </form>
       </div>

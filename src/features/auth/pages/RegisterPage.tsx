@@ -190,14 +190,12 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               Por favor revisa tu bandeja de entrada o carpeta de spam y haz clic en el enlace para activar tu cuenta antes de iniciar sesión.
             </p>
 
-            <div className="auth-access-wrapper">
-              <Button
-                onClick={onBack}
-                className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
-              >
-                Ir al inicio de sesión
-              </Button>
-            </div>
+            <Button
+              onClick={onBack}
+              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+            >
+              Ir al inicio de sesión
+            </Button>
           </div>
         </div>
 
@@ -470,7 +468,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             </div>
 
             {/* Register button */}
-            <div className="auth-access-wrapper">
+            <div>
               <Button
                 type="submit"
                 disabled={isLoading}
@@ -489,24 +487,22 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
             {/* Back link */}
             <div className="flex justify-center mt-4">
-              <div className="auth-access-wrapper !w-auto !py-2 !px-4">
-                <p className="text-center text-sm text-gray-500">
-                  ¿Ya tienes una cuenta?{' '}
-                  <button
-                    type="button"
-                    onClick={onBack}
-                    className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
-                  >
-                    Inicia sesión
-                  </button>
-                </p>
-              </div>
+              <p className="text-center text-sm text-gray-500">
+                ¿Ya tienes una cuenta?{' '}
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="text-orange-primary hover:text-white-primary font-semibold transition-colors"
+                >
+                  Inicia sesión
+                </button>
+              </p>
             </div>
 
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto mt-2"
+              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto mt-2"
             >
               <ArrowLeft className="w-4 h-4" />
               Volver

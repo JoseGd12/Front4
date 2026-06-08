@@ -442,15 +442,13 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
             {/* Forgot password link */}
             <div className="flex justify-end pt-0.5">
-              <div className="auth-access-wrapper !w-auto !p-1">
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('forgot-password')}
-                  className="text-sm text-[#d8b081] hover:text-[#e8c091] transition-colors py-1 px-2"
-                >
-                  ¿Olvidaste tu contraseña?
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentView('forgot-password')}
+                className="text-sm text-orange-primary hover:text-white-primary transition-colors py-1 px-2"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
             </div>
 
             {/* Captcha */}
@@ -477,7 +475,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             )}
 
             {/* Login button */}
-            <div className="auth-access-wrapper">
+            <div>
               <Button
                 type="submit"
                 disabled={isLoading || !captchaValidated || isLockedOut}
@@ -528,33 +526,29 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
             {/* Register link */}
             <div className="flex justify-center mt-6">
-              <div className="auth-access-wrapper !w-auto !py-2 !px-4">
-                <p className="text-sm text-gray-500">
-                  ¿No tienes una cuenta?{' '}
-                  <button
-                    type="button"
-                    onClick={onRequestRegister}
-                    className="text-[#d8b081] hover:text-[#e8c091] font-semibold transition-colors"
-                  >
-                    Regístrate aquí
-                  </button>
-                </p>
-              </div>
+              <p className="text-sm text-gray-500">
+                ¿No tienes una cuenta?{' '}
+                <button
+                  type="button"
+                  onClick={onRequestRegister}
+                  className="text-orange-primary hover:text-white-primary font-semibold transition-colors"
+                >
+                  Regístrate aquí
+                </button>
+              </p>
             </div>
 
             {/* Back to landing */}
             {onBackToLanding && (
               <div className="flex justify-center mt-6">
-                <div className="auth-access-wrapper !w-auto !py-1 !px-4">
-                  <button
-                    type="button"
-                    onClick={onBackToLanding}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-400 transition-colors mx-auto"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Volver al inicio
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={onBackToLanding}
+                  className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Volver al inicio
+                </button>
               </div>
             )}
           </form>

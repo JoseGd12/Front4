@@ -183,6 +183,7 @@ class ClientesService {
       nombre: c.nombre,
       apellido: c.apellido,
       documento: c.numeroDocumento,
+      tipoDocumento: c.tipoDocumento,
       correo: c.email,
       telefono: c.telefono,
       direccion: c.direccion,
