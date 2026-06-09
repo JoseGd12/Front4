@@ -113,7 +113,7 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
                 setEmail('');
                 setError('');
               }}
-              className="w-full text-xs text-orange-primary hover:text-white-primary transition-colors underline uppercase tracking-widest font-bold mt-1 p-2"
+              className="w-full text-xs text-orange-primary hover:text-white-primary transition-colors underline uppercase tracking-widest font-bold mt-1 p-2 cursor-pointer"
             >
               Enviar a otro email
             </button>
@@ -212,7 +212,7 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto"
+              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               Volver al inicio de sesión

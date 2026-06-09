@@ -75,6 +75,7 @@ class BarberosService {
   }
 
   mapComponentToApi(data: any): any {
+    const isStatusActive = data.estado !== undefined ? data.estado : (data.status === 'active');
     return {
       nombre: data.nombre,
       apellido: data.apellido,
@@ -85,7 +86,8 @@ class BarberosService {
       barrio: data.barrio,
       fechaNacimiento: data.fechaNacimiento,
       especialidad: data.especialidad,
-      Estado: data.estado !== undefined ? data.estado : (data.status === 'active'),
+      estado: isStatusActive,
+      Estado: isStatusActive,
       fotoPerfil: data.fotoPerfil || undefined,
       usuarioId: data.usuarioId
     };

@@ -39,6 +39,23 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
 
+  const [showLoginFormErrors, setShowLoginFormErrors] = useState(false);
+  const [loginValidationAttempt, setLoginValidationAttempt] = useState(0);
+  const [credentialsError, setCredentialsError] = useState(false);
+
+  const emailMissing = !formData.email.trim();
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
+  const passwordMissing = !formData.password;
+
+  const shakeClass = loginValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
+
+  const updateFormField = (field: 'email' | 'password', value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (showLoginFormErrors) setShowLoginFormErrors(false);
+    if (credentialsError) setCredentialsError(false);
+    if (error) setError('');
+  };
+
   // Control de intentos fallidos (FE-A2: Persistencia en sessionStorage)
   const MAX_ATTEMPTS = 5;
   const LOCKOUT_SECONDS = 5 * 60; // 5 minutos
@@ -116,17 +133,15 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
   const getLoginErrorMessage = (error: string): string => {
     const e = (error || '').toLowerCase();
-    if (e.includes('user-not-found') || e.includes('no user') || e.includes('not found')) {
-      return 'La cuenta ingresada no existe. Verifica el correo o regístrate.';
+    // Errores de credenciales → siempre mensaje genérico, nunca revelar cuál campo falló
+    if (
+      e.includes('user-not-found') || e.includes('no user') || e.includes('not found') ||
+      e.includes('wrong-password') || e.includes('invalid-credential') || e.includes('invalid credential')
+    ) {
+      return 'Correo o contraseña incorrectos. Verifica tus datos.';
     }
-    if (e.includes('wrong-password') || e.includes('contraseña') || e.includes('password')) {
-      return 'Contraseña incorrecta. Verifica e intenta de nuevo.';
-    }
-    if (e.includes('invalid-credential') || e.includes('invalid credential')) {
-      return 'La cuenta ingresada no existe o la contraseña es incorrecta.';
-    }
-    if (e.includes('invalid-email') || e.includes('invalid email') || e.includes('correo')) {
-      return 'El correo electrónico no es válido.';
+    if (e.includes('invalid-email') || e.includes('invalid email')) {
+      return 'El correo electrónico no tiene un formato válido.';
     }
     if (e.includes('too-many-requests') || e.includes('too many')) {
       return 'Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.';
@@ -150,6 +165,13 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    setShowLoginFormErrors(true);
+    setLoginValidationAttempt(prev => prev + 1);
+
+    if (emailMissing || !isEmailValid || passwordMissing) {
+      return;
+    }
+
     // Verificar bloqueo por intentos fallidos
     if (isLockedOut) {
       setError(`Demasiados intentos fallidos. Intenta de nuevo en ${formatCountdown(lockoutCountdown)}.`);
@@ -171,39 +193,76 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
         const newAttempts = failedAttempts + 1;
         setFailedAttempts(newAttempts);
 
+        const errMsg = result.error || 'Credenciales inválidas';
+        const eLower = errMsg.toLowerCase();
+        const isSystemOrStatusError = eLower.includes('too-many-requests') || 
+                                      eLower.includes('too many') || 
+                                      eLower.includes('user-disabled') || 
+                                      eLower.includes('disabled') || 
+                                      eLower.includes('network') || 
+                                      eLower.includes('conexión') || 
+                                      eLower.includes('connection') || 
+                                      eLower.includes('verifica tu email') || 
+                                      eLower.includes('verify');
+
         if (newAttempts >= MAX_ATTEMPTS) {
           const until = Date.now() + LOCKOUT_SECONDS * 1000;
           setLockoutUntil(until);
           setLockoutCountdown(LOCKOUT_SECONDS);
           setError('');
+          setCredentialsError(false);
+        } else if (!isSystemOrStatusError) {
+          setCredentialsError(true);
+          // No incrementar aquí: handleLogin ya incrementó en línea 171,
+          // agregar un segundo +1 hace que % 2 siempre dé el mismo resto → shake nunca cambia.
+          setError('');
         } else {
-          setError(getLoginErrorMessage(result.error || 'Credenciales inválidas'));
+          setError(getLoginErrorMessage(errMsg));
+          setCredentialsError(false);
         }
 
         setCaptchaValidated(false);
         setCaptchaKey(k => k + 1);
-        setFormData({ email: '', password: '' });
       } else {
         // Login exitoso — resetear intentos
         setFailedAttempts(0);
         setLockoutUntil(null);
+        setCredentialsError(false);
       }
     } catch (err) {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
+
+      // Clasificar el error capturado: distinguir sistema vs credenciales
+      const caughtMsg = err instanceof Error ? err.message : String(err);
+      const caughtLower = caughtMsg.toLowerCase();
+      const isCaughtSystemError =
+        caughtLower.includes('network') ||
+        caughtLower.includes('conexión') ||
+        caughtLower.includes('connection') ||
+        caughtLower.includes('too-many-requests') ||
+        caughtLower.includes('too many') ||
+        caughtLower.includes('user-disabled') ||
+        caughtLower.includes('disabled') ||
+        caughtLower.includes('verifica tu email') ||
+        caughtLower.includes('verify');
 
       if (newAttempts >= MAX_ATTEMPTS) {
         const until = Date.now() + LOCKOUT_SECONDS * 1000;
         setLockoutUntil(until);
         setLockoutCountdown(LOCKOUT_SECONDS);
         setError('');
+        setCredentialsError(false);
+      } else if (isCaughtSystemError) {
+        setError(getLoginErrorMessage(caughtMsg));
+        setCredentialsError(false);
       } else {
-        setError('Correo o contraseña incorrectos. Verifica tus datos.');
+        setCredentialsError(true);
+        setError('');
       }
 
       setCaptchaValidated(false);
       setCaptchaKey(k => k + 1);
-      setFormData({ email: '', password: '' });
     } finally {
       setIsLoading(false);
     }
@@ -371,7 +430,6 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             />
             <h1 className="text-2xl font-bold text-white font-title tracking-tight">MANITO BARBERSHOP</h1>
           </div>
-
           {/* Header del formulario */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-white font-title tracking-tight mb-2">Iniciar Sesión</h2>
@@ -379,8 +437,8 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
           </div>
 
           {/* Formulario */}
-          <form onSubmit={handleLogin} className="space-y-5">
-            {error && (
+          <form onSubmit={handleLogin} noValidate className="space-y-5">
+            {error && !credentialsError && (
               <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
                 <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
                 <span className="text-red-400 text-sm">{error}</span>
@@ -401,34 +459,38 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-300 text-sm font-medium">Email</Label>
+              <Label htmlFor="email" className="text-gray-300 text-sm font-medium">Email *</Label>
               <div className="relative">
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => updateFormField('email', e.target.value)}
                   placeholder="tu@email.com"
-                  className="login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all"
-                  required
+                  className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${(showLoginFormErrors && (emailMissing || !isEmailValid)) || credentialsError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
-                <Mail className="absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-500 pointer-events-none" style={{ left: '14px' }} />
+                <Mail className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${(showLoginFormErrors && (emailMissing || !isEmailValid)) || credentialsError ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
               </div>
+              {showLoginFormErrors && emailMissing && (
+                <p className="text-xs text-red-400 mt-1">El email es obligatorio</p>
+              )}
+              {showLoginFormErrors && !emailMissing && !isEmailValid && (
+                <p className="text-xs text-red-400 mt-1">Ingresa un email válido</p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-300 text-sm font-medium">Contraseña</Label>
+              <Label htmlFor="password" className="text-gray-300 text-sm font-medium">Contraseña *</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => updateFormField('password', e.target.value)}
                   placeholder="Tu contraseña"
-                  className="login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all"
-                  required
+                  className={`login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${(showLoginFormErrors && passwordMissing) || credentialsError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
-                <Lock className="absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-500 pointer-events-none" style={{ left: '14px' }} />
+                <Lock className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${(showLoginFormErrors && passwordMissing) || credentialsError ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -438,6 +500,15 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                   {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                 </button>
               </div>
+              {showLoginFormErrors && passwordMissing && (
+                <p className="text-xs text-red-400 mt-1">La contraseña es obligatoria</p>
+              )}
+              {credentialsError && (
+                <div className="flex items-center gap-2 mt-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span className="text-red-400 text-sm">Correo o contraseña incorrectos. Verifica tus datos.</span>
+                </div>
+              )}
             </div>
 
             {/* Forgot password link */}
@@ -445,7 +516,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
               <button
                 type="button"
                 onClick={() => setCurrentView('forgot-password')}
-                className="text-sm text-orange-primary hover:text-white-primary transition-colors py-1 px-2"
+                className="text-sm text-orange-primary hover:text-white transition-colors underline underline-offset-2 py-1 px-2 cursor-pointer"
               >
                 ¿Olvidaste tu contraseña?
               </button>
@@ -476,13 +547,14 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
             {/* Login button */}
             <div>
-              <Button
+              <button
                 type="submit"
                 disabled={isLoading || !captchaValidated || isLockedOut}
-                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${captchaValidated && !isLockedOut
-                    ? 'bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]'
+                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider pointer-events-auto ${
+                  captchaValidated && !isLockedOut
+                    ? 'bg-[#d8b081] text-black cursor-pointer'
                     : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                  }`}
+                }`}
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -494,7 +566,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                 ) : (
                   'Iniciar Sesión'
                 )}
-              </Button>
+              </button>
             </div>
 
             {/* Divider */}
@@ -513,9 +585,9 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
               onClick={handleGoogleLogin}
               disabled={isLoading}
               variant="outline"
-              className="login-btn-google w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all"
+              className="login-btn-google w-full h-12 rounded-xl flex items-center justify-center gap-3 bg-white/5 border-white/10 text-orange-primary hover:text-white-primary hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer text-base font-semibold"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -531,7 +603,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                 <button
                   type="button"
                   onClick={onRequestRegister}
-                  className="text-orange-primary hover:text-white-primary font-semibold transition-colors"
+                  className="text-orange-primary hover:text-white font-semibold transition-all cursor-pointer px-2 py-0.5 rounded-md hover:bg-[#d8b081]/10 underline underline-offset-2"
                 >
                   Regístrate aquí
                 </button>
@@ -544,7 +616,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                 <button
                   type="button"
                   onClick={onBackToLanding}
-                  className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto"
+                  className="flex items-center gap-2 text-sm text-orange-primary hover:text-[#e8c091] transition-all mx-auto cursor-pointer px-3 py-1.5 rounded-lg hover:bg-[#d8b081]/10"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Volver al inicio
@@ -573,6 +645,14 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
         }
         .login-btn {
           height: 48px !important;
+          transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .login-btn:not(:disabled):hover {
+          background-color: #c9974f !important;
+          transform: scale(1.02);
+        }
+        .login-btn:disabled:hover {
+          background-color: #4a3d24 !important;
         }
         .login-btn-google {
           height: 48px !important;

@@ -428,7 +428,7 @@ export function PasswordResetPage({ token, email, onComplete, onBack }: Password
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto"
+              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               Volver al inicio de sesión

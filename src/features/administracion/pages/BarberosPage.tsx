@@ -34,12 +34,16 @@ import { useAuth } from "../../../shared/contexts/AuthContext";
 
 const TIPOS_DOCUMENTO = [
   { value: 'CC', label: 'Cédula de Ciudadanía' },
-  { value: 'TI', label: 'Tarjeta de Identidad' },
   { value: 'CE', label: 'Cédula de Extranjería' },
-  { value: 'PP', label: 'Pasaporte' },
-  { value: 'RC', label: 'Registro Civil' },
-  { value: 'NIT', label: 'NIT' }
 ];
+
+const normalizarTipoDocBarbero = (tipo: string | undefined): string => {
+  if (!tipo) return 'CC';
+  const t = tipo.trim().toLowerCase();
+  if (t === 'cc' || t === 'cedula' || t.includes('ciudadan')) return 'CC';
+  if (t === 'ce' || t.includes('extranjeria') || t.includes('extranjería')) return 'CE';
+  return 'CC';
+};
 const BARBERO_LIMITS = {
   nombre: 100,
   apellido: 100,
@@ -174,12 +178,13 @@ export function BarberosPage() {
 
   // Filtros de barbero
   const filteredBarberos = barberos.filter(barbero => {
-    const searchMatch = (barbero.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (barbero.apellido || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (barbero.correo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const term = searchTerm.toLowerCase();
+    const nombreCompleto = `${barbero.nombre || ''} ${barbero.apellido || ''}`.toLowerCase();
+    const searchMatch = nombreCompleto.includes(term) ||
+      (barbero.correo || '').toLowerCase().includes(term) ||
       (barbero.documento || '').includes(searchTerm) ||
-      (barbero.especialidad || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (barbero.status === 'active' ? 'activo' : 'inactivo').includes(searchTerm.toLowerCase());
+      (barbero.especialidad || '').toLowerCase().includes(term) ||
+      (barbero.status === 'active' ? 'activo' : 'inactivo').includes(term);
 
     const statusMatch = filterStatus === "all" ||
       (filterStatus === "active" && barbero.status === 'active') ||
@@ -194,8 +199,9 @@ export function BarberosPage() {
 
   const resetForm = () => {
     setNewBarbero({
-      nombre: '', apellido: '', tipoDocumento: '', documento: '', correo: '', telefono: '',
-      direccion: '', barrio: '', fechaNacimiento: '', rol: 'Barbero', status: 'active', fotoPerfil: ''
+      nombre: '', apellido: '', tipoDocumento: 'CC', documento: '', correo: '', telefono: '',
+      direccion: '', barrio: '', fechaNacimiento: '', rol: 'Barbero', status: 'active', fotoPerfil: '',
+      especialidad: 'General'
     });
     setPreviewUrl('');
     if (fileInputRef.current) {
@@ -268,7 +274,7 @@ export function BarberosPage() {
 
     // Validar nombre único
     const nombreCompleto = `${newBarbero.nombre || ''} ${newBarbero.apellido || ''}`.trim().toLowerCase();
-    const existeNombre = barberos.some(b => `${b.nombre || ''} ${b.apellido || ''}`.trim().toLowerCase() === nombreCompleto);
+    const existeNombre = barberos.some(b => b.id !== editingBarbero?.id && `${b.nombre || ''} ${b.apellido || ''}`.trim().toLowerCase() === nombreCompleto);
     if (existeNombre) {
       errorAlert("Nombre duplicado", "Ya existe un barbero con este nombre y apellido.");
       return false;
@@ -277,8 +283,8 @@ export function BarberosPage() {
     // Validar correo único contra Barberos/Usuarios/Clientes
     const emailVal = String(newBarbero.correo || '').trim().toLowerCase();
     if (emailVal) {
-      const existeEnBarberos = barberos.some(b => String(b.correo || '').trim().toLowerCase() === emailVal);
-      const existeEnUsuarios = usuariosAll.some((u: any) => String(u.correo || '').trim().toLowerCase() === emailVal);
+      const existeEnBarberos = barberos.some(b => b.id !== editingBarbero?.id && String(b.correo || '').trim().toLowerCase() === emailVal);
+      const existeEnUsuarios = usuariosAll.some((u: any) => u.id !== editingBarbero?.usuarioId && String(u.correo || '').trim().toLowerCase() === emailVal);
       const existeEnClientes = clientesAll.some((c: any) => String((c?.correo || c?.Correo || c?.email || '')).trim().toLowerCase() === emailVal);
       if (existeEnBarberos || existeEnUsuarios || existeEnClientes) {
         return false;
@@ -307,8 +313,8 @@ export function BarberosPage() {
       }
     }
     const docVal = String(newBarbero.documento || '').trim();
-    const existeEnBarberos = barberos.some(b => String(b.documento || '').trim() === docVal);
-    const existeEnUsuarios = usuariosAll.some((u: any) => String(u.documento || '').trim() === docVal);
+    const existeEnBarberos = barberos.some(b => b.id !== editingBarbero?.id && String(b.documento || '').trim() === docVal);
+    const existeEnUsuarios = usuariosAll.some((u: any) => u.id !== editingBarbero?.usuarioId && String(u.documento || '').trim() === docVal);
     const existeEnClientes = clientesAll.some((c: any) => String((c as any).documento || (c as any).numeroDocumento || '').trim() === docVal);
     if (existeEnBarberos || existeEnUsuarios || existeEnClientes) {
       errorAlert("Documento duplicado", "Ya existe un registro con este número de documento (Usuario/Cliente/Barbero).");
@@ -359,7 +365,7 @@ export function BarberosPage() {
     setNewBarbero({
       nombre: barbero.nombre || '',
       apellido: barbero.apellido || '',
-      tipoDocumento: barbero.tipoDocumento || '',
+      tipoDocumento: normalizarTipoDocBarbero(barbero.tipoDocumento),
       documento: barbero.documento || '',
       correo: barbero.correo || '',
       telefono: barbero.telefono || '',
@@ -368,7 +374,8 @@ export function BarberosPage() {
       fechaNacimiento: barbero.fechaNacimiento || '',
       rol: barbero.rol || 'Barbero',
       status: barbero.status || 'active',
-      fotoPerfil: barbero.fotoPerfil || ''
+      fotoPerfil: barbero.fotoPerfil || '',
+      especialidad: barbero.especialidad || 'General'
     });
     setPreviewUrl(barbero.fotoPerfil || '');
     setShowBarberoFormErrors(false);
@@ -434,12 +441,33 @@ export function BarberosPage() {
         usuarioId: editingBarbero.usuarioId
       });
 
-      const updatedBarbero = await barberosService.updateBarbero(editingBarbero.id, apiData);
-      const mappedBarbero = barberosService.mapApiToComponent(updatedBarbero);
-      
-      mappedBarbero.id = editingBarbero.id; // Asegurar que sea el ID original para evitar duplicación visual
+      // Guardar en backend
+      await barberosService.updateBarbero(editingBarbero.id, apiData);
 
-      setBarberos(barberos.map(b => b.id === editingBarbero.id ? mappedBarbero : b));
+      // Crear el objeto Barbero actualizado localmente combinando datos existentes con los nuevos
+      const mappedBarbero: Barbero = {
+        ...editingBarbero,
+        nombre: newBarbero.nombre,
+        apellido: newBarbero.apellido,
+        tipoDocumento: newBarbero.tipoDocumento,
+        documento: newBarbero.documento,
+        correo: newBarbero.correo,
+        telefono: newBarbero.telefono,
+        direccion: newBarbero.direccion || '',
+        barrio: newBarbero.barrio || '',
+        fechaNacimiento: newBarbero.fechaNacimiento,
+        rol: newBarbero.rol || editingBarbero.rol || 'Barbero',
+        status: (newBarbero.status as 'active' | 'inactive') || editingBarbero.status || 'active',
+        estado: newBarbero.status === 'active',
+        fotoPerfil: newBarbero.fotoPerfil || '',
+        especialidad: newBarbero.especialidad || 'General',
+        saldoDisponible: editingBarbero.saldoDisponible ?? 200000,
+        usuarioId: editingBarbero.usuarioId,
+        fechaCreacion: editingBarbero.fechaCreacion
+      };
+
+      setBarberos(prev => prev.map(b => b.id === editingBarbero.id ? mappedBarbero : b));
+      setShowBarberoFormErrors(false); // Resetear errores al cerrar exitosamente
       resetForm();
       setIsDialogOpen(false);
       setEditingBarbero(null);
@@ -552,6 +580,51 @@ export function BarberosPage() {
     }
   };
 
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
+
+  const isBarberoFormDirty = () => {
+    if (editingBarbero) {
+      return (
+        newBarbero.nombre !== (editingBarbero.nombre || '') ||
+        newBarbero.apellido !== (editingBarbero.apellido || '') ||
+        newBarbero.tipoDocumento !== (editingBarbero.tipoDocumento || 'CC') ||
+        newBarbero.documento !== (editingBarbero.documento || '') ||
+        newBarbero.correo !== (editingBarbero.correo || '') ||
+        newBarbero.telefono !== (editingBarbero.telefono || '') ||
+        newBarbero.direccion !== (editingBarbero.direccion || '') ||
+        newBarbero.barrio !== (editingBarbero.barrio || '') ||
+        newBarbero.fechaNacimiento !== (editingBarbero.fechaNacimiento || '') ||
+        newBarbero.fotoPerfil !== (editingBarbero.fotoPerfil || '') ||
+        newBarbero.especialidad !== (editingBarbero.especialidad || 'General')
+      );
+    } else {
+      return (
+        newBarbero.nombre !== '' ||
+        newBarbero.apellido !== '' ||
+        newBarbero.documento !== '' ||
+        newBarbero.correo !== '' ||
+        newBarbero.telefono !== '' ||
+        newBarbero.direccion !== '' ||
+        newBarbero.barrio !== '' ||
+        newBarbero.fechaNacimiento !== '' ||
+        newBarbero.fotoPerfil !== '' ||
+        (newBarbero.especialidad !== 'General' && newBarbero.especialidad !== '')
+      );
+    }
+  };
+
+  const handleBarberoDialogCloseAttempt = (open: boolean) => {
+    if (!open) {
+      if (isBarberoFormDirty()) {
+        setIsConfirmDiscardOpen(true);
+      } else {
+        setIsDialogOpen(false);
+      }
+    } else {
+      setIsDialogOpen(true);
+    }
+  };
+
   return (
     <>
       <AlertContainer />
@@ -652,8 +725,8 @@ export function BarberosPage() {
               <tbody className="std-tbody">
                 {loading ? (
                   <TableLoadingStateRow
-                    colSpan={6}
-                    title="Cargando barberos..."
+                     colSpan={6}
+                     title="Cargando barberos..."
                   />
                 ) : displayedBarberos.length === 0 ? (
                   <TableEmptyStateRow
@@ -779,7 +852,7 @@ export function BarberosPage() {
       </main>
 
       {/* Dialogo de Creación/Edición */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleBarberoDialogCloseAttempt}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto text-white-primary">
           <DialogHeader>
             <DialogTitle className="text-white-primary">
@@ -1011,8 +1084,8 @@ export function BarberosPage() {
 
           <div className="flex justify-end gap-3 mt-4">
             <button onClick={() => {
-              setShowBarberoFormErrors(false);
-              setIsDialogOpen(false);
+              setShowBarberoFormErrors(false); // Resetear errores al cancelar
+              handleBarberoDialogCloseAttempt(false);
             }} className="elegante-button-secondary">
               Cancelar
             </button>
@@ -1243,6 +1316,37 @@ export function BarberosPage() {
             >
               Eliminar Permanentemente
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alerta de Confirmación de Descarte de Cambios */}
+      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">
+              Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => setIsConfirmDiscardOpen(false)}
+              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
+            >
+              Seguir editando
+            </button>
+            <button
+              onClick={() => {
+                setIsConfirmDiscardOpen(false);
+                resetForm();
+                setIsDialogOpen(false);
+                setEditingBarbero(null);
+              }}
+              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
+            >
+              Descartar cambios
+            </button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

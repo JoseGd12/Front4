@@ -55,7 +55,21 @@ interface UploadResponse {
 }
 
 
-const tiposDocumento = ["Cédula", "Cédula de Extranjería", "Pasaporte"];
+const tiposDocumento = [
+  { value: "CC", label: "CC — Cédula de Ciudadanía" },
+  { value: "CE", label: "CE — Cédula de Extranjería" },
+  { value: "TI", label: "TI — Tarjeta de Identidad" },
+];
+
+/** Normaliza cualquier forma almacenada a la abreviación canónica */
+const abreviarTipoDoc = (tipo: string | undefined): string => {
+  if (!tipo) return '';
+  const t = tipo.trim().toLowerCase().normalize('NFD').replace(/̀-ͯ/g, '').replace(/[^a-z\s]/g, '').trim();
+  if (t === 'cc' || t === 'cedula' || t.includes('ciudadan')) return 'CC';
+  if (t === 'ce' || t.includes('extranjeria')) return 'CE';
+  if (t === 'ti' || t.includes('tarjeta') || t.includes('identidad')) return 'TI';
+  return 'CC';
+};
 
 export function UsersPage() {
   const { user: currentUser, resetPassword } = useAuth();
@@ -70,7 +84,7 @@ export function UsersPage() {
       id: apiUser.id,
       nombres: apiUser.nombre,
       apellidos: apiUser.apellido,
-      tipoDocumento: apiUser.tipoDocumento || "Cédula",
+      tipoDocumento: abreviarTipoDoc(apiUser.tipoDocumento) || "CC",
       documento: apiUser.documento || "",
       correo: apiUser.correo,
       celular: apiUser.telefono || "",
@@ -149,6 +163,50 @@ export function UsersPage() {
   const [barberosCatalogo, setBarberosCatalogo] = useState<any[]>([]);
 
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
+
+  const isUserFormDirty = () => {
+    if (editingUser) {
+      return (
+        newUser.nombres !== (editingUser.nombres || '') ||
+        newUser.apellidos !== (editingUser.apellidos || '') ||
+        newUser.tipoDocumento !== (editingUser.tipoDocumento || 'CC') ||
+        newUser.documento !== (editingUser.documento || '') ||
+        newUser.correo !== (editingUser.correo || '') ||
+        newUser.celular !== (editingUser.celular || '') ||
+        newUser.direccion !== (editingUser.direccion || '') ||
+        newUser.barrio !== (editingUser.barrio || '') ||
+        newUser.fechaNacimiento !== (editingUser.fechaNacimiento || '') ||
+        newUser.imagenUrl !== (editingUser.imagenUrl || '') ||
+        newUser.rol !== (editingUser.rol || '')
+      );
+    } else {
+      return (
+        newUser.nombres !== '' ||
+        newUser.apellidos !== '' ||
+        newUser.documento !== '' ||
+        newUser.correo !== '' ||
+        newUser.celular !== '' ||
+        newUser.direccion !== '' ||
+        newUser.barrio !== '' ||
+        newUser.fechaNacimiento !== '' ||
+        newUser.imagenUrl !== '' ||
+        newUser.rol !== ''
+      );
+    }
+  };
+
+  const handleUserDialogCloseAttempt = (open: boolean) => {
+    if (!open) {
+      if (isUserFormDirty()) {
+        setIsConfirmDiscardOpen(true);
+      } else {
+        setIsDialogOpen(false);
+      }
+    } else {
+      setIsDialogOpen(true);
+    }
+  };
   const formatDateLocal = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -189,11 +247,15 @@ export function UsersPage() {
   const isEmailDuplicateCreateUser = React.useMemo(() => {
     const emailVal = String(newUser.correo || '').trim().toLowerCase();
     if (!emailVal) return false;
-    const existeEnUsuarios = users.some((u: any) => String(u.correo || '').trim().toLowerCase() === emailVal);
+    // Al editar, excluir al propio usuario del check de correo duplicado
+    const existeEnUsuarios = users.some((u: any) => {
+      if (editingUser && Number(u.id) === Number(editingUser.id)) return false;
+      return String(u.correo || '').trim().toLowerCase() === emailVal;
+    });
     const existeEnClientes = clientesCatalogo.some((c: any) => String((c?.correo || c?.Correo || c?.email || '')).trim().toLowerCase() === emailVal);
     const existeEnBarberos = barberosCatalogo.some((b: any) => String(b.correo || '').trim().toLowerCase() === emailVal);
     return existeEnUsuarios || existeEnClientes || existeEnBarberos;
-  }, [newUser.correo, users, clientesCatalogo, barberosCatalogo]);
+  }, [newUser.correo, users, clientesCatalogo, barberosCatalogo, editingUser?.id]);
 
   // Cargar usuarios y roles desde la API
   const loadInitialData = async () => {
@@ -215,7 +277,7 @@ export function UsersPage() {
         id: apiUser.id,
         nombres: apiUser.nombre,
         apellidos: apiUser.apellido,
-        tipoDocumento: apiUser.tipoDocumento || "Cédula",
+        tipoDocumento: abreviarTipoDoc(apiUser.tipoDocumento) || "CC",
         documento: apiUser.documento || "",
         correo: apiUser.correo,
         celular: apiUser.telefono || "",
@@ -255,10 +317,10 @@ export function UsersPage() {
     
     if (isSystemAccount) return false;
 
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
+    const nombreCompleto = `${user.nombres || ''} ${user.apellidos || ''}`.toLowerCase();
     const searchMatch =
-      (user.nombres || '').toLowerCase().includes(term) ||
-      (user.apellidos || '').toLowerCase().includes(term) ||
+      nombreCompleto.includes(term) ||
       (user.documento || '').toLowerCase().includes(term) ||
       (user.correo || '').toLowerCase().includes(term) ||
       (user.celular || '').toLowerCase().includes(term) ||
@@ -457,7 +519,7 @@ export function UsersPage() {
             direccion: createdUser.direccion || newUser.direccion,
             barrio: createdUser.barrio || newUser.barrio,
             fechaNacimiento: createdUser.fechaNacimiento || newUser.fechaNacimiento,
-            tipoDocumento: createdUser.tipoDocumento || newUser.tipoDocumento || 'Cédula',
+            tipoDocumento: abreviarTipoDoc(createdUser.tipoDocumento || newUser.tipoDocumento) || 'CC',
             rol: 'Barbero',
             status: 'active'
           });
@@ -504,10 +566,11 @@ export function UsersPage() {
 
   const handleEditUser = (user: any) => {
     setEditingUser(user);
+    setShowUserFormErrors(false); // Resetear errores al abrir en modo edición
     setNewUser({
       nombres: user.nombres,
       apellidos: user.apellidos,
-      tipoDocumento: user.tipoDocumento || '',
+      tipoDocumento: abreviarTipoDoc(user.tipoDocumento) || 'CC',
       documento: user.documento,
       correo: user.correo,
       celular: user.celular,
@@ -575,6 +638,7 @@ export function UsersPage() {
 
       setUsers(users.map((u: any) => u.id === editingUser.id ? updatedUser : u));
       showSuccess("Usuario actualizado", `Los datos de ${newUser.nombres} ${newUser.apellidos} han sido actualizados exitosamente.`);
+      setShowUserFormErrors(false); // Resetear errores al cerrar exitosamente
       setIsDialogOpen(false);
       setEditingUser(null);
       resetForm();
@@ -711,12 +775,13 @@ export function UsersPage() {
           <TableHeaderSection
             variant="dark"
             leftContent={(
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Dialog open={isDialogOpen} onOpenChange={handleUserDialogCloseAttempt}>
                 <DialogTrigger asChild>
                   <button
                     className="btn-std-primary"
                     onClick={() => {
                       setEditingUser(null);
+                      setShowUserFormErrors(false); // Resetear errores al abrir en modo creación
                       resetForm();
                     }}
                   >
@@ -792,7 +857,7 @@ export function UsersPage() {
                           </SelectTrigger>
                           <SelectContent className="bg-gray-darkest border-gray-dark">
                             {tiposDocumento.map(tipo => (
-                              <SelectItem key={tipo} value={tipo} className="text-white-primary">{tipo}</SelectItem>
+                              <SelectItem key={tipo.value} value={tipo.value} className="text-white-primary">{tipo.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -947,9 +1012,8 @@ export function UsersPage() {
                     <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
                       <button
                         onClick={() => {
-                          setIsDialogOpen(false);
-                          resetForm();
-                          setEditingUser(null);
+                          setShowUserFormErrors(false); // Resetear errores al cancelar
+                          handleUserDialogCloseAttempt(false);
                         }}
                         className="elegante-button-secondary"
                       >
@@ -958,7 +1022,7 @@ export function UsersPage() {
                       <button
                         onClick={editingUser ? handleUpdateUser : handleCreateUser}
                         className="elegante-button-primary"
-                        aria-disabled={!newUser.tipoDocumento || !newUser.nombres || !newUser.apellidos || !newUser.documento || !newUser.correo || !newUser.celular || !newUser.rol || !newUser.fechaNacimiento || isDocDuplicateCreateUser || isEmailDuplicateCreateUser || isTooYoungNewUser}
+                        aria-disabled={!newUser.tipoDocumento || !newUser.nombres || !newUser.apellidos || !newUser.documento || !newUser.correo || !newUser.celular || !newUser.rol || !newUser.fechaNacimiento || isDocDuplicateCreateUser || (isEmailDuplicateCreateUser && !editingUser) || isTooYoungNewUser}
                       >
                         {editingUser ? 'Actualizar Usuario' : 'Crear Usuario'}
                       </button>
@@ -1028,7 +1092,7 @@ export function UsersPage() {
                       return (
                       <tr key={user.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
                         <td className="text-center py-4 px-4">
-                          <span className="text-gray-lighter">{(user as any).tipoDocumento ? `${(user as any).tipoDocumento} ${user.documento || ""}` : (user.documento || "—")}</span>
+                          <span className="text-gray-lighter">{(user as any).tipoDocumento ? `${abreviarTipoDoc((user as any).tipoDocumento)} ${user.documento || ""}`.trim() : (user.documento || "—")}</span>
                         </td>
                         <td className="text-center py-4 px-4">
                           <div className="flex items-center justify-left gap-3">
@@ -1198,7 +1262,7 @@ export function UsersPage() {
                         Tipo de Documento
                       </Label>
                       <Input
-                        value={selectedUser.tipoDocumento}
+                        value={abreviarTipoDoc(selectedUser.tipoDocumento)}
                         readOnly
                         className="elegante-input w-full bg-gray-dark cursor-not-allowed"
                       />
@@ -1337,6 +1401,37 @@ export function UsersPage() {
 
         <AlertContainer />
       </main>
+
+      {/* Alerta de Confirmación de Descarte de Cambios */}
+      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">
+              Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => setIsConfirmDiscardOpen(false)}
+              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
+            >
+              Seguir editando
+            </button>
+            <button
+              onClick={() => {
+                setIsConfirmDiscardOpen(false);
+                resetForm();
+                setIsDialogOpen(false);
+                setEditingUser(null);
+              }}
+              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
+            >
+              Descartar cambios
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

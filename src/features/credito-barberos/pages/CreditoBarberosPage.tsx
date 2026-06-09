@@ -31,13 +31,15 @@ const css = `
     text-align:center; letter-spacing:.06em; text-transform:uppercase;
     border-bottom:1px solid var(--gray-darker); white-space:nowrap; background:var(--gray-darkest);
   }
-  .cred-thead th:first-child { text-align:left; padding-left:20px; }
+  .cred-thead th:first-child { text-align:left; padding-left:24px; }
+  .cred-thead th:last-child { text-align:right; padding-right:24px; }
 
   /* Group row */
   .cred-group-row { background:var(--gray-darkest); border-bottom:1px solid var(--gray-darker); cursor:pointer; transition:background .15s; }
   .cred-group-row:hover { background:var(--gray-dark); }
   .cred-group-cell { padding:14px 16px; }
-  .cred-group-cell:first-child { padding-left:20px; }
+  .cred-group-cell:first-child { padding-left:24px; }
+  .cred-group-cell:last-child { padding-right:24px; }
   .cred-group-inner { display:flex; align-items:center; gap:12px; }
   .cred-avatar {
     width:36px; height:36px; border-radius:50%; display:flex; align-items:center;
@@ -78,6 +80,7 @@ const css = `
 
   /* General td */
   .cred-td { padding:12px 16px; font-size:13px; color:var(--gray-lightest); text-align:center; vertical-align:middle; }
+  .cred-td:last-child { padding-right:24px; }
   .cred-num { display:inline-flex; align-items:center; gap:4px; font-weight:600; color:var(--orange-primary); }
 
   /* Badges */
@@ -629,12 +632,11 @@ export function CreditoBarberosPage() {
       <AlertContainer />
 
       <div className="p-6">
-        <div className="cred-card">
+        <div className="std-card">
 
           {/* Toolbar */}
           <TableHeaderSection
             variant="dark"
-            className="px-5 pt-4"
             leftContent={(
               <button className="btn-std-primary" onClick={() => openRegistrar(null)}>
                 <Wallet className="w-4 h-4" />
@@ -660,16 +662,16 @@ export function CreditoBarberosPage() {
           />
 
           {/* Table */}
-          <div style={{ overflowX: "auto" }}>
+          <div className="std-table-wrapper" style={{ overflowX: "auto" }}>
             <table className="cred-table">
               <thead className="cred-thead">
                 <tr>
-                  <th style={{ textAlign: "left", paddingLeft: 20 }}>Documento</th>
-                  <th>Barbero</th>
+                  <th style={{ textAlign: "left" }}>Documento</th>
+                  <th style={{ textAlign: "left" }}>Barbero</th>
                   <th>Ventas a Credito</th>
                   <th>Saldo Deuda</th>
                   <th>Ultimo Abono</th>
-                  <th>Acciones</th>
+                  <th style={{ textAlign: "right" }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -753,7 +755,7 @@ export function CreditoBarberosPage() {
 
                         {/* Acciones */}
                         <td className="cred-td" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center justify-end gap-0.5">
                             <button
                               className="cred-icon-action p-2 hover:bg-gray-darker rounded-lg transition-colors group"
                               data-tip="Registrar Abono"

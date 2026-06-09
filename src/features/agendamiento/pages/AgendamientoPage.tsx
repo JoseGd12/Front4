@@ -2213,11 +2213,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       onChange={setClienteSearchTerm}
                       ghostMode={true}
                       items={clientesList}
-                      filterFn={(c, term) =>
-                        (c.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
-                        (c.apellido || '').toLowerCase().includes(term.toLowerCase()) ||
-                        (c.telefono || '').includes(term)
-                      }
+                      filterFn={(c, term) => {
+                        const t = term.toLowerCase();
+                        const full = `${c.nombre || ''} ${c.apellido || ''}`.trim().toLowerCase();
+                        return full.includes(t) ||
+                          (c.nombre || '').toLowerCase().includes(t) ||
+                          (c.apellido || '').toLowerCase().includes(t) ||
+                          (c.telefono || '').includes(term);
+                      }}
                       onSelect={(c) => {
                         const fullName = `${c.nombre || ''} ${c.apellido || ''}`.trim();
                         setNuevaCita(prev => ({ ...prev, clienteId: c.id, cliente: fullName, telefono: c.telefono || '' }));
@@ -2733,10 +2736,13 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       onChange={setBarberoFormSearchTerm}
                       ghostMode={true}
                       items={nuevaCita.fecha ? barberosParaFormulario : []}
-                      filterFn={(b, term) =>
-                        (b.nombre || '').toLowerCase().includes(term.toLowerCase()) ||
-                        (b.apellido || '').toLowerCase().includes(term.toLowerCase())
-                      }
+                      filterFn={(b, term) => {
+                        const t = term.toLowerCase();
+                        const full = `${b.nombre || ''} ${b.apellido || ''}`.trim().toLowerCase();
+                        return full.includes(t) ||
+                          (b.nombre || '').toLowerCase().includes(t) ||
+                          (b.apellido || '').toLowerCase().includes(t);
+                      }}
                       onSelect={(b) => {
                         const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
                         setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: nombreCompleto }));

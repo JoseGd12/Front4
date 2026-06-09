@@ -50,10 +50,17 @@ const TIPOS_DOCUMENTO = [
   { value: 'CC', label: 'Cédula de Ciudadanía' },
   { value: 'TI', label: 'Tarjeta de Identidad' },
   { value: 'CE', label: 'Cédula de Extranjería' },
-  { value: 'PP', label: 'Pasaporte' },
-  { value: 'RC', label: 'Registro Civil' },
-  { value: 'NIT', label: 'NIT' }
 ];
+
+/** Normaliza cualquier forma almacenada al valor canónico del Select */
+const normalizarTipoDoc = (tipo: string | undefined): string => {
+  if (!tipo) return 'CC';
+  const t = tipo.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (t === 'cc' || t === 'cedula' || t.includes('ciudadan')) return 'CC';
+  if (t === 'ti' || t.includes('tarjeta') || t.includes('identidad')) return 'TI';
+  if (t === 'ce' || t.includes('extranjeria')) return 'CE';
+  return 'CC';
+};
 
 const CLIENTE_LIMITS = {
   numeroDocumento: 18,
@@ -145,6 +152,62 @@ export function ClientesPage() {
   const [showCreateValidation, setShowCreateValidation] = useState(false);
   const [showEditValidation, setShowEditValidation] = useState(false);
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const [isConfirmDiscardCreateOpen, setIsConfirmDiscardCreateOpen] = useState(false);
+  const [isConfirmDiscardEditOpen, setIsConfirmDiscardEditOpen] = useState(false);
+
+  const isCreateFormDirty = () => {
+    return (
+      createForm.nombre !== '' ||
+      createForm.apellido !== '' ||
+      createForm.numeroDocumento !== '' ||
+      createForm.email !== '' ||
+      createForm.telefono !== '' ||
+      createForm.direccion !== '' ||
+      createForm.barrio !== '' ||
+      createForm.fechaNacimiento !== '' ||
+      previewUrl !== null
+    );
+  };
+
+  const isEditFormDirty = () => {
+    if (!selectedCliente) return false;
+    return (
+      editForm.nombre !== (selectedCliente.nombre || '') ||
+      editForm.apellido !== (selectedCliente.apellido || '') ||
+      editForm.tipoDocumento !== (selectedCliente.tipoDocumento || 'CC') ||
+      editForm.numeroDocumento !== (selectedCliente.numeroDocumento || '') ||
+      editForm.email !== (selectedCliente.email || '') ||
+      editForm.telefono !== (selectedCliente.telefono || '') ||
+      editForm.direccion !== (selectedCliente.direccion || '') ||
+      editForm.barrio !== (selectedCliente.barrio || '') ||
+      editForm.fechaNacimiento !== (selectedCliente.fechaNacimiento ? selectedCliente.fechaNacimiento.split('T')[0] : '') ||
+      editPreviewUrl !== (selectedCliente.fotoPerfil || null)
+    );
+  };
+
+  const handleCreateDialogCloseAttempt = (open: boolean) => {
+    if (!open) {
+      if (isCreateFormDirty()) {
+        setIsConfirmDiscardCreateOpen(true);
+      } else {
+        setIsCreateDialogOpen(false);
+      }
+    } else {
+      setIsCreateDialogOpen(true);
+    }
+  };
+
+  const handleEditDialogCloseAttempt = (open: boolean) => {
+    if (!open) {
+      if (isEditFormDirty()) {
+        setIsConfirmDiscardEditOpen(true);
+      } else {
+        setIsEditDialogOpen(false);
+      }
+    } else {
+      setIsEditDialogOpen(true);
+    }
+  };
   const [clienteGeneratedPassword, setClienteGeneratedPassword] = useState('');
   const [createInFirebase, setCreateInFirebase] = useState(true);
   const [usuariosAll, setUsuariosAll] = useState<any[]>([]);
@@ -251,9 +314,9 @@ export function ClientesPage() {
   const filteredClientes = clientes.filter(cliente => {
     const term = searchTerm.trim().toLowerCase();
     const estadoLabel = cliente.activo ? 'activo' : 'inactivo';
+    const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellido || ''}`.toLowerCase();
     const searchMatch = term === '' ||
-      (cliente.nombre || '').toLowerCase().includes(term) ||
-      (cliente.apellido || '').toLowerCase().includes(term) ||
+      nombreCompleto.includes(term) ||
       (cliente.numeroDocumento || '').toLowerCase().includes(term) ||
       (cliente.email || '').toLowerCase().includes(term) ||
       (cliente.telefono || '').toLowerCase().includes(term) ||
@@ -547,7 +610,7 @@ export function ClientesPage() {
     }
     setSelectedCliente(cliente);
     setEditForm({
-      tipoDocumento: cliente.tipoDocumento,
+      tipoDocumento: normalizarTipoDoc(cliente.tipoDocumento),
       numeroDocumento: cliente.numeroDocumento,
       nombre: cliente.nombre,
       apellido: cliente.apellido,
@@ -670,8 +733,8 @@ export function ClientesPage() {
   };
 
   const handleSaveEditCliente = () => {
-    setShowEditValidation(true);
     if (!validateEditForm(editForm)) {
+      setShowEditValidation(true);
       return;
     }
     setIsEditConfirmOpen(true);
@@ -728,12 +791,7 @@ export function ClientesPage() {
       };
 
       // Actualizar cliente en la API
-      const updatedClienteAPI = await clientesService.updateCliente(parseInt(selectedCliente.id), updateData);
-      const mappedCliente = clientesService.mapApiToComponent(updatedClienteAPI);
-
-      setClientes(clientes.map(c =>
-        c.id === selectedCliente.id ? mappedCliente : c
-      ));
+      await clientesService.updateCliente(parseInt(selectedCliente.id), updateData);
 
       setIsEditDialogOpen(false);
       setIsEditConfirmOpen(false);
@@ -742,7 +800,9 @@ export function ClientesPage() {
       setEditSelectedProfileImage(null);
       setEditPreviewUrl(null);
 
-      edited('Cliente actualizado exitosamente ✔️', `Los datos de ${mappedCliente.nombre} ${mappedCliente.apellido} han sido actualizados.`);
+      await loadClientes();
+
+      edited('Cliente actualizado exitosamente', `Los datos de han sido actualizados.`);
     } catch (err: unknown) {
       console.error('Error actualizando cliente:', err);
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
@@ -984,7 +1044,7 @@ export function ClientesPage() {
                 header: "Documento",
                 primary: true,
                 render: (_v, row) => (
-                  <span>{(row as any).tipoDocumento ? `${(row as any).tipoDocumento} ${row.numeroDocumento}` : row.numeroDocumento}</span>
+                  <span>{(row as any).tipoDocumento ? `${normalizarTipoDoc((row as any).tipoDocumento)} ${row.numeroDocumento}` : row.numeroDocumento}</span>
                 ),
               },
               {
@@ -1243,7 +1303,7 @@ export function ClientesPage() {
       </Dialog>
 
       {/* Diálogo para Editar Cliente */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogCloseAttempt}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white-primary">Editar Cliente</DialogTitle>
@@ -1336,7 +1396,7 @@ export function ClientesPage() {
                   maxLength={CLIENTE_LIMITS.numeroDocumento}
                   className={`elegante-input w-full ${showEditValidation && !editForm.numeroDocumento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   placeholder="Número de documento (solo números)"
-                  disabled={!!selectedCliente}
+                  disabled={false}
                 />
                 {showEditValidation && !editForm.numeroDocumento && <p className="text-xs text-red-400">Este campo es obligatorio.</p>}
               </div>
@@ -1450,7 +1510,7 @@ export function ClientesPage() {
               <button
                 onClick={() => {
                   setShowEditValidation(false);
-                  setIsEditDialogOpen(false);
+                  handleEditDialogCloseAttempt(false);
                 }}
                 className="elegante-button-secondary"
               >
@@ -1469,7 +1529,7 @@ export function ClientesPage() {
       </Dialog>
 
       {/* Diálogo para Crear Cliente */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogCloseAttempt}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white-primary">Añadir Nuevo Cliente</DialogTitle>
@@ -1680,7 +1740,7 @@ export function ClientesPage() {
               <button
                 onClick={() => {
                   setShowCreateValidation(false);
-                  setIsCreateDialogOpen(false);
+                  handleCreateDialogCloseAttempt(false);
                 }}
                 className="elegante-button-secondary"
               >
@@ -1731,6 +1791,82 @@ export function ClientesPage() {
 
       {/* Contenedor de confirmaciones de eliminación */}
       <DoubleConfirmationContainer />
+
+      {/* Alertas de Confirmación de Descarte de Cambios */}
+      <AlertDialog open={isConfirmDiscardCreateOpen} onOpenChange={setIsConfirmDiscardCreateOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">
+              Tienes cambios sin guardar en el formulario de creación. ¿Deseas seguir editando o descartar los cambios realizados?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => setIsConfirmDiscardCreateOpen(false)}
+              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
+            >
+              Seguir editando
+            </button>
+            <button
+              onClick={() => {
+                setIsConfirmDiscardCreateOpen(false);
+                setIsCreateDialogOpen(false);
+                setCreateForm({
+                  tipoDocumento: 'CC',
+                  numeroDocumento: '',
+                  nombre: '',
+                  apellido: '',
+                  email: '',
+                  telefono: '',
+                  direccion: '',
+                  barrio: '',
+                  fechaNacimiento: '',
+                  fotoPerfil: ''
+                });
+                setSelectedProfileImage(null);
+                setPreviewUrl(null);
+                setFormError('');
+              }}
+              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
+            >
+              Descartar cambios
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isConfirmDiscardEditOpen} onOpenChange={setIsConfirmDiscardEditOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">
+              Tienes cambios sin guardar en el formulario de edición. ¿Deseas seguir editando o descartar los cambios realizados?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={() => setIsConfirmDiscardEditOpen(false)}
+              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
+            >
+              Seguir editando
+            </button>
+            <button
+              onClick={() => {
+                setIsConfirmDiscardEditOpen(false);
+                setIsEditDialogOpen(false);
+                setSelectedCliente(null);
+                setEditForm({});
+                setEditSelectedProfileImage(null);
+                setEditPreviewUrl(null);
+              }}
+              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
+            >
+              Descartar cambios
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

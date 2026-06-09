@@ -481,10 +481,14 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
             {/* Register button */}
             <div>
-              <Button
+              <button
                 type="submit"
-                disabled={isLoading}
-                className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02] mt-2"
+                disabled={isLoading || !captchaValidated}
+                className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider pointer-events-auto mt-2 ${
+                  isLoading || !captchaValidated
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    : 'bg-[#d8b081] text-black cursor-pointer'
+                }`}
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -494,7 +498,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                 ) : (
                   'Crear Cuenta'
                 )}
-              </Button>
+              </button>
             </div>
 
             {/* Back link */}
@@ -504,7 +508,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                 <button
                   type="button"
                   onClick={onBack}
-                  className="text-orange-primary hover:text-white-primary font-semibold transition-colors"
+                  className="text-orange-primary hover:text-white font-semibold transition-all cursor-pointer px-2 py-0.5 rounded-md hover:bg-[#d8b081]/10 underline underline-offset-2"
                 >
                   Inicia sesión
                 </button>
@@ -514,7 +518,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center gap-2 text-sm text-orange-primary hover:text-white-primary transition-colors mx-auto mt-2"
+              className="flex items-center gap-2 text-sm text-orange-primary hover:text-[#e8c091] transition-all mx-auto mt-2 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-[#d8b081]/10"
             >
               <ArrowLeft className="w-4 h-4" />
               Volver
@@ -540,6 +544,14 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
         }
         .login-btn {
           height: 48px !important;
+          transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .login-btn:not(:disabled):hover {
+          background-color: #c9974f !important;
+          transform: scale(1.02);
+        }
+        .login-btn:disabled:hover {
+          background-color: #4a3d24 !important;
         }
 
         .login-left-panel {

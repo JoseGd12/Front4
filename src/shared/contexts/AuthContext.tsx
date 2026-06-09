@@ -276,8 +276,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, rolId?: number): Promise<{ success: boolean; error?: string }> => {
     try {
-      setIsLoading(true);
-
       // Autenticar con Firebase primero
       const userCredential = await firebaseAuthService.signIn(email, password);
       const firebaseProfile = firebaseAuthService.getUserProfile(userCredential.user);
@@ -329,8 +327,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('Error en login:', error);
       return { success: false, error: error.message || 'Error desconocido' };
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -504,8 +500,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = async (rolId?: number): Promise<{ success: boolean; error?: string }> => {
     try {
-      setIsLoading(true);
-
       // Primero autenticar con Google para obtener el email
       const userCredential = await firebaseAuthService.signInWithGoogle();
       const firebaseProfile = firebaseAuthService.getUserProfile(userCredential.user);
@@ -555,8 +549,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('Error en loginWithGoogle:', error);
       return { success: false, error: error.message || 'Error desconocido' };
-    } finally {
-      setIsLoading(false);
     }
   };
 
