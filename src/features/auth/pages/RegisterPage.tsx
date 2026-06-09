@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
@@ -33,6 +33,18 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
   const [showRegisterFormErrors, setShowRegisterFormErrors] = useState(false);
   const [registerValidationAttempt, setRegisterValidationAttempt] = useState(0);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
+
+  useEffect(() => {
+    if (!success) return;
+    const interval = setInterval(() => {
+      setRedirectCountdown(prev => {
+        if (prev <= 1) { clearInterval(interval); onBack(); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [success, onBack]);
 
   const validatePassword = (password: string) => {
     return {
@@ -194,7 +206,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               onClick={onBack}
               className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
             >
-              Ir al inicio de sesión
+              Ir al inicio de sesión ({redirectCountdown})
             </Button>
           </div>
         </div>

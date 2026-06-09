@@ -850,6 +850,7 @@ export function RolesPage() {
                     value={nuevoRol.nombre}
                     onChange={(val) => setNuevoRol({ ...nuevoRol, nombre: val })}
                     placeholder="Ej: Content Manager"
+                    maxLength={25}
                     className={`elegante-input w-full ${hasTriedToSubmit && (!nuevoRol.nombre.trim() || isNombreRolDuplicate) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                   />
                   {hasTriedToSubmit && !nuevoRol.nombre.trim() && (
@@ -998,6 +999,7 @@ export function RolesPage() {
                     <NameInput
                       value={editingRole.nombre}
                       onChange={(val) => setEditingRole({ ...editingRole, nombre: val })}
+                      maxLength={25}
                       className={`elegante-input w-full ${hasTriedToSubmit && (!editingRole.nombre.trim() || isEditingNombreDuplicate) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                     />
                     {hasTriedToSubmit && !editingRole.nombre.trim() && (

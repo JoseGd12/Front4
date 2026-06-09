@@ -82,15 +82,15 @@ export interface PagedClientes {
 class ClientesService {
   // Mapear datos de la API al formato del componente (usando campos aplanados)
   mapApiToComponent(apiCliente: any): Cliente {
-    const documentoStr = apiCliente.documento || (apiCliente.usuario?.documento) || '';
-    const partesDocumento = documentoStr.split(' ');
-    const tipoDocumento = partesDocumento.length > 1 ? partesDocumento[0] : 'CC';
-    const numeroDocumento = partesDocumento.length > 1 ? partesDocumento.slice(1).join(' ') : documentoStr;
+    const usuario = apiCliente.usuario || apiCliente.Usuario || {};
+    const tipoDocumento = apiCliente.tipoDocumento || apiCliente.TipoDocumento || usuario.tipoDocumento || usuario.TipoDocumento || 'CC';
+    const numeroDocumento = apiCliente.documento || apiCliente.Documento || usuario.documento || usuario.Documento || '';
+    const fechaRegistroRaw = apiCliente.fechaRegistro || apiCliente.FechaRegistro || usuario.fechaRegistro || usuario.FechaRegistro;
 
     return {
       id: (apiCliente.id || apiCliente.Id || 0).toString(),
-      usuarioId: apiCliente.usuarioId || apiCliente.UsuarioId || (apiCliente.usuario?.id || apiCliente.usuario?.Id || 0),
-      tipoDocumento: tipoDocumento || 'CC',
+      usuarioId: apiCliente.usuarioId || apiCliente.UsuarioId || usuario.id || usuario.Id || 0,
+      tipoDocumento: tipoDocumento,
       numeroDocumento: numeroDocumento,
       nombre: apiCliente.nombre || apiCliente.Nombre || '',
       apellido: apiCliente.apellido || apiCliente.Apellido || '',
@@ -99,7 +99,7 @@ class ClientesService {
       direccion: apiCliente.direccion || apiCliente.Direccion || '',
       barrio: apiCliente.barrio || apiCliente.Barrio || '',
       fechaNacimiento: (apiCliente.fechaNacimiento || apiCliente.FechaNacimiento) ? String(apiCliente.fechaNacimiento || apiCliente.FechaNacimiento).split('T')[0] : '',
-      fechaRegistro: new Date().toLocaleDateString(),
+      fechaRegistro: fechaRegistroRaw ? String(fechaRegistroRaw).split('T')[0] : new Date().toLocaleDateString(),
       activo: apiCliente.estado === true || apiCliente.Estado === true,
       fotoPerfil: apiCliente.fotoPerfil || apiCliente.FotoPerfil || apiCliente.imagenUrl || '',
       saldoAFavor: Number(apiCliente.saldoAFavor || apiCliente.SaldoAFavor || apiCliente.saldoFavor || apiCliente.SaldoFavor || 0)
@@ -117,7 +117,7 @@ class ClientesService {
       Direccion: data.direccion,
       Barrio: data.barrio,
       FechaNacimiento: data.fechaNacimiento,
-      FotoPerfil: data.fotoPerfil || '',
+      ...(data.fotoPerfil ? { FotoPerfil: data.fotoPerfil } : {}),
       Estado: data.estado !== undefined ? data.estado : true,
       UsuarioId: data.usuarioId
     };
@@ -260,7 +260,7 @@ class ClientesService {
   }
 
   async toggleClienteEstado(id: number, active: boolean): Promise<void> {
-    await httpClient.post(`/Clientes/${id}/estado`, { active });
+    await httpClient.post(`/Clientes/${id}/estado`, { estado: active });
   }
 
   async createClienteRapido(nombre: string | Partial<CreateClienteData>, telefono?: string): Promise<ClienteAPI> {

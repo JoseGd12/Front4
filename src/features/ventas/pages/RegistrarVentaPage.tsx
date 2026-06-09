@@ -105,7 +105,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
   const [productosAPI, setProductosAPI] = useState<ApiProducto[]>([]);
   const [clientesAPI, setClientesAPI] = useState<ClienteAPI[]>([]);
   const [barberosAPI, setBarberosAPI] = useState<ApiBarbero[]>([]);
-  // ventasCount eliminado: el número de venta lo asigna el backend
+  const [nextVentaId, setNextVentaId] = useState<number | null>(null);
 
   const inicialNuevaVenta = {
     clienteId: null as number | null,
@@ -233,12 +233,14 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
         usuariosData,
         paquetesData,
         clientesData,
+        pagedVentas,
       ] = await Promise.all([
         servicioService.getServicios().catch(() => []),
         productoService.getProductos().catch(() => []),
         apiService.getUsuarios().catch(() => []),
         apiService.getPaquetes().catch(() => []),
         clientesService.getClientes().catch(() => []),
+        ventaService.getVentasPaged(1, 1).catch(() => ({ items: [], totalCount: 0 })),
       ]);
       // Saldo real (devoluciones - saldoUsado en ventas) directo desde la API
       const clientesActivosRaw = (clientesData || []).filter(
@@ -255,6 +257,15 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       setServicios((serviciosData || []).filter((s) => s.estado === true));
       setPaquetes((paquetesData || []).filter((p) => p.activo === true));
       setProductosAPI((productosData || []).filter((p) => p.activo === true));
+
+      // Calcular próximo ID de venta
+      if (pagedVentas && pagedVentas.items && pagedVentas.items.length > 0) {
+        // Asumiendo que el primer item es el más reciente (orden desc por ID)
+        const lastId = Number(pagedVentas.items[0].id);
+        setNextVentaId(lastId + 1);
+      } else if (pagedVentas && pagedVentas.totalCount === 0) {
+        setNextVentaId(1);
+      }
 
       // Barberos - Usar barberosService para obtener el BarberoId real
       const barberosResponse = await barberosService.getBarberos().catch(() => []);
@@ -1062,15 +1073,10 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       // El backend descuenta el saldo a favor automáticamente al persistir
       // Venta.SaldoAFavorUsado, así que no hace falta crear una devolución compensatoria.
 
-      const ventaIdCreada = Number(
-        (nuevaVentaCreada as any)?.id ??
-        (nuevaVentaCreada as any)?.numeroVenta ??
-        0
-      );
+      const numVenta = (nuevaVentaCreada as any)?.id ?? '—';
       created(
         "Venta creada",
-        `La venta #${ventaIdCreada > 0 ? ventaIdCreada : '—'
-        } ha sido registrada exitosamente por $${formatCurrency(total)}.`
+        `La venta #${numVenta} ha sido registrada exitosamente por $${formatCurrency(total)}.`
       );
 
       // Go back after successful creation
@@ -1140,7 +1146,7 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                         Nº Venta:
                       </span>
                       <span className="text-gray-lightest font-medium tabular-nums text-xs sm:text-sm">
-                        —
+                        {nextVentaId !== null ? nextVentaId : "—"}
                       </span>
                     </div>
 

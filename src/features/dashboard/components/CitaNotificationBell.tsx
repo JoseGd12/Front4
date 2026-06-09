@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, Check, X, Clock, User, Scissors, CalendarDays, ListChecks } from "lucide-react";
 import { agendamientoService, type Agendamiento } from "../../agendamiento/services/agendamientoService";
 import { clientesService } from "../../clientes/services/clientesService";
-import { toast } from "../../../shared/components/ui/notify";
+import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { ModalCompletarParcialmente } from "../../agendamiento/components/ModalCompletarParcialmente";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../../shared/components/ui/tooltip";
 
@@ -153,6 +153,7 @@ const saveActionedIds = (ids: Set<string>) => {
 };
 
 export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamientos }: CitaNotificationBellProps) {
+  const { success, error: alertError, AlertContainer } = useCustomAlert();
   // Carga cache inmediatamente — muestra notifs aunque API esté caída
   const [notifications, setNotifications] = useState<CitaNotification[]>(() => {
     const cached = loadNotificationsCache();
@@ -354,12 +355,12 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
       removeAfterAction(notifId);
       window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId, estado } }));
       if (estado === "Completada") {
-        toast.success("Cita completada", { description: "Registrada como venta correctamente." });
+        success("Cita completada", "Registrada como venta correctamente.");
       } else {
-        toast.success("Cita cancelada", { description: "La cita fue cancelada." });
+        success("Cita cancelada", "La cita fue cancelada.");
       }
     } catch (err: any) {
-      toast.error("Error", { description: err?.message || "No se pudo actualizar el estado." });
+      alertError("Error", err?.message || "No se pudo actualizar el estado.");
     } finally {
       setLoadingId(null);
     }
@@ -549,7 +550,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
                                         fullCita = await agendamientoService.getAgendamientoById(notif.citaId);
                                         if (fullCita?.id) citasMapRef.current.set(fullCita.id, fullCita);
                                       } catch {
-                                        toast.error("Error", { description: "No se pudo cargar la cita." });
+                                        alertError("Error", "No se pudo cargar la cita.");
                                         return;
                                       }
                                     }
@@ -606,10 +607,11 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
             });
             removeAfterAction(`cita-${citaParcialActual.id}`);
             window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId: citaParcialActual.id, estado: "Completada" } }));
-            toast.success("Cita completada parcialmente");
+            success("Cita completada", "El estado ha sido actualizado correctamente.");
           }}
         />
       )}
+      <AlertContainer />
     </div>
   );
 }

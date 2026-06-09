@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Clock,
@@ -163,6 +163,9 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
 
   const [barberoSearchTerm, setBarberoSearchTerm] = useState("");
   const [showBarberoResults, setShowBarberoResults] = useState(false);
+  const [asignarATodos, setAsignarATodos] = useState(false);
+  const [isAsignarTodosDialogOpen, setIsAsignarTodosDialogOpen] = useState(false);
+  const [creandoTodos, setCreandoTodos] = useState(false);
 
   // Estado para agregar un nuevo bloque
   const [nuevoBloque, setNuevoBloque] = useState<BloqueHorario>({
@@ -236,7 +239,19 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     }
   };
 
+  // Lunes de la semana actual (para ocultar semanas pasadas)
+  const lunesActual = (() => {
+    const hoy = new Date();
+    const diaSemana = hoy.getDay() || 7;
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() - (diaSemana - 1));
+    return `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
+  })();
+
   const filteredHorarios = horarios.filter((horario) => {
+    // Ocultar horarios de semanas anteriores
+    if (horario.fechaInicioSemana && horario.fechaInicioSemana.substring(0, 10) < lunesActual) return false;
+
     const matchesActivo =
       statusFilter === "all" ||
       (statusFilter === "active" ? horario.activo : !horario.activo);
@@ -306,6 +321,21 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     });
   };
 
+  // Barberos activos que NO tienen horario para la semana actual
+  const barberosLibresEstaSemana = useMemo(() => {
+    const hoy = new Date();
+    const diaSemana = hoy.getDay() || 7;
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() - (diaSemana - 1));
+    const lunesStr = `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
+    const idsConHorario = new Set(
+      horarios
+        .filter(h => h.fechaInicioSemana && h.fechaInicioSemana.substring(0, 10) === lunesStr)
+        .map(h => h.barberoId)
+    );
+    return barberos.filter(b => b.estado === true && !idsConHorario.has(b.id));
+  }, [horarios, barberos]);
+
   // Resetear formulario
   const resetFormulario = () => {
     setNuevoHorario({
@@ -317,15 +347,25 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     setDiasSeleccionados([]);
     setBarberoSearchTerm("");
     setShowBarberoResults(false);
+    setAsignarATodos(false);
   };
 
   const handleCreateHorario = async () => {
-    if (!nuevoHorario.barberoId) {
+    if (!asignarATodos && !nuevoHorario.barberoId) {
       error("Barbero requerido", "Por favor selecciona un barbero.");
       return;
     }
     if (nuevoHorario.bloques.length === 0) {
       error("Sin bloques", "Debes agregar al menos un bloque de horario (día + horas).");
+      return;
+    }
+
+    if (asignarATodos) {
+      if (barberosLibresEstaSemana.length === 0) {
+        error("Sin barberos libres", "Todos los barberos activos ya tienen horario esta semana.");
+        return;
+      }
+      setIsAsignarTodosDialogOpen(true);
       return;
     }
 
@@ -340,7 +380,6 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       return;
     }
 
-    // Ejecutar creación directamente
     await confirmCreateHorario();
   };
 
@@ -383,6 +422,61 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     } catch (err: any) {
       console.error(err);
       error("Error", err?.message || "No se pudieron crear los horarios.");
+    }
+  };
+
+  const confirmCreateHorarioTodos = async () => {
+    setCreandoTodos(true);
+    try {
+      const hoy = new Date();
+      const diaSemana = hoy.getDay() || 7;
+      const lunes = new Date(hoy);
+      lunes.setDate(hoy.getDate() - (diaSemana - 1));
+      const domingo = new Date(lunes);
+      domingo.setDate(lunes.getDate() + 6);
+      const formatDate = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const DIAS_NOMBRE_TO_NUM: Record<string, number> = {
+        "Lunes": 1, "Martes": 2, "Miércoles": 3, "Jueves": 4,
+        "Viernes": 5, "Sábado": 6, "Domingo": 7
+      };
+
+      const detalles = nuevoHorario.bloques.map(bloque => ({
+        diaSemana: DIAS_NOMBRE_TO_NUM[bloque.dia] || 1,
+        horaInicio: bloque.horaInicio,
+        horaFin: bloque.horaFin
+      }));
+
+      const resultados = await Promise.allSettled(
+        barberosLibresEstaSemana.map(barbero =>
+          horariosService.createHorarioSemanal({
+            barberoId: barbero.id,
+            fechaInicioSemana: formatDate(lunes),
+            fechaFinSemana: formatDate(domingo),
+            detalles
+          })
+        )
+      );
+
+      const exitosos = resultados.filter(r => r.status === 'fulfilled').length;
+      const fallidos = resultados.filter(r => r.status === 'rejected').length;
+
+      setIsAsignarTodosDialogOpen(false);
+      resetFormulario();
+      setIsDialogOpen(false);
+      await loadData(true);
+
+      if (fallidos === 0) {
+        success("¡Horarios creados!", `Se asignó el horario a ${exitosos} barbero${exitosos !== 1 ? 's' : ''} correctamente.`);
+      } else {
+        success("Parcialmente completado", `${exitosos} horario${exitosos !== 1 ? 's' : ''} creado${exitosos !== 1 ? 's' : ''}, ${fallidos} con error${fallidos !== 1 ? 'es' : ''}.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      error("Error", err?.message || "No se pudieron crear los horarios.");
+    } finally {
+      setCreandoTodos(false);
     }
   };
 
@@ -1314,6 +1408,10 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                       onChange={(e) => {
                         setBarberoSearchTerm(e.target.value);
                         setShowBarberoResults(true);
+                        if (asignarATodos) {
+                          setAsignarATodos(false);
+                          setNuevoHorario(prev => ({ ...prev, barberoId: "" }));
+                        }
                       }}
                       onFocus={() => setShowBarberoResults(true)}
                       onBlur={() => setTimeout(() => setShowBarberoResults(false), 200)}
@@ -1321,47 +1419,134 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                       disabled={!!editingHorario}
                     />
 
-                    {showBarberoResults && barberoSearchTerm.trim() !== "" && !editingHorario && (
-                      <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in duration-200">
-                        {(() => {
-                          const query = barberoSearchTerm.toLowerCase();
-                          const filteredResults = barberos.filter(b =>
-                            b.estado === true && `${b.nombre} ${b.apellido}`.toLowerCase().includes(query)
-                          );
-
-                          if (filteredResults.length === 0) {
-                            return (
-                              <div className="p-4 text-center text-gray-lightest italic">
-                                No se encontraron barberos.
-                              </div>
-                            );
-                          }
-
-                          return filteredResults.map((barbero) => (
-                            <div
-                              key={barbero.id}
-                              onClick={() => {
-                                setNuevoHorario({
-                                  ...nuevoHorario,
-                                  barberoId: barbero.id.toString()
-                                });
-                                setBarberoSearchTerm(`${barbero.nombre} ${barbero.apellido}`);
-                                setShowBarberoResults(false);
-                              }}
-                              className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer group"
-                            >
-                              <div className="flex justify-between items-center">
-                                <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-secondary transition-colors">
-                                  {barbero.nombre} {barbero.apellido}
-                                </p>
-                                <p className="text-[10px] text-gray-lightest">{barbero.documento || ''}</p>
-                              </div>
+                    {showBarberoResults && !editingHorario && (
+                      <div className="absolute z-50 w-full mt-1 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col overflow-hidden" style={{ maxHeight: '240px' }}>
+                        {/* Botón "asignar a todos" — fijo arriba, no scrollea */}
+                        {barberosLibresEstaSemana.length > 0 && (
+                          <div
+                            onClick={() => {
+                              setAsignarATodos(true);
+                              setNuevoHorario(prev => ({ ...prev, barberoId: "__all_free__" }));
+                              setBarberoSearchTerm(`Todos los barberos libres (${barberosLibresEstaSemana.length})`);
+                              setShowBarberoResults(false);
+                            }}
+                            className="flex-shrink-0 px-3 py-2.5 flex items-center gap-2.5 border-b-2 border-orange-primary/40 bg-orange-primary/10 hover:bg-orange-primary/20 cursor-pointer transition-colors group rounded-t-xl"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-orange-primary/20 border border-orange-primary/30 flex items-center justify-center flex-shrink-0">
+                              <UserIcon className="w-3.5 h-3.5 text-orange-primary" />
                             </div>
-                          ));
-                        })()}
+                            <div className="min-w-0">
+                              <p className="text-orange-primary font-semibold text-xs group-hover:text-orange-secondary transition-colors leading-tight">
+                                Asignar horario a todos los barberos libres
+                              </p>
+                              <p className="text-[10px] text-orange-primary/70 leading-tight mt-0.5">
+                                {barberosLibresEstaSemana.length} barbero{barberosLibresEstaSemana.length !== 1 ? 's' : ''} sin horario esta semana
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Lista scrolleable — muestra ~5 filas */}
+                        <div className="overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                          {(() => {
+                            const query = barberoSearchTerm.toLowerCase().trim();
+                            const idsLibres = new Set(barberosLibresEstaSemana.map(b => b.id));
+
+                            const sinHorario = barberosLibresEstaSemana.filter(b =>
+                              !query || `${b.nombre} ${b.apellido}`.toLowerCase().includes(query)
+                            );
+                            const conHorario = barberos.filter(b =>
+                              b.estado === true &&
+                              !idsLibres.has(b.id) &&
+                              (!query || `${b.nombre} ${b.apellido}`.toLowerCase().includes(query))
+                            );
+
+                            if (sinHorario.length === 0 && conHorario.length === 0) {
+                              return (
+                                <div className="p-4 text-center text-gray-lightest italic text-sm">
+                                  No se encontraron barberos.
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <>
+                                {sinHorario.length > 0 && (
+                                  <>
+                                    <div className="px-3 py-1.5 flex items-center gap-2 border-b border-gray-dark bg-orange-primary/5">
+                                      <AlertTriangle className="w-3 h-3 text-orange-primary flex-shrink-0" />
+                                      <span className="text-[10px] font-bold uppercase tracking-widest text-orange-primary">
+                                        Sin horario esta semana ({sinHorario.length})
+                                      </span>
+                                    </div>
+                                    {sinHorario.map(barbero => (
+                                      <div
+                                        key={barbero.id}
+                                        onClick={() => {
+                                          setNuevoHorario(prev => ({ ...prev, barberoId: barbero.id.toString() }));
+                                          setBarberoSearchTerm(`${barbero.nombre} ${barbero.apellido}`);
+                                          setShowBarberoResults(false);
+                                        }}
+                                        className="px-3 py-2 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer group"
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <p className="text-gray-lightest font-normal text-sm group-hover:text-orange-primary transition-colors truncate">
+                                              {barbero.nombre} {barbero.apellido}
+                                            </p>
+                                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-orange-primary/15 text-orange-primary border border-orange-primary/25 font-semibold flex-shrink-0">
+                                              Sin horario
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-gray-lightest flex-shrink-0 ml-2">{barbero.documento || ''}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </>
+                                )}
+                                {conHorario.length > 0 && (
+                                  <>
+                                    <div className="px-3 py-1.5 flex items-center gap-2 border-b border-gray-dark bg-gray-darkest/50">
+                                      <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0" />
+                                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-lighter">
+                                        Con horario esta semana ({conHorario.length})
+                                      </span>
+                                    </div>
+                                    {conHorario.map(barbero => (
+                                      <div
+                                        key={barbero.id}
+                                        className="px-3 py-2 border-b border-gray-dark opacity-50 cursor-not-allowed"
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <p className="text-gray-lightest font-normal text-sm truncate">
+                                              {barbero.nombre} {barbero.apellido}
+                                            </p>
+                                            <span className="px-1.5 py-0.5 rounded text-[9px] bg-green-400/10 text-green-400 border border-green-400/20 font-semibold flex-shrink-0">
+                                              Ya tiene horario
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-gray-lightest flex-shrink-0 ml-2">{barbero.documento || ''}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
                       </div>
                     )}
                   </div>
+                  {asignarATodos && (
+                    <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-primary/10 border border-orange-primary/25">
+                      <UserIcon className="w-3.5 h-3.5 text-orange-primary flex-shrink-0" />
+                      <p className="text-xs text-orange-primary font-medium">
+                        Se asignará el horario a {barberosLibresEstaSemana.length} barbero{barberosLibresEstaSemana.length !== 1 ? 's' : ''} sin horario esta semana
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Agregar Bloque */}
@@ -1515,10 +1700,10 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             <button
               onClick={editingHorario ? handleUpdateHorario : handleCreateHorario}
               className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              disabled={!nuevoHorario.barberoId || nuevoHorario.bloques.length === 0}
+              disabled={(!asignarATodos && !nuevoHorario.barberoId) || nuevoHorario.bloques.length === 0}
             >
               <Clock className="w-4 h-4" />
-              {editingHorario ? "Actualizar" : "Crear"} Horario
+              {editingHorario ? "Actualizar" : asignarATodos ? `Crear para ${barberosLibresEstaSemana.length} barberos` : "Crear"} Horario
             </button>
           </div>
         </DialogContent>
@@ -2203,6 +2388,60 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       </Dialog>
 
       {/* Alert Dialogs */}
+      {/* Confirmación: asignar horario a todos los barberos libres */}
+      <AlertDialog open={isAsignarTodosDialogOpen} onOpenChange={setIsAsignarTodosDialogOpen}>
+        <AlertDialogContent className="bg-gray-darkest border-gray-dark max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary flex items-center gap-2">
+              <UserIcon className="w-5 h-5 text-orange-primary" />
+              ¿Asignar horario a todos los barberos libres?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-gray-lightest text-sm">
+                  Se creará este horario para{" "}
+                  <span className="font-semibold text-white-primary">
+                    {barberosLibresEstaSemana.length} barbero{barberosLibresEstaSemana.length !== 1 ? 's' : ''}
+                  </span>{" "}
+                  sin horario esta semana:
+                </p>
+                <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                  {barberosLibresEstaSemana.map(b => (
+                    <div key={b.id} className="flex items-center gap-2 px-2 py-1.5 rounded bg-gray-dark/50">
+                      <div className="w-1.5 h-1.5 rounded-full bg-orange-primary flex-shrink-0" />
+                      <span className="text-gray-lightest text-xs">{b.nombre} {b.apellido}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setIsAsignarTodosDialogOpen(false)}
+              className="elegante-button-secondary"
+              disabled={creandoTodos}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCreateHorarioTodos}
+              className="elegante-button-primary"
+              disabled={creandoTodos}
+            >
+              {creandoTodos ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creando...
+                </span>
+              ) : (
+                "Confirmar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <AlertDialogContent className="bg-gray-darkest border-gray-dark">
           <AlertDialogHeader>

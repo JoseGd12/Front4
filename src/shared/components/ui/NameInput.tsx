@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Input } from "./input";
 
-const MIN_LENGTH = 2;   // mínimo 2 letras reales
-const MAX_LENGTH = 18;  // máximo 18 caracteres
+const DEFAULT_MIN_LENGTH = 2;
+const DEFAULT_MAX_LENGTH = 18;
 
 // Solo signos de puntuación / sin ninguna letra
 const ONLY_PUNCTUATION = /^[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ]+$/;
@@ -11,12 +11,14 @@ interface NameInputProps extends Omit<React.ComponentProps<typeof Input>, 'onCha
   value: string;
   onChange: (value: string) => void;
   errorMessage?: string;
+  maxLength?: number;
+  minLength?: number;
 }
 
 /**
  * Input para campos de nombre/apellido.
- * - Mínimo 2 caracteres con al menos una letra
- * - Máximo 18 caracteres
+ * - Mínimo 2 caracteres con al menos una letra (por defecto)
+ * - Máximo 18 caracteres (por defecto)
  * - Alerta temporal si se escribe un número
  * - Alerta "Mantente en el límite" si se excede
  */
@@ -25,6 +27,8 @@ export function NameInput({
   onChange,
   errorMessage,
   className,
+  maxLength = DEFAULT_MAX_LENGTH,
+  minLength = DEFAULT_MIN_LENGTH,
   ...props
 }: NameInputProps) {
   const [showNumberError, setShowNumberError] = useState(false);
@@ -35,27 +39,32 @@ export function NameInput({
     
     // Filtrar caracteres no permitidos: solo letras (incluyendo acentos y ñ) y espacios
     // Removemos números y caracteres especiales
-    const filtered = raw.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '');
+    let filtered = raw.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '');
     
     if (raw !== filtered) {
       setShowNumberError(true);
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setShowNumberError(false), 2500);
     }
+
+    // Truncar al límite máximo
+    if (filtered.length > maxLength) {
+      filtered = filtered.slice(0, maxLength);
+    }
     
     onChange(filtered);
-  }, [onChange]);
+  }, [onChange, maxLength]);
 
   const length = value?.length ?? 0;
-  const isOver = length > MAX_LENGTH;
+  const isAtLimit = length === maxLength;
   const isOnlyPunctuation = length > 0 && ONLY_PUNCTUATION.test(value);
-  const isTooShort = length > 0 && length < MIN_LENGTH;
-  const isNearLimit = !isOver && length >= MAX_LENGTH - 3;
-  const hasError = isOver || isOnlyPunctuation || isTooShort;
+  const isTooShort = length > 0 && length < minLength;
+  const isNearLimit = !isAtLimit && length >= maxLength - 3;
+  const hasError = isOnlyPunctuation || isTooShort;
   const borderClass = hasError ? 'border-red-500 ring-1 ring-red-500' : '';
 
   let hintMessage: React.ReactNode = (
-    <span className="text-[10px] text-gray-medium">Mínimo {MIN_LENGTH}, máximo {MAX_LENGTH} caracteres</span>
+    <span className="text-[10px] text-gray-medium">Mínimo {minLength}, máximo {maxLength} caracteres</span>
   );
 
   if (showNumberError) {
@@ -64,10 +73,10 @@ export function NameInput({
         {errorMessage ?? "Solo se permiten letras y espacios."}
       </span>
     );
-  } else if (isOver) {
+  } else if (isAtLimit) {
     hintMessage = (
-      <span className="text-xs text-red-400 font-semibold">
-        ⚠ Mantente en el límite sugerido (máx. {MAX_LENGTH} caracteres).
+      <span className="text-xs text-orange-primary font-semibold">
+        Máximo de {maxLength} caracteres alcanzado.
       </span>
     );
   } else if (isOnlyPunctuation) {
@@ -79,7 +88,7 @@ export function NameInput({
   } else if (isTooShort) {
     hintMessage = (
       <span className="text-xs text-orange-primary">
-        Debe tener al menos {MIN_LENGTH} caracteres.
+        Debe tener al menos {minLength} caracteres.
       </span>
     );
   }
@@ -94,8 +103,8 @@ export function NameInput({
       />
       <div className="flex items-center justify-between mt-1 min-h-[16px]">
         {hintMessage}
-        <span className={`text-[10px] tabular-nums ml-2 shrink-0 ${isOver ? 'text-red-400 font-semibold' : isNearLimit ? 'text-orange-primary' : 'text-gray-medium'}`}>
-          {length}/{MAX_LENGTH}
+        <span className={`text-[10px] tabular-nums ml-2 shrink-0 ${isAtLimit ? 'text-orange-primary font-semibold' : isNearLimit ? 'text-orange-primary' : 'text-gray-medium'}`}>
+          {length}/{maxLength}
         </span>
       </div>
     </div>

@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
-import { toast } from "../../../shared/components/ui/notify";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
@@ -590,9 +589,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
 
     if (productosDetalle.length === 0) {
       try {
-        const toastId = toast.loading("Obteniendo detalles para el reporte...");
         productosDetalle = await compraService.getDetallesPorCompra(compra.id);
-        toast.dismiss(toastId);
       } catch (error) {
         console.error(error);
         showErrorAlert("Error al cargar reporte", "No se pudieron cargar los productos para el reporte.");

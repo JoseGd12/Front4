@@ -134,11 +134,10 @@ class RolesApiService {
   }
 
   async createRole(data: CreateRoleData): Promise<RoleWithModules> {
-    // Mapeo a PascalCase para el backend
     const apiData = {
       Nombre: data.nombre,
       Descripcion: data.descripcion || '',
-      Modulos: data.modulos,
+      Modulos: data.modulos.map(id => parseInt(id, 10)),
       Permisos: data.permisos || {}
     };
 
@@ -148,11 +147,11 @@ class RolesApiService {
 
   async updateRole(id: string | number, data: UpdateRoleData): Promise<RoleWithModules> {
     const apiData = {
-      Id: id,
+      Id: typeof id === 'string' ? parseInt(id, 10) : id,
       Nombre: data.nombre,
       Descripcion: data.descripcion || '',
       Estado: data.estado,
-      Modulos: data.modulos,
+      Modulos: data.modulos.map(modId => parseInt(modId, 10)),
       Permisos: data.permisos || {}
     };
 

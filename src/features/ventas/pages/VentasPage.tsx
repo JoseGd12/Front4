@@ -1428,8 +1428,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       setBarberoSearchFocused(false);
       setIsDialogOpen(false);
 
-      const ventaIdCreada = Number((nuevaVentaCreada as any)?.id ?? (nuevaVentaCreada as any)?.numeroVenta ?? 0);
-      created("Venta creada ✔️", `La venta #${ventaIdCreada > 0 ? ventaIdCreada : '—'} ha sido registrada exitosamente por ${formatCurrency(total)}.`);
+      const numRecibo = (nuevaVentaCreada as any)?.numeroRecibo || `#${(nuevaVentaCreada as any)?.id ?? '—'}`;
+      created("Venta creada ✔️", `La venta ${numRecibo} ha sido registrada exitosamente por ${formatCurrency(total)}.`);
     } catch (error: any) {
       const errorMessage = error?.message || 'Error desconocido al crear la venta';
       showErrorAlert("Error al crear la venta", errorMessage);
@@ -1990,7 +1990,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         <StandardTable.Cell>
                           <div className="flex items-center justify-center gap-2">
                             <Hash className="w-4 h-4 text-orange-primary" />
-                            <span>{String((venta as any).numeroVenta ?? venta.id).padStart(3, "0")}</span>
+                            <span>{String(venta.id).padStart(3, "0")}</span>
                           </div>
                         </StandardTable.Cell>
                         <StandardTable.Cell>

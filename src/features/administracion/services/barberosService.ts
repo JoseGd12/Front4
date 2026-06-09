@@ -85,8 +85,8 @@ class BarberosService {
       barrio: data.barrio,
       fechaNacimiento: data.fechaNacimiento,
       especialidad: data.especialidad,
-      status: data.status,
-      fotoPerfil: data.fotoPerfil,
+      Estado: data.estado !== undefined ? data.estado : (data.status === 'active'),
+      fotoPerfil: data.fotoPerfil || undefined,
       usuarioId: data.usuarioId
     };
   }
@@ -186,7 +186,7 @@ class BarberosService {
   }
 
   async updateBarberoStatus(id: number, active: boolean): Promise<void> {
-    await httpClient.post(`/Barberos/${id}/estado`, { active });
+    await httpClient.post(`/Barberos/${id}/estado`, { estado: active });
   }
 }
 

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { toast } from '../../../shared/components/ui/notify';
+import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { formatDuracion } from '../../../shared/utils/dateUtils';
 
 interface ModalCompletarParcialmenteProps {
@@ -27,6 +27,7 @@ export function ModalCompletarParcialmente({
     return new Set(prods.map((p: any) => Number(p.productoId || p.id)).filter((id: number) => id > 0));
   });
 
+  const { error, AlertContainer } = useCustomAlert();
   const [loading, setLoading] = useState(false);
   const [porcentajeDescuento, setPorcentajeDescuento] = useState(0);
   const [descuentoInput, setDescuentoInput] = useState('');
@@ -112,7 +113,7 @@ export function ModalCompletarParcialmente({
 
   const handleSubmit = async () => {
     if (serviciosChecked.size === 0 && productosChecked.size === 0) {
-      toast.error("Debe seleccionar al menos un servicio o producto");
+      error("Selección requerida", "Debe seleccionar al menos un servicio o producto.");
       return;
     }
 
@@ -124,9 +125,7 @@ export function ModalCompletarParcialmente({
       );
       onClose();
     } catch (err: any) {
-      toast.error("Error", {
-        description: err?.message || "No se pudo completar la cita"
-      });
+      error("Error", err?.message || "No se pudo completar la cita.");
     } finally {
       setLoading(false);
     }
@@ -134,7 +133,7 @@ export function ModalCompletarParcialmente({
 
   if (!isOpen) return null;
 
-  return createPortal(
+  const portal = createPortal(
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50"
       onMouseDown={(e) => { if (e.target === e.currentTarget) { e.stopPropagation(); onClose(); } }}
@@ -343,5 +342,12 @@ export function ModalCompletarParcialmente({
       </div>
     </div>,
     document.body
+  );
+
+  return (
+    <>
+      {portal}
+      <AlertContainer />
+    </>
   );
 }
