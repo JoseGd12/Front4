@@ -75,12 +75,10 @@ export class FirebaseAuthService {
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       baseUrl = window.location.origin;
     }
-    const settings: ActionCodeSettings = {
+    return {
       url: `${baseUrl}/auth/action`,
       handleCodeInApp: true
     };
-    console.log('🔑 ActionCodeSettings para verificación de email:', settings);
-    return settings;
   }
 
   private getPasswordResetActionCodeSettings(): ActionCodeSettings {
@@ -88,12 +86,10 @@ export class FirebaseAuthService {
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       baseUrl = window.location.origin;
     }
-    const settings: ActionCodeSettings = {
+    return {
       url: `${baseUrl}/auth/action`,
       handleCodeInApp: true
     };
-    console.log('🔑 ActionCodeSettings para restablecimiento de contraseña:', settings);
-    return settings;
   }
 
   // Obtener usuario actual
