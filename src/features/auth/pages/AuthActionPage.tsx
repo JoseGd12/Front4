@@ -17,7 +17,8 @@ import {
   EyeOff, 
   Clock,
   Scissors,
-  Star 
+  Star,
+  AlertCircle 
 } from 'lucide-react';
 import manitoLogo from '../../../assets/Manito.jpeg';
 
@@ -48,7 +49,10 @@ export function AuthActionPage() {
 
   useEffect(() => {
     const handleAction = async () => {
+      console.log('🔍 Parámetros de la URL:', { mode, oobCode });
+      
       if (!oobCode) {
+        console.error('❌ No hay oobCode en la URL');
         setStatus('error');
         setErrorMessage('Enlace inválido.');
         return;
@@ -56,15 +60,21 @@ export function AuthActionPage() {
 
       if (mode === 'verifyEmail') {
         try {
+          console.log('📧 Verificando email...');
           await firebaseAuthService.verifyEmailWithCode(oobCode);
+          console.log('✅ Email verificado correctamente');
           setStatus('success');
         } catch (error: any) {
+          console.error('❌ Error al verificar email:', error);
           setStatus('error');
           setErrorMessage(error.message || 'El enlace es inválido o ha expirado.');
         }
       } else if (mode === 'resetPassword') {
         try {
+          console.log('🔑 Validando token de restablecimiento...');
           const result = await verifyPasswordReset(oobCode);
+          console.log('✅ Resultado de la validación:', result);
+          
           if (result.success && result.email) {
             setVerifiedEmail(result.email);
             setTokenValid(true);
@@ -75,12 +85,13 @@ export function AuthActionPage() {
             setErrorMessage('El enlace es inválido o ha expirado.');
           }
         } catch (error) {
-          console.error("Error validando token:", error);
+          console.error("❌ Error validando token:", error);
           setTokenValid(false);
           setStatus('error');
           setErrorMessage('El enlace es inválido o ha expirado.');
         }
       } else {
+        console.error('❌ Modo no reconocido:', mode);
         setStatus('error');
         setErrorMessage('Acción no reconocida.');
       }
