@@ -225,13 +225,13 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
     <>
     <div>
 
-      <div className="elegante-card space-y-6">
+      <div className="rounded-xl p-6 mb-6 bg-gray-darkest space-y-6">
 
         {/* Fila superior: Foto | Datos Personales */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Foto y perfil */}
-          <div className="lg:col-span-1 flex flex-col items-center text-center gap-6 border border-gray-dark rounded-2xl p-6">
+          <div className="lg:col-span-1 flex flex-col items-center text-center gap-6 rounded-xl p-6 bg-black/20">
             <div className="relative group mt-2">
               <div className="w-28 h-28 bg-gray-darker rounded-full flex items-center justify-center shadow-2xl shadow-orange-primary/20 overflow-hidden border-4 border-gray-darkest">
                 <ImageRenderer
@@ -267,34 +267,34 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
           </div>
 
           {/* Datos Personales */}
-          <div className="lg:col-span-2 border border-gray-dark rounded-2xl p-6 space-y-4">
+          <div className="lg:col-span-2 rounded-xl p-6 space-y-4">
             <h2 className="text-lg font-bold text-white-primary flex items-center gap-3">
               <UserCircle className="w-5 h-5 text-orange-primary" />
               Datos Personales
             </h2>
             <div className="space-y-3">
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+              <div className="p-4 rounded-xl bg-black/20">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Nombre Completo</p>
                 <div className="flex items-center gap-3">
                   <User className="w-4 h-4 text-orange-primary/70 shrink-0" />
                   <p className="text-white-primary font-medium">{user?.name || "No disponible"}</p>
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+              <div className="p-4 rounded-xl bg-black/20">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Correo Electrónico</p>
                 <div className="flex items-center gap-3">
                   <Mail className="w-4 h-4 text-orange-primary/70 shrink-0" />
                   <p className="text-white-primary font-medium">{user?.email || "No disponible"}</p>
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+              <div className="p-4 rounded-xl bg-black/20">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Número de Teléfono</p>
                 <div className="flex items-center gap-3">
                   <Phone className="w-4 h-4 text-orange-primary/70 shrink-0" />
                   <p className="text-white-primary font-medium">{user?.telefono || "No especificado"}</p>
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+              <div className="p-4 rounded-xl bg-black/20">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Documento</p>
                 <div className="flex items-center gap-3">
                   <CreditCard className="w-4 h-4 text-orange-primary/70 shrink-0" />
@@ -305,7 +305,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                   </p>
                 </div>
               </div>
-              <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+              <div className="p-4 rounded-xl bg-black/20">
                 <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Fecha de Nacimiento</p>
                 <div className="flex items-center gap-3">
                   <Calendar className="w-4 h-4 text-orange-primary/70 shrink-0" />
@@ -321,13 +321,13 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
         </div>
 
         {/* Fila inferior: Seguridad y Cuenta — ancho completo */}
-        <div className="border border-gray-dark rounded-2xl p-6 space-y-4">
+        <div className="rounded-xl p-6 space-y-4">
           <h2 className="text-lg font-bold text-white-primary flex items-center gap-3">
             <Shield className="w-5 h-5 text-orange-primary" />
             Seguridad y Cuenta
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+            <div className="p-4 rounded-xl bg-black/20">
               <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Rol en el Sistema</p>
               <div className="flex items-center gap-3">
                 <Briefcase className="w-4 h-4 text-orange-primary/70" />
@@ -335,7 +335,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
               </div>
             </div>
             
-            <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-green-500/30 transition-colors">
+            <div className="p-4 rounded-xl bg-black/20">
               <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Saldo a Favor</p>
               <div className="flex items-center gap-3">
                 <DollarSign className="w-4 h-4 text-green-500" />
@@ -347,7 +347,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-black/20 border border-gray-dark hover:border-orange-primary/30 transition-colors">
+            <div className="p-4 rounded-xl bg-black/20">
               <p className="text-[10px] font-black text-gray-lighter uppercase tracking-widest mb-1.5 opacity-50">Estado de la Cuenta</p>
               <div className="flex items-center gap-3 text-green-500">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

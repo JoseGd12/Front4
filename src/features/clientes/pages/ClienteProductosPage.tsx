@@ -105,7 +105,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
   return (
     <div className="space-y-6">
       {/* Filtros */}
-      <div className="elegante-card">
+      <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
         <div className="flex flex-wrap items-center gap-3">
           {/* Búsqueda */}
           <div className="relative w-64">
@@ -161,7 +161,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
             {displayedProductos.map((producto) => (
               <div
                 key={producto.id}
-                className="elegante-card p-0 overflow-hidden group flex flex-col transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)] cursor-pointer"
+                className="bg-gray-darkest rounded-xl border border-transparent p-0 overflow-hidden group flex flex-col transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)] cursor-pointer"
                 onClick={() => { setSelectedProducto(producto); setIsDetailOpen(true); }}
               >
                 <div className="w-full aspect-square bg-gray-darker relative overflow-hidden flex items-center justify-center">
@@ -267,7 +267,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                   </div>
 
                   <div className="flex-1 space-y-4 w-full">
-                    <div className="bg-gray-darker p-5 rounded-2xl border border-gray-dark flex flex-col justify-center h-full">
+                    <div className="bg-gray-darker p-5 rounded-xl flex flex-col justify-center h-full">
                       <div className="flex items-center justify-between mb-4 border-b border-gray-dark pb-4">
                         <div className="flex flex-col">
                           <span className="text-[10px] text-gray-lighter font-bold uppercase tracking-widest mb-1">Precio</span>
@@ -297,7 +297,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                       <Check className="w-4 h-4 text-green-500" />
                       ¿Por qué este producto?
                     </h4>
-                    <div className="bg-gray-darker/50 p-4 rounded-xl border border-gray-dark/50 space-y-3">
+                    <div className="bg-gray-darker/50 p-4 rounded-xl space-y-3">
                       {getProductHighlights(selectedProducto).map((h, idx) => (
                         <div key={idx} className="flex items-start gap-3">
                           <div className="mt-1 w-1.5 h-1.5 rounded-full bg-orange-primary shrink-0" />

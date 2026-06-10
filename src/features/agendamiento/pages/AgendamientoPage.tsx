@@ -29,7 +29,7 @@ import { Input } from "../../../shared/components/ui/input";
 import { Calendar as UICalendar } from "../../../shared/components/ui/calendar";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale/es";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, Plus, Minus, X, Phone } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, Plus, Minus, X, Phone, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -219,6 +219,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const searchBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Carrusel de servicios/paquetes dentro del modal de detalle de cita
   const [servicioCarouselPage, setServicioCarouselPage] = useState(0);
+  const [detalleServiciosExpanded, setDetalleServiciosExpanded] = useState(false);
+  const [detalleProductosExpanded, setDetalleProductosExpanded] = useState(false);
   const SERVICIO_PAGE_SIZE = 3;
   const CAROUSEL_PAGE_SIZE = 5;
   // Carruseles del formulario de creación de citas
@@ -350,6 +352,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   // Estados para el popover de detalle de cita (estilo Google Calendar)
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
+  const isSlotModalOpenRef = useRef(false);
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const [popoverSide, setPopoverSide] = useState<'left' | 'right'>('right');
   const [popoverPhase, setPopoverPhase] = useState<'enter' | 'open' | 'exit'>('enter');
@@ -551,6 +554,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [citaToDelete, setCitaToDelete] = useState<any>(null);
 
+  // Confirmación de acción de estado de cita
+  const [confirmAccion, setConfirmAccion] = useState<null | { tipo: 'cancelar' | 'completar' | 'parcial'; citaId: number }>(null);
+  const confirmAccionRef = useRef<typeof confirmAccion>(null);
+
   // Estados para buscadores dentro del formulario de cita
   const [clienteSearchTerm, setClienteSearchTerm] = useState('');
   const [showClienteResults, setShowClienteResults] = useState(false);
@@ -692,7 +699,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setTimeout(() => {
       setIsCreateModalOpen(false);
       setModalPosition(null);
-      setSelectedCita(null);
+      // No limpiar selectedCita si el slot modal abrió durante la animación de cierre
+      if (!isSlotModalOpenRef.current) setSelectedCita(null);
       setShowFormErrors(false);
       setClienteSearchTerm('');
       setBarberoFormSearchTerm('');
@@ -1784,6 +1792,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const handleViewDetail = (cita: any) => {
     setSelectedCita(cita);
     setServicioCarouselPage(0);
+    setDetalleServiciosExpanded(false);
+    setDetalleProductosExpanded(false);
     setActiveTab('detalle');
   };
 
@@ -1791,6 +1801,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const openCitaPopover = useCallback((cita: any, slot: { dia: string; hora: number; fecha: string }, anchorRect: DOMRect) => {
     setSelectedCita(cita);
     setServicioCarouselPage(0);
+    setDetalleServiciosExpanded(false);
+    setDetalleProductosExpanded(false);
     setSelectedSlot(slot);
     setActiveTab('detalle');
 
@@ -1854,8 +1866,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setPopoverPosition(null);
   }, []);
 
-  // Mantener ref sincronizado con showModalParcial para usarlo en handlers
+  // Mantener refs sincronizados con estado para usarlos en handlers y timeouts
+  useEffect(() => { isSlotModalOpenRef.current = isSlotModalOpen; }, [isSlotModalOpen]);
   useEffect(() => { showModalParcialRef.current = showModalParcial; }, [showModalParcial]);
+  useEffect(() => { (confirmAccionRef as any).current = confirmAccion; }, [confirmAccion]);
 
   // Cerrar popover al hacer click fuera o presionar Escape.
   // Aplica defensa en capas para garantizar que ningún bloque del calendario
@@ -1898,6 +1912,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
     const onMouseDown = (e: MouseEvent) => {
       if (showModalParcialRef.current) return;
+      if ((confirmAccionRef as any).current) return;
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         closePopover();
       }
@@ -3048,7 +3063,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             <div className="flex items-center gap-3">
 
               {/* Título — extremo izquierdo */}
-              <h4 className="text-xl font-bold text-gray-lightest tracking-wide shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif" }}>Citas de la semana</h4>
+              <h4 className="text-xl font-bold text-gray-lightest tracking-wide shrink-0 ml-11" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif" }}>Citas de la semana</h4>
 
               {/* Buscador fantasma — ocupa todo el espacio disponible, abre lista de resultados */}
               <div ref={searchContainerRef} className="flex-1 min-w-0 relative flex items-center">
@@ -3802,12 +3817,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       {/* Popover flotante de detalle de cita — estilo Google Calendar */}
       {isSlotModalOpen && popoverPosition && createPortal(
         <>
-          {/* Backdrop con pointer-events:none — permite scroll y clicks en el calendario.
-              El cierre por click fuera lo gestiona el handler mousedown a nivel document. */}
-          <div
-            className="fixed inset-0 pointer-events-none"
-            style={{ background: 'transparent', zIndex: 9998 }}
-          />
           <div
             ref={popoverRef}
             className="fixed flex flex-col rounded-2xl border border-gray-dark/60 bg-gray-darkest overflow-hidden"
@@ -3818,17 +3827,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               maxHeight: 'calc(100vh - 16px)',
               boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)',
               zIndex: 9999,
-              isolation: 'isolate',
               // Animación: 'enter' arranca opaco 0 y desplazado hacia el bloque,
               // 'open' termina en posición final con opacidad 1, 'exit' es solo fade-out.
               opacity: popoverPhase === 'open' ? 1 : 0,
               transform:
                 popoverPhase === 'enter'
                   ? `translateX(${popoverSide === 'right' ? -10 : 10}px) scale(0.97)`
+                  : popoverPhase === 'open'
+                  ? 'none'
                   : 'translateX(0) scale(1)',
               transformOrigin: popoverSide === 'right' ? 'left center' : 'right center',
               transition: `opacity ${POPOVER_ANIM_MS}ms ease-out, transform ${POPOVER_ANIM_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`,
-              willChange: 'opacity, transform',
+              willChange: popoverPhase === 'open' ? 'auto' : 'opacity, transform',
             }}
           >
           {/* Barra superior: título + botón cerrar */}
@@ -4001,14 +4011,34 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     </div>
                   ) : detalleServicios.length > 0 ? (
                     <div>
-                      <p className="text-sm text-gray-lightest">
-                        {detalleServicios.map((s: any) => formatNombre(s.nombre)).join(', ')}
-                      </p>
-                      {detalleServicios.some((s: any) => s.duracion) && (
-                        <p className="text-xs text-gray-lighter mt-0.5">
-                          {detalleServicios.filter((s: any) => s.duracion).map((s: any) => `${s.nombre}: ${formatDuracion(s.duracion)}`).join(' · ')}
-                        </p>
-                      )}
+                      {(() => {
+                        const MAX = 3;
+                        const hasDuraciones = detalleServicios.some((s: any) => s.duracion);
+                        const source = detalleServiciosExpanded ? detalleServicios : detalleServicios.slice(0, MAX);
+                        const extra = detalleServicios.length - MAX;
+                        const items = source.map((s: any) =>
+                          hasDuraciones && s.duracion
+                            ? `${formatNombre(s.nombre)}: ${formatDuracion(s.duracion)}`
+                            : formatNombre(s.nombre)
+                        );
+                        return (
+                          <p className="text-sm text-gray-lightest">
+                            {items.join(' · ')}
+                            {extra > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setDetalleServiciosExpanded(v => !v)}
+                                className="ml-1 text-xs font-semibold transition-colors duration-150"
+                                style={{ color: 'rgba(160,160,168,0.85)', cursor: 'pointer' }}
+                                onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
+                                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(160,160,168,0.85)')}
+                              >
+                                {detalleServiciosExpanded ? 'ver menos' : `· ${extra} más`}
+                              </button>
+                            )}
+                          </p>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <p className="text-sm text-gray-lighter">Sin servicios registrados</p>
@@ -4023,11 +4053,30 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     <ShoppingBag className="w-5 h-5 text-gray-lighter" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-lightest">
-                      {detalleProductos.map((p: any) =>
-                        p.cantidad > 1 ? `${formatNombre(p.nombre)} ×${p.cantidad}` : formatNombre(p.nombre)
-                      ).join(', ')}
-                    </p>
+                    {(() => {
+                      const MAX = 3;
+                      const source = detalleProductosExpanded ? detalleProductos : detalleProductos.slice(0, MAX);
+                      const extra = detalleProductos.length - MAX;
+                      return (
+                        <p className="text-sm text-gray-lightest">
+                          {source.map((p: any) =>
+                            p.cantidad > 1 ? `${formatNombre(p.nombre)} ×${p.cantidad}` : formatNombre(p.nombre)
+                          ).join(', ')}
+                          {extra > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setDetalleProductosExpanded(v => !v)}
+                              className="ml-1 text-xs font-semibold transition-colors duration-150"
+                              style={{ color: 'rgba(160,160,168,0.85)', cursor: 'pointer' }}
+                              onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.90)')}
+                              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(160,160,168,0.85)')}
+                            >
+                              {detalleProductosExpanded ? 'ver menos' : `, ${extra} más`}
+                            </button>
+                          )}
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -4062,22 +4111,22 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 return (
                   <div className="flex flex-wrap justify-end gap-2 sm:gap-3 pt-3">
                     <button
-                      onClick={() => handleChangeEstado(selectedCita.id, 'Cancelada')}
-                      className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-600/10 border border-transparent hover:border-red-500/30 transition-all"
+                      onClick={() => setConfirmAccion({ tipo: 'cancelar', citaId: selectedCita.id })}
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-transparent hover:border-red-500/40 transition-all cursor-pointer"
                     >
                       Cancelar cita
                     </button>
                     {!isFuture && (
                       <>
                         <button
-                          onClick={() => { hidePopoverKeepCita(); setShowModalParcial(true); }}
-                          className="px-4 py-2 rounded-lg text-sm font-medium border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/10 transition-all"
+                          onClick={() => setConfirmAccion({ tipo: 'parcial', citaId: selectedCita.id })}
+                          className="px-4 py-2 rounded-lg text-sm font-medium border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/10 transition-all cursor-pointer"
                         >
                           Completar Parcialmente
                         </button>
                         <button
-                          onClick={() => handleChangeEstado(selectedCita.id, 'Completada')}
-                          className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-primary text-black-primary hover:bg-orange-primary/90 transition-all"
+                          onClick={() => setConfirmAccion({ tipo: 'completar', citaId: selectedCita.id })}
+                          className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-primary text-black-primary hover:bg-orange-primary/90 transition-all cursor-pointer"
                         >
                           Completar
                         </button>
@@ -4117,6 +4166,61 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           }}
         />
       )}
+
+      {/* Dialog de confirmación de acción de estado */}
+      <AlertDialog open={!!confirmAccion} onOpenChange={(open) => { if (!open) setConfirmAccion(null); }}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <div className="flex items-center space-x-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                confirmAccion?.tipo === 'cancelar' ? 'bg-red-600/20' : 'bg-orange-primary/10'
+              }`}>
+                {confirmAccion?.tipo === 'cancelar' ? (
+                  <X className="w-5 h-5 text-red-400" />
+                ) : (
+                  <Check className="w-5 h-5 text-orange-primary" />
+                )}
+              </div>
+              <AlertDialogTitle className="text-white-primary">
+                {confirmAccion?.tipo === 'cancelar' && 'Cancelar cita'}
+                {confirmAccion?.tipo === 'completar' && 'Completar cita'}
+                {confirmAccion?.tipo === 'parcial' && 'Completar parcialmente'}
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-lightest">
+              {confirmAccion?.tipo === 'cancelar' && 'La cita será cancelada y la venta asociada quedará anulada. Esta acción no se puede deshacer.'}
+              {confirmAccion?.tipo === 'completar' && '¿Confirmas que la cita fue atendida y deseas marcarla como completada?'}
+              {confirmAccion?.tipo === 'parcial' && '¿Deseas registrar los servicios realizados en esta cita de forma parcial?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="elegante-button-secondary" onClick={() => setConfirmAccion(null)}>
+              No, volver
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={confirmAccion?.tipo === 'cancelar'
+                ? 'bg-red-600 hover:bg-red-700 text-white border-none'
+                : 'bg-orange-primary hover:bg-orange-primary/90 text-black-primary border-none'}
+              onClick={() => {
+                if (!confirmAccion) return;
+                if (confirmAccion.tipo === 'cancelar') {
+                  handleChangeEstado(confirmAccion.citaId, 'Cancelada');
+                } else if (confirmAccion.tipo === 'completar') {
+                  handleChangeEstado(confirmAccion.citaId, 'Completada');
+                } else if (confirmAccion.tipo === 'parcial') {
+                  hidePopoverKeepCita();
+                  setShowModalParcial(true);
+                }
+                setConfirmAccion(null);
+              }}
+            >
+              {confirmAccion?.tipo === 'cancelar' && 'Sí, cancelar'}
+              {confirmAccion?.tipo === 'completar' && 'Sí, completar'}
+              {confirmAccion?.tipo === 'parcial' && 'Sí, continuar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog de confirmación de eliminación */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

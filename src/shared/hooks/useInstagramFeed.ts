@@ -63,15 +63,17 @@ export const useInstagramFeed = (limit = 12) => {
 
         const errors: string[] = [];
 
+        const API_VER = 'v22.0';
+
         // ══════════════════════════════════════════════════════════════
         // ESTRATEGIA A — Page ID conocido (Business Manager)
         // Evita /me/accounts que devuelve vacío cuando la página
         // pertenece a un portafolio de Business Manager.
         // ══════════════════════════════════════════════════════════════
-        if (pageIdEnv) {
+        if (pageIdEnv && pageIdEnv !== 'CAMBIAR_POR_ID_REAL_EN_VERCEL') {
           try {
             const pageRes = await fetch(
-              `${BASE}/v19.0/${pageIdEnv}?fields=instagram_business_account,access_token&access_token=${token}`
+              `${BASE}/${API_VER}/${pageIdEnv}?fields=instagram_business_account,access_token&access_token=${token}`
             );
             const pageData = await pageRes.json();
 
@@ -83,7 +85,7 @@ export const useInstagramFeed = (limit = 12) => {
               const pageToken = pageData.access_token ?? token;
 
               const mediaRes = await fetch(
-                `${BASE}/v19.0/${igId}/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${pageToken}`
+                `${BASE}/${API_VER}/${igId}/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${pageToken}`
               );
               const mediaData = await mediaRes.json();
 
@@ -104,7 +106,7 @@ export const useInstagramFeed = (limit = 12) => {
             errors.push(`Estrategia A: ${e.message}`);
           }
         } else {
-          errors.push('Estrategia A: VITE_FACEBOOK_PAGE_ID no configurado');
+          errors.push('Estrategia A: VITE_FACEBOOK_PAGE_ID no configurado o tiene valor placeholder');
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -112,7 +114,7 @@ export const useInstagramFeed = (limit = 12) => {
         // ══════════════════════════════════════════════════════════════
         try {
           const pagesRes = await fetch(
-            `${BASE}/v19.0/me/accounts?access_token=${token}`
+            `${BASE}/${API_VER}/me/accounts?access_token=${token}`
           );
           const pagesData = await pagesRes.json();
 
@@ -126,7 +128,7 @@ export const useInstagramFeed = (limit = 12) => {
 
             for (const page of pagesData.data) {
               const igRes = await fetch(
-                `${BASE}/v19.0/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`
+                `${BASE}/${API_VER}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`
               );
               const igData = await igRes.json();
               if (igData.instagram_business_account?.id) {
@@ -140,7 +142,7 @@ export const useInstagramFeed = (limit = 12) => {
               errors.push('Estrategia B: ninguna página tiene instagram_business_account');
             } else {
               const mediaRes = await fetch(
-                `${BASE}/v19.0/${igUserId}/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${pageAccessToken}`
+                `${BASE}/${API_VER}/${igUserId}/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${pageAccessToken}`
               );
               const mediaData = await mediaRes.json();
 
@@ -165,7 +167,7 @@ export const useInstagramFeed = (limit = 12) => {
         // ══════════════════════════════════════════════════════════════
         try {
           const res = await fetch(
-            `${BASE}/v19.0/me/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${token}`
+            `${BASE}/${API_VER}/me/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${token}`
           );
           const data = await res.json();
 
@@ -188,7 +190,7 @@ export const useInstagramFeed = (limit = 12) => {
         // ══════════════════════════════════════════════════════════════
         try {
           const meRes = await fetch(
-            `${BASE}/v19.0/me?fields=id,name,instagram_accounts&access_token=${token}`
+            `${BASE}/${API_VER}/me?fields=id,name,instagram_accounts&access_token=${token}`
           );
           const meData = await meRes.json();
 
@@ -197,7 +199,7 @@ export const useInstagramFeed = (limit = 12) => {
           } else if (meData.instagram_accounts?.data?.length) {
             const igId = meData.instagram_accounts.data[0].id;
             const mediaRes = await fetch(
-              `${BASE}/v19.0/${igId}/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${token}`
+              `${BASE}/${API_VER}/${igId}/media?fields=${MEDIA_FIELDS}&limit=${limit}&access_token=${token}`
             );
             const mediaData = await mediaRes.json();
 

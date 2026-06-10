@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type ReactElement } from 'react';
 import ReactDOM from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/contexts/AuthContext';
@@ -282,7 +282,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop';
 
   // Instagram feed for gallery
-  const { feed: instagramFeed, error: instagramError } = useInstagramFeed(15);
+  const { feed: instagramFeed, loading: instagramLoading, error: instagramError } = useInstagramFeed(15);
   if (instagramError) {
     console.warn('[Gallery] Instagram feed no disponible:', instagramError);
   }
@@ -737,70 +737,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           </div>
 
           {(() => {
-            const fallbackImages = [
-              'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=800&fit=crop',
-              'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&h=400&fit=crop',
-              'https://images.unsplash.com/photo-1521590832167-7228f5fa666e?w=600&h=400&fit=crop',
-              'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600&h=800&fit=crop',
-              'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600&h=400&fit=crop',
-              'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600&h=400&fit=crop',
-              'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600&h=800&fit=crop',
-              'https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?w=600&h=400&fit=crop',
-              'https://images.unsplash.com/photo-1596728325003-1f3e3c0f3e0a?w=600&h=400&fit=crop',
-            ];
-
-            let galleryItems: GalleryItem[] = [];
-
-            if (instagramFeed && instagramFeed.length > 0) {
-              // Feed oficial de Instagram — conservar metadatos completos
-              galleryItems = instagramFeed.map((item: InstagramMedia) => ({
-                url: item.media_url,
-                caption: item.caption,
-                permalink: item.permalink,
-                media_type: item.media_type,
-                id: item.id,
-                // Para videos, el hook ya normalizó media_url al thumbnail; video_url tiene el original
-                videoUrl: item.video_url,
-              }));
-            } else {
-              // Fallback a imágenes de base de datos (sin metadatos de IG)
-              paquetes.forEach((p: any) => {
-                const img = p.imagen || p.imagenUrl;
-                if (img && typeof img === 'string' && img.startsWith('http')) galleryItems.push({ url: img });
-              });
-              servicios.forEach((s: any) => {
-                if (s.imagen && typeof s.imagen === 'string' && s.imagen.startsWith('http')) galleryItems.push({ url: s.imagen });
-              });
-              productos.forEach((p: any) => {
-                if (p.imagenProduc && typeof p.imagenProduc === 'string' && p.imagenProduc.startsWith('http')) galleryItems.push({ url: p.imagenProduc });
-              });
-            }
-
-            // Asegurar un llenado mínimo para que el grid mosaico funcione idealmente
-            const minDesiredCount = instagramFeed.length > 0 ? instagramFeed.length : 15;
-            while (galleryItems.length < minDesiredCount || galleryItems.length % 3 !== 0) {
-              galleryItems.push({ url: fallbackImages[galleryItems.length % fallbackImages.length] });
-            }
-
-            // Group into sets of 3: [Large, Small1, Small2]
-            const sets: GalleryItem[][] = [];
-            for (let i = 0; i < galleryItems.length; i += 3) {
-              const set = galleryItems.slice(i, i + 3);
-              while (set.length < 3) set.push({ url: fallbackImages[set.length % fallbackImages.length] });
-              sets.push(set);
-            }
-
-            // Guardar lista para navegación en modal (sin duplicados)
-            galleryItemsListRef.current = galleryItems;
-
-            const allSets = [...sets, ...sets]; // Duplicate sets for loop
-
             const scrollGallery = (direction: number) => {
               const el = heroGalleryRef.current;
               if (!el) return;
-              const scrollAmount = 800; // Scroll multiple columns
+              const scrollAmount = 800;
               const newPos = el.scrollLeft + direction * scrollAmount;
-
               const midpoint = el.scrollWidth / 2;
               if (direction > 0 && newPos >= midpoint) {
                 el.scrollLeft = newPos - midpoint;
@@ -813,9 +754,97 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               }
             };
 
+            const renderPlaceholderSets = (isError: boolean) =>
+              Array.from({ length: 10 }, (_, i) => (
+                <div key={`ph-${i}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
+                  <div
+                    style={{ width: '300px', height: '100%', flexShrink: 0, position: 'relative', overflow: 'hidden', background: 'var(--gray-darker)' }}
+                    className="flex items-center justify-center"
+                  >
+                    {isError
+                      ? <span className="text-gray-500 text-xs text-center px-4">Error al cargar</span>
+                      : <div className="w-8 h-8 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
+                    }
+                  </div>
+                  <div className="flex flex-col shrink-0 h-full" style={{ width: '210px', gap: '3px' }}>
+                    <div
+                      style={{ flex: '1 1 0%', position: 'relative', overflow: 'hidden', background: 'var(--gray-darker)' }}
+                      className="flex items-center justify-center"
+                    >
+                      {isError
+                        ? <span className="text-gray-500 text-[10px]">Error</span>
+                        : <div className="w-5 h-5 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
+                      }
+                    </div>
+                    <div
+                      style={{ flex: '1 1 0%', position: 'relative', overflow: 'hidden', background: 'var(--gray-darker)' }}
+                      className="flex items-center justify-center"
+                    >
+                      {isError
+                        ? <span className="text-gray-500 text-[10px]">Error</span>
+                        : <div className="w-5 h-5 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
+                      }
+                    </div>
+                  </div>
+                </div>
+              ));
+
+            let innerContent: ReactElement[] = [];
+
+            if (instagramLoading) {
+              innerContent = renderPlaceholderSets(false);
+            } else if (instagramError) {
+              innerContent = renderPlaceholderSets(true);
+            } else {
+              const galleryItems: GalleryItem[] = instagramFeed.map((item: InstagramMedia) => ({
+                url: item.media_url,
+                caption: item.caption,
+                permalink: item.permalink,
+                media_type: item.media_type,
+                id: item.id,
+                videoUrl: item.video_url,
+              }));
+
+              while (galleryItems.length % 3 !== 0) {
+                galleryItems.push(galleryItems[galleryItems.length - 1] ?? galleryItems[0]);
+              }
+
+              const sets: GalleryItem[][] = [];
+              for (let i = 0; i < galleryItems.length; i += 3) {
+                sets.push(galleryItems.slice(i, i + 3));
+              }
+
+              galleryItemsListRef.current = galleryItems;
+              const allSets = [...sets, ...sets];
+
+              innerContent = allSets.map((set, si) => (
+                <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
+                  <GalleryCell
+                    item={set[0]}
+                    style={{ width: '300px', height: '100%', flexShrink: 0 }}
+                    onMouseDown={handleGalleryMouseDown}
+                    onClick={(e) => handleGalleryClick(set[0], e)}
+                  />
+                  <div className="flex flex-col shrink-0 h-full" style={{ width: '210px', gap: '3px' }}>
+                    <GalleryCell
+                      item={set[1]}
+                      style={{ flex: '1 1 0%' }}
+                      onMouseDown={handleGalleryMouseDown}
+                      onClick={(e) => handleGalleryClick(set[1], e)}
+                    />
+                    <GalleryCell
+                      item={set[2]}
+                      style={{ flex: '1 1 0%' }}
+                      onMouseDown={handleGalleryMouseDown}
+                      onClick={(e) => handleGalleryClick(set[2], e)}
+                    />
+                  </div>
+                </div>
+              ));
+            }
+
             return (
               <div className="flex items-stretch gap-8 sm:gap-10 md:gap-14 lg:gap-16">
-                {/* Columna lateral: hueco + botón circular blanco (mismo tamaño que antes) */}
                 <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
                   <button
                     type="button"
@@ -828,46 +857,16 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </div>
 
                 <div className="hero-gallery-carousel hero-gallery-carousel--mosaic relative flex-1 min-w-0">
-                  {/* Mosaic gallery row (capa base) */}
                   <div
                     ref={heroGalleryRef}
                     className="relative z-[1] flex gallery-scroll"
                     style={{ height: '380px', gap: '3px', overflowX: 'auto', scrollBehavior: 'auto' }}
                   >
-                    {allSets.map((set, si) => (
-                      <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
-                        {/* Large Image Column */}
-                        <GalleryCell
-                          item={set[0]}
-                          style={{ width: '300px', height: '100%', flexShrink: 0 }}
-                          onMouseDown={handleGalleryMouseDown}
-                          onClick={(e) => handleGalleryClick(set[0], e)}
-                        />
-
-                        {/* Small Images Column (Stacked) */}
-                        <div className="flex flex-col shrink-0 h-full" style={{ width: '210px', gap: '3px' }}>
-                          <GalleryCell
-                            item={set[1]}
-                            style={{ flex: '1 1 0%' }}
-                            onMouseDown={handleGalleryMouseDown}
-                            onClick={(e) => handleGalleryClick(set[1], e)}
-                          />
-                          <GalleryCell
-                            item={set[2]}
-                            style={{ flex: '1 1 0%' }}
-                            onMouseDown={handleGalleryMouseDown}
-                            onClick={(e) => handleGalleryClick(set[2], e)}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                    {innerContent}
                   </div>
 
-                  {/* Luz desde los bordes hacia el centro (recortada por .hero-gallery-carousel) */}
                   <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
                   <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
-
-                  {/* Fade hacia el centro; bordes = paredes junto a las flechas (sin padding en el carrusel) */}
                   <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />
                   <div className="hero-gallery-fade-in hero-gallery-fade-in--right" aria-hidden />
                 </div>
@@ -1786,16 +1785,30 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   {selectedDetailItem.type === 'paquete' && (
                     <>
                       {selectedDetailItem.servicios && selectedDetailItem.servicios.length > 0 && (
-                        <div className="rounded-xl px-4 py-3 mb-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2.5">Servicios incluidos</p>
-                          <div className="space-y-2">
+                        <div className="rounded-xl mb-4 overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                          <div className="px-4 pt-4 pb-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: '#d8b081' }}>
+                              Servicios incluidos
+                            </p>
+                          </div>
+                          <div className="px-2 pb-2">
                             {selectedDetailItem.servicios.map((s: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between text-xs">
-                                <div className="flex items-center gap-2.5 text-gray-300">
-                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#d8b081' }} />
-                                  {s.nombre || s}
+                              <div
+                                key={i}
+                                className="flex items-center justify-between px-3 py-3 rounded-lg transition-colors duration-150 hover:bg-white/[0.04] cursor-default"
+                                style={i < selectedDetailItem.servicios.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.06)' } : {}}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="flex items-center justify-center w-5 h-5 rounded-full shrink-0" style={{ background: 'rgba(216,176,129,0.12)' }}>
+                                    <Check className="w-3 h-3" style={{ color: '#d8b081' }} />
+                                  </span>
+                                  <span className="text-sm text-white font-medium">{s.nombre || s}</span>
                                 </div>
-                                {s.duracion && <span className="text-gray-500">{formatDuracion(s.duracion)}</span>}
+                                {s.duracion && (
+                                  <span className="text-[11px] tabular-nums font-semibold ml-4 shrink-0" style={{ color: '#d8b081' }}>
+                                    {formatDuracion(s.duracion)}
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>

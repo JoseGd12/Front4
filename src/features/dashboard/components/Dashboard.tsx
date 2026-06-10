@@ -258,6 +258,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
+  const [preSelectedCompraProducto, setPreSelectedCompraProducto] = useState<string | null>(null);
   const [subNavOverride, setSubNavOverride] = useState<ModuleSubNavOverride>(null);
 
   const navigate = useNavigate();
@@ -509,7 +510,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   const renderContent = () => {
     switch (activePage) {
       case "Dashboard":
-        return <DashboardPage />;
+        return <DashboardPage onNavigate={(page, data) => { if (data?.producto) setPreSelectedCompraProducto(data.producto); setActivePage(page); }} />;
       case "Agendamientos":
         return (
           <AgendamientoPage
@@ -540,7 +541,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
       case "Compras":
         return <ComprasPage onNavigate={(page: string) => setActivePage(page)} />;
       case "RegistrarCompra":
-        return <RegistrarCompraPage onBack={() => setActivePage("Compras")} />;
+        return <RegistrarCompraPage onBack={() => { setPreSelectedCompraProducto(null); setActivePage("Compras"); }} initialProducto={preSelectedCompraProducto ?? undefined} />;
       case "Devoluciones":
         return <DevolucionesPage onNavigate={(page: string) => setActivePage(page)} />;
       case "RegistrarDevolucion":
@@ -560,7 +561,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
       case "MiCuenta":
         return <AdminPerfilPage />;
       default:
-        return <DashboardPage />;
+        return <DashboardPage onNavigate={(page, data) => { if (data?.producto) setPreSelectedCompraProducto(data.producto); setActivePage(page); }} />;
     }
   };
 

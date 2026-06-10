@@ -234,7 +234,7 @@ const periodoLabels: Record<PeriodoClave, string> = {
   anual: "Año",
 };
 
-export function DashboardPage() {
+export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data?: { producto?: string }) => void } = {}) {
   const colors = useThemeColors();
   const [periodoIngresos, setPeriodoIngresos] = useState<PeriodoClave>("mensual");
   const [showResumenPeriodos, setShowResumenPeriodos] = useState(true);
@@ -244,7 +244,7 @@ export function DashboardPage() {
   const [agendamientosStats, setAgendamientosStats] = useState<AgendamientoStat[]>([]);
   const [comprasStats, setComprasStats] = useState<CompraStat[]>([]);
   const [barberosSistema, setBarberosSistema] = useState<BarberoEntity[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [showReport, setShowReport] = useState(false);
   const [reportStart, setReportStart] = useState<string>(() => {
@@ -257,6 +257,8 @@ export function DashboardPage() {
   const [reportWidth, setReportWidth] = useState<number>(0);
 
   const [periodoHorasPico, setPeriodoHorasPico] = useState<"dia" | "semana" | "mes">("dia");
+  const [periodoRankingBarberos, setPeriodoRankingBarberos] = useState<"dia" | "semana" | "mes">("mes");
+  const [periodoTasaCitas, setPeriodoTasaCitas] = useState<"dia" | "semana" | "mes">("mes");
   const [anioHorasPico, setAnioHorasPico] = useState<number>(new Date().getFullYear());
   const [mesSeleccionadoDrilldown, setMesSeleccionadoDrilldown] = useState<number | null>(null);
 
@@ -1212,57 +1214,6 @@ export function DashboardPage() {
   const participacionServicios = totalGeneralIngresos ? (totalServicios / totalGeneralIngresos) * 100 : 0;
 
 
-  const ventasPorProducto = useMemo(() => {
-    const mapa = new Map<string, { producto: string; unidades: number; ingresos: number }>();
-    const ordenadas = [...ventas].filter(v => isVentaActiva(v.estado)).sort((a, b) => {
-      const da = new Date(a.fecha).getTime();
-      const db = new Date(b.fecha).getTime();
-      return db - da;
-    }).slice(0, 30);
-    ordenadas.forEach(v => {
-      const detalles = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
-      detalles.forEach(d => {
-        const nombre = d.nombre || "Producto";
-        const unidades = Number(d.cantidad || 1);
-        const ingreso = Number(d.precio || 0) * unidades;
-        const actual = mapa.get(nombre) || { producto: nombre, unidades: 0, ingresos: 0 };
-        actual.unidades += unidades;
-        actual.ingresos += ingreso;
-        mapa.set(nombre, actual);
-      });
-    });
-    return Array.from(mapa.values()).sort((a, b) => b.ingresos - a.ingresos);
-  }, [ventas]);
-
-  const ventasPorServicioPaquete = useMemo(() => {
-    const mapa = new Map<string, { producto: string; unidades: number; ingresos: number; tipo: "Servicio" | "Paquete" }>();
-    const ordenadas = [...ventas].filter(v => isVentaActiva(v.estado)).sort((a, b) => {
-      const da = new Date(a.fecha).getTime();
-      const db = new Date(b.fecha).getTime();
-      return db - da;
-    }).slice(0, 30);
-    ordenadas.forEach(v => {
-      const detalles = Array.isArray((v as any).serviciosPaquetesDetalle)
-        ? (v as any).serviciosPaquetesDetalle as { nombre: string; cantidad: number; precio: number; tipo: "Servicio" | "Paquete" }[]
-        : Array.isArray(v.serviciosDetalle)
-          ? v.serviciosDetalle.map(d => ({ ...d, tipo: "Servicio" as const }))
-          : [];
-      detalles.forEach(d => {
-        const nombre = d.nombre || (d.tipo === "Paquete" ? "Paquete" : "Servicio");
-        const unidades = Number(d.cantidad || 1);
-        const ingreso = Number(d.precio || 0) * unidades;
-        const key = `${d.tipo}|${nombre}`;
-        const actual = mapa.get(key) || { producto: nombre, unidades: 0, ingresos: 0, tipo: d.tipo };
-        actual.unidades += unidades;
-        actual.ingresos += ingreso;
-        mapa.set(key, actual);
-      });
-    });
-    return Array.from(mapa.values()).sort((a, b) => b.ingresos - a.ingresos);
-  }, [ventas]);
-
-  const [tipoRecientes, setTipoRecientes] = useState<"productos" | "servicios">("productos");
-  const dataRecientes = tipoRecientes === "productos" ? ventasPorProducto : ventasPorServicioPaquete;
 
   // removed unused totalIngresosRecientes
   const renderIngresosTooltip = ({ active, payload }: any) => {
@@ -1375,47 +1326,32 @@ export function DashboardPage() {
   // Gasto total por semana/mes para ver tendencia
   const comprasHistoricas = useMemo(() => {
     const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-    const buckets: { key: string; total: number }[] = [];
+    const buckets: { key: string; total: number; proveedorTop: string; proveedorTopTotal: number }[] = [];
     for (let i = 2; i >= 0; i--) {
       const ref = new Date(today.getFullYear(), today.getMonth() - i, 1);
       const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
       const end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 23, 59, 59, 999);
       const label = monthNames[ref.getMonth()] ?? "";
-      const total = comprasStats
-        .filter((c) => c.fechaRegistro && new Date(c.fechaRegistro) >= start && new Date(c.fechaRegistro) <= end)
-        .reduce((s, c) => s + c.total, 0);
-      buckets.push({ key: label, total });
+      const mesCompras = comprasStats.filter(
+        (c) => c.fechaRegistro && new Date(c.fechaRegistro) >= start && new Date(c.fechaRegistro) <= end
+      );
+      const total = mesCompras.reduce((s, c) => s + c.total, 0);
+      const provMap = new Map<string, number>();
+      mesCompras.forEach((c) => {
+        const prov = c.proveedor || "Sin proveedor";
+        provMap.set(prov, (provMap.get(prov) || 0) + c.total);
+      });
+      const topEntry = Array.from(provMap.entries()).sort((a, b) => b[1] - a[1])[0];
+      buckets.push({
+        key: label,
+        total,
+        proveedorTop: topEntry ? topEntry[0] : "—",
+        proveedorTopTotal: topEntry ? topEntry[1] : 0,
+      });
     }
     return buckets;
   }, [comprasStats]);
 
-  // Gasto por proveedor (top 6)
-  const gastoProveedores = useMemo(() => {
-    const map = new Map<string, number>();
-    comprasStats.forEach((c) => {
-      const prov = c.proveedor || "Sin proveedor";
-      map.set(prov, (map.get(prov) || 0) + c.total);
-    });
-    return Array.from(map.entries())
-      .map(([proveedor, total]) => ({ proveedor, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 6);
-  }, [comprasStats]);
-
-  // Productos más comprados (top 8 por gasto)
-  const productosMasComprados = useMemo(() => {
-    const map = new Map<string, { nombre: string; cantidad: number; gasto: number }>();
-    comprasStats.forEach((c) => {
-      c.detalles.forEach((d) => {
-        const nombre = d.productoNombre || "Producto";
-        const e = map.get(nombre) || { nombre, cantidad: 0, gasto: 0 };
-        e.cantidad += d.cantidad;
-        e.gasto += d.subtotal;
-        map.set(nombre, e);
-      });
-    });
-    return Array.from(map.values()).sort((a, b) => b.gasto - a.gasto).slice(0, 8);
-  }, [comprasStats]);
 
   // Resumen numérico de compras
   const resumenCompras = useMemo(() => {
@@ -1455,28 +1391,35 @@ export function DashboardPage() {
   }, [agendamientosStats, ventas, startOfWeek, endOfWeek]);
 
   // ===== Análisis de operación, equipo y clientes (últimos 90 días) =====
-  // 1. Estados de citas + tasa de cancelación
-  const estadosCitas = useMemo(() => {
-    const buckets: Record<string, number> = { completada: 0, confirmada: 0, pendiente: 0, cancelada: 0, otro: 0 };
+  // 1. Tasa de éxito de citas (completadas vs canceladas, filtrable por periodo)
+  const tasaExitoCitas = useMemo(() => {
+    const now = new Date();
+    let start: Date;
+    if (periodoTasaCitas === "dia") {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    } else if (periodoTasaCitas === "semana") {
+      const day = now.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff, 0, 0, 0, 0);
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+    let completadas = 0;
+    let canceladas = 0;
     agendamientosStats.forEach((a) => {
+      if (!a.fechaHora || new Date(a.fechaHora) < start) return;
       const st = String(a.estado || "").toLowerCase();
-      if (st === "completada" || st === "en-curso") buckets.completada++;
-      else if (st === "confirmada") buckets.confirmada++;
-      else if (st === "pendiente") buckets.pendiente++;
-      else if (esCitaCancelada(st)) buckets.cancelada++;
-      else buckets.otro++;
+      if (st === "completada" || st === "en-curso") completadas++;
+      else if (esCitaCancelada(st)) canceladas++;
     });
-    const total = Object.values(buckets).reduce((s, n) => s + n, 0);
+    const total = completadas + canceladas;
+    const tasaExito = total > 0 ? (completadas / total) * 100 : 0;
     const data = [
-      { name: "Completadas", value: buckets.completada, fill: "#22c55e" },
-      { name: "Confirmadas", value: buckets.confirmada, fill: colors.gold },
-      { name: "Pendientes", value: buckets.pendiente, fill: "#888888" },
-      { name: "Canceladas", value: buckets.cancelada, fill: "#b07070" },
-      { name: "Otras", value: buckets.otro, fill: "#3b6473" },
+      { name: "Completadas", value: completadas, fill: "#22c55e" },
+      { name: "Canceladas", value: canceladas, fill: "#b07070" },
     ].filter((d) => d.value > 0);
-    const tasaCancelacion = total > 0 ? (buckets.cancelada / total) * 100 : 0;
-    return { data, total, tasaCancelacion };
-  }, [agendamientosStats, colors.gold]);
+    return { completadas, canceladas, total, tasaExito, data };
+  }, [agendamientosStats, periodoTasaCitas]);
 
   // 2. Horas pico (demanda por hora del día, citas no canceladas)
   const horasPico = useMemo(() => {
@@ -1534,31 +1477,33 @@ export function DashboardPage() {
     return totales.map((ingresos, i) => ({ label: String(i + 1), ingresos }));
   }, [ventas, anioHorasPico, mesSeleccionadoDrilldown]);
 
-  // 3. Ranking de barberos por rendimiento (citas atendidas + servicios vendidos)
+  // 3. Ranking de barberos por ingresos generados (filtrable por día/semana/mes)
   const rankingBarberos = useMemo(() => {
-    const map = new Map<string, { barbero: string; citas: number; servicios: number }>();
-    agendamientosStats.forEach((a) => {
-      const name = (a.barbero || "").trim();
-      if (!name || name === "Sin asignar") return;
-      const st = String(a.estado || "").toLowerCase();
-      const e = map.get(name) || { barbero: name, citas: 0, servicios: 0 };
-      if (!esCitaCancelada(st)) e.citas++;
-      map.set(name, e);
-    });
+    const now = new Date();
+    let start: Date;
+    if (periodoRankingBarberos === "dia") {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    } else if (periodoRankingBarberos === "semana") {
+      const day = now.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff, 0, 0, 0, 0);
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+    const map = new Map<string, { barbero: string; ingresos: number }>();
     ventas.forEach((v) => {
       const name = (v.barbero || "").trim();
       if (!name || name === "Sin asignar" || !isVentaActiva(v.estado)) return;
-      const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
-      const count = sd.reduce((s, d) => s + Number(d.cantidad || 1), 0);
-      const e = map.get(name) || { barbero: name, citas: 0, servicios: 0 };
-      e.servicios += count;
+      if (!v.fecha || new Date(v.fecha) < start) return;
+      const e = map.get(name) || { barbero: name, ingresos: 0 };
+      e.ingresos += Number(v.total || 0);
       map.set(name, e);
     });
     return Array.from(map.values())
-      .filter((x) => x.citas > 0 || x.servicios > 0)
-      .sort((a, b) => b.citas + b.servicios - (a.citas + a.servicios))
-      .slice(0, 6);
-  }, [agendamientosStats, ventas]);
+      .filter((x) => x.ingresos > 0)
+      .sort((a, b) => b.ingresos - a.ingresos)
+      .slice(0, 5);
+  }, [ventas, periodoRankingBarberos]);
 
   // 4. Clientes: recurrentes vs ocasionales + top por frecuencia
   const clientesAnalisis = useMemo(() => {
@@ -1756,10 +1701,8 @@ export function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
             {isLoading
               ? Array.from({ length: 4 }).map((_, idx) => (
-                <div key={`metric-skeleton-${idx}`} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 shadow-xl">
-                  <Skeleton className="h-4 w-32 mb-3" />
-                  <Skeleton className="h-8 w-24 mb-2" />
-                  <Skeleton className="h-4 w-20" />
+                <div key={`metric-skeleton-${idx}`} className="rounded-xl bg-gray-darkest p-5 flex items-center justify-center min-h-[112px]">
+                  <div className="w-6 h-6 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
                 </div>
               ))
               : metrics.map(metric => {
@@ -1768,9 +1711,7 @@ export function DashboardPage() {
 
                 if (metric.id === "ganancias-barberos") {
                   return (
-                    <div key={metric.title} className="rounded-2xl border border-orange-primary/40 bg-gray-darkest shadow-xl" style={{ padding: "0" }}>
-                      <div className="h-[3px] bg-orange-primary rounded-t-2xl" />
-                      <div className="p-4 flex flex-col gap-3">
+                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-3">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
                           <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
@@ -1845,37 +1786,33 @@ export function DashboardPage() {
                             </div>
                           )}
                         </div>
-                      </div>
                     </div>
                   );
                 }
 
                 if (metric.id === "ganancia-barberia") {
                   return (
-                    <div key={metric.title} className="rounded-2xl border border-orange-primary/40 bg-gray-darkest shadow-xl" style={{ padding: "0" }}>
-                      <div className="h-[3px] bg-orange-primary rounded-t-2xl" />
-                      <div className="p-5">
+                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-5">
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
-                          <div className="w-8 h-8 rounded-xl bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-gray-darker border border-gray-dark flex items-center justify-center shrink-0">
                             <Icon className="w-4 h-4 text-orange-primary" />
                           </div>
                         </div>
                         <p className="text-3xl font-bold text-white-primary mb-1">{metric.value}</p>
                         <p className="text-xs text-gray-lightest mt-1">{metric.change}</p>
-                      </div>
                     </div>
                   );
                 }
 
                 return (
-                  <div key={metric.title} className={`rounded-2xl border bg-gray-darkest p-5 shadow-xl flex items-center justify-between ${isGanancia ? "border-orange-primary/40" : "border-gray-dark"}`}>
+                  <div key={metric.title} className="rounded-xl bg-gray-darkest p-5 flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-lightest uppercase tracking-[0.2em]">{metric.title}</p>
                       <p className="text-3xl font-bold text-white-primary mt-2">{metric.value}</p>
                       <span className="text-sm font-semibold text-gray-lightest">{metric.change}</span>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-black/40 border border-gray-dark flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-gray-darker border border-gray-dark flex items-center justify-center">
                       <Icon className={`w-6 h-6 ${metric.iconColor}`} />
                     </div>
                   </div>
@@ -1885,7 +1822,7 @@ export function DashboardPage() {
         </section>
         {/* Rendimiento por periodo — ancho completo */}
         <section className="mb-12">
-          <div className="elegante-card">
+          <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
             <div className="pb-4 border-b border-gray-dark flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {periodoHorasPico === "mes" && mesSeleccionadoDrilldown !== null && (
@@ -1956,7 +1893,9 @@ export function DashboardPage() {
             </div>
             <div className="pt-6" style={{ height: "360px" }}>
               {isLoading ? (
-                <Skeleton className="h-full w-full rounded-xl" />
+                <div className="h-full w-full rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="w-8 h-8 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
+                </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   {periodoHorasPico === "dia" ? (
@@ -2046,88 +1985,6 @@ export function DashboardPage() {
         </section>
 
 
-        {/* Sección Principal */}
-        <div className="mb-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Citas de Hoy */}
-            <div className="elegante-card">
-              <div className="pb-6">
-                <h3 className="text-xl font-bold text-white-primary mb-2">Citas de Hoy</h3>
-                <p className="text-gray-lightest font-medium">
-                  {citasHoy.length} citas programadas
-                </p>
-              </div>
-              <div className="space-y-3">
-                {citasHoy.map((cita) => (
-                  <div key={cita.id} className="p-4 rounded-xl bg-gray-medium border border-gray-dark hover:bg-gray-dark transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gold-primary flex items-center justify-center flex-shrink-0">
-                          <Clock className="w-5 h-5 text-black-primary" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-white-primary">{cita.servicio}</h4>
-                            <span className="text-xs text-orange-primary font-semibold bg-orange-primary/10 px-2 py-0.5 rounded-full">
-                              ${formatCurrencyValue(cita.precio)}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-lightest flex flex-wrap gap-4">
-                            <span>
-                              Cliente: <span className="font-medium text-white-primary">{cita.cliente}</span>
-                            </span>
-                            <span>
-                              Barbero: <span className="font-medium text-white-primary">{cita.barbero}</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="text-lg font-bold text-primary-gold block">{cita.hora}</span>
-                        <div className={`px-3 py-1 rounded-full text-xs font-medium inline-block ${getEstadoColor(cita.estado)}`}>
-                          {getEstadoTexto(cita.estado)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Inventario Bajo */}
-            <div className="elegante-card">
-              <div className="pb-6">
-                <h3 className="text-xl font-bold text-white-primary mb-2">Inventario Bajo</h3>
-                <p className="text-gray-lightest font-medium">
-                  Productos que necesitan restock
-                </p>
-              </div>
-              <div className="space-y-3">
-                {inventarioBajo.map((item, index) => (
-                  <div
-                    key={index}
-                    className="p-4 rounded-xl bg-red-900/20 border border-red-600/30 flex items-center justify-between gap-4 text-sm text-gray-lightest"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-red-500/20 border border-red-500/30 flex items-center justify-center">
-                        <Package className="w-4 h-4 text-red-300" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-white-primary">{item.producto}</span>
-                        <span className="text-xs text-red-300 uppercase tracking-[0.3em]">{item.categoria}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-red-400 font-semibold">Stock Total: {item.stockTotal}</span>
-                      <span className="text-gray-lightest">min:{item.minimo}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-        </div>
 
 
 
@@ -2141,73 +1998,49 @@ export function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Resumen semanal rápido */}
-            <div className="elegante-card flex flex-col justify-between">
-              <div className="pb-4 border-b border-gray-dark">
-                <h4 className="text-lg font-bold text-white-primary mb-1">Resumen de la semana</h4>
-                <p className="text-sm text-gray-lightest">Actividad acumulada desde el lunes</p>
-              </div>
-              <div className="pt-4 grid grid-cols-2 gap-4 flex-1">
-                {isLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
-                      <Skeleton className="h-3 w-24 mb-3" />
-                      <Skeleton className="h-8 w-16" />
-                    </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
-                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Citas activas</p>
-                      <p className="text-4xl font-bold text-white-primary">{resumenSemanal.confirmadas}</p>
-                      <p className="text-xs text-gray-lightest mt-1">confirmadas + pendientes</p>
-                    </div>
-                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
-                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Cancelaciones</p>
-                      <p className={`text-4xl font-bold ${resumenSemanal.canceladas > 0 ? "text-red-400" : "text-green-400"}`}>
-                        {resumenSemanal.canceladas}
-                      </p>
-                      <p className="text-xs text-gray-lightest mt-1">citas canceladas</p>
-                    </div>
-                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
-                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Ingresos</p>
-                      <p className="text-2xl font-bold text-orange-primary">${formatCurrencyValue(resumenSemanal.ingresos)}</p>
-                      <p className="text-xs text-gray-lightest mt-1">en ventas registradas</p>
-                    </div>
-                    <div className="rounded-xl border border-gray-dark bg-gray-darker/60 p-4">
-                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-2">Servicios vendidos</p>
-                      <p className="text-4xl font-bold text-white-primary">{resumenSemanal.serviciosVendidos}</p>
-                      <p className="text-xs text-gray-lightest mt-1">unidades de servicio</p>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Estados de citas + tasa de cancelación */}
-            <div className="elegante-card">
-              <div className="pb-4 border-b border-gray-dark flex items-center justify-between gap-4">
+            {/* Tasa de éxito de citas */}
+            <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
+              <div className="pb-4 border-b border-gray-dark flex items-start justify-between gap-4">
                 <div>
-                  <h4 className="text-lg font-bold text-white-primary mb-1">Estados de las citas</h4>
-                  <p className="text-sm text-gray-lightest">Distribución de {estadosCitas.total} citas</p>
+                  <h4 className="text-lg font-bold text-white-primary mb-1">Completitud de citas</h4>
+                  <p className="text-sm text-gray-lightest">{tasaExitoCitas.total} citas · completadas vs canceladas</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-lightest uppercase tracking-[0.2em]">Cancelación</p>
-                  <p className={`text-2xl font-bold ${estadosCitas.tasaCancelacion > 15 ? "text-red-400" : "text-green-400"}`}>
-                    {estadosCitas.tasaCancelacion.toFixed(1)}%
-                  </p>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex gap-1">
+                    {(["dia", "semana", "mes"] as const).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setPeriodoTasaCitas(p)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          periodoTasaCitas === p
+                            ? "bg-orange-primary text-white"
+                            : "bg-gray-darker text-gray-lightest hover:bg-gray-dark"
+                        }`}
+                      >
+                        {p === "dia" ? "Hoy" : p === "semana" ? "Semana" : "Mes"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-lightest uppercase tracking-[0.2em]">Tasa de éxito</p>
+                    <p className={`text-2xl font-bold ${tasaExitoCitas.tasaExito >= 70 ? "text-green-400" : tasaExitoCitas.tasaExito >= 40 ? "text-yellow-400" : "text-red-400"}`}>
+                      {tasaExitoCitas.tasaExito.toFixed(1)}%
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="pt-4" style={{ height: "300px" }}>
                 {isLoading ? (
-                  <Skeleton className="h-full w-full rounded-xl" />
-                ) : estadosCitas.total === 0 ? (
-                  <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin citas registradas en el periodo.</div>
+                  <div className="h-full w-full rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="w-8 h-8 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
+                </div>
+                ) : tasaExitoCitas.total === 0 ? (
+                  <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin citas completadas o canceladas en este periodo.</div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={estadosCitas.data}
+                        data={tasaExitoCitas.data}
                         dataKey="value"
                         nameKey="name"
                         innerRadius={65}
@@ -2215,8 +2048,8 @@ export function DashboardPage() {
                         paddingAngle={2}
                         stroke="none"
                       >
-                        {estadosCitas.data.map((e, i) => (
-                          <Cell key={`estado-${i}`} fill={e.fill} />
+                        {tasaExitoCitas.data.map((e, i) => (
+                          <Cell key={`tasa-${i}`} fill={e.fill} />
                         ))}
                       </Pie>
                       <Tooltip
@@ -2232,91 +2065,97 @@ export function DashboardPage() {
               </div>
             </div>
 
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Ranking de barberos */}
-            <div className="elegante-card">
+            {/* Inventario Bajo */}
+            <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
               <div className="pb-4 border-b border-gray-dark">
-                <h4 className="text-lg font-bold text-white-primary mb-1">Rendimiento por barbero</h4>
-                <p className="text-sm text-gray-lightest">Citas atendidas y servicios vendidos por barbero</p>
+                <h4 className="text-lg font-bold text-white-primary mb-1">Inventario Bajo</h4>
+                <p className="text-sm text-gray-lightest">Productos que necesitan restock</p>
               </div>
-              <div className="pt-4" style={{ height: "320px" }}>
+              <div className="pt-4 space-y-3">
                 {isLoading ? (
-                  <Skeleton className="h-full w-full rounded-xl" />
-                ) : rankingBarberos.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Aún no hay actividad de barberos registrada.</div>
+                  <div className="h-40 w-full rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="w-8 h-8 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
+                  </div>
+                ) : inventarioBajo.length === 0 ? (
+                  <div className="flex h-32 items-center justify-center text-gray-lightest text-sm">Sin productos con stock bajo.</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={rankingBarberos} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" horizontal={false} />
-                      <XAxis type="number" stroke="#888" allowDecimals={false} tick={{ fill: "#ccc", fontSize: 12 }} />
-                      <YAxis type="category" dataKey="barbero" stroke="#888" width={110} tick={{ fill: "#ccc", fontSize: 12 }} />
-                      <Tooltip
-                        cursor={{ fill: "#ffffff10" }}
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
-                      />
-                      <Legend formatter={(value) => <span className="text-sm text-gray-lightest">{value}</span>} />
-                      <Bar dataKey="citas" name="Citas agendadas" fill={colors.gold} radius={[0, 4, 4, 0]} maxBarSize={14} />
-                      <Bar dataKey="servicios" name="Servicios vendidos" fill="#22c55e" radius={[0, 4, 4, 0]} maxBarSize={14} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  inventarioBajo.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between gap-4 py-3 px-2 rounded-lg hover:bg-gray-darker transition-colors cursor-default"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Package className="w-4 h-4 text-gray-lightest shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-white-primary truncate">{item.producto}</span>
+                          <span className="text-xs text-gray-lightest">{item.categoria}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0 text-sm">
+                        <span className="text-red-400 font-bold">Stock: {item.stockTotal}</span>
+                        <button
+                          onClick={() => onNavigate?.("RegistrarCompra", { producto: item.producto })}
+                          className="w-6 h-6 rounded-md bg-gray-dark hover:bg-gray-medium text-white-primary font-bold text-sm flex items-center justify-center transition-colors shrink-0"
+                          title={`Comprar ${item.producto}`}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
 
-            {/* Clientes: recurrentes vs ocasionales + top */}
-            <div className="elegante-card">
-              <div className="pb-4 border-b border-gray-dark">
-                <h4 className="text-lg font-bold text-white-primary mb-1">Clientes</h4>
-                <p className="text-sm text-gray-lightest">Recurrentes vs ocasionales y los más frecuentes</p>
+          </div>
+
+          {/* Ranking de barberos por ingresos */}
+          <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
+            <div className="pb-4 border-b border-gray-dark flex items-start justify-between gap-4">
+              <div>
+                <h4 className="text-lg font-bold text-white-primary mb-1">Rendimiento por barbero</h4>
+                <p className="text-sm text-gray-lightest">Top 5 barberos por ingresos generados al negocio</p>
               </div>
-              <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div style={{ height: "230px" }}>
-                  {isLoading ? (
-                    <Skeleton className="h-full w-full rounded-xl" />
-                  ) : clientesAnalisis.total === 0 ? (
-                    <div className="flex h-full items-center justify-center text-gray-lightest text-sm text-center">Sin clientes registrados.</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={clientesAnalisis.data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2} stroke="none">
-                          {clientesAnalisis.data.map((e, i) => (
-                            <Cell key={`cli-${i}`} fill={e.fill} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
-                          formatter={(value: any, name: any) => [`${value} clientes`, name]}
-                        />
-                        <Legend formatter={(value) => <span className="text-xs text-gray-lightest">{value}</span>} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-3">Top clientes</p>
-                  <div className="space-y-2">
-                    {clientesAnalisis.top.length === 0 ? (
-                      <p className="text-sm text-gray-lightest">Sin datos.</p>
-                    ) : (
-                      clientesAnalisis.top.map((c, i) => (
-                        <div key={`top-cli-${i}`} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-darker/50 border border-gray-dark">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-6 h-6 rounded-full bg-orange-primary/15 text-orange-primary text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                            <span className="text-sm text-white-primary truncate">{c.nombre}</span>
-                          </div>
-                          <span className="text-xs text-gray-lightest flex-shrink-0">{c.visitas} visitas</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+              <div className="flex gap-1 shrink-0">
+                {(["dia", "semana", "mes"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriodoRankingBarberos(p)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      periodoRankingBarberos === p
+                        ? "bg-orange-primary text-white"
+                        : "bg-gray-darker text-gray-lightest hover:bg-gray-dark"
+                    }`}
+                  >
+                    {p === "dia" ? "Hoy" : p === "semana" ? "Semana" : "Mes"}
+                  </button>
+                ))}
               </div>
+            </div>
+            <div className="pt-4" style={{ height: "300px" }}>
+              {isLoading ? (
+                <div className="h-full w-full rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="w-8 h-8 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
+                </div>
+              ) : rankingBarberos.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin ingresos registrados para este periodo.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={rankingBarberos} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" horizontal={false} />
+                    <XAxis type="number" stroke="#888" tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: "#ccc", fontSize: 12 }} />
+                    <YAxis type="category" dataKey="barbero" stroke="#888" width={120} tick={{ fill: "#ccc", fontSize: 12 }} />
+                    <Tooltip
+                      cursor={{ fill: "#ffffff10" }}
+                      contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
+                      itemStyle={{ color: "#d0d0d0" }}
+                      labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                      formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
+                    />
+                    <Bar dataKey="ingresos" name="Ingresos" fill={colors.gold} radius={[0, 8, 8, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </section>
@@ -2340,13 +2179,11 @@ export function DashboardPage() {
               { label: "Proveedores", value: String(resumenCompras.proveedoresUnicos), sub: "activos en el periodo" },
             ].map((k) =>
               isLoading ? (
-                <div key={k.label} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 shadow-xl">
-                  <Skeleton className="h-4 w-28 mb-3" />
-                  <Skeleton className="h-8 w-20 mb-2" />
-                  <Skeleton className="h-3 w-16" />
+                <div key={k.label} className="rounded-xl bg-gray-darkest p-5 flex items-center justify-center min-h-[112px]">
+                  <div className="w-6 h-6 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
                 </div>
               ) : (
-                <div key={k.label} className="rounded-2xl border border-gray-dark bg-gray-darkest p-5 shadow-xl">
+                <div key={k.label} className="rounded-xl bg-gray-darkest p-5">
                   <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-1">{k.label}</p>
                   <p className="text-3xl font-bold text-white-primary">{k.value}</p>
                   <p className="text-xs text-gray-lightest mt-1">{k.sub}</p>
@@ -2355,16 +2192,18 @@ export function DashboardPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="mb-6">
             {/* Tendencia de gasto mensual */}
-            <div className="elegante-card">
+            <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
               <div className="pb-4 border-b border-gray-dark">
                 <h4 className="text-lg font-bold text-white-primary mb-1">Gasto mensual en compras</h4>
-                <p className="text-sm text-gray-lightest">Evolución del gasto en los últimos 3 meses</p>
+                <p className="text-sm text-gray-lightest">Evolución del gasto en los últimos 3 meses · pasa el cursor sobre cada mes para ver el proveedor líder</p>
               </div>
               <div className="pt-4" style={{ height: "280px" }}>
                 {isLoading ? (
-                  <Skeleton className="h-full w-full rounded-xl" />
+                  <div className="h-full w-full rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="w-8 h-8 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
+                </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={comprasHistoricas} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -2373,10 +2212,25 @@ export function DashboardPage() {
                       <YAxis stroke="#888" tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: "#ccc", fontSize: 12 }} />
                       <Tooltip
                         cursor={{ fill: "#ffffff10" }}
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
-                        formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Gasto"]}
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const d = payload[0].payload as { key: string; total: number; proveedorTop: string; proveedorTopTotal: number };
+                          return (
+                            <div style={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12, padding: "10px 14px", minWidth: 180 }}>
+                              <p style={{ color: "#ffffff", fontWeight: 600, marginBottom: 6 }}>{d.key}</p>
+                              <p style={{ color: "#d0d0d0", fontSize: 13, marginBottom: 4 }}>
+                                Gasto total: <span style={{ color: "#ffffff", fontWeight: 600 }}>${formatCurrencyValue(d.total)}</span>
+                              </p>
+                              <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
+                                <p style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Proveedor líder</p>
+                                <p style={{ color: "#ffffff", fontWeight: 600, fontSize: 13 }}>{d.proveedorTop}</p>
+                                {d.proveedorTopTotal > 0 && (
+                                  <p style={{ color: colors.gold, fontSize: 12, fontWeight: 600 }}>${formatCurrencyValue(d.proveedorTopTotal)}</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }}
                       />
                       <Bar dataKey="total" name="Gasto" radius={[10, 10, 0, 0]} maxBarSize={56} fill="#3b6473" />
                     </BarChart>
@@ -2384,201 +2238,13 @@ export function DashboardPage() {
                 )}
               </div>
             </div>
-
-            {/* Gasto por proveedor */}
-            <div className="elegante-card">
-              <div className="pb-4 border-b border-gray-dark">
-                <h4 className="text-lg font-bold text-white-primary mb-1">Gasto por proveedor</h4>
-                <p className="text-sm text-gray-lightest">Top {gastoProveedores.length} proveedores por monto</p>
-              </div>
-              <div className="pt-4" style={{ height: "280px" }}>
-                {isLoading ? (
-                  <Skeleton className="h-full w-full rounded-xl" />
-                ) : gastoProveedores.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin compras registradas en el periodo.</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={gastoProveedores} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" horizontal={false} />
-                      <XAxis type="number" stroke="#888" tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: "#ccc", fontSize: 11 }} />
-                      <YAxis type="category" dataKey="proveedor" stroke="#888" width={120} tick={{ fill: "#ccc", fontSize: 12 }} />
-                      <Tooltip
-                        cursor={{ fill: "#ffffff10" }}
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
-                        formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Gasto"]}
-                      />
-                      <Bar dataKey="total" name="Gasto" radius={[0, 8, 8, 0]} fill={colors.gold} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Productos más comprados */}
-          <div className="elegante-card">
-            <div className="pb-4 border-b border-gray-dark">
-              <h4 className="text-lg font-bold text-white-primary mb-1">Productos más comprados</h4>
-              <p className="text-sm text-gray-lightest">Top {productosMasComprados.length} productos por gasto total</p>
-            </div>
-            <div className="pt-4" style={{ height: "280px" }}>
-              {isLoading ? (
-                <Skeleton className="h-full w-full rounded-xl" />
-              ) : productosMasComprados.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-gray-lightest text-sm">Sin detalle de productos en el periodo.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={productosMasComprados} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                    <XAxis
-                      dataKey="nombre"
-                      stroke="#888"
-                      tick={{ fill: "#ccc", fontSize: 11 }}
-                      angle={-30}
-                      textAnchor="end"
-                      interval={0}
-                      height={60}
-                    />
-                    <YAxis stroke="#888" tickFormatter={(v) => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
-                    <Tooltip
-                      cursor={{ fill: "#ffffff10" }}
-                      contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
-                      formatter={(value: any, _n: any, props: any) => [
-                        `$${formatCurrencyValue(value as number)} · ${props.payload.cantidad} uds`,
-                        props.payload.nombre
-                      ]}
-                    />
-                    <Bar dataKey="gasto" name="Gasto total" radius={[8, 8, 0, 0]} maxBarSize={48}>
-                      {productosMasComprados.map((_e, i) => (
-                        <Cell key={`pc-${i}`} fill={i % 2 === 0 ? colors.gold : "#3b6473"} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
         </section>
 
-        {/* Bloque de rendimiento */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10"
-          style={{ marginTop: '40px' }}>
-          {/* Ventas recientes */}
-          <div className="elegante-card">
-            <div className="pb-6 border-b border-gray-dark">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-xl font-bold text-white-primary mb-2">Ventas recientes</h3>
-                  <p className="text-gray-lightest text-sm">
-                    Ingresos y unidades por {tipoRecientes === "productos" ? "producto" : "servicios"} en las últimas ventas.
-                  </p>
-                </div>
-                <div className="flex items-center rounded-full border border-gray-dark overflow-hidden">
-                  {(["productos", "servicios"] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setTipoRecientes(t)}
-                      className={`px-4 py-1.5 text-sm font-medium transition-colors ${tipoRecientes === t
-                        ? "bg-orange-primary text-black-primary"
-                        : "text-gray-lightest hover:bg-white/5"
-                        }`}
-                    >
-                      {t === "productos" ? "Productos" : "Servicios"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="pt-6" style={{ height: "360px" }}>
-              {isLoading ? (
-                <Skeleton className="h-full w-full rounded-xl" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dataRecientes} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                    <XAxis dataKey="producto" stroke="#888" tick={{ fill: '#ccc', fontSize: 12 }} />
-                    <YAxis
-                      stroke="#888"
-                      tickFormatter={(value) => `$${formatAxisValue(value as number)}`}
-                      tick={{ fill: '#ccc', fontSize: 12 }}
-                    />
-                    <Tooltip
-                      cursor={{ fill: "#ffffff10" }}
-                      contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                      itemStyle={{ color: "#d0d0d0" }}
-                      labelStyle={{ color: "#ffffff", fontWeight: 600 }}
-                      formatter={(value: any, _name: any, props: any) => [
-                        `$${formatCurrencyValue(value as number)} • ${props.payload.unidades} unidades`,
-                        props.payload.producto
-                      ]}
-                    />
-                    <Legend
-                      payload={
-                        tipoRecientes === "productos"
-                          ? [
-                            { value: "Ingresos", type: "square", color: colors.gold }
-                          ]
-                          : [
-                            { value: "Servicios", type: "square", color: "#3b82f6" },
-                            { value: "Paquetes", type: "square", color: "#22c55e" },
-                          ]
-                      }
-                    />
-                    <Bar dataKey="ingresos" name="Ingresos" radius={[12, 12, 0, 0]}>
-                      {dataRecientes.map((entry: any, index: number) => (
-                        <Cell
-                          key={`cell-rec-${index}`}
-                          fill={
-                            tipoRecientes === "productos"
-                              ? colors.gold
-                              : entry.tipo === "Paquete"
-                                ? "#22c55e"
-                                : "#3b82f6"
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-            <div className="mt-6">
-              <button
-                onClick={() => setShowResumenPeriodos(!showResumenPeriodos)}
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-dark bg-gray-darker/40 hover:bg-gray-darker transition-colors mb-3"
-              >
-                <span className="text-sm font-semibold text-white-primary">Resumen por Periodos</span>
-                {showResumenPeriodos ? (
-                  <ChevronUp className="w-4 h-4 text-gray-lightest" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-gray-lightest" />
-                )}
-              </button>
-              {showResumenPeriodos && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {ingresosTotalesPorPeriodo.map((item) => (
-                    <div key={`ventas-${item.periodo}-summary`} className="rounded-2xl border border-gray-dark bg-gray-darker/60 p-3">
-                      <p className="text-xs text-gray-lightest uppercase tracking-[0.3em]">{item.label}</p>
-                      <p className="text-xl font-bold text-white-primary mt-1">${formatCurrencyValue(item.ingresos)}</p>
-                      <p className="text-xs text-gray-lightest mt-1">
-                        Productos: <span className="font-semibold text-orange-primary">${formatCurrencyValue(item.productos)}</span>
-                      </p>
-                      <p className="text-xs text-gray-lightest">
-                        Servicios: <span className="font-semibold text-blue-300">${formatCurrencyValue(item.servicios)}</span>
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Ingresos totales del negocio */}
-          <div className="elegante-card">
+        {/* Ingresos totales del negocio */}
+        <div className="mb-10" style={{ marginTop: '40px' }}>
+          <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
             <div className="pb-6 border-b border-gray-dark">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
@@ -2659,7 +2325,7 @@ export function DashboardPage() {
               {showResumenPeriodos && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {ingresosTotalesPorPeriodo.map((item) => (
-                    <div key={`${item.periodo}-summary`} className="rounded-2xl border border-gray-dark bg-gray-darker/60 p-3">
+                    <div key={`${item.periodo}-summary`} className="rounded-xl bg-gray-darker/60 p-3">
                       <p className="text-xs text-gray-lightest uppercase tracking-[0.3em]">{item.label}</p>
                       <p className="text-xl font-bold text-white-primary mt-1">${formatCurrencyValue(item.ingresos)}</p>
                       <p className="text-xs text-gray-lightest mt-1">

@@ -37,9 +37,8 @@ export function NameInput({
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     
-    // Filtrar caracteres no permitidos: solo letras (incluyendo acentos y ñ) y espacios
-    // Removemos números y caracteres especiales
-    let filtered = raw.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '');
+    // Filtrar caracteres no permitidos: solo letras (incluyendo acentos y ñ), números y espacios
+    let filtered = raw.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s]/g, '');
     
     if (raw !== filtered) {
       setShowNumberError(true);
@@ -70,7 +69,7 @@ export function NameInput({
   if (showNumberError) {
     hintMessage = (
       <span className="text-xs text-red-400">
-        {errorMessage ?? "Solo se permiten letras y espacios."}
+        {errorMessage ?? "Solo se permiten letras, números y espacios."}
       </span>
     );
   } else if (isAtLimit) {

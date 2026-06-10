@@ -268,7 +268,7 @@ export function ClienteHistorialVentasPage() {
                 <tr className="border-b border-gray-dark">
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Servicios</th>
+                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contenido</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
                   <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
@@ -294,30 +294,34 @@ export function ClienteHistorialVentasPage() {
                       <span className="text-gray-lighter">{new Date(venta.fecha).toLocaleDateString()}</span>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <div className="flex flex-col gap-1.5">
-                        {venta.servicios && venta.servicios !== "Sin servicios" ? (
-                          <div className="flex items-start gap-2">
-                            <span className="p-1 bg-purple-500/10 rounded mt-0.5">
+                      <div className="flex flex-col gap-1.5 items-center">
+                        {(venta.serviciosDetalle?.length > 0 || (venta.servicios && venta.servicios !== "Sin servicios")) && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="p-1 bg-purple-500/10 rounded shrink-0">
                               <Scissors className="w-3 h-3 text-purple-400" />
                             </span>
-                            <span className="text-gray-lighter text-sm font-medium line-clamp-1">
-                              {venta.servicios}
+                            <span className="text-gray-lighter text-sm font-medium whitespace-nowrap">
+                              Servicios ({venta.serviciosDetalle?.length > 0
+                                ? venta.serviciosDetalle.length
+                                : venta.servicios.split(',').filter(s => s.trim()).length})
                             </span>
                           </div>
-                        ) : null}
-                        {(venta.productos && venta.productos !== "Sin productos") ? (
-                          <div className="flex items-start gap-2">
-                            <span className="p-1 bg-orange-500/10 rounded mt-0.5">
+                        )}
+                        {(venta.productosDetalle?.length > 0 || (venta.productos && venta.productos !== "Sin productos")) && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="p-1 bg-orange-500/10 rounded shrink-0">
                               <Package className="w-3 h-3 text-orange-400" />
                             </span>
-                            <span className="text-gray-lighter text-xs line-clamp-1 italic">
-                              {venta.productos}
+                            <span className="text-gray-lighter text-sm font-medium whitespace-nowrap">
+                              Productos ({venta.productosDetalle?.length > 0
+                                ? venta.productosDetalle.length
+                                : venta.productos.split(',').filter(s => s.trim()).length})
                             </span>
                           </div>
-                        ) : (
-                          (!venta.servicios || venta.servicios === "Sin servicios") && (
-                            <span className="text-gray-lighter text-xs italic opacity-60">Venta de productos</span>
-                          )
+                        )}
+                        {(!venta.servicios || venta.servicios === "Sin servicios") &&
+                         (!venta.productos || venta.productos === "Sin productos") && (
+                          <span className="text-gray-lighter text-xs italic opacity-60">Sin items</span>
                         )}
                       </div>
                     </td>

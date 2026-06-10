@@ -439,10 +439,14 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
           {/* Formulario */}
           <form onSubmit={handleLogin} noValidate className="space-y-5">
             {error && !credentialsError && (
-              <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                <span className="text-red-400 text-sm">{error}</span>
-              </div>
+              error.toLowerCase().includes('cerrada por el usuario') ? (
+                <p className="text-red-400 text-sm text-center">{error}</p>
+              ) : (
+                <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
+                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                  <span className="text-red-400 text-sm">{error}</span>
+                </div>
+              )
             )}
             {error.toLowerCase().includes('verifica tu email') && (
               <div className="flex items-center justify-between">
@@ -570,13 +574,10 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
             </div>
 
             {/* Divider */}
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-[#0a0a0a] px-4 text-gray-600 uppercase tracking-wider">o continúa con</span>
-              </div>
+            <div className="flex items-center gap-3 my-2">
+              <div className="flex-1 border-t border-white/10" />
+              <span className="text-xs text-gray-600 uppercase tracking-wider shrink-0">o continúa con</span>
+              <div className="flex-1 border-t border-white/10" />
             </div>
 
             {/* Google Sign-In */}
@@ -593,7 +594,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
-              Continuar con Google
+              Google
             </Button>
 
             {/* Register link */}

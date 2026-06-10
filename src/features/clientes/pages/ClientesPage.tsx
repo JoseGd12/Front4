@@ -1163,142 +1163,193 @@ export function ClientesPage() {
 
       {/* Diálogo para Ver Detalles del Cliente */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto text-white-primary">
           <DialogHeader>
             <DialogTitle className="text-white-primary">Detalle del Cliente</DialogTitle>
             <DialogDescription className="text-gray-lightest">
-              {selectedCliente?.numeroDocumento} - {selectedCliente?.nombre} {selectedCliente?.apellido}
+              Información detallada del cliente seleccionado.
             </DialogDescription>
           </DialogHeader>
+
           {selectedCliente && (
-            <div className="space-y-6 pt-4 overflow-y-auto pr-2 max-h-[calc(90vh-120px)]">
+            <div className="space-y-6 pt-4">
+              {/* Foto de Perfil y Tipo de Documento */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-light">ID de Cliente</p>
-                  <p className="font-semibold text-orange-primary">{selectedCliente.numeroDocumento}</p>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-orange-primary" />
+                    Foto de Perfil
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-orange-primary flex items-center justify-center bg-gray-dark">
+                      <ImageRenderer
+                        url={selectedCliente.fotoPerfil ?? undefined}
+                        alt="Foto de perfil"
+                        className="w-full h-full rounded-full"
+                        fallbackVariant="person"
+                        showLabel={false}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-light">Fecha de Registro</p>
-                  <p className="font-semibold text-white-primary">{selectedCliente.fechaRegistro}</p>
+
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-orange-primary" />
+                    Tipo de Documento
+                  </Label>
+                  <Input
+                    value={TIPOS_DOCUMENTO.find(td => td.value === selectedCliente.tipoDocumento)?.label || selectedCliente.tipoDocumento}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-light">Nombre Completo</p>
-                  <p className="font-semibold text-white-primary">{selectedCliente.nombre} {selectedCliente.apellido}</p>
+              </div>
+
+              {/* Información Personal y Documento */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Hash className="w-4 h-4 text-orange-primary" />
+                    Número de Documento
+                  </Label>
+                  <Input
+                    value={selectedCliente.numeroDocumento}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-light">Tipo de Documento</p>
-                  <p className="font-semibold text-white-primary">{selectedCliente.tipoDocumento}</p>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-orange-primary" />
+                    Nombres
+                  </Label>
+                  <Input
+                    value={selectedCliente.nombre}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-light">Estado</p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${selectedCliente.activo ? "bg-green-600 text-white" : "bg-red-600 text-white"
-                    }`}>
-                    {selectedCliente.activo ? "Activo" : "Inactivo"}
-                  </span>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-orange-primary" />
+                    Apellidos
+                  </Label>
+                  <Input
+                    value={selectedCliente.apellido}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-light">Última Visita</p>
-                  <p className="font-semibold text-white-primary">
-                    {selectedCliente.ultimaVisita || 'Nunca'}
-                  </p>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-orange-primary" />
+                    Fecha de Nacimiento
+                  </Label>
+                  <DatePicker
+                    value={selectedCliente.fechaNacimiento}
+                    readOnly
+                  />
                 </div>
               </div>
 
               {/* Información de Contacto */}
-              <div>
-                <h4 className="font-semibold text-white-primary mb-3">Información de Contacto</h4>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between bg-gray-darker p-3 rounded-lg">
-                    <div className="flex-1">
-                      <span className="text-white-primary font-medium">Email</span>
-                      <div className="text-sm text-gray-lightest">
-                        {selectedCliente.email}
-                      </div>
-                    </div>
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-orange-primary" />
+                    Correo Electrónico
+                  </Label>
+                  <Input
+                    type="email"
+                    value={selectedCliente.email}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-orange-primary" />
+                    Número de Celular
+                  </Label>
+                  <Input
+                    value={selectedCliente.telefono || '—'}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+              </div>
+
+              {/* Dirección */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-orange-primary" />
+                    Dirección
+                  </Label>
+                  <Input
+                    value={selectedCliente.direccion || '—'}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-orange-primary" />
+                    Barrio
+                  </Label>
+                  <Input
+                    value={selectedCliente.barrio || '—'}
+                    readOnly
+                    className="elegante-input w-full opacity-80 cursor-default"
+                  />
+                </div>
+              </div>
+
+              {/* Estado y Saldo */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <ToggleRight className="w-4 h-4 text-orange-primary" />
+                    Estado
+                  </Label>
+                  <Input
+                    value={selectedCliente.activo ? 'Activo' : 'Inactivo'}
+                    readOnly
+                    className={`elegante-input w-full cursor-default ${selectedCliente.activo ? 'text-green-400' : 'text-red-400'}`}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white-primary flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-orange-primary" />
+                    Saldo a Favor
+                  </Label>
+                  <div className={`elegante-input w-full flex items-center gap-2 px-3 py-2 rounded-md border font-semibold ${
+                    (selectedCliente.saldoAFavor ?? 0) <= 0
+                      ? 'border-gray-500/40 text-gray-lightest bg-gray-900/10'
+                      : (selectedCliente.saldoAFavor ?? 0) < 50000
+                      ? 'border-yellow-500/40 text-yellow-400 bg-yellow-900/10'
+                      : 'border-green-500/40 text-green-400 bg-green-900/10'
+                  }`}>
+                    ${formatCurrency(selectedCliente.saldoAFavor ?? 0)}
+                    <span className="ml-2 text-xs font-normal opacity-70">
+                      {(selectedCliente.saldoAFavor ?? 0) <= 0
+                        ? '— Sin saldo'
+                        : (selectedCliente.saldoAFavor ?? 0) < 50000
+                        ? '— Saldo bajo'
+                        : '— Saldo disponible'}
+                    </span>
                   </div>
-                  {selectedCliente.telefono && (
-                    <div className="flex items-center justify-between bg-gray-darker p-3 rounded-lg">
-                      <div className="flex-1">
-                        <span className="text-white-primary font-medium">Teléfono</span>
-                        <div className="text-sm text-gray-lightest">
-                          {selectedCliente.telefono}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {selectedCliente.direccion && (
-                    <div className="flex items-center justify-between bg-gray-darker p-3 rounded-lg">
-                      <div className="flex-1">
-                        <span className="text-white-primary font-medium">Dirección</span>
-                        <div className="text-sm text-gray-lightest">
-                          {selectedCliente.direccion}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {selectedCliente.barrio && (
-                    <div className="flex items-center justify-between bg-gray-darker p-3 rounded-lg">
-                      <div className="flex-1">
-                        <span className="text-white-primary font-medium">Barrio</span>
-                        <div className="text-sm text-gray-lightest">
-                          {selectedCliente.barrio}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-
-              {/* Información Personal */}
-              <div>
-                <h4 className="font-semibold text-white-primary mb-3">Información Personal</h4>
-                <div className="space-y-2">
-                  {selectedCliente.fechaNacimiento && (
-                    <div className="flex items-center justify-between bg-gray-darker p-3 rounded-lg">
-                      <div className="flex-1">
-                        <span className="text-white-primary font-medium">Fecha de Nacimiento</span>
-                        <div className="text-sm text-gray-lightest">
-                          {selectedCliente.fechaNacimiento}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Resumen del Cliente */}
-              <div className="bg-gray-darker p-4 rounded-lg space-y-2">
-                <div className="flex justify-between text-gray-lightest">
-                  <span>Saldo:</span>
-                  <span>${formatCurrency(selectedCliente.saldoAFavor)}</span>
-                </div>
-                <div className="flex justify-between text-gray-lightest">
-                  <span>Devoluciones Activas:</span>
-                  <span>{getDevolucionesCliente(selectedCliente.id).filter(d => d.estado === 'Activo').length}</span>
-                </div>
-                <div className="flex justify-between text-gray-lightest">
-                  <span>Estado de Visitas:</span>
-                  <span>{getEstadoTexto(selectedCliente.ultimaVisita)}</span>
-                </div>
-                <hr className="border-gray-medium" />
-                <div className="flex justify-between text-white-primary font-bold text-lg">
-                  <span>Estado del Cliente:</span>
-                  <span className={`${selectedCliente.activo ? "text-green-400" : "text-red-400"}`}>
-                    {selectedCliente.activo ? "Activo" : "Inactivo"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-6 border-t border-gray-dark">
-                <button
-                  onClick={() => setIsViewDialogOpen(false)}
-                  className="elegante-button-primary"
-                >
-                  Cerrar
-                </button>
               </div>
             </div>
           )}
+
+          <div className="flex justify-end pt-4 mt-6 border-t border-gray-dark">
+            <button onClick={() => setIsViewDialogOpen(false)} className="elegante-button-primary px-8">
+              Cerrar
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 

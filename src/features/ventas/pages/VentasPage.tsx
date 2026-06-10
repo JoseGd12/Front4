@@ -2407,8 +2407,16 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
 
                   <div className="bg-gray-darker p-4 rounded-xl border border-gray-dark space-y-3">
-                    {/* Subtotal Original */}
-                    <div className="flex justify-between text-gray-lightest">
+                    {/* Subtotal */}
+                    <div className="flex justify-between text-gray-lightest font-normal">
+                      <span>Subtotal:</span>
+                      <span>${formatCurrency(selectedVenta.subtotal || 0)}</span>
+                    </div>
+
+                    {/* Descuento - siempre visible */}
+                    <div className="flex justify-between text-gray-lightest font-normal">
+                      <span>Descuento:</span>
+                      <span>-${formatCurrency(selectedVenta.descuento || 0)}</span>
                     </div>
 
                     {/* Saldo a Favor Usado - Estilo Verde */}
@@ -2419,37 +2427,25 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       </div>
                     )}
 
-                    {/* Subtotal Ajustado */}
-                    <div className="flex justify-between text-gray-lightest font-normal">
-                      <span>Subtotal Ajustado:</span>
-                      <span>
-                        ${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
-                          ? formatCurrency(0)
-                          : formatCurrency(Math.max(0, (selectedVenta.subtotal || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0)))
-                        }
-                      </span>
-                    </div>
+                    {/* Crédito Barbero Generado */}
+                    {creditoBarberoUsado > 0 && (
+                      <div className="flex justify-between text-gray-lightest font-medium">
+                        <span>Crédito Barbero Generado:</span>
+                        <span className="font-bold">${formatCurrency(creditoBarberoUsado)}</span>
+                      </div>
+                    )}
 
                     <hr className="border-gray-medium my-2" />
 
-                    {/* Total Ajustado - Grande y Naranja */}
+                    {/* Total */}
                     <div className="flex justify-between items-end">
-                      <span className="text-white-primary font-bold text-xl">Total Ajustado:</span>
-                      <span className="text-orange-primary font-bold  text-xl">
+                      <span className="text-white-primary font-bold text-xl">Total:</span>
+                      <span className="text-orange-primary font-bold text-xl">
                         ${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
                           ? formatCurrency(0)
                           : formatCurrency(Math.max(0, (selectedVenta.subtotal || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0)))
                         }
                       </span>
-                    </div>
-
-                    {/* Total Original - Pequeño y Gris como en la imagen */}
-                    <div className="flex justify-between text-gray-500 text-[11px] mt-1">
-                      <span>Total Original:</span>
-                      <span>${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
-                        ? formatCurrency(0)
-                        : formatCurrency((selectedVenta.subtotal || 0) - (selectedVenta.descuento || 0))
-                      }</span>
                     </div>
                   </div>
                 </div>

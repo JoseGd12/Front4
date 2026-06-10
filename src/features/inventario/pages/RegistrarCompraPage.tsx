@@ -94,9 +94,10 @@ const generateCurrentDate = () => {
 
 interface RegistrarCompraPageProps {
   onBack: () => void;
+  initialProducto?: string;
 }
 
-export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
+export function RegistrarCompraPage({ onBack, initialProducto }: RegistrarCompraPageProps) {
   const { user } = useAuth();
   const {
     created,
@@ -234,6 +235,18 @@ export function RegistrarCompraPage({ onBack }: RegistrarCompraPageProps) {
     };
     loadData();
   }, []);
+
+  // Pre-select product when coming from dashboard low stock
+  useEffect(() => {
+    if (!initialProducto || productos.length === 0) return;
+    const found = productos.find(
+      (p) => String(p.nombre || "").toLowerCase().trim() === initialProducto.toLowerCase().trim()
+    );
+    if (found) {
+      setProductSearchTerm(found.nombre || initialProducto);
+      setProductoSeleccionado(String(found.id));
+    }
+  }, [initialProducto, productos]);
 
   // Auto-fill precio when product selected
   useEffect(() => {

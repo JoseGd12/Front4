@@ -339,7 +339,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                     id="name"
                     type="text"
                     value={formData.name}
-                    onChange={(e) => updateFormField('name', e.target.value)}
+                    maxLength={30}
+                    onChange={(e) => updateFormField('name', e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9 ]/g, '').slice(0, 30))}
                     placeholder="Tu nombre"
                     className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${showRegisterFormErrors && nameMissing ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                   />
@@ -357,7 +358,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                     id="apellido"
                     type="text"
                     value={formData.apellido}
-                    onChange={(e) => updateFormField('apellido', e.target.value)}
+                    maxLength={30}
+                    onChange={(e) => updateFormField('apellido', e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9 ]/g, '').slice(0, 30))}
                     placeholder="Tu apellido"
                     className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${showRegisterFormErrors && apellidoMissing ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                   />
@@ -431,11 +433,11 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                     </div>
                     <div className={`flex items-center gap-2 ${passwordValidations.hasNumber ? 'text-green-400' : 'text-gray-500'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasNumber ? 'bg-green-400' : 'bg-gray-600'}`} />
-                      Al menos un número (recomendado)
+                      Al menos un número 
                     </div>
                     <div className={`flex items-center gap-2 ${passwordValidations.hasUpperCase ? 'text-green-400' : 'text-gray-500'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasUpperCase ? 'bg-green-400' : 'bg-gray-600'}`} />
-                      Al menos una mayúscula (recomendado)
+                      Al menos una mayúscula 
                     </div>
                   </div>
                 </div>
