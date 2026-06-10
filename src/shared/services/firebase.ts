@@ -71,25 +71,29 @@ export class FirebaseAuthService {
   }
 
   private getEmailVerificationActionCodeSettings(): ActionCodeSettings {
-    const isLocalhost = window.location.hostname === 'localhost';
-    const baseUrl = isLocalhost
-      ? window.location.origin
-      : 'https://manitobarbershop.vercel.app';
-    return {
+    let baseUrl = 'https://manitobarbershop.vercel.app';
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      baseUrl = window.location.origin;
+    }
+    const settings: ActionCodeSettings = {
       url: `${baseUrl}/auth/action`,
       handleCodeInApp: true
     };
+    console.log('🔑 ActionCodeSettings para verificación de email:', settings);
+    return settings;
   }
 
   private getPasswordResetActionCodeSettings(): ActionCodeSettings {
-    const isLocalhost = window.location.hostname === 'localhost';
-    const baseUrl = isLocalhost
-      ? window.location.origin
-      : 'https://manitobarbershop.vercel.app';
-    return {
+    let baseUrl = 'https://manitobarbershop.vercel.app';
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      baseUrl = window.location.origin;
+    }
+    const settings: ActionCodeSettings = {
       url: `${baseUrl}/auth/action`,
       handleCodeInApp: true
     };
+    console.log('🔑 ActionCodeSettings para restablecimiento de contraseña:', settings);
+    return settings;
   }
 
   // Obtener usuario actual
