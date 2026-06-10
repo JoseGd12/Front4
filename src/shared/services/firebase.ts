@@ -76,7 +76,7 @@ export class FirebaseAuthService {
       ? window.location.origin
       : 'https://manitobarbershop.vercel.app';
     return {
-      url: `${baseUrl}/verify-email`,
+      url: `${baseUrl}/auth/action`,
       handleCodeInApp: true
     };
   }
@@ -87,7 +87,7 @@ export class FirebaseAuthService {
       ? window.location.origin
       : 'https://manitobarbershop.vercel.app';
     return {
-      url: `${baseUrl}/reset-password`,
+      url: `${baseUrl}/auth/action`,
       handleCodeInApp: true
     };
   }

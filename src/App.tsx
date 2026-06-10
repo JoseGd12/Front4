@@ -6,7 +6,7 @@ import { ClienteDashboard } from "./features/clientes/pages/ClienteDashboard";
 import { LandingPage } from "./features/dashboard/pages/LandingPage";
 import { LoginPage } from "./features/auth/pages/LoginPage";
 import { RegisterPage } from "./features/auth/pages/RegisterPage";
-import { EmailVerificationPage } from "./features/auth/pages/EmailVerificationPage";
+import { AuthActionPage } from "./features/auth/pages/AuthActionPage";
 import { ForzarCambioPassword } from "./features/auth/components/ForzarCambioPassword";
 import { checkPasswordPolicy } from "./features/auth/services/authUtils";
 import { firebaseAuthService } from "./shared/services/firebase";
@@ -31,23 +31,14 @@ function AppContent() {
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');
     const oobCode = urlParams.get('oobCode');
-    const isResetPage = window.location.pathname.includes('reset-password');
-    const isLoginPage = window.location.pathname.includes('login');
-    const isVerifyPage = window.location.pathname.includes('verify-email');
+    const isAuthActionPage = window.location.pathname.includes('auth/action');
     let handledSpecialLink = false;
 
-    if (mode === 'verifyEmail' && oobCode) {
-      logger.debug('📧 Detectado oobCode para verificación de email');
+    if ((mode === 'verifyEmail' && oobCode) || (mode === 'resetPassword' && oobCode)) {
+      logger.debug('🔐 Detectado acción de Firebase:', mode);
       handledSpecialLink = true;
-      if (!isVerifyPage) {
-        navigate(`/verify-email?oobCode=${oobCode}`, { replace: true });
-      }
-    }
-    else if (mode === 'resetPassword' && oobCode) {
-      logger.debug('🎯 Detectado oobCode para reseteo:', oobCode);
-      handledSpecialLink = true;
-      if (!isResetPage && !isLoginPage) {
-        navigate(`/reset-password?oobCode=${oobCode}`, { replace: true });
+      if (!isAuthActionPage) {
+        navigate(`/auth/action?mode=${mode}&oobCode=${oobCode}`, { replace: true });
       }
     }
 
@@ -150,23 +141,11 @@ function AppContent() {
         )
       } />
 
-      <Route path="/verify-email" element={
-        <EmailVerificationPage 
-          onVerificationComplete={() => navigate('/login')}
-          onBackToLogin={() => navigate('/login')}
-        />
-      } />
-
-      <Route path="/reset-password" element={
-        isAuthenticated ? <Navigate to="/dashboard" /> : (
-          <LoginPage
-            onRequestRegister={() => navigate('/register')}
-            onBackToLanding={() => navigate('/')}
-            initialResetData={resetData}
-            onResetComplete={() => setResetData(null)}
-          />
-        )
-      } />
+      <Route path="/auth/action" element={<AuthActionPage />} />
+      
+      {/* Mantener rutas antiguas por compatibilidad */}
+      <Route path="/verify-email" element={<Navigate to="/auth/action" replace />} />
+      <Route path="/reset-password" element={<Navigate to="/auth/action" replace />} />
 
       <Route path="/dashboard/*" element={
         isAuthenticated ? (
