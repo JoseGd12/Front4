@@ -3035,7 +3035,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       {/* VISTA DE CALENDARIO */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {viewMode === 'calendar' && (
-        <div className="p-2">
+        <div className="px-2 pt-2 pb-6">
 
           {/* Stats Cards */}
           <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -3430,7 +3430,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </div>
 
           {/* Grid de horarios + headers de días — un solo card unificado */}
-          <div className="std-card mb-0 !py-0 !overflow-visible">
+          <div className="std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
             <div className="w-full py-5">
               <div className="-mx-6 pl-3 pr-6">
 
@@ -3683,6 +3683,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             </div>
           </div>
 
+          <div style={{ height: '2rem' }} aria-hidden />
         </div>
       )}
 

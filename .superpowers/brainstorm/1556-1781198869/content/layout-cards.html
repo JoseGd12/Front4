@@ -1,0 +1,63 @@
+<h2>Layout de tarjetas — Sección Nosotros</h2>
+<p class="subtitle">¿Cómo prefieres que se distribuyan las 3 tarjetas junto al bloque de "Nuestra esencia"?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Tarjetas abajo (reemplazan galería)</h3>
+      <p>3 tarjetas en fila horizontal debajo del bloque "Nuestra esencia" que se mantiene centrado arriba. Grid de 3 columnas.</p>
+      <div style="margin-top:12px; padding:16px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.06);">
+        <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:20px; text-align:center; margin-bottom:12px; color:rgba(255,255,255,0.5); font-size:13px;">
+          Nuestra esencia (ancho completo)
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:16px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">Citas</div>
+          <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:16px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">Catálogo</div>
+          <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:16px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">Devoluciones</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tarjetas reemplazan galería (2 columnas)</h3>
+      <p>Columna izquierda = 3 tarjetas apiladas verticalmente. Columna derecha = "Nuestra esencia" (como está ahora).</p>
+      <div style="margin-top:12px; padding:16px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.06);">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:14px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">Citas</div>
+            <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:14px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">Catálogo</div>
+            <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:14px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">Devoluciones</div>
+          </div>
+          <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:20px; text-align:center; color:rgba(255,255,255,0.5); font-size:13px; display:flex; align-items:center; justify-content:center;">
+            Nuestra esencia
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Solo tarjetas (sin "Nuestra esencia")</h3>
+      <p>Eliminar el bloque de esencia y stats. Solo 3 tarjetas grandes centradas con icono, título, descripción y botón CTA.</p>
+      <div style="margin-top:12px; padding:16px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.06);">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:28px 14px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">
+            📅<br>Citas<br><span style="font-size:9px; opacity:0.6;">Agenda y revisa</span>
+          </div>
+          <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:28px 14px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">
+            ✂️<br>Catálogo<br><span style="font-size:9px; opacity:0.6;">Servicios y productos</span>
+          </div>
+          <div style="background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.15); border-radius:8px; padding:28px 14px; text-align:center; color:rgba(255,255,255,0.5); font-size:11px;">
+            🔄<br>Devoluciones<br><span style="font-size:9px; opacity:0.6;">Proceso incluido</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

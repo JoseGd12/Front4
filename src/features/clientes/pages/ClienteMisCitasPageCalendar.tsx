@@ -295,7 +295,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
       // Si venimos con un item pre-seleccionado desde Servicios
       if (initialItem) {
-        handleSelectInitialItem(initialItem, serviciosData, paquetesData);
+        handleSelectInitialItem(initialItem, serviciosData, paquetesData, cliente);
       }
     } catch (err) {
       console.error("Error al cargar datos:", err);
@@ -418,8 +418,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     }
   }, [preSelectedProduct, isLoading, productosList]);
 
-  const handleSelectInitialItem = (item: any, currentServicios: any[], currentPaquetes: any[]) => {
-    const faltantes = getPerfilFaltantes(currentCliente);
+  const handleSelectInitialItem = (item: any, currentServicios: any[], currentPaquetes: any[], clienteOverride?: any) => {
+    const faltantes = getPerfilFaltantes(clienteOverride ?? currentCliente);
     if (faltantes.length > 0) {
       setCamposFaltantes(faltantes);
       setShowPerfilModal(true);
@@ -2009,7 +2009,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
           {/* VISTA DE CALENDARIO */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="p-2">
+          <div className="px-2 pt-2 pb-6">
 
             {/* Navegación de Semana */}
             <div className="std-card mb-4 !pt-3">
@@ -2166,7 +2166,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             </div>
 
             {/* Grid de horarios + headers de días — un solo card unificado */}
-            <div className="std-card mb-0 !py-0">
+            <div className="std-card !py-0" style={{ marginBottom: '1.5rem' }}>
               <div className="w-full py-5">
                 <div className="-mx-6 pl-3 pr-6">
 
@@ -2388,6 +2388,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               </div>
             </div>
 
+          <div style={{ height: '2rem' }} aria-hidden />
           </div>
         </>
       )}

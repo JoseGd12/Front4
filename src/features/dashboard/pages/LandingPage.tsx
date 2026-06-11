@@ -30,7 +30,10 @@ import {
   Eye,
   User,
   Instagram,
-  X
+  X,
+  RotateCcw,
+  Download,
+  Smartphone
 } from 'lucide-react';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
@@ -276,7 +279,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [nosotrosSlide, setNosotrosSlide] = useState(0);
   // Fondo único a todo el ancho para “Lo que ofrecemos” (barbería)
   const ofrecemosHeroBg =
     'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop';
@@ -471,8 +473,14 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   // Reveal on scroll y Footer Visibility
   useEffect(() => {
     const revealObserver = new IntersectionObserver(
-      (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('active'); }),
-      { threshold: 0.1 }
+      (entries) => entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('active');
+        } else {
+          e.target.classList.remove('active');
+        }
+      }),
+      { threshold: 0.05, rootMargin: '50px 0px' }
     );
     document.querySelectorAll('.reveal-item').forEach(el => revealObserver.observe(el));
 
@@ -607,7 +615,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
+                className="nav-link-hover text-base font-semibold tracking-wide relative group py-1 transition-all duration-300"
               >
                 {item.label}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -621,7 +629,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <Link
                   to="/dashboard"
                   onClick={onRequestDashboard}
-                  className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
+                  className="nav-link-hover text-base font-semibold tracking-wide relative group py-1 transition-all duration-300"
                 >
                   Dashboard
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -638,7 +646,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             ) : (
               <button
                 onClick={onRequestLogin}
-                className="nav-link-hover text-base font-semibold uppercase tracking-wide relative group py-1 transition-all duration-300"
+                className="nav-link-hover text-base font-semibold tracking-wide relative group py-1 transition-all duration-300"
               >
                 Ingresar
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -702,7 +710,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   onClick={() => scrollToSection('servicios')}
                   className="hero-cta-button"
                 >
-                  Lo que ofrecemos
+                  <span className="text-gradient">Lo que ofrecemos</span>
                   <ChevronRight className="w-6 h-6" />
                 </button>
               </div>
@@ -898,7 +906,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           className="nosotros-section relative"
           style={{
             paddingTop: '1rem',
-            /* Más aire bajo la CTA para que quede sobre el gradiente de Nosotros (el supertítulo siguiente tiene z-2 y marginTop negativo) */
             paddingBottom: 'clamp(8rem, 13vw, 12rem)',
           }}
         >
@@ -908,161 +915,83 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
           </div>
 
         <div className="content-max-width relative z-10">
-          {/* Título de sección */}
-          <div className="text-center mb-8 reveal-item">
-            <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem' }}>
-              Nosotros
-            </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto text-base leading-relaxed mt-4">
-              Más de 2 años transformando estilos en el corazón de Medellín
-            </p>
-          </div>
+          {/* Dos columnas con títulos independientes */}
+          <div className="grid lg:grid-cols-2 gap-16 items-center" style={{ paddingTop: '1rem' }}>
 
-          {/* Dos columnas: Galería collage izquierda + Info derecha */}
-          <div className="grid lg:grid-cols-2 gap-6 items-start">
-
-            {/* Columna izquierda: Galería collage con flechas */}
+            {/* Columna izquierda: Tarjetas de acciones */}
             <div className="reveal-item">
-              {(() => {
-                const nosotrosItems: GalleryItem[] = [
-                  ...servicios.filter((s: any) => s.imagen?.startsWith('http')).map((s: any) => ({ url: s.imagen })),
-                  ...paquetes.filter((p: any) => (p.imagen || p.imagenUrl)?.startsWith('http')).map((p: any) => ({ url: p.imagen || p.imagenUrl })),
-                  ...productos.filter((p: any) => p.imagenProduc?.startsWith('http')).map((p: any) => ({ url: p.imagenProduc })),
-                ];
-                const fallbacks = [
-                  'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=800&fit=crop',
-                  'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=600&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600&h=800&fit=crop',
-                  'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=600&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?w=600&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1596728325003-1f3e3c0f3e0a?w=600&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1521590832167-7228f5fa666e?w=600&h=400&fit=crop',
-                ];
-                while (nosotrosItems.length < 9) {
-                  nosotrosItems.push({ url: fallbacks[nosotrosItems.length % fallbacks.length] });
-                }
-
-                const totalPages = Math.ceil(nosotrosItems.length / 3);
-                const pageIndex = nosotrosSlide % totalPages;
-
-                // Build all page sets
-                const pages: GalleryItem[][] = [];
-                for (let p = 0; p < totalPages; p++) {
-                  const set = nosotrosItems.slice(p * 3, p * 3 + 3);
-                  while (set.length < 3) set.push(nosotrosItems[set.length % nosotrosItems.length]);
-                  pages.push(set);
-                }
-
-                const nosotrosMosaicGap = 3;
-
-                return (
-                  <div className="min-w-0">
-                    <div className="flex items-stretch gap-6 sm:gap-8 md:gap-10 lg:gap-12">
-                      <div className="flex shrink-0 items-center justify-center self-center min-w-[2.75rem] sm:min-w-[3.5rem] md:min-w-[4rem] px-0.5 sm:px-1">
-                        <button
-                          type="button"
-                          onClick={() => setNosotrosSlide((prev) => (prev - 1 + totalPages) % totalPages)}
-                          aria-label="Página anterior de la galería"
-                          className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300"
-                        >
-                          <ChevronLeft className="w-6 h-6" />
-                        </button>
-                      </div>
-
-                      <div className="hero-gallery-carousel hero-gallery-carousel--mosaic hero-gallery-carousel--nosotros relative flex-1 min-w-0">
-                        <div
-                          className="nosotros-gallery-mosaic-viewport relative z-[1] overflow-hidden"
-                          style={{ height: '380px' }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              width: `${totalPages * 100}%`,
-                              height: '100%',
-                              transform: `translateX(-${pageIndex * (100 / totalPages)}%)`,
-                              transition: 'transform 0.5s ease-in-out',
-                            }}
-                          >
-                            {pages.map((set, pi) => (
-                              <div
-                                key={pi}
-                                className="h-full shrink-0 min-w-0"
-                                style={{ width: `${100 / totalPages}%` }}
-                              >
-                                <div
-                                  className="h-full w-full min-w-0"
-                                  style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'minmax(0, 300fr) minmax(0, 210fr)',
-                                    gridTemplateRows: '1fr 1fr',
-                                    gap: nosotrosMosaicGap,
-                                  }}
-                                >
-                                  <GalleryCell
-                                    item={set[0]}
-                                    style={{ gridRow: '1 / 3', minHeight: 0 }}
-                                    onClick={() => setSelectedGalleryPost(set[0])}
-                                  />
-                                  <GalleryCell
-                                    item={set[1]}
-                                    style={{ minHeight: 0 }}
-                                    onClick={() => setSelectedGalleryPost(set[1])}
-                                  />
-                                  <GalleryCell
-                                    item={set[2]}
-                                    style={{ minHeight: 0 }}
-                                    onClick={() => setSelectedGalleryPost(set[2])}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="hero-gallery-wall-glow hero-gallery-wall-glow--left" aria-hidden />
-                        <div className="hero-gallery-wall-glow hero-gallery-wall-glow--right" aria-hidden />
-                        <div className="hero-gallery-fade-in hero-gallery-fade-in--left" aria-hidden />
-                        <div className="hero-gallery-fade-in hero-gallery-fade-in--right" aria-hidden />
-                      </div>
-
-                      <div className="flex shrink-0 items-center justify-center self-center min-w-[2.75rem] sm:min-w-[3.5rem] md:min-w-[4rem] px-0.5 sm:px-1">
-                        <button
-                          type="button"
-                          onClick={() => setNosotrosSlide((prev) => (prev + 1) % totalPages)}
-                          aria-label="Página siguiente de la galería"
-                          className="w-12 h-12 shrink-0 rounded-full bg-white text-black shadow-xl flex items-center justify-center hover:bg-gray-100 hover:scale-105 transition-all duration-300"
-                        >
-                          <ChevronRight className="w-6 h-6" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-center gap-2 mt-4">
-                      {Array.from({ length: totalPages }).map((_, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setNosotrosSlide(i)}
-                          aria-label={`Ir a la página ${i + 1} de la galería`}
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            i === pageIndex
-                              ? 'bg-[#d8b081] w-6'
-                              : 'bg-white/40 hover:bg-white/60 w-2'
-                          }`}
-                        />
-                      ))}
-                    </div>
+              <div className="mb-8 text-center">
+                <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient">
+                  Qué puedes hacer
+                </h2>
+                <p className="text-gray-400 text-base leading-relaxed mt-4">
+                  Todo lo que necesitas, al alcance de un clic
+                </p>
+              </div>
+              <div className="flex flex-col" style={{ gap: '10px', maxWidth: '420px', margin: '0 auto' }}>
+                {/* Card -- Gestión de Citas */}
+                <button
+                  onClick={() => { if (isAuthenticated) { onRequestDashboard?.(); } else { onRequestLogin?.(); } }}
+                  className="flex items-center text-left hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
+                  style={{ background: 'rgba(216,176,129,0.04)', border: '1px solid rgba(216,176,129,0.12)', borderRadius: '14px', padding: '18px 20px', gap: '14px' }}
+                >
+                  <div className="flex items-center justify-center shrink-0" style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(216,176,129,0.12)' }}>
+                    <Calendar className="w-5 h-5" style={{ color: '#d8b081' }} />
                   </div>
-                );
-              })()}
+                  <div className="flex-1 min-w-0">
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#e8e8e8' }}>Gestión de Citas</h3>
+                    <p style={{ fontSize: '11px', color: '#888', marginTop: '3px' }}>Agenda tu cita y revisa tu historial</p>
+                  </div>
+                  <span className="shrink-0 group-hover:translate-x-1 transition-transform" style={{ color: 'rgba(216,176,129,0.6)', fontSize: '16px' }}>&rarr;</span>
+                </button>
+
+                {/* Card -- Catálogo */}
+                <button
+                  onClick={() => scrollToSection('servicios')}
+                  className="flex items-center text-left hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
+                  style={{ background: 'rgba(216,176,129,0.04)', border: '1px solid rgba(216,176,129,0.12)', borderRadius: '14px', padding: '18px 20px', gap: '14px' }}
+                >
+                  <div className="flex items-center justify-center shrink-0" style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(216,176,129,0.12)' }}>
+                    <Scissors className="w-5 h-5" style={{ color: '#d8b081' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#e8e8e8' }}>Catálogo</h3>
+                    <p style={{ fontSize: '11px', color: '#888', marginTop: '3px' }}>Explora servicios y productos</p>
+                  </div>
+                  <span className="shrink-0 group-hover:translate-x-1 transition-transform" style={{ color: 'rgba(216,176,129,0.6)', fontSize: '16px' }}>&rarr;</span>
+                </button>
+
+                {/* Card -- Mi Perfil */}
+                <button
+                  onClick={() => { if (isAuthenticated) { onRequestDashboard?.(); } else { onRequestLogin?.(); } }}
+                  className="flex items-center text-left hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
+                  style={{ background: 'rgba(216,176,129,0.04)', border: '1px solid rgba(216,176,129,0.12)', borderRadius: '14px', padding: '18px 20px', gap: '14px' }}
+                >
+                  <div className="flex items-center justify-center shrink-0" style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(216,176,129,0.12)' }}>
+                    <User className="w-5 h-5" style={{ color: '#d8b081' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#e8e8e8' }}>Mi Perfil</h3>
+                    <p style={{ fontSize: '11px', color: '#888', marginTop: '3px' }}>Gestiona tu cuenta y preferencias</p>
+                  </div>
+                  <span className="shrink-0 group-hover:translate-x-1 transition-transform" style={{ color: 'rgba(216,176,129,0.6)', fontSize: '16px' }}>&rarr;</span>
+                </button>
+              </div>
             </div>
 
-            {/* Columna derecha: esencia + stats + CTA */}
-            <div className="reveal-item space-y-6 rounded-3xl" style={{ transitionDelay: '0.15s' }}>
+            {/* Columna derecha: esencia + stats */}
+            <div className="reveal-item" style={{ transitionDelay: '0.15s' }}>
+              <div className="mb-8 text-center">
+                <h2 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient">
+                  Nosotros
+                </h2>
+                <p className="text-gray-400 text-base leading-relaxed mt-4">
+                  Más de 2 años transformando estilos en el corazón de Medellín
+                </p>
+              </div>
+              <div className="space-y-6">
               {/* Card principal - Nuestra esencia */}
-              <div className="glass-card rounded-2xl p-8 mt-4">
+              <div className="glass-card rounded-2xl p-8">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-12 h-12 rounded-2xl icon-float flex items-center justify-center">
                     <Sparkles className="w-6 h-6 text-[#d8b081]" />
@@ -1073,7 +1002,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   </div>
                 </div>
 
-                <p className="text-gray-200 text-base leading-relaxed mb-8">
+                <p className="text-gray-200 text-base leading-relaxed mb-8" style={{ textAlign: 'justify' }}>
                   Somos una barbería ubicada en Medellín, dedicada al cuidado de la apariencia masculina.
                   Contamos con un equipo de
                   <span className="text-[#d8b081] font-black"> 6 colaboradores</span>,
@@ -1089,40 +1018,22 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       <Users className="w-5 h-5 text-[#d8b081]" />
                     </div>
                     <div className="text-3xl font-black font-title text-white leading-none">5</div>
-                    <div className="text-xs text-gray-400 mt-2 uppercase tracking-wider font-semibold">Barberos profesionales</div>
+                    <div className="text-xs text-gray-400 mt-2 tracking-wider font-semibold">Barberos profesionales</div>
                   </div>
                   <div className="stat-card rounded-2xl p-5 text-center">
                     <div className="w-10 h-10 rounded-xl icon-float flex items-center justify-center mx-auto mb-3">
                       <Trophy className="w-5 h-5 text-[#d8b081]" />
                     </div>
                     <div className="text-3xl font-black font-title text-white leading-none">6</div>
-                    <div className="text-xs text-gray-400 mt-2 uppercase tracking-wider font-semibold">Colaboradores en total</div>
+                    <div className="text-xs text-gray-400 mt-2 tracking-wider font-semibold">Colaboradores en total</div>
                   </div>
                 </div>
               </div>
-            </div>
-
-          </div>
-
-          {/* CTA Card — centrada debajo del grid */}
-          <div className="max-w-2xl mx-auto mt-6 reveal-item">
-            <div className="glass-card rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl icon-float flex items-center justify-center shrink-0">
-                  <Heart className="w-5 h-5 text-[#d8b081]" />
-                </div>
-                <p className="text-gray-300 text-sm leading-relaxed">
-                  También ofrecemos productos para el cuidado facial, capilar y accesorios exclusivos.
-                </p>
               </div>
-              <button
-                onClick={() => scrollToSection('servicios')}
-                className="inline-flex items-center justify-center gap-2 px-7 py-3 bg-[#d8b081] text-black font-black text-sm uppercase tracking-wider rounded-xl hover:bg-[#e8c091] hover:scale-105 transition-all duration-300 shrink-0 shadow-[0_4px_20px_rgba(216,176,129,0.25)]"
-              >
-                Ver servicios <ArrowRight className="w-4 h-4" />
-              </button>
             </div>
+
           </div>
+
         </div>
         </section>
       </div>
@@ -1130,30 +1041,22 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       {/* Supertítulo — fondo barbería a todo el ancho (sin foto equipo) */}
       <div
         className="relative flex items-center justify-center overflow-hidden bg-black"
-        style={{ zIndex: 2, minHeight: 'clamp(200px, 28vh, 280px)', padding: '2rem 0', marginTop: '-2rem' }}
+        style={{ zIndex: 2, minHeight: 'clamp(200px, 28vh, 280px)', padding: '0 0 2rem 0', marginTop: 'clamp(-5rem, -5vw, -3rem)' }}
       >
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-black">
             <img
               src={ofrecemosHeroBg}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover animate-slow-zoom opacity-50 grayscale pointer-events-none"
-              style={{ filter: 'contrast(1.12)', objectPosition: 'center center' }}
+              className="absolute inset-0 h-full w-full object-cover animate-slow-zoom pointer-events-none"
+              style={{ opacity: 0.35, filter: 'contrast(1.1) brightness(0.7)', objectPosition: 'center center' }}
               draggable={false}
             />
           </div>
           {/* Overlay oscuro uniforme sobre la foto */}
           <div
-            className="absolute inset-0 bg-black/55 pointer-events-none"
-            aria-hidden
-          />
-          {/* Fade borde superior — fundido hacia la sección anterior */}
-          <div
-            className="absolute inset-x-0 top-0 h-[min(45%,10rem)] pointer-events-none"
-            style={{
-              background:
-                'linear-gradient(to bottom, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.72) 28%, rgba(0,0,0,0.28) 62%, transparent 100%)',
-            }}
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'rgba(0,0,0,0.62)' }}
             aria-hidden
           />
           {/* Fade borde inferior — fundido hacia Servicios */}
@@ -1170,8 +1073,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width text-center reveal-item relative z-10 px-4">
           <div className="supertitle-wrapper">
             <span className="supertitle-line opacity-70" />
-            <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-white drop-shadow-[0_4px_30px_rgba(0,0,0,1)] uppercase">
-              Lo que ofrecemos
+            <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-gradient drop-shadow-[0_4px_30px_rgba(0,0,0,1)]">
+              Lo Que Ofrecemos
             </h2>
             <span className="supertitle-line opacity-70" />
           </div>
@@ -1191,7 +1094,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width relative z-10">
           <div className="text-center mb-10 reveal-item">
 
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem', marginBottom: '1rem' }}>
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient " style={{ paddingTop: '1rem', marginBottom: '1rem' }}>
               Servicios
             </h3>
             <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-4">
@@ -1199,7 +1102,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 type="button"
                 onClick={() => setServicesView('servicios')}
                 data-selected={servicesView === 'servicios'}
-                className="min-w-[210px] px-6 py-3 text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
+                className="min-w-[210px] px-6 py-3 text-lg font-bold  tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
               >
                 Individuales
               </button>
@@ -1207,7 +1110,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 type="button"
                 onClick={() => setServicesView('paquetes')}
                 data-selected={servicesView === 'paquetes'}
-                className="min-w-[210px] px-6 py-3 text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
+                className=" min-w-[210px] px-6 py-3 text-lg font-bold  tracking-widest rounded-xl border-2 border-[#d8b081] bg-transparent text-[#d8b081] transition-all duration-300 shadow-lg gold-hover-transition"
+                
               >
                 Paquetes
               </button>
@@ -1284,16 +1188,16 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                           </div>
                           <div className="px-6 pt-5 pb-6">
-                            <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">
+                            <span className="text-xs font-black tracking-[0.5em] text-gray-500 block mb-2">
                               {servicio.type === 'paquete' ? 'Paquete' : 'Servicio'}
                             </span>
                             <div className="flex items-baseline justify-between mb-3">
-                              <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{servicio.nombre}</h3>
+                              <h3 className="text-lg font-black font-title tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{servicio.nombre}</h3>
                               <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(servicio.precio)}</span>
                             </div>
                             <div className="flex items-center gap-2 text-gray-400 mb-3">
                               <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
-                              <span className="text-xs font-bold uppercase tracking-widest">{formatDuracion(servicio.duracion)}</span>
+                              <span className="text-xs font-bold tracking-widest">{formatDuracion(servicio.duracion)}</span>
                             </div>
                             <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
                             <button
@@ -1305,7 +1209,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                                   onRequestLogin?.();
                                 }
                               }}
-                              className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold uppercase tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
+                              className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
                             >
                               Agendar Ahora
                             </button>
@@ -1351,8 +1255,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width relative z-10">
           <div className="text-center mb-14 reveal-item">
 
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase" style={{ paddingTop: '1rem' }}>
-              Nuestra tienda fisica
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient " style={{ paddingTop: '1rem' }}>
+              Nuestra Tienda Física
             </h3>
             <p className="text-gray-400 max-w-xl mx-auto text-lg leading-relaxed  mb-2">Reserva el producto que deseas y nosotros lo tendremos listo para ti en tu próxima visita.</p>
           </div>
@@ -1376,8 +1280,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             <div className="hero-gallery-carousel hero-gallery-carousel--cards relative flex-1 min-w-0">
               <div className="hero-gallery-track-wrap">
                 {loading ? (
-                  <div className="flex gap-6 w-full overflow-hidden">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div className="relative flex gap-6" style={{ width: 'max-content', marginBottom: '4rem' }}>
+                    {[1, 2, 3, 4, 5].map((i) => (
                       <div
                         key={i}
                         className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
@@ -1421,9 +1325,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                           </div>
                           <div className="px-6 pt-5 pb-6">
-                            <span className="text-xs font-black uppercase tracking-[0.5em] text-gray-500 block mb-2">{producto.categoria?.nombre || 'Producto'}</span>
+                            <span className="text-xs font-black tracking-[0.5em] text-gray-500 block mb-2">{producto.categoria?.nombre || 'Producto'}</span>
                             <div className="flex items-baseline justify-between mb-3">
-                              <h3 className="text-lg font-black font-title uppercase tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{producto.nombre}</h3>
+                              <h3 className="text-lg font-black font-title tracking-tight text-white group-hover:text-[#d8b081] transition-colors">{producto.nombre}</h3>
                               <span className="text-xl font-black text-[#d8b081] ml-3">${formatCurrency(producto.precio)}</span>
                             </div>
                             <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">{producto.descripcion}</p>
@@ -1463,8 +1367,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
       <section id="equipo" className="relative z-10 w-full overflow-hidden" style={{ background: 'linear-gradient(to bottom, #0d0d0d 0%, #000000 10%, #000000 90%, #080808 100%)', paddingTop: '3rem', paddingBottom: '3rem' }}>
         <div className="content-max-width relative z-10">
           <div className="text-center mb-12">
-            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient uppercase">
-              Nuestros barberos
+            <h3 className="section-title-fill font-bold font-title tracking-tight leading-none text-gradient">
+              Nuestros Barberos
             </h3>
             <p className="text-gray-400 mt-4 max-w-xl mx-auto text-lg mb-4 leading-relaxed">Conoce a los artistas detrás de tu imagen. Nuestra dedicación se refleja en cada detalle.</p>
           </div>
@@ -1494,7 +1398,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               >
                 {/* Nombre arriba en negro con letra elegante */}
                 <div className="py-5 text-center px-2 flex flex-col justify-center items-center bg-[#fdfdfd] z-10">
-                  <h3 className="text-2xl md:text-3xl font-black font-title uppercase tracking-tight text-[#111111] group-hover:text-[#d8b081] transition-colors duration-300">
+                  <h3 className="text-2xl md:text-3xl font-black font-title tracking-tight text-[#111111] group-hover:text-[#d8b081] transition-colors duration-300">
                     {barbero.nombre}
                   </h3>
                 </div>
@@ -1513,7 +1417,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
                 {/* Botón de agendar directo sin contenedor */}
                 <button
-                  className="relative z-10 w-full py-6 font-bold uppercase tracking-[0.2em] text-xs transition-all duration-300 outline-none border-t border-black/5 bg-transparent text-[#111111] hover:bg-[#d8b081] hover:text-black cursor-pointer"
+                  className="relative z-10 w-full py-6 font-bold tracking-[0.2em] text-xs transition-all duration-300 outline-none border-t border-black/5 bg-transparent text-[#111111] hover:bg-[#d8b081] hover:text-black cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (isAuthenticated) {
@@ -1540,7 +1444,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <Award className="w-6 h-6 text-[#d8b081]" />
               </div>
               <div>
-                <span className="text-[11px] font-black uppercase tracking-[0.5em] text-[#d8b081] block"></span>
+                <span className="text-[11px] font-black tracking-[0.5em] text-[#d8b081] block"></span>
                 <h3 className="text-2xl mt-6 mb-6 font-title font-black uppercase tracking-tight text-white">Datos relevantes</h3>
               </div>
             </div>
@@ -1559,7 +1463,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   <MapPin className="w-5 h-5 text-[#d8b081]" />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Ubicación</p>
+                  <p className="text-[10px] tracking-[0.4em] text-white font-medium mb-2">Ubicación</p>
                   <p className="text-lg font-bold text-gray-400 group-hover:text-white transition-colors">Calle 79 #52-12</p>
                   <p className="text-sm text-gray-500 mt-0.5">Barrio El Bosque, Medellín</p>
                 </div>
@@ -1573,7 +1477,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   <Phone className="w-5 h-5 text-[#d8b081]" />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Contacto</p>
+                  <p className="text-[10px] tracking-[0.4em] text-white font-medium mb-2">Contacto</p>
                   <p className="text-lg font-bold text-gray-400">301 483 6189</p>
                   <p className="text-sm text-gray-500 mt-0.5">WhatsApp / Llamadas</p>
                 </div>
@@ -1587,7 +1491,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   <Calendar className="w-5 h-5 text-[#d8b081]" />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Horario</p>
+                  <p className="text-[10px] tracking-[0.4em] text-white font-medium mb-2">Horario</p>
                   <div className="flex items-center justify-between mt-1 gap-4">
                     <span className="text-sm font-semibold text-white">Lun — Dom</span>
                     <span className="text-sm font-bold text-gray-400">9:00 — 20:00</span>
@@ -1603,7 +1507,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   <Scissors className="w-5 h-5 text-[#d8b081]" />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-white font-medium mb-2">Equipo</p>
+                  <p className="text-[10px] tracking-[0.4em] text-white font-medium mb-2">Equipo</p>
                   <div className="flex -space-x-2 justify-center mb-1">
                     {[1, 2, 3].map((i) => (
                       <div key={i} className="w-6 h-6 rounded-full border border-black bg-gray-800 flex items-center justify-center overflow-hidden">
@@ -1689,7 +1593,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <div className="relative" style={{ marginTop: '-3rem', padding: '0 2rem 0' }}>
 
                   {/* Nombre */}
-                  <h3 className="font-black font-title uppercase tracking-tight text-white leading-tight mb-2" style={{ fontSize: 'clamp(1.3rem, 3vw, 1.7rem)' }}>
+                  <h3 className="font-black font-title tracking-tight text-white leading-tight mb-2" style={{ fontSize: 'clamp(1.3rem, 3vw, 1.7rem)' }}>
                     {selectedDetailItem.nombre}
                   </h3>
 
@@ -1758,7 +1662,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   {/* ── BLOQUE SERVICIO ── */}
                   {selectedDetailItem.type === 'servicio' && (
                     <>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">¿Qué incluye?</p>
+                      <p className="text-[10px] font-black tracking-widest text-gray-500 mb-3">¿Qué incluye?</p>
                       <div className="grid grid-cols-1 gap-3.5 mb-4">
                         {[
                           { icon: <CheckCircle className="w-4 h-4" />, text: 'Atención personalizada por un barbero especialista' },
@@ -1787,7 +1691,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       {selectedDetailItem.servicios && selectedDetailItem.servicios.length > 0 && (
                         <div className="rounded-xl mb-4 overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}>
                           <div className="px-4 pt-4 pb-3">
-                            <p className="text-[11px] font-black uppercase tracking-[0.18em]" style={{ color: '#d8b081' }}>
+                            <p className="text-[11px] font-black tracking-[0.18em]" style={{ color: '#d8b081' }}>
                               Servicios incluidos
                             </p>
                           </div>
@@ -1830,7 +1734,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       <button
                         type="button"
                         onClick={() => handleDetailDialogChange(false)}
-                        className="h-12 px-8 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
+                        className="h-12 px-8 rounded-xl text-sm font-bold tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
                         style={{ background: '#d8b081', color: '#000' }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = '#e8c091'; e.currentTarget.style.transform = 'scale(1.02)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = '#d8b081'; e.currentTarget.style.transform = 'scale(1)'; }}
@@ -1849,7 +1753,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                               onRequestLogin?.();
                             }
                           }}
-                          className="h-12 px-8 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
+                          className="h-12 px-8 rounded-xl text-sm font-bold tracking-wider transition-all duration-300 shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)]"
                           style={{ background: '#d8b081', color: '#000' }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = '#e8c091'; e.currentTarget.style.transform = 'scale(1.02)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = '#d8b081'; e.currentTarget.style.transform = 'scale(1)'; }}
@@ -1859,7 +1763,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                         <button
                           type="button"
                           onClick={() => handleDetailDialogChange(false)}
-                          className="h-12 px-6 rounded-xl border text-sm font-semibold uppercase tracking-wider transition-all duration-300"
+                          className="h-12 px-6 rounded-xl border text-sm font-semibold tracking-wider transition-all duration-300"
                           style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#9ca3af' }}
                           onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#e5e7eb'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#9ca3af'; }}
@@ -1890,17 +1794,35 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="relative border-b border-white/5">
           <div className="content-max-width relative z-10 px-8 md:px-12 lg:px-16 flex flex-col md:flex-row items-center justify-between gap-7" style={{ paddingTop: '60px', paddingBottom: '60px' }}>
             <div className="max-w-2xl text-center">
-              <p className="text-[11px] uppercase tracking-[0.45em] text-[#d8b081] font-black mt-4">Reserva tu momento</p>
-              <h3 className="text-2xl md:text-3xl font-bold font-title  text-white mb-2">¿Listo para tu próximo look?</h3>
+              <p className="text-[11px] tracking-[0.45em] text-[#d8b081] font-black mt-4">Reserva tu momento</p>
+              <h3 className="font-title text-white mb-2" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.02em' }}>¿Listo para tu próximo look?</h3>
               <p className="text-gray-400 text-sm md:text-base mb-8">Agenda tu cita y vive la experiencia Manito Barbershop con atención profesional.</p>
             </div>
             <button
               onClick={isAuthenticated ? onRequestDashboard : onRequestLogin}
-              className="inline-flex items-center gap-3 px-10 pl-4 mb-4 py-4 bg-transparent text-[#d8b081] border-2 border-[#d8b081] font-bold text-sm uppercase tracking-widest rounded-xl shadow-2xl shadow-[#d8b081]/10 hover:scale-105 transition-all duration-300 shrink-0 gold-hover-transition"
+              className="inline-flex items-center gap-3 px-10 pl-4 mb-4 py-4 bg-transparent text-[#d8b081] border-2 border-[#d8b081] font-bold text-sm tracking-widest rounded-xl shadow-2xl shadow-[#d8b081]/10 hover:scale-105 transition-all duration-300 shrink-0 gold-hover-transition"
             >
               {isAuthenticated ? 'Mi Panel' : 'Reservar Cita'}
               <ChevronRight className="w-4 h-5" />
             </button>
+          </div>
+        </div>
+
+        {/* Descargar App */}
+        <div className="relative border-b border-white/5">
+          <div className="content-max-width relative z-10 px-8 md:px-12 lg:px-16 flex flex-col items-center justify-center gap-3" style={{ paddingTop: '28px', paddingBottom: '28px' }}>
+            <p className="font-title text-white mb-6" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)', fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.02em' }}>También tenemos aplicación móvil</p>
+            <a
+              href="/downloads/manito-barbershop.apk"
+              download
+              className="inline-flex items-center gap-3 pl-4 pr-10 py-4 bg-transparent text-white border-2 border-white font-bold text-sm tracking-widest rounded-xl shadow-2xl hover:scale-105 transition-all duration-300 shrink-0 gold-hover-transition no-underline cursor-pointer"
+            >
+              <Smartphone className="w-5 h-5" />
+              Descargar App
+              <span className="inline-flex pr-2">
+                <Download className="w-4 h-5" />
+              </span>
+            </a>
           </div>
         </div>
 
@@ -1913,7 +1835,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <img src={LOGO_URL} alt="Manito Barbershop" className="w-12 h-12 rounded-full object-cover border-2 border-[#d8b081]/20" />
                 <div className="text-left">
                   <span className="text-lg font-black font-title tracking-tight text-white uppercase block">Manito</span>
-                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">Barbershop</span>
+                  <span className="text-[10px] text-gray-500 tracking-widest">Barbershop</span>
                 </div>
               </div>
               <p className="text-gray-400 text-xs leading-relaxed max-w-[200px]">
@@ -1923,26 +1845,28 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
             {/* Redes Sociales */}
             <div className="flex flex-col items-center text-center space-y-5 py-12">
-              <span className="text-sm font-bold uppercase tracking-[0.3em] text-[#d8b081]">Siguenos</span>
+              <span className="text-sm font-bold tracking-[0.3em] text-[#d8b081]">Siguenos</span>
               <div className="flex flex-col gap-3">
-                <a href="https://instagram.com/manitobarbershop" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group text-xs">
+                <a href="https://www.instagram.com/manito.barberia/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group text-xs">
                   <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
                     <Instagram className="w-3.5 h-3.5 text-[#d8b081]" />
                   </div>
-                  <span>@manitobarbershop</span>
+                  <span>@manito.barberia</span>
                 </a>
-                <div className="flex items-center gap-3 text-gray-600 text-xs">
-                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                    <Scissors className="w-3.5 h-3.5 text-gray-600" />
+                <a href="https://www.facebook.com/profile.php?id=61584534151053" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
+                    <svg className="w-3.5 h-3.5 text-[#d8b081]" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
                   </div>
-                  <span>Facebook (Próximamente)</span>
-                </div>
+                  <span>Manito Barbershop</span>
+                </a>
               </div>
             </div>
 
             {/* Contacto */}
             <div className="flex flex-col items-center text-center space-y-5 py-12">
-              <span className="text-sm font-bold uppercase tracking-[0.3em] text-[#d8b081]">Contacto</span>
+              <span className="text-sm font-bold tracking-[0.3em] text-[#d8b081]">Contacto</span>
               <div className="space-y-4">
                 <a href="tel:3014836189" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group text-xs">
                   <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-[#d8b081]/10 flex items-center justify-center transition-colors">
@@ -1961,7 +1885,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
             {/* Ubicación con Mapa */}
             <div className="flex flex-col items-center text-center space-y-5 py-12">
-              <span className="text-sm font-bold uppercase tracking-[0.3em] text-[#d8b081]">Ubicación</span>
+              <span className="text-sm font-bold tracking-[0.3em] text-[#d8b081]">Ubicación</span>
               <div className="w-full max-w-[280px] h-44 rounded-xl overflow-hidden border border-white/10 relative group transition-all duration-500 hover:border-[#d8b081]/40">
                 <iframe
                   title="Ubicación Footer"
@@ -1981,7 +1905,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3"
                 >
                   <p className="text-[10px] text-white font-bold tracking-wide">Calle 79 #52-12</p>
-                  <p className="text-[8px] text-gray-400 uppercase tracking-tighter">Medellín, Colombia</p>
+                  <p className="text-[8px] text-gray-400 tracking-tighter">Medellín, Colombia</p>
                 </a>
               </div>
             </div>
@@ -1994,7 +1918,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             <p className="text-xs text-gray-600 mt-4">© {new Date().getFullYear()} Manito Barbershop. Todos los derechos reservados.</p>
             <div className="flex items-center gap-3 mb-4">
               <Scissors className="w-3.5 h-3.5 text-[#d8b081]/40" />
-              <span className="text-xs text-gray-600 uppercase tracking-widest">Hecho con pasión</span>
+              <span className="text-xs text-gray-600 tracking-widest">Hecho con pasión</span>
               <Scissors className="w-3.5 h-3.5 text-[#d8b081]/40 rotate-180" />
             </div>
           </div>
@@ -2028,53 +1952,58 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <div style={{
                 width: '140px',
                 minWidth: '140px',
+                minHeight: 0,
                 background: 'linear-gradient(180deg, #111 0%, #0a0a0a 100%)',
                 borderRight: '1px solid rgba(255,255,255,0.06)',
                 display: 'flex',
                 flexDirection: 'column',
-                overflowY: 'auto',
               }}>
-                <div style={{ padding: '14px 10px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#25D366' }}>Barberos</span>
+                <div style={{ padding: '14px 10px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                  <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.15em', color: '#25D366' }}>Barberos</span>
                 </div>
-                {waBarbers.map((b, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setWaSelectedBarber(i); setTimeout(() => waInputRef.current?.focus(), 100); }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px',
-                      border: 'none',
-                      background: waSelectedBarber === i ? 'rgba(37,211,102,0.12)' : 'transparent',
-                      borderLeft: waSelectedBarber === i ? '3px solid #25D366' : '3px solid transparent',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      width: '100%',
-                      textAlign: 'left',
-                    }}
-                    onMouseEnter={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                    onMouseLeave={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <img
-                      src={b.foto}
-                      alt={b.nombre}
+                <div
+                  style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain' }}
+                  onWheel={(e) => e.stopPropagation()}
+                >
+                  {waBarbers.map((b, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setWaSelectedBarber(i); setTimeout(() => waInputRef.current?.focus(), 100); }}
                       style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: waSelectedBarber === i ? '2px solid #25D366' : '2px solid rgba(255,255,255,0.1)',
-                        transition: 'border 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px',
+                        border: 'none',
+                        background: waSelectedBarber === i ? 'rgba(37,211,102,0.12)' : 'transparent',
+                        borderLeft: waSelectedBarber === i ? '3px solid #25D366' : '3px solid transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        width: '100%',
+                        textAlign: 'left',
                       }}
-                    />
-                    <div style={{ overflow: 'hidden' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 700, color: waSelectedBarber === i ? '#fff' : '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.nombre}</div>
-                      <div style={{ fontSize: '9px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{b.rol}</div>
-                    </div>
-                  </button>
-                ))}
+                      onMouseEnter={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                      onMouseLeave={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <img
+                        src={b.foto}
+                        alt={b.nombre}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          border: waSelectedBarber === i ? '2px solid #25D366' : '2px solid rgba(255,255,255,0.1)',
+                          transition: 'border 0.2s',
+                        }}
+                      />
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: waSelectedBarber === i ? '#fff' : '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.nombre}</div>
+                        <div style={{ fontSize: '9px', color: '#555', letterSpacing: '0.05em' }}>{b.rol}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Chat Area */}

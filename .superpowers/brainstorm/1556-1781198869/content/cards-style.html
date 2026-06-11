@@ -1,0 +1,86 @@
+<h2>Estilo visual de las tarjetas</h2>
+<p class="subtitle">3 tarjetas apiladas en columna izquierda. ¿Cuál estilo visual prefieres?</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px; background:linear-gradient(135deg, #0a0a0a 0%, #111 100%);">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Card 1 -->
+        <div style="background:rgba(216,176,129,0.04); border:1px solid rgba(216,176,129,0.12); border-radius:14px; padding:18px 20px; display:flex; align-items:center; gap:14px;">
+          <div style="width:42px; height:42px; border-radius:12px; background:rgba(216,176,129,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span style="font-size:18px;">📅</span>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:14px; font-weight:700; color:#e8e8e8;">Gestión de Citas</div>
+            <div style="font-size:11px; color:#888; margin-top:3px;">Agenda tu cita y revisa tu historial</div>
+          </div>
+          <div style="color:rgba(216,176,129,0.6); font-size:16px;">→</div>
+        </div>
+        <!-- Card 2 -->
+        <div style="background:rgba(216,176,129,0.04); border:1px solid rgba(216,176,129,0.12); border-radius:14px; padding:18px 20px; display:flex; align-items:center; gap:14px;">
+          <div style="width:42px; height:42px; border-radius:12px; background:rgba(216,176,129,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span style="font-size:18px;">✂️</span>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:14px; font-weight:700; color:#e8e8e8;">Catálogo</div>
+            <div style="font-size:11px; color:#888; margin-top:3px;">Explora servicios y productos</div>
+          </div>
+          <div style="color:rgba(216,176,129,0.6); font-size:16px;">→</div>
+        </div>
+        <!-- Card 3 -->
+        <div style="background:rgba(216,176,129,0.04); border:1px solid rgba(216,176,129,0.12); border-radius:14px; padding:18px 20px; display:flex; align-items:center; gap:14px;">
+          <div style="width:42px; height:42px; border-radius:12px; background:rgba(216,176,129,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span style="font-size:18px;">🔄</span>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:14px; font-weight:700; color:#e8e8e8;">Devoluciones</div>
+            <div style="font-size:11px; color:#888; margin-top:3px;">Proceso integrado en el sistema</div>
+          </div>
+          <div style="color:rgba(216,176,129,0.6); font-size:16px;">→</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Compactas con flecha</h3>
+      <p>Estilo lista elegante. Icono + texto + flecha. Ocupan menos espacio vertical, se sienten como accesos rápidos.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px; background:linear-gradient(135deg, #0a0a0a 0%, #111 100%);">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <!-- Card 1 -->
+        <div style="background:rgba(216,176,129,0.04); border:1px solid rgba(216,176,129,0.12); border-radius:16px; padding:22px; text-align:center;">
+          <div style="width:48px; height:48px; border-radius:14px; background:rgba(216,176,129,0.12); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+            <span style="font-size:22px;">📅</span>
+          </div>
+          <div style="font-size:15px; font-weight:800; color:#e8e8e8;">Gestión de Citas</div>
+          <div style="font-size:11px; color:#888; margin-top:4px; line-height:1.4;">Agenda tu próxima cita online y consulta tu historial completo</div>
+          <div style="margin-top:10px; display:inline-block; padding:6px 16px; border-radius:8px; background:rgba(216,176,129,0.15); color:#d8b081; font-size:11px; font-weight:700;">Agendar ahora</div>
+        </div>
+        <!-- Card 2 -->
+        <div style="background:rgba(216,176,129,0.04); border:1px solid rgba(216,176,129,0.12); border-radius:16px; padding:22px; text-align:center;">
+          <div style="width:48px; height:48px; border-radius:14px; background:rgba(216,176,129,0.12); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+            <span style="font-size:22px;">✂️</span>
+          </div>
+          <div style="font-size:15px; font-weight:800; color:#e8e8e8;">Catálogo</div>
+          <div style="font-size:11px; color:#888; margin-top:4px; line-height:1.4;">Descubre nuestros servicios y productos disponibles</div>
+          <div style="margin-top:10px; display:inline-block; padding:6px 16px; border-radius:8px; background:rgba(216,176,129,0.15); color:#d8b081; font-size:11px; font-weight:700;">Explorar</div>
+        </div>
+        <!-- Card 3 (smaller) -->
+        <div style="background:rgba(216,176,129,0.04); border:1px solid rgba(216,176,129,0.12); border-radius:16px; padding:22px; text-align:center;">
+          <div style="width:48px; height:48px; border-radius:14px; background:rgba(216,176,129,0.12); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+            <span style="font-size:22px;">🔄</span>
+          </div>
+          <div style="font-size:15px; font-weight:800; color:#e8e8e8;">Devoluciones</div>
+          <div style="font-size:11px; color:#888; margin-top:4px; line-height:1.4;">Sistema de devoluciones integrado para tu tranquilidad</div>
+          <div style="margin-top:10px; display:inline-block; padding:6px 16px; border-radius:8px; background:rgba(216,176,129,0.15); color:#d8b081; font-size:11px; font-weight:700;">Saber más</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Cards centradas con CTA</h3>
+      <p>Estilo tarjeta completa. Icono centrado, descripción más larga y botón de acción. Más visual e impactante.</p>
+    </div>
+  </div>
+</div>
