@@ -163,7 +163,15 @@ class ProductoService {
   }
 
   private normalizeProducto(p: any): ApiProducto {
-    const cat = p.categoria || p.Categoria || null;
+    const catRaw = p.categoria || p.Categoria;
+    const catNombre = p.categoriaNombre || p.CategoriaNombre;
+    const catId = p.categoriaId || p.CategoriaId;
+    const cat = catRaw
+      ? { id: Number(catRaw.id || catRaw.Id), nombre: String(catRaw.nombre || catRaw.Nombre || '') }
+      : catNombre
+        ? { id: Number(catId || 0), nombre: String(catNombre) }
+        : null;
+
     const stock = Number(p.stock ?? p.Stock ?? p.cantidad ?? p.Cantidad ?? 0);
     const precio = Number(p.precio ?? p.Precio ?? p.precioVenta ?? p.PrecioVenta ?? 0);
 
@@ -171,10 +179,7 @@ class ProductoService {
       id: Number(p.id || p.Id),
       nombre: String(p.nombre || p.Nombre || ''),
       descripcion: p.descripcion || p.Descripcion || null,
-      categoria: cat ? {
-        id: Number(cat.id || cat.Id),
-        nombre: String(cat.nombre || cat.Nombre || '')
-      } : null,
+      categoria: cat,
       precioBase: Number(p.precioBase || p.PrecioBase || precio),
       precio,
       tipo: p.tipo || p.Tipo || 'Producto',

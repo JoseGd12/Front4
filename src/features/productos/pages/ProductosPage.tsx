@@ -53,6 +53,7 @@ export function ProductosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState<any>(null);
   const [selectedProducto, setSelectedProducto] = useState<any>(null);
   const [productoToDelete, setProductoToDelete] = useState<any>(null);
@@ -106,6 +107,7 @@ export function ProductosPage() {
   const skipPagedRefetch = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
+  const formInitialStateRef = useRef<string>('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showProductoFormErrors, setShowProductoFormErrors] = useState(false);
   const [productoValidationAttempt, setProductoValidationAttempt] = useState(0);
@@ -162,6 +164,36 @@ export function ProductosPage() {
       }
       return { ...p, usoProducto };
     });
+  };
+
+  const defaultFormState = {
+    nombre: '', descripcion: '', categoria: '', precioBase: 0,
+    precioVenta: 0, precioCompra: 0, stock: 0, minCantidad: 0,
+    marca: '', imagenProduc: '', activo: true, usoProducto: 'venta_e_insumo'
+  };
+
+  const hasUnsavedChanges = () =>
+    formInitialStateRef.current !== JSON.stringify(nuevoProducto);
+
+  const closeFormClean = () => {
+    setIsDialogOpen(false);
+    setEditingProducto(null);
+    setNuevoProducto(defaultFormState);
+    setCategorySearchTerm('');
+    setImagenPreview(null);
+    setImageError(null);
+    setShowProductoFormErrors(false);
+    setProductoValidationAttempt(0);
+    setNombreProductoError(null);
+    formInitialStateRef.current = '';
+  };
+
+  const handleRequestCloseForm = () => {
+    if (hasUnsavedChanges()) {
+      setIsDiscardDialogOpen(true);
+    } else {
+      closeFormClean();
+    }
   };
 
   const isNombreDuplicado = useMemo(() => {
@@ -475,6 +507,7 @@ export function ProductosPage() {
       });
       setCategorySearchTerm('');
       setImagenPreview(null);
+      formInitialStateRef.current = '';
       setIsDialogOpen(false);
 
       created("Producto creado ✔️", `El producto "${productoCreado.nombre}" ha sido agregado exitosamente al inventario.`);
@@ -491,7 +524,7 @@ export function ProductosPage() {
     setEditingProducto(producto);
     const categoriaVal = typeof producto.categoria === 'string' ? producto.categoria : producto.categoria?.nombre ?? '';
     const stock = Number(producto.stock ?? producto.cantidad ?? 0);
-    setNuevoProducto({
+    const editForm = {
       nombre: producto.nombre,
       descripcion: producto.descripcion,
       categoria: categoriaVal,
@@ -504,7 +537,9 @@ export function ProductosPage() {
       imagenProduc: producto.imagenProduc,
       activo: producto.activo,
       usoProducto: getUsoProductoActual(producto)
-    });
+    };
+    setNuevoProducto(editForm);
+    formInitialStateRef.current = JSON.stringify(editForm);
     setCategorySearchTerm(categoriaVal || '');
     setImagenPreview(producto.imagenProduc || null);
     setImageError(null);
@@ -604,6 +639,7 @@ export function ProductosPage() {
       });
       setCategorySearchTerm('');
       setImagenPreview(null);
+      formInitialStateRef.current = '';
       setIsDialogOpen(false);
 
       edited("Producto editado ✔️", `El producto "${productoActualizado.nombre}" ha sido actualizado correctamente.`);
@@ -851,26 +887,14 @@ export function ProductosPage() {
             <TableHeaderSection
               variant="dark"
               leftContent={(
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isDialogOpen} onOpenChange={(open) => { if (open) setIsDialogOpen(true); else handleRequestCloseForm(); }}>
                   <DialogTrigger asChild>
                     <button
                       className="btn-std-primary"
                       onClick={() => {
                         setEditingProducto(null);
-                        setNuevoProducto({
-                          nombre: '',
-                          descripcion: '',
-                          categoria: '',
-                          precioBase: 0,
-                          precioVenta: 0,
-                          precioCompra: 0,
-                          stock: 0,
-                          minCantidad: 0,
-                          marca: '',
-                          imagenProduc: '',
-                          activo: true,
-                          usoProducto: 'venta_e_insumo'
-                        });
+                        setNuevoProducto(defaultFormState);
+                        formInitialStateRef.current = JSON.stringify(defaultFormState);
                         setImagenPreview(null);
                         setImageError(null);
                         setShowProductoFormErrors(false);
@@ -885,10 +909,15 @@ export function ProductosPage() {
                   <DialogContent
                     className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto"
                     onInteractOutside={(e: any) => {
+                      e.preventDefault();
                       const target = e.target as HTMLElement | null;
-                      if (target?.closest('[data-alert-container="true"]')) {
-                        e.preventDefault();
+                      if (!target?.closest('[data-alert-container="true"]')) {
+                        handleRequestCloseForm();
                       }
+                    }}
+                    onEscapeKeyDown={(e) => {
+                      e.preventDefault();
+                      handleRequestCloseForm();
                     }}
                   >
                     <DialogHeader>
@@ -1177,7 +1206,7 @@ export function ProductosPage() {
                       )}
 
                     <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
-                      <button onClick={() => setIsDialogOpen(false)} disabled={isSubmitting} className="elegante-button-secondary px-6">
+                      <button onClick={handleRequestCloseForm} disabled={isSubmitting} className="elegante-button-secondary px-6">
                         Cancelar
                       </button>
                       <button
@@ -1449,6 +1478,32 @@ export function ProductosPage() {
             </div>
           </div>
 
+          {/* Dialog de descartar cambios */}
+          <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
+            <AlertDialogContent className="bg-gray-darkest border-gray-dark">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-white-primary">¿Descartar cambios?</AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-lightest">
+                  Tienes cambios sin guardar. Si cierras el formulario, se perderán.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogAction
+                  onClick={() => setIsDiscardDialogOpen(false)}
+                  className="bg-orange-primary text-black hover:bg-orange-primary/90 order-first"
+                >
+                  Seguir editando
+                </AlertDialogAction>
+                <AlertDialogCancel
+                  onClick={() => { setIsDiscardDialogOpen(false); closeFormClean(); }}
+                  className="bg-transparent border-gray-dark text-white-primary hover:bg-gray-dark"
+                >
+                  Descartar
+                </AlertDialogCancel>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* Dialog de confirmación para eliminar */}
           <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <AlertDialogContent className="bg-gray-darkest border-gray-dark">
@@ -1516,15 +1571,6 @@ export function ProductosPage() {
                         </Label>
                         <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
                           {selectedProducto.marca || 'Sin marca'}
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                          Tipo
-                        </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                          {esProductoSoloVenta(selectedProducto) ? 'Solo Venta' : 'Venta e Insumo'}
                         </div>
                       </div>
                     </div>
