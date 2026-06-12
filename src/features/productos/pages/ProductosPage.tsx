@@ -520,31 +520,39 @@ export function ProductosPage() {
     }
   };
 
-  const handleEditProducto = (producto: any) => {
+  const handleEditProducto = async (producto: any) => {
+    setIsDialogOpen(true);
     setEditingProducto(producto);
-    const categoriaVal = typeof producto.categoria === 'string' ? producto.categoria : producto.categoria?.nombre ?? '';
-    const stock = Number(producto.stock ?? producto.cantidad ?? 0);
+
+    let p = producto;
+    try {
+      p = await productoService.getProductoById(Number(producto.id));
+    } catch {
+      // fallback al objeto local si el fetch falla
+    }
+
+    const categoriaVal = typeof p.categoria === 'string' ? p.categoria : p.categoria?.nombre ?? '';
+    const stock = Number(p.stock ?? p.cantidad ?? 0);
     const editForm = {
-      nombre: producto.nombre,
-      descripcion: producto.descripcion,
+      nombre: p.nombre ?? '',
+      descripcion: p.descripcion ?? '',
       categoria: categoriaVal,
-      precioBase: producto.precioBase,
-      precioVenta: (producto as any).precioVenta ?? producto.precioBase ?? producto.precio ?? 0,
-      precioCompra: (producto as any).precioCompra ?? producto.precioBase ?? producto.precio ?? 0,
+      precioBase: Number(p.precioBase ?? 0),
+      precioVenta: Number((p as any).precioVenta ?? p.precioBase ?? p.precio ?? 0),
+      precioCompra: Number((p as any).precioCompra ?? 0),
       stock,
-      minCantidad: producto.minCantidad,
-      marca: producto.marca,
-      imagenProduc: producto.imagenProduc,
-      activo: producto.activo,
-      usoProducto: getUsoProductoActual(producto)
+      minCantidad: Number(p.minCantidad ?? 0),
+      marca: p.marca ?? '',
+      imagenProduc: p.imagenProduc ?? '',
+      activo: p.activo ?? true,
+      usoProducto: getUsoProductoActual(p)
     };
     setNuevoProducto(editForm);
     formInitialStateRef.current = JSON.stringify(editForm);
-    setCategorySearchTerm(categoriaVal || '');
-    setImagenPreview(producto.imagenProduc || null);
+    setCategorySearchTerm(categoriaVal);
+    setImagenPreview(p.imagenProduc || null);
     setImageError(null);
     setNombreProductoError(null);
-    setIsDialogOpen(true);
   };
 
   const handleUpdateProducto = async () => {
@@ -595,6 +603,7 @@ export function ProductosPage() {
       const selectedCat = categorias.find(c => c.nombre === nuevoProducto.categoria);
 
       const productoData = {
+        id: productoId,
         nombre: nuevoProducto.nombre,
         descripcion: nuevoProducto.descripcion,
         categoria: nuevoProducto.categoria,
