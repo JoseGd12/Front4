@@ -47,6 +47,7 @@ export function ServiciosPage() {
   const [isDeletingImage, setIsDeletingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const shakeClass = servicioValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
 
@@ -84,6 +85,11 @@ export function ServiciosPage() {
 
   useEffect(() => {
     const run = async () => {
+      // Si estamos en medio de un toggle de estado, no cargamos datos de la API
+      if (isTogglingStatus) {
+        return;
+      }
+      
       try {
         setLoadingPage(true);
         const extra: Record<string, any> = {};
@@ -128,7 +134,7 @@ export function ServiciosPage() {
       }
     };
     run();
-  }, [searchTerm, statusFilter, currentPage, itemsPerPage, servicios]);
+  }, [searchTerm, statusFilter, currentPage, itemsPerPage, servicios, isTogglingStatus]);
 
   const [nuevoServicio, setNuevoServicio] = useState({
     nombre: '',
@@ -415,7 +421,10 @@ export function ServiciosPage() {
 
     const nuevoEstado = !servicio.estado;
 
-    // Actualización optimista — actualiza servicios y pagedServicios (la tabla renderiza desde pagedServicios)
+    // Marcar que estamos en medio de un toggle para evitar que el useEffect cargue datos de la API
+    setIsTogglingStatus(true);
+
+    // Actualización optimista — actualizamos tanto servicios como pagedServicios para un cambio visual inmediato
     setServicios(prev =>
       prev.map(s => s.id === servicioId ? { ...s, estado: nuevoEstado, activo: nuevoEstado } : s)
     );
@@ -437,6 +446,9 @@ export function ServiciosPage() {
       console.error('Error actualizando estado del servicio:', err);
       setError(err.message || 'Error al actualizar el estado del servicio');
       loadServicios(true);
+    } finally {
+      // Desmarcar el toggle después de que todo haya terminado
+      setIsTogglingStatus(false);
     }
   };
 

@@ -2029,7 +2029,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                                 const diff = should - (Number(venta.total) || 0);
                                 return diff > 0.01 ? diff : 0;
                               })();
-                            const listadoTotalAjustado = Math.max(0, (Number(venta.subtotal) || 0) - saldoUsado - sumDev);
+                            const listadoTotalAjustado = Math.max(0, (Number(venta.total) || ((Number(venta.subtotal) || 0) - (Number(venta.descuento) || 0))) - saldoUsado - sumDev);
                             return formatCurrency(listadoTotalAjustado);
                           })()}
                         </StandardTable.Cell>
@@ -2235,7 +2235,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       </Label>
                       <Input
                         type="number"
-                        value={selectedVenta.subtotal > 0 ? ((selectedVenta.descuento / selectedVenta.subtotal) * 100).toFixed(2) : '0'}
+                        value={(selectedVenta as any).porcentajeDescuento !== undefined 
+                          ? Number((selectedVenta as any).porcentajeDescuento).toFixed(2) 
+                          : selectedVenta.subtotal > 0 
+                            ? ((selectedVenta.descuento / selectedVenta.subtotal) * 100).toFixed(2) 
+                            : '0'}
                         disabled
                         className="elegante-input no-spin bg-gray-medium"
                       />
@@ -2443,7 +2447,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       <span className="text-orange-primary font-bold text-xl">
                         ${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
                           ? formatCurrency(0)
-                          : formatCurrency(Math.max(0, (selectedVenta.subtotal || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0)))
+                          : formatCurrency(Math.max(0, (selectedVenta.total || (selectedVenta.subtotal || 0) - (selectedVenta.descuento || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0))))
                         }
                       </span>
                     </div>

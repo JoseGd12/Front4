@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { agendamientoService } from "../services/agendamientoService";
+import { descuentoDiaService } from "../services/descuentoDiaService";
 import { ventaService } from "../../ventas/services/ventaService";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { barberosService } from "../../administracion/services/barberosService";
@@ -430,14 +431,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   // Estados para gestión de descuentos por día
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
-  const [dayDiscounts, setDayDiscounts] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('dayDiscounts');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Los descuentos por día se cargan desde el backend (sincronizados con la app móvil).
+  const [dayDiscounts, setDayDiscounts] = useState<Record<string, number>>({});
   const [isDiscountDialogOpen, setIsDiscountDialogOpen] = useState(false);
   const [pendingDiscountValue, setPendingDiscountValue] = useState("");
   const [activeModalDiscountTab, setActiveModalDiscountTab] = useState<'descuento' | 'barberos' | 'citas'>('citas');
@@ -449,9 +444,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [editHorarioEnd, setEditHorarioEnd] = useState("");
   const [isSavingHorario, setIsSavingHorario] = useState(false);
 
+  // Cargar descuentos por día desde el backend al montar la página.
   useEffect(() => {
-    localStorage.setItem('dayDiscounts', JSON.stringify(dayDiscounts));
-  }, [dayDiscounts]);
+    descuentoDiaService.getDescuentos().then(setDayDiscounts).catch(() => {});
+  }, []);
 
   // Escuchar evento de scroll desde el sistema de notificaciones
   useEffect(() => {
@@ -1967,31 +1963,46 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setIsDiscountDialogOpen(true);
   };
 
-  const handleSaveDiscount = () => {
+  const handleSaveDiscount = async () => {
     const val = Number(pendingDiscountValue);
     if (isNaN(val) || val < 0 || val > 100) {
       error("Descuento inválido", "El descuento debe ser un número entre 0 y 100.");
       return;
     }
+    const fechas = Array.from(selectedDates);
     const nextDiscounts = { ...dayDiscounts };
-    Array.from(selectedDates).forEach(date => {
-      if (val === 0) {
-        delete nextDiscounts[date];
-      } else {
-        nextDiscounts[date] = val;
-      }
-    });
+    try {
+      await Promise.all(fechas.map(async date => {
+        if (val === 0) {
+          await descuentoDiaService.deleteDescuento(date);
+          delete nextDiscounts[date];
+        } else {
+          await descuentoDiaService.setDescuento(date, val);
+          nextDiscounts[date] = val;
+        }
+      }));
+    } catch {
+      error("Error", "No se pudo guardar el descuento. Intenta de nuevo.");
+      return;
+    }
     setDayDiscounts(nextDiscounts);
     setIsDiscountDialogOpen(false);
     setSelectedDates(new Set());
     success("Descuento aplicado", `Se configuró un ${val}% de descuento para los días seleccionados.`);
   };
 
-  const handleClearDiscounts = () => {
+  const handleClearDiscounts = async () => {
+    const fechas = Array.from(selectedDates);
     const nextDiscounts = { ...dayDiscounts };
-    Array.from(selectedDates).forEach(date => {
-      delete nextDiscounts[date];
-    });
+    try {
+      await Promise.all(fechas.map(async date => {
+        await descuentoDiaService.deleteDescuento(date);
+        delete nextDiscounts[date];
+      }));
+    } catch {
+      error("Error", "No se pudo eliminar el descuento. Intenta de nuevo.");
+      return;
+    }
     setDayDiscounts(nextDiscounts);
     setSelectedDates(new Set());
     success("Descuento removido", "Se eliminaron los descuentos de los días seleccionados.");
@@ -3461,7 +3472,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         <div className="flex justify-center items-center gap-1">
                           <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-normal">{dia.slice(0, 3)}</h4>
                           {discount > 0 && (
-                            <span className="bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                            <span style={{ backgroundColor: '#7a5c38', color: '#f3e8d8' }} className="text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                               -{discount}%
                             </span>
                           )}

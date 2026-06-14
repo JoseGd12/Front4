@@ -495,7 +495,7 @@ export function CategoriasPage() {
                         <span className="text-sm">{categoria.descripcion || 'Sin descripción'}</span>
                       </td>
                       <td className="std-td">
-                        <span className={`std-badge ${categoria.estado ? 'std-badge-positive' : 'std-badge-neutral'}`}>
+                        <span className={`std-badge ${categoria.estado ? 'std-badge-positive' : 'std-badge-negative'}`}>
                           {categoria.estado ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
