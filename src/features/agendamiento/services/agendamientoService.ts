@@ -380,6 +380,7 @@ class AgendamientoService {
             serviciosCompletados: number[];
             productosCompletados: number[];
             estado: string;
+            porcentajeDescuento?: number;
         }
     ): Promise<any> {
         return await httpClient.post(`/Agendamientos/${id}/completar-parcialmente`, data);
@@ -395,11 +396,11 @@ class AgendamientoService {
         }
     }
 
-    async updateAgendamientoStatus(id: number, estado: string): Promise<any> {
+    async updateAgendamientoStatus(id: number, estado: string, porcentajeDescuento?: number): Promise<any> {
         try {
             return await httpClient.request(`/Agendamientos/${id}/estado`, {
                 method: 'PATCH',
-                body: JSON.stringify({ estado }),
+                body: JSON.stringify({ estado, porcentajeDescuento: porcentajeDescuento ?? 0 }),
                 headers: { 'Content-Type': 'application/json' }
             }).then(r => r.status === 204 ? { message: 'Estado actualizado' } : r.json());
         } catch {

@@ -1708,7 +1708,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         }
       }
 
-      const result = await agendamientoService.updateAgendamientoStatus(citaId, nuevoEstado);
+      const citaParaDescuento = citas.find(c => c.id === citaId);
+      const descuentoDelDia = dayDiscounts[citaParaDescuento?.fecha || ''] || 0;
+      const result = await agendamientoService.updateAgendamientoStatus(citaId, nuevoEstado, descuentoDelDia);
       setCitas(citas.map(cita =>
         cita.id === citaId ? { ...cita, estado: nuevoEstado } : cita
       ));
@@ -4156,7 +4158,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             await agendamientoService.completarParcialmente(selectedCita.id, {
               serviciosCompletados: servicios,
               productosCompletados: productos,
-              estado: "Completada"
+              estado: "Completada",
+              porcentajeDescuento: dayDiscounts[selectedCita.fecha] || 0
             });
             setCitas(citas.map(c =>
               c.id === selectedCita.id ? { ...c, estado: 'Completada' } : c
