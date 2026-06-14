@@ -4150,6 +4150,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         <ModalCompletarParcialmente
           isOpen={true}
           cita={selectedCita}
+          descuentoDia={dayDiscounts[selectedCita.fecha] || 0}
           onClose={() => setShowModalParcial(false)}
           onComplete={async (servicios, productos) => {
             await agendamientoService.completarParcialmente(selectedCita.id, {

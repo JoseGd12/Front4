@@ -7,6 +7,7 @@ import { formatDuracion } from '../../../shared/utils/dateUtils';
 interface ModalCompletarParcialmenteProps {
   isOpen: boolean;
   cita: any;
+  descuentoDia?: number;
   onClose: () => void;
   onComplete: (servicios: number[], productos: number[]) => Promise<void>;
 }
@@ -14,6 +15,7 @@ interface ModalCompletarParcialmenteProps {
 export function ModalCompletarParcialmente({
   isOpen,
   cita,
+  descuentoDia = 0,
   onClose,
   onComplete
 }: ModalCompletarParcialmenteProps) {
@@ -29,8 +31,7 @@ export function ModalCompletarParcialmente({
 
   const { error, AlertContainer } = useCustomAlert();
   const [loading, setLoading] = useState(false);
-  const [porcentajeDescuento, setPorcentajeDescuento] = useState(0);
-  const [descuentoInput, setDescuentoInput] = useState('');
+  const porcentajeDescuento = descuentoDia;
 
   const servicios = useMemo(() => {
     const srvs = cita?.servicios || [];
@@ -89,25 +90,6 @@ export function ModalCompletarParcialmente({
       setProductosChecked(new Set());
     } else {
       setProductosChecked(new Set(productos.map((p: any) => Number(p.productoId || p.id))));
-    }
-  };
-
-  const handleDescuentoChange = (valor: string) => {
-    if (valor === '' || valor === '-') {
-      setDescuentoInput('');
-      setPorcentajeDescuento(0);
-      return;
-    }
-    const numero = parseFloat(valor);
-    if (isNaN(numero) || numero < 0) {
-      setDescuentoInput('0');
-      setPorcentajeDescuento(0);
-    } else if (numero > 100) {
-      setDescuentoInput('100');
-      setPorcentajeDescuento(100);
-    } else {
-      setDescuentoInput(valor);
-      setPorcentajeDescuento(numero);
     }
   };
 
@@ -283,21 +265,9 @@ export function ModalCompletarParcialmente({
               })}
             </span>
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-lighter">Descuento (%):</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={descuentoInput}
-              onChange={(e) => handleDescuentoChange(e.target.value)}
-              placeholder="0"
-              className="w-20 text-right bg-gray-darker border border-gray-dark/60 rounded px-2 py-0.5 text-gray-lightest text-sm focus:outline-none focus:border-orange-primary/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
           {porcentajeDescuento > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-lighter">Descuento:</span>
+              <span className="text-gray-lighter">Descuento del día ({porcentajeDescuento}%):</span>
               <span className="text-green-400 font-medium">
                 -${totales.descuento.toLocaleString('es-CO', {
                   minimumFractionDigits: 0,
