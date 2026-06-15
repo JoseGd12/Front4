@@ -32,6 +32,7 @@ import { clientesService } from "../../clientes/services/clientesService";
 import { productoService } from "../../productos/services/productos";
 import { categoriaService } from "../../inventario/services/categoriaService";
 import { barberosService } from "../../administracion/services/barberosService";
+import { apiService } from "../../../shared/services/api";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { useAuth } from "../../../shared/contexts/AuthContext"; // Added
 import manitoLogo from "../../../assets/Manito.jpeg";
@@ -464,6 +465,19 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         categoriaService.getCategorias().catch(() => [])
       ]);
 
+      // Mapa usuarioId → nombre completo para resolver el responsable
+      const usuariosMapa = new Map<number, string>();
+      try {
+        const usuarios = await apiService.getUsuarios();
+        usuarios.forEach((u: any) => {
+          const id = Number(u.id || u.Id || 0);
+          if (id > 0) {
+            const nombre = `${u.nombre || u.Nombre || ''} ${u.apellido || u.Apellido || ''}`.trim();
+            if (nombre) usuariosMapa.set(id, nombre);
+          }
+        });
+      } catch { /* silencioso: si falla usamos el nombre que traiga la API */ }
+
       setClientesList(clientes);
 
       const categoriasById = new Map<number, string>();
@@ -612,7 +626,21 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           hora: d.fecha ? new Date(d.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
           monto: monto,
           estado: estadoRaw as any,
-          responsable: d.responsableNombre || 'Responsable',
+          responsable: (() => {
+            const fromApi = d.responsableNombre || '';
+            // Si el nombre es el literal de fallback o está vacío, resolver por usuarioId
+            if (!fromApi || fromApi === 'Responsable') {
+              const uid = Number((d as any).usuarioId || 0);
+              if (uid > 0 && usuariosMapa.has(uid)) return usuariosMapa.get(uid)!;
+              // Último fallback: barbero de la devolución
+              const barberoIdDev = Number((d as any).barberoId || 0);
+              if (barberoIdDev > 0 && barberosMapa.has(barberoIdDev)) {
+                return barberosMapa.get(barberoIdDev)!.nombreCompleto;
+              }
+              return 'N/A';
+            }
+            return fromApi;
+          })(),
           numeroVenta: String(d.ventaId),
           saldoAFavor: d.saldoAFavor || 0,
           apiId: d.id,

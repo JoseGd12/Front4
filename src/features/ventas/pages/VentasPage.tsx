@@ -1548,6 +1548,13 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
           ventaData = {
             ...venta,
             ...ventaDetallada,
+            // Preservar responsable y barbero del objeto original si el detallado los perdió
+            responsable: (ventaDetallada.responsable && ventaDetallada.responsable !== 'Sin asignar')
+              ? ventaDetallada.responsable
+              : (venta.responsable && venta.responsable !== 'Sin asignar' ? venta.responsable : ventaDetallada.responsable),
+            barbero: (ventaDetallada.barbero && ventaDetallada.barbero !== 'Sin asignar')
+              ? ventaDetallada.barbero
+              : (venta.barbero && venta.barbero !== 'Sin asignar' ? venta.barbero : ventaDetallada.barbero),
             productosDetalle:
               (ventaDetallada.productosDetalle && ventaDetallada.productosDetalle.length > 0)
                 ? ventaDetallada.productosDetalle
@@ -1625,7 +1632,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         const barberoIdVenta = Number((ventaData as any).barberoId || 0);
         const barberoMatch = barberoIdVenta > 0 ? barberosAPI.find(b => Number(b.id) === barberoIdVenta) : null;
         compradorDoc = barberoMatch?.documento || "";
-        responsableVenta = (ventaData as any).responsable || "N/A";
+        // Responsable: usuario que registró la venta. Si no está, usar el barbero como fallback.
+        const respRaw = (ventaData as any).responsable || "";
+        responsableVenta = (respRaw && respRaw !== 'Sin asignar')
+          ? respRaw
+          : normalizeBarbero((ventaData as any).barbero) || "N/A";
       } else {
         const clienteIdVenta = Number((ventaData as any).clienteId || 0);
         const clienteDocumentoVenta = String((ventaData as any).clienteDocumento || "").trim();
@@ -1647,7 +1658,12 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
         compradorNombre = (clienteNombreEsGenerico ? clienteNombreCatalogo : clienteNombreVenta) || clienteNombreCatalogo || "Cliente";
         compradorDoc = clienteDocumentoVenta || clienteDocumentoCatalogo;
-        responsableVenta = normalizeBarbero((ventaData as any).barbero);
+        // Responsable: barbero que atendió. Si no hay barbero, intentar con el campo responsable.
+        const barberoVenta = normalizeBarbero((ventaData as any).barbero);
+        const responsableField = (ventaData as any).responsable || "";
+        responsableVenta = (barberoVenta && barberoVenta !== 'Sin asignar')
+          ? barberoVenta
+          : (responsableField && responsableField !== 'Sin asignar' ? responsableField : "N/A");
       }
 
       const parseDocumento = (docRaw: string) => {
