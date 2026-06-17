@@ -252,9 +252,22 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                     {/* Precio y Botones */}
                     <div className="mt-auto space-y-2 pt-2 border-t border-gray-dark">
                       <div className="flex items-center justify-between">
-                        <span className="text-orange-primary font-extrabold text-base">
-                          ${formatCurrency(item.precio)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {item.type === 'paquete' && (item as Paquete).descuento > 0 ? (
+                            <>
+                              <span className="text-gray-medium line-through text-xs">
+                                ${formatCurrency(item.precio)}
+                              </span>
+                              <span className="text-orange-primary font-extrabold text-base">
+                                ${formatCurrency(item.precio - (item.precio * (item as Paquete).descuento / 100))}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-orange-primary font-extrabold text-base">
+                              ${formatCurrency(item.precio)}
+                            </span>
+                          )}
+                        </div>
                         {item.type === 'paquete' && (item as Paquete).descuento > 0 && (
                           <div className="bg-green-600/20 text-green-400 px-1.5 py-0.5 rounded text-[9px] font-bold">
                             -{Math.round((item as Paquete).descuento)}% OFF
@@ -349,19 +362,25 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
                       <div className="flex-1 space-y-4 w-full">
                         <div className="bg-gray-darker p-5 rounded-xl flex flex-col justify-center h-full">
                           <div className="flex items-center justify-between mb-4 border-b border-gray-dark pb-4">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] text-gray-lighter font-bold uppercase tracking-widest mb-1">Precio</span>
-                              <div className="flex items-center gap-3">
-                                <span className="text-orange-primary font-extrabold text-3xl">
-                                  ${formatCurrency(selectedItem.precio)}
-                                </span>
-                                {selectedItem.type === 'paquete' && (selectedItem as Paquete).precioOriginal > selectedItem.precio && (
-                                  <span className="text-gray-lighter line-through text-sm">
-                                    ${formatCurrency((selectedItem as Paquete).precioOriginal)}
-                                  </span>
-                                )}
+                              <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-lighter font-bold uppercase tracking-widest mb-1">Precio</span>
+                                <div className="flex items-center gap-3">
+                                  {selectedItem.type === 'paquete' && (selectedItem as Paquete).descuento > 0 ? (
+                                    <>
+                                      <span className="text-gray-lighter line-through text-sm">
+                                        ${formatCurrency(selectedItem.precio)}
+                                      </span>
+                                      <span className="text-orange-primary font-extrabold text-3xl">
+                                        ${formatCurrency(selectedItem.precio - (selectedItem.precio * (selectedItem as Paquete).descuento / 100))}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-orange-primary font-extrabold text-3xl">
+                                      ${formatCurrency(selectedItem.precio)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] text-gray-lighter font-bold uppercase tracking-widest mb-1">Duración</span>
                               <div className="flex items-center gap-2 text-white-primary">
