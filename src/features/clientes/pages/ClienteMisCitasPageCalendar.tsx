@@ -40,6 +40,7 @@ import { horariosService } from "../../agendamiento/services/horariosService";
 import { descuentoDiaService } from "../../agendamiento/services/descuentoDiaService";
 import { formatDuracion } from "../../../shared/utils/dateUtils";
 import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../../agendamiento/constants";
+import { aplicarDescuentoDia, calcularPrecioPaqueteConDescuento } from "../../agendamiento/utils/pricingUtils";
 import {
   getHorariosBarberoParaDia,
   getHorasDisponiblesParaDia as calcularHorasDisponibles,
@@ -511,7 +512,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
     if (isPaquete) {
       const p = currentPaquetes.find(p => p.id === itemId);
-      price = p?.precio || item.precio || 0;
+      price = calcularPrecioPaqueteConDescuento(p, Number(item.precio || 0));
       duration = p?.duracion || item.duracion || 60;
     } else {
       const s = currentServicios.find(s => s.id === itemId);
@@ -1116,17 +1117,18 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
     let precioBase = 0;
     if (nuevaCita.paqueteId) {
       const paquete = paquetesList.find(p => p.id === nuevaCita.paqueteId);
-      precioBase = paquete ? Number(paquete.precio || 0) : 0;
+      precioBase = calcularPrecioPaqueteConDescuento(paquete);
     } else {
       precioBase = serviciosList
         .filter(s => nuevaCita.servicioIds.includes(s.id))
         .reduce((acc, s) => acc + Number(s.precio || 0), 0);
     }
+    const precioBaseConDescuento = aplicarDescuentoDia(precioBase, dayDiscounts[nuevaCita.fecha] || 0);
 
     setNuevaCita(prev => ({
       ...prev,
       productoCantidades: nextProductoCantidades,
-      precio: precioBase + precioProductos
+      precio: precioBaseConDescuento + precioProductos
     }));
   };
 
@@ -1153,6 +1155,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       setPendingProduct(null);
     }
     const precioProductosFinal = calcularPrecioProductos(nextProductoCantidades);
+    const precioPaquete = calcularPrecioPaqueteConDescuento(paquete);
+    const precioPaqueteConDescuentoDia = aplicarDescuentoDia(
+      precioPaquete,
+      dayDiscounts[nuevaCita.fecha] || 0
+    );
     setNuevaCita(prev => ({
       ...prev,
       paqueteId: id,
@@ -1160,7 +1167,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       servicioIds: [],
       productoCantidades: nextProductoCantidades,
       servicio: paquete?.nombre || "",
-      precio: (paquete?.precio || 0) + precioProductosFinal,
+      precio: precioPaqueteConDescuentoDia + precioProductosFinal,
       duracion: paquete?.duracion || 60
     }));
   };
@@ -1774,6 +1781,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               {(() => {
                                 const paq = paquetesList.find(p => p.id === nuevaCita.paqueteId);
                                 if (!paq) return null;
+                                const precioPaquete = calcularPrecioPaqueteConDescuento(paq);
                                 return (
                                   <div className="flex items-center justify-between py-1.5 px-3 bg-gray-dark/20 rounded-lg group animate-in fade-in slide-in-from-left-2 duration-200">
                                     <div className="flex items-center gap-3 min-w-0">
@@ -1782,7 +1790,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                       </div>
                                       <div className="min-w-0">
                                         <p className="text-sm text-gray-lightest leading-tight truncate">{paq.nombre}</p>
-                                        <p className="text-xs text-gray-lighter leading-tight">{formatDuracion(paq.duracion || 60)} · {formatearPrecio(paq.precio)}</p>
+                                        <p className="text-xs text-gray-lighter leading-tight">{formatDuracion(paq.duracion || 60)} · {formatearPrecio(precioPaquete)}</p>
                                       </div>
                                     </div>
                                     <button
@@ -1862,7 +1870,10 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                 setPaqueteSearchTerm('');
                               }}
                               onClear={() => setPaqueteSearchTerm('')}
-                              renderItem={(p) => (
+                              renderItem={(p) => {
+                                const precioFinal = calcularPrecioPaqueteConDescuento(p);
+                                const descuento = Number(p.descuento || 0);
+                                return (
                                 <div className="flex items-center gap-3">
                                   <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-gray-dark border border-gray-dark flex items-center justify-center">
                                     <Package className="w-5 h-5 text-orange-primary/50" />
@@ -1871,9 +1882,19 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                                     <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
                                     <p className="text-gray-lighter text-xs">{formatDuracion(p.duracion || 60)} — {p.servicios?.length || 0} servicios</p>
                                   </div>
-                                  <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
+                                  <span className="text-orange-primary text-sm font-bold shrink-0">
+                                    {descuento > 0 ? (
+                                      <>
+                                        <span className="text-gray-lighter line-through text-xs mr-1">{formatearPrecio(p.precio)}</span>
+                                        {formatearPrecio(precioFinal)}
+                                      </>
+                                    ) : (
+                                      formatearPrecio(precioFinal)
+                                    )}
+                                  </span>
                                 </div>
-                              )}
+                                );
+                              }}
                               error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? 'Selecciona al menos un servicio o paquete' : undefined}
                               onFocus={() => setDismissedErrors(prev => new Set(prev).add('servicio'))}
                             />
