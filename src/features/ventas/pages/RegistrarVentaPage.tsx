@@ -710,7 +710,9 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       const nombreReal = servicioSeleccionado.replace("[PAQUETE] ", "");
       const paquete = paquetes.find((p) => p.nombre === nombreReal);
       if (paquete && paquete.precio) {
-        precioServicio = paquete.precio;
+        const precioOriginal = paquete.precio;
+        const descuento = paquete.descuento || 0;
+        precioServicio = descuento > 0 ? precioOriginal - (precioOriginal * descuento / 100) : precioOriginal;
         servicioId = `PAQ-${paquete.id}`;
         imagenServicio = String(
           (paquete as any)?.imagen || (paquete as any)?.imagenUrl || ""

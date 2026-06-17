@@ -326,6 +326,7 @@ export function PaquetesPage() {
         nombre: nombreTrim,
         precio: parseFloat(nuevoPaquete.precio.toString()),
         duracion: Number(nuevoPaquete.duracion) || 60,
+        descuento: nuevoPaquete.porcentajeDescuento || 0,
         detalles: serviciosAgregados.map(s => ({
           servicioId: (s as any).id,
           cantidad: 1
@@ -409,10 +410,10 @@ export function PaquetesPage() {
       categoria: paquete.categoria || '',
       activo: paquete.activo ?? true,
       metodoPago: '',
-      porcentajeDescuento: 0
+      porcentajeDescuento: paquete.descuento || 0
     });
     setPrecioInput(String(paquete.precio || 0));
-    setPorcentajeInput('0');
+    setPorcentajeInput(String(paquete.descuento || 0));
     setShowDiscountWarning(false);
 
     const totalMinutos = paquete.duracion || 0;
@@ -453,14 +454,29 @@ export function PaquetesPage() {
     }
 
     const nombrePaquete = nombreTrim;
-    const tempPaqueteData = { ...nuevoPaquete, nombre: nombreTrim };
+    const tempPaqueteData = { 
+      ...nuevoPaquete, 
+      nombre: nombreTrim,
+      descuento: nuevoPaquete.porcentajeDescuento || 0
+    };
 
     // Ejecutar actualización directamente
     try {
-      const updatedPaquete = await apiService.updatePaquete(editingPaquete.id, {
+      // Actualización optimista inmediata - Asegurar que se mantenga activo
+      const updatedPaquete = { 
+        ...editingPaquete, 
+        ...tempPaqueteData,
+        servicios: serviciosAgregados.map(s => s.nombre),
+        serviciosTexto: serviciosAgregados.map(s => s.nombre).join(', '),
+        activo: true // Asegurar que se mantenga activo
+      };
+      setPaquetes(prev => prev.map(p => p.id === editingPaquete.id ? updatedPaquete : p));
+
+      const updatedPaqueteFromApi = await apiService.updatePaquete(editingPaquete.id, {
         ...tempPaqueteData,
         precio: parseFloat(tempPaqueteData.precio.toString()),
-        precioOriginal: parseFloat(tempPaqueteData.precio.toString()) * (1 + tempPaqueteData.descuento / 100)
+        precioOriginal: parseFloat(tempPaqueteData.precio.toString()) * (1 + (tempPaqueteData.porcentajeDescuento || 0) / 100),
+        activo: true // Asegurar que se mantenga activo en la API
       });
 
       // Actualizar detalles del paquete en una sola operación (IDs de servicios)
@@ -472,6 +488,9 @@ export function PaquetesPage() {
           cantidad: 1
         }))
       );
+
+      // Asegurarse explícitamente de que el paquete se mantenga activo
+      await apiService.updatePaqueteStatus(editingPaquete.id, true);
 
       await loadPaquetes(true);
       setEditingPaquete(null);
@@ -663,7 +682,17 @@ export function PaquetesPage() {
                 {
                   key: "precio",
                   header: "Precio",
-                  render: (_v, row) => `$${((row as unknown as Paquete).precio ?? 0).toLocaleString('es-CO')}`,
+                  render: (_v, row) => {
+                    const paquete = row as unknown as Paquete;
+                    const precioOriginal = paquete.precio ?? 0;
+                    const descuento = paquete.descuento ?? 0;
+                    
+                    if (descuento > 0) {
+                      const precioFinal = precioOriginal - (precioOriginal * descuento / 100);
+                      return `$${precioFinal.toLocaleString('es-CO')}`;
+                    }
+                    return `$${precioOriginal.toLocaleString('es-CO')}`;
+                  },
                 } as ColumnDef<Record<string, unknown>>,
                 {
                   key: "activo",
@@ -1206,11 +1235,11 @@ export function PaquetesPage() {
                       Resumen de totales
                     </h3>
                     <div className="space-y-2 text-sm">
-                      {(selectedPaquete.precioOriginal ?? selectedPaquete.precio) > 0 && (
+                      {(selectedPaquete.precio ?? 0) > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-lightest">Subtotal / Precio original:</span>
+                          <span className="text-gray-lightest">Precio original:</span>
                           <span className="text-gray-lightest">
-                            ${(selectedPaquete.precioOriginal ?? selectedPaquete.precio ?? 0).toLocaleString('es-CO')}
+                            ${(selectedPaquete.precio ?? 0).toLocaleString('es-CO')}
                           </span>
                         </div>
                       )}
@@ -1218,13 +1247,22 @@ export function PaquetesPage() {
                         <div className="flex justify-between">
                           <span className="text-gray-lightest">Descuento ({selectedPaquete.descuento}%):</span>
                           <span className="text-red-400">
-                            -${(((selectedPaquete.precioOriginal ?? selectedPaquete.precio ?? 0) * Number(selectedPaquete.descuento) / 100)).toLocaleString('es-CO')}
+                            -${(((selectedPaquete.precio ?? 0) * Number(selectedPaquete.descuento) / 100)).toLocaleString('es-CO')}
                           </span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold border-t border-gray-dark pt-2">
                         <span className="text-gray-lightest">Total:</span>
-                        <span className="text-orange-primary">${(selectedPaquete.precio ?? 0).toLocaleString('es-CO')}</span>
+                        <span className="text-orange-primary">
+                          ${(() => {
+                            const precioOriginal = selectedPaquete.precio ?? 0;
+                            const descuento = selectedPaquete.descuento ?? 0;
+                            if (descuento > 0) {
+                              return precioOriginal - (precioOriginal * descuento / 100);
+                            }
+                            return precioOriginal;
+                          })().toLocaleString('es-CO')}
+                        </span>
                       </div>
                     </div>
                   </div>

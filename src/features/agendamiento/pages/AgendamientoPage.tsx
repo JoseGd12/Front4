@@ -960,7 +960,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     if (isPaquete) {
       const paquete = paquetesList.find((p) => Number(p.id) === itemId);
       if (paquete) {
-        precio = Number(paquete.precio || precio || 0);
+        const precioOriginal = Number(paquete.precio || precio || 0);
+        const descuentoPaquete = Number(paquete.descuento || 0);
+        precio = descuentoPaquete > 0 
+          ? precioOriginal - (precioOriginal * descuentoPaquete / 100) 
+          : precioOriginal;
         duracion = Number(paquete.duracion || duracion || 60);
       }
     } else {
@@ -1432,15 +1436,21 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     let precioBase = 0;
     if (nuevaCita.paqueteId) {
       const paquete = paquetesList.find(p => p.id === nuevaCita.paqueteId);
-      precioBase = paquete ? Number(paquete.precio || 0) : 0;
+      if (paquete) {
+        const precioOriginal = Number(paquete.precio || 0);
+        const descuentoPaquete = Number(paquete.descuento || 0);
+        precioBase = descuentoPaquete > 0 
+          ? precioOriginal - (precioOriginal * descuentoPaquete / 100) 
+          : precioOriginal;
+      }
     } else {
       precioBase = serviciosList
         .filter(s => nuevaCita.servicioIds.includes(s.id))
         .reduce((acc, s) => acc + Number(s.precio || 0), 0);
     }
     
-    const descuento = dayDiscounts[nuevaCita.fecha] || 0;
-    const precioBaseConDescuento = precioBase * (1 - (descuento / 100));
+    const descuentoDia = dayDiscounts[nuevaCita.fecha] || 0;
+    const precioBaseConDescuento = precioBase * (1 - (descuentoDia / 100));
 
     setNuevaCita(prev => ({
       ...prev,
@@ -1466,9 +1476,16 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     const id = parseInt(value.replace("p-", ""));
     const paquete = paquetesList.find(p => p.id === id);
     
-    const precioBase = paquete ? paquete.precio : 0;
-    const descuento = dayDiscounts[nuevaCita.fecha] || 0;
-    const precioBaseConDescuento = precioBase * (1 - (descuento / 100));
+    let precioBase = 0;
+    if (paquete) {
+      const precioOriginal = Number(paquete.precio || 0);
+      const descuentoPaquete = Number(paquete.descuento || 0);
+      precioBase = descuentoPaquete > 0 
+        ? precioOriginal - (precioOriginal * descuentoPaquete / 100) 
+        : precioOriginal;
+    }
+    const descuentoDia = dayDiscounts[nuevaCita.fecha] || 0;
+    const precioBaseConDescuento = precioBase * (1 - (descuentoDia / 100));
 
     setNuevaCita(prev => ({
       ...prev,
@@ -2634,7 +2651,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   </div>
                                   <div className="min-w-0">
                                     <p className="text-sm text-gray-lightest leading-tight truncate">{paq.nombre}</p>
-                                    <p className="text-xs text-gray-lighter leading-tight">{formatDuracion(paq.duracion || 60)} · {formatearPrecio(paq.precio)}</p>
+                                    <p className="text-xs text-gray-lighter leading-tight">{formatDuracion(paq.duracion || 60)} · {(() => {
+                                      const precioOriginal = Number(paq.precio || 0);
+                                      const descuento = Number(paq.descuento || 0);
+                                      const precioFinal = descuento > 0 ? precioOriginal - (precioOriginal * descuento / 100) : precioOriginal;
+                                      return formatearPrecio(precioFinal);
+                                    })()}</p>
                                   </div>
                                 </div>
                                 <button
@@ -2726,7 +2748,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 <p className="text-white-primary text-sm font-medium truncate">{p.nombre}</p>
                                 <p className="text-gray-lighter text-xs">{formatDuracion(p.duracion || 60)} — {p.servicios?.length || 0} servicios</p>
                               </div>
-                              <span className="text-orange-primary text-sm font-bold shrink-0">{formatearPrecio(p.precio)}</span>
+                              <span className="text-orange-primary text-sm font-bold shrink-0">{(() => {
+                                const precioOriginal = Number(p.precio || 0);
+                                const descuento = Number(p.descuento || 0);
+                                const precioFinal = descuento > 0 ? precioOriginal - (precioOriginal * descuento / 100) : precioOriginal;
+                                return formatearPrecio(precioFinal);
+                              })()}</span>
                             </div>
                           )}
                           error={showFormErrors && nuevaCita.servicioIds.length === 0 && !nuevaCita.paqueteId && !dismissedErrors.has('servicio') ? 'Selecciona al menos un servicio o paquete' : undefined}
@@ -4185,7 +4212,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               )}
 
               {/* ── Acciones ── */}
-              {selectedCita.estado !== 'Completada' && (() => {
+              {selectedCita.estado !== 'Completada' && selectedCita.estado !== 'Cancelada' && (() => {
                 // Permitir completar desde que la cita inicia (no esperar a que termine)
                 const [h, m] = (selectedCita.hora || '00:00').split(':');
                 const citaStart = new Date(selectedCita.fecha + 'T' + h.padStart(2, '0') + ':' + m.padStart(2, '0'));

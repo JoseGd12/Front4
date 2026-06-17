@@ -337,6 +337,12 @@ export function ServiciosPage() {
       submittingRef.current = true;
       try {
         setSubmitting(true);
+        
+        // Actualización optimista inmediata
+        const updatedServicio = { ...editingServicio, ...nuevoServicio, nombre };
+        setServicios(prev => prev.map(s => s.id === editingServicio.id ? updatedServicio : s));
+        setPagedServicios(prev => prev.map(s => s.id === editingServicio.id ? updatedServicio : s));
+
         await apiService.updateServicio(editingServicio.id, {
           ...nuevoServicio,
           nombre,
@@ -356,7 +362,7 @@ export function ServiciosPage() {
         if (imageFile && editingServicio.id) {
           try {
             await apiService.uploadServicioImagen(editingServicio.id, imageFile);
-            await loadServicios();
+            await loadServicios(true);
           } catch (imgErr) {
             console.error('Error subiendo imagen:', imgErr);
             showErrorAlert("Cambios guardados, pero...", "No se pudo subir la nueva imagen.");

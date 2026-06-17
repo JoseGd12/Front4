@@ -318,8 +318,8 @@ class ApiService {
     }
 
     // Estado/Activo (Resiliencia total)
-    if (data.estado !== undefined) {
-      const e = !!data.estado;
+    if (data.estado !== undefined || data.activo !== undefined) {
+      const e = !!(data.estado ?? data.activo);
       mapped.Estado = e;
       mapped.estado = e;
       mapped.Activo = e;
@@ -344,6 +344,21 @@ class ApiService {
       const p = Number(data.precio);
       mapped.Precio = p;
       mapped.precio = p;
+    }
+    if (data.porcentajeDescuento !== undefined || data.descuento !== undefined) {
+      const d = Number(data.porcentajeDescuento ?? data.descuento ?? 0);
+      mapped.PorcentajeDescuento = d;
+      mapped.porcentajeDescuento = d;
+    }
+    if (data.descuento !== undefined) {
+      const d = Number(data.descuento);
+      mapped.Descuento = d;
+      mapped.descuento = d;
+    }
+    if (data.precioOriginal !== undefined) {
+      const po = Number(data.precioOriginal);
+      mapped.PrecioOriginal = po;
+      mapped.precioOriginal = po;
     }
     if (data.imagen !== undefined) {
       mapped.Imagen = data.imagen;
@@ -419,13 +434,17 @@ class ApiService {
         data.duracion || data.Duracion || 0
       ),
       precio: Number(data.precio || data.Precio || 0),
-      descuento: Number(data.descuento || data.Descuento || 0),
+      descuento: Number(data.porcentajeDescuento || data.PorcentajeDescuento || data.descuento || data.Descuento || 0),
       precioOriginal: Number(data.precioOriginal || data.PrecioOriginal) || Number(data.precio || data.Precio || 0) || 0,
       clientesAtendidos: Number(data.clientesAtendidos || data.ClientesAtendidos || 0),
       categoria: String(data.categoria || data.Categoria || 'General'),
       activo: Boolean(
         data.activo === true || data.activo === 'true' || data.activo === 1 ||
-        data.Activo === true || data.estado === true || data.Estado === true
+        data.Activo === true || data.Activo === 'true' || data.Activo === 1 ||
+        data.estado === true || data.estado === 'true' || data.estado === 1 ||
+        data.Estado === true || data.Estado === 'true' || data.Estado === 1 ||
+        (data.activo !== null && data.activo !== undefined && data.activo !== false && data.activo !== 'false' && data.activo !== 0 && data.activo !== '0') ||
+        (data.estado !== null && data.estado !== undefined && data.estado !== false && data.estado !== 'false' && data.estado !== 0 && data.estado !== '0')
       ),
       imagen: data.imagen || data.Imagen || data.imagenUrl || data.ImagenUrl || undefined
     };
