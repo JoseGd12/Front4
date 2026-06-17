@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Switch } from "../../../shared/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
@@ -69,6 +70,8 @@ export function CategoriasPage() {
   });
 
   const [showCategoriaFormErrors, setShowCategoriaFormErrors] = useState(false);
+  const [isConfirmDiscardCreateOpen, setIsConfirmDiscardCreateOpen] = useState(false);
+  const [isConfirmDiscardEditOpen, setIsConfirmDiscardEditOpen] = useState(false);
   const [categoriaValidationAttempt, setCategoriaValidationAttempt] = useState(0);
   const shakeClass = categoriaValidationAttempt % 2 === 0 ? 'input-required-shake-a' : 'input-required-shake-b';
   const [duplicateNombreCreate, setDuplicateNombreCreate] = useState(false);
@@ -76,6 +79,22 @@ export function CategoriasPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
   const normalizeText = (s: string) => (s || '').trim().toLowerCase();
+
+  const isCreateFormDirty = () => nuevaCategoria.nombre.trim() !== '' || nuevaCategoria.descripcion.trim() !== '';
+  const isEditFormDirty = () => {
+    if (!selectedCategoria) return false;
+    return editCategoria.nombre !== (selectedCategoria.nombre || '') || editCategoria.descripcion !== (selectedCategoria.descripcion || '') || editCategoria.estado !== selectedCategoria.estado;
+  };
+  const handleCreateDialogClose = (open: boolean) => {
+    if (!open) {
+      if (isCreateFormDirty()) { setIsConfirmDiscardCreateOpen(true); } else { setShowCategoriaFormErrors(false); setIsDialogOpen(false); }
+    } else { setIsDialogOpen(true); }
+  };
+  const handleEditDialogClose = (open: boolean) => {
+    if (!open) {
+      if (isEditFormDirty()) { setIsConfirmDiscardEditOpen(true); } else { setShowCategoriaFormErrors(false); setIsEditDialogOpen(false); setSelectedCategoria(null); }
+    } else { setIsEditDialogOpen(true); }
+  };
 
   // Cargar categorías desde la API
   const loadCategorias = async (silent: boolean = false) => {
@@ -328,7 +347,7 @@ export function CategoriasPage() {
           <TableHeaderSection
             variant="dark"
             leftContent={(
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Dialog open={isDialogOpen} onOpenChange={handleCreateDialogClose}>
                 <DialogTrigger asChild>
                   <button
                     className="btn-std-primary"
@@ -577,7 +596,7 @@ export function CategoriasPage() {
 
 
         {/* Dialog de Edición */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogClose}>
           <DialogContent
             className="bg-gray-darkest border-gray-dark max-w-3xl"
             onInteractOutside={(e: any) => {
@@ -737,6 +756,32 @@ export function CategoriasPage() {
 
       <AlertContainer />
       <DoubleConfirmationContainer />
+
+      <AlertDialog open={isConfirmDiscardCreateOpen} onOpenChange={setIsConfirmDiscardCreateOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button onClick={() => setIsConfirmDiscardCreateOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+            <button onClick={() => { setIsConfirmDiscardCreateOpen(false); setShowCategoriaFormErrors(false); setNuevaCategoria({ nombre: '', descripcion: '', estado: true }); setDuplicateNombreCreate(false); setIsDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isConfirmDiscardEditOpen} onOpenChange={setIsConfirmDiscardEditOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button onClick={() => setIsConfirmDiscardEditOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+            <button onClick={() => { setIsConfirmDiscardEditOpen(false); setShowCategoriaFormErrors(false); setEditCategoria({ nombre: '', descripcion: '', estado: true }); setDuplicateNombreEdit(false); setSelectedCategoria(null); setIsEditDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

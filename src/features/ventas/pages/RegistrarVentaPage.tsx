@@ -1459,6 +1459,11 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       min="0"
                       max="100"
                       value={porcentajeDescuentoInput}
+                      onKeyDown={(e) => {
+                        if (e.key === 'e' || e.key === 'E' || e.key === '.' || e.key === ',') {
+                          e.preventDefault();
+                        }
+                      }}
                       onChange={(e) => {
                         if (e.target.value.length <= 5) {
                           handlePorcentajeDescuentoInputChange(e.target.value);

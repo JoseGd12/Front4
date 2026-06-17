@@ -22,6 +22,7 @@ export function ServiciosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [editingServicio, setEditingServicio] = useState<Servicio | null>(null);
@@ -452,6 +453,53 @@ export function ServiciosPage() {
     }
   };
 
+  const resetForm = () => {
+    setNuevoServicio({ nombre: '', descripcion: '', duracion: 30, precio: 0, estado: true, imagen: '' });
+    setPrecioServicioInput('');
+    setImageFile(null);
+    setImagePreview(null);
+    setShowServicioFormErrors(false);
+    setNombreServicioDuplicado(false);
+    setNombreServicioError(null);
+    setServicioValidationAttempt(0);
+    setImageError(null);
+  };
+
+  const isFormDirty = (): boolean => {
+    if (editingServicio) {
+      return (
+        nuevoServicio.nombre !== editingServicio.nombre ||
+        nuevoServicio.descripcion !== editingServicio.descripcion ||
+        nuevoServicio.duracion !== editingServicio.duracion ||
+        nuevoServicio.precio !== editingServicio.precio ||
+        nuevoServicio.estado !== editingServicio.estado ||
+        imageFile !== null
+      );
+    }
+    return (
+      nuevoServicio.nombre !== '' ||
+      nuevoServicio.descripcion !== '' ||
+      nuevoServicio.duracion !== 30 ||
+      nuevoServicio.precio !== 0 ||
+      nuevoServicio.estado !== true ||
+      precioServicioInput !== '' ||
+      imageFile !== null ||
+      imagePreview !== null
+    );
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    if (!open && isFormDirty()) {
+      setIsConfirmDiscardOpen(true);
+      return;
+    }
+    if (!open) {
+      resetForm();
+      setEditingServicio(null);
+    }
+    setIsDialogOpen(open);
+  };
+
   return (
     <>
       <main className="flex-1 overflow-auto bg-black-primary">
@@ -461,7 +509,7 @@ export function ServiciosPage() {
           <TableHeaderSection
             variant="dark"
             leftContent={(
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
                 <DialogTrigger asChild>
                   <button
                     className="btn-std-primary"
@@ -646,7 +694,7 @@ export function ServiciosPage() {
         </div>
 
         {/* Dialog de Creación/Edición */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-gray-lightest flex items-center gap-2">
@@ -975,6 +1023,25 @@ export function ServiciosPage() {
               >
                 Eliminar Servicio
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
+          <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-lightest font-medium">
+                Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">
+                Seguir editando
+              </button>
+              <button onClick={() => { setIsConfirmDiscardOpen(false); resetForm(); setIsDialogOpen(false); setEditingServicio(null); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">
+                Descartar cambios
+              </button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

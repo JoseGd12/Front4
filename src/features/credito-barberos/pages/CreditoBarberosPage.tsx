@@ -220,6 +220,7 @@ import { TableHeaderSection } from "../../../shared/components/ui/table-header-s
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "../../../shared/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../../../shared/components/ui/select";
@@ -375,6 +376,7 @@ export function CreditoBarberosPage() {
   const [showFormErrors,     setShowFormErrors]     = useState(false);
   const [montoShakeCount,    setMontoShakeCount]    = useState(0);
   const [abonoApiError,      setAbonoApiError]      = useState<string | null>(null);
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
 
   // ── Modal: detalle abono ─────────────────────────────────────────────────────
   const [detalleAbonoOpen,   setDetalleAbonoOpen]   = useState(false);
@@ -525,6 +527,24 @@ export function CreditoBarberosPage() {
   }, [loadInlineAbonos]);
 
   // ── Registrar abono ──────────────────────────────────────────────────────────
+  const isAbonoFormDirty = () => {
+    return registrarStep === 'form' && (montoInput.trim() !== '' || notasInput.trim() !== '' || metodoPago !== 'Efectivo');
+  };
+
+  const handleRegistrarDialogClose = (open: boolean) => {
+    if (submitting) return;
+    if (!open) {
+      if (isAbonoFormDirty()) {
+        setIsConfirmDiscardOpen(true);
+      } else {
+        setShowFormErrors(false);
+        setRegistrarOpen(false);
+      }
+    } else {
+      setRegistrarOpen(true);
+    }
+  };
+
   const openRegistrar = (credito: CreditoBarberoDto | null, venta: any | null = null) => {
     setMontoInput("");
     setMetodoPago("Efectivo");
@@ -574,6 +594,7 @@ export function CreditoBarberosPage() {
         ventaId: selectedVentaAbono?.id ?? null,
       });
       created("Abono registrado", `Abono de ${formatCurrency(monto)} registrado exitosamente.`);
+      setShowFormErrors(false);
       setRegistrarOpen(false);
       if (inlineAbonos[registrarCredito!.barberoId] !== undefined) {
         loadInlineAbonos(registrarCredito!.barberoId);
@@ -1120,7 +1141,7 @@ export function CreditoBarberosPage() {
       </div>
 
       {/* Modal: Registrar Abono */}
-      <Dialog open={registrarOpen} onOpenChange={open => { if (!submitting) setRegistrarOpen(open); }}>
+      <Dialog open={registrarOpen} onOpenChange={handleRegistrarDialogClose}>
         <DialogContent className="max-w-md bg-gray-darkest border-gray-dark">
           <DialogHeader>
             <DialogTitle className="text-white-primary flex items-center gap-2">
@@ -1200,7 +1221,7 @@ export function CreditoBarberosPage() {
               </div>
 
               <div className="flex justify-end pt-1 border-t border-gray-dark">
-                <button onClick={() => setRegistrarOpen(false)} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
+                <button onClick={() => { setShowFormErrors(false); setRegistrarOpen(false); }} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
                   Cancelar
                 </button>
               </div>
@@ -1303,7 +1324,7 @@ export function CreditoBarberosPage() {
                   Cambiar barbero
                 </button>
                 <div className="flex gap-2">
-                  <button onClick={() => setRegistrarOpen(false)} disabled={submitting} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
+                  <button onClick={() => { setShowFormErrors(false); setRegistrarOpen(false); }} disabled={submitting} className="elegante-button-secondary" style={{ padding: "0.45rem 1rem", fontSize: "13px" }}>
                     Cancelar
                   </button>
                   <button
@@ -1529,6 +1550,19 @@ export function CreditoBarberosPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+            <button onClick={() => { setIsConfirmDiscardOpen(false); setShowFormErrors(false); setMontoInput(''); setMetodoPago('Efectivo'); setNotasInput(''); setAbonoApiError(null); setRegistrarOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

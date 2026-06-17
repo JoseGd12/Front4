@@ -17,6 +17,7 @@ import {
   FileText
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { NameInput } from "../../../shared/components/ui/NameInput";
 import { Label } from "../../../shared/components/ui/label";
@@ -153,6 +154,7 @@ export function PaquetesPage() {
 
   const [horaInput, setHoraInput] = useState('');
   const [minutosInput, setMinutosInput] = useState('');
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
 
   // Estado inicial para reset
   const estadoInicialPaquete = {
@@ -167,6 +169,25 @@ export function PaquetesPage() {
     activo: true,
     metodoPago: '',
     porcentajeDescuento: 0
+  };
+
+  const isPaqueteFormDirty = () => {
+    return nuevoPaquete.nombre.trim() !== '' || nuevoPaquete.descripcion.trim() !== '' || serviciosAgregados.length > 0 || nuevoPaquete.porcentajeDescuento > 0;
+  };
+
+  const handleCancelPaquete = () => {
+    if (isPaqueteFormDirty()) {
+      setIsConfirmDiscardOpen(true);
+    } else {
+      setViewMode('list');
+      setEditingPaquete(null);
+      setNuevoPaquete({ ...estadoInicialPaquete });
+      setServiciosAgregados([]);
+      setServicioSeleccionado('');
+      setPrecioInput('');
+      setPorcentajeInput('');
+      setShowDiscountWarning(false);
+    }
   };
 
   const filteredPaquetes = paquetes.filter(paquete => {
@@ -736,11 +757,7 @@ export function PaquetesPage() {
             <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-dark">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => {
-                    setViewMode('list');
-                    setEditingPaquete(null);
-                    setNuevoPaquete({ ...estadoInicialPaquete });
-                  }}
+                  onClick={handleCancelPaquete}
                   className="p-2 rounded-lg hover:bg-gray-darker text-gray-lightest transition-colors"
                 >
                   <ChevronLeft className="w-6 h-6" />
@@ -1021,16 +1038,7 @@ export function PaquetesPage() {
 
               <div className="flex justify-end space-x-4 pt-4 border-t border-gray-dark">
                 <button
-                  onClick={() => {
-                    setViewMode('list');
-                    setEditingPaquete(null);
-                    setNuevoPaquete({ ...estadoInicialPaquete });
-                    setServiciosAgregados([]);
-                    setServicioSeleccionado('');
-                    setPrecioInput('');
-                    setPorcentajeInput('');
-                    setShowDiscountWarning(false);
-                  }}
+                  onClick={handleCancelPaquete}
                   className="elegante-button-secondary"
                 >
                   Cancelar
@@ -1234,6 +1242,19 @@ export function PaquetesPage() {
             )}
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
+          <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+              <button onClick={() => { setIsConfirmDiscardOpen(false); setViewMode('list'); setEditingPaquete(null); setNuevoPaquete({ ...estadoInicialPaquete }); setServiciosAgregados([]); setServicioSeleccionado(''); setPrecioInput(''); setPorcentajeInput(''); setShowDiscountWarning(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <AlertContainer />
         <DoubleConfirmationContainer />

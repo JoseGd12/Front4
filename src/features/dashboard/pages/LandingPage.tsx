@@ -378,8 +378,39 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     return () => cancelAnimationFrame(prodFrameRef.current);
   }, [loading]);
 
+  useEffect(() => {
+    if (instagramLoading || instagramError) return;
+    const track = heroGalleryRef.current;
+    if (!track) return;
+    let last = 0;
+    galleryOffsetRef.current = 0;
+    galleryTargetRef.current = 0;
+    const tick = (time: number) => {
+      if (!last) last = time;
+      const dt = time - last;
+      last = time;
+      if (!carouselPausedRef.current) {
+        galleryTargetRef.current -= 0.4 * (dt / 16);
+      }
+      const diff = galleryTargetRef.current - galleryOffsetRef.current;
+      galleryOffsetRef.current += diff * Math.min(1, 0.08 * (dt / 16));
+      const hw = track.scrollWidth / 2;
+      if (hw > 0) {
+        while (galleryOffsetRef.current <= -hw) { galleryOffsetRef.current += hw; galleryTargetRef.current += hw; }
+        while (galleryOffsetRef.current > 0) { galleryOffsetRef.current -= hw; galleryTargetRef.current -= hw; }
+      }
+      track.style.transform = `translateX(${galleryOffsetRef.current}px)`;
+      galleryFrameRef.current = requestAnimationFrame(tick);
+    };
+    galleryFrameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(galleryFrameRef.current);
+  }, [instagramLoading, instagramError]);
+
   const lenisRef = useRef<Lenis | null>(null);
   const heroGalleryRef = useRef<HTMLDivElement>(null);
+  const galleryOffsetRef = useRef(0);
+  const galleryTargetRef = useRef(0);
+  const galleryFrameRef = useRef<number>(0);
   const heroSectionRef = useRef<HTMLElement>(null);
   const heroCopyRef = useRef<HTMLDivElement>(null);
   /** Título + CTAs del hero: solo montados dentro de la primera sección (menos trabajo de render al bajar). */
@@ -449,18 +480,17 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Solo cargar los primeros 6 items para la landing (no cargar todo)
-        const [serviciosRes, productosRes, paquetesRes] = await Promise.all([
-          apiService.getServiciosPaged({ page: 1, pageSize: 6 }).catch(() => ({ items: [] })),
-          productoService.getProductosPaged({ page: 1, pageSize: 6 }).catch(() => ({ items: [] })),
-          apiService.getPaquetesPaged({ page: 1, pageSize: 6 }).catch(() => ({ items: [] }))
+        const [serviciosAll, productosAll, paquetesAll] = await Promise.all([
+          apiService.getServicios().catch(() => []),
+          productoService.getProductos().catch(() => []),
+          apiService.getPaquetes().catch(() => [])
         ]);
 
-        const serviciosList = (serviciosRes.items || []).filter((s: any) => s.estado !== false).map((s: any) => ({ ...s, type: 'servicio' }));
-        const paquetesList = (paquetesRes.items || []).filter((p: any) => p.activo !== false).map((p: any) => ({ ...p, type: 'paquete' }));
-        setServicios(serviciosList.slice(0, 6));
-        setPaquetes(paquetesList.slice(0, 6));
-        setProductos((productosRes.items || []).filter((p: any) => p.activo !== false).slice(0, 6));
+        const serviciosList = serviciosAll.filter((s: any) => s.estado !== false).map((s: any) => ({ ...s, type: 'servicio' }));
+        const paquetesList = paquetesAll.filter((p: any) => p.activo !== false).map((p: any) => ({ ...p, type: 'paquete' }));
+        setServicios(serviciosList);
+        setPaquetes(paquetesList);
+        setProductos(productosAll.filter((p: any) => p.activo !== false));
       } catch (error) {
         console.error("Error fetching landing data:", error);
       } finally {
@@ -746,20 +776,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
           {(() => {
             const scrollGallery = (direction: number) => {
-              const el = heroGalleryRef.current;
-              if (!el) return;
-              const scrollAmount = 800;
-              const newPos = el.scrollLeft + direction * scrollAmount;
-              const midpoint = el.scrollWidth / 2;
-              if (direction > 0 && newPos >= midpoint) {
-                el.scrollLeft = newPos - midpoint;
-                el.scrollTo({ left: el.scrollLeft + scrollAmount, behavior: 'smooth' });
-              } else if (direction < 0 && newPos <= 0) {
-                el.scrollLeft = midpoint + newPos;
-                el.scrollTo({ left: el.scrollLeft - scrollAmount, behavior: 'smooth' });
-              } else {
-                el.scrollTo({ left: newPos, behavior: 'smooth' });
-              }
+              galleryTargetRef.current += direction * -600;
             };
 
             const renderPlaceholderSets = (isError: boolean) =>
@@ -867,8 +884,8 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <div className="hero-gallery-carousel hero-gallery-carousel--mosaic relative flex-1 min-w-0">
                   <div
                     ref={heroGalleryRef}
-                    className="relative z-[1] flex gallery-scroll"
-                    style={{ height: '380px', gap: '3px', overflowX: 'auto', scrollBehavior: 'auto' }}
+                    className="gallery-scroll"
+                    style={{ display: 'flex', gap: '3px', height: '380px' }}
                   >
                     {innerContent}
                   </div>
@@ -1007,7 +1024,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   Contamos con un equipo de
                   <span className="text-[#d8b081] font-black"> 6 colaboradores</span>,
                   entre ellos
-                  <span className="text-[#d8b081] font-black"> 5 barberos especializados</span>.
+                  <span className="text-[#d8b081] font-black"> 5 barberos.</span>.
                   Cada servicio combina técnica, criterio estilístico y atención 100% personalizada.
                 </p>
 
@@ -1173,7 +1190,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
                       <div key={`srv-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
                         <div
-                          className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full cursor-pointer"
+                          className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full cursor-pointer flex flex-col"
                           onClick={() => handleOpenDetail(servicio, 'servicio')}
                         >
                           <div className="relative overflow-hidden bg-[#111]" style={{ height: '240px' }}>
@@ -1187,7 +1204,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                             />
                             <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
                           </div>
-                          <div className="px-6 pt-5 pb-6">
+                          <div className="px-6 pt-5 pb-6 flex flex-col flex-1">
                             <span className="text-xs font-black tracking-[0.5em] text-gray-500 block mb-2">
                               {servicio.type === 'paquete' ? 'Paquete' : 'Servicio'}
                             </span>
@@ -1199,7 +1216,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                               <Clock className="w-3.5 h-3.5 text-[#d8b081]" />
                               <span className="text-xs font-bold tracking-widest">{formatDuracion(servicio.duracion)}</span>
                             </div>
-                            <p className="text-gray-400 text-sm leading-relaxed mb-5 line-clamp-2">{servicio.descripcion}</p>
+                            <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">{servicio.descripcion}</p>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1209,7 +1226,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                                   onRequestLogin?.();
                                 }
                               }}
-                              className="w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
+                              className="mt-auto w-full py-3 bg-transparent text-[#d8b081] text-sm font-bold tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg relative z-10 gold-hover-transition"
                             >
                               Agendar Ahora
                             </button>

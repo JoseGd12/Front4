@@ -190,6 +190,7 @@ export function ClientesPage() {
       if (isCreateFormDirty()) {
         setIsConfirmDiscardCreateOpen(true);
       } else {
+        setShowCreateValidation(false);
         setIsCreateDialogOpen(false);
       }
     } else {
@@ -202,6 +203,7 @@ export function ClientesPage() {
       if (isEditFormDirty()) {
         setIsConfirmDiscardEditOpen(true);
       } else {
+        setShowEditValidation(false);
         setIsEditDialogOpen(false);
       }
     } else {
@@ -500,6 +502,7 @@ export function ClientesPage() {
         telefono: mappedCliente.telefono
       });
       setClientes([mappedCliente, ...clientes]);
+      setShowCreateValidation(false);
       setIsCreateDialogOpen(false);
       setCreateForm({
         tipoDocumento: 'CC',
@@ -793,6 +796,7 @@ export function ClientesPage() {
       // Actualizar cliente en la API
       await clientesService.updateCliente(parseInt(selectedCliente.id), updateData);
 
+      setShowEditValidation(false);
       setIsEditDialogOpen(false);
       setIsEditConfirmOpen(false);
       setSelectedCliente(null);
@@ -1862,6 +1866,7 @@ export function ClientesPage() {
             <button
               onClick={() => {
                 setIsConfirmDiscardCreateOpen(false);
+                setShowCreateValidation(false);
                 setIsCreateDialogOpen(false);
                 setCreateForm({
                   tipoDocumento: 'CC',
@@ -1905,6 +1910,7 @@ export function ClientesPage() {
             <button
               onClick={() => {
                 setIsConfirmDiscardEditOpen(false);
+                setShowEditValidation(false);
                 setIsEditDialogOpen(false);
                 setSelectedCliente(null);
                 setEditForm({});

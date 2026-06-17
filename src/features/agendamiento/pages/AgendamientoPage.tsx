@@ -490,22 +490,52 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       const slotIndex = Math.max(0, Math.round((horaDecimal - GRID_START) / 0.5));
       const slotTop = slotIndex * SLOT_HEIGHT;
 
-      // Scroll con delay aumentado para dar tiempo al re-render del calendario
-      // tras el posible cambio de semana (setCurrentWeek → re-render → DOM listo).
       setTimeout(() => {
         const container = document.querySelector('.module-content');
         if (container) {
-          // Centrar la hora en el viewport: restar la mitad de la altura visible
-          // y sumar la mitad de la altura de un slot para que quede justo en el centro.
           const halfViewport = container.clientHeight / 2;
           const scrollTarget = Math.max(0, slotTop - halfViewport + SLOT_HEIGHT / 2);
-          container.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-        }
-        // Activar highlight sobre el bloque de la cita una vez que el scroll terminó.
-        // El glow dura 2.4 s (ver globals.css → citaNotifHighlight) y luego se limpia.
-        if (citaId != null) {
-          setHighlightedCitaId(citaId);
-          setTimeout(() => setHighlightedCitaId(null), 2600);
+          const startScroll = container.scrollTop;
+          const distance = scrollTarget - startScroll;
+
+          if (Math.abs(distance) < 2) {
+            // Ya esta en posicion -- activar highlight directo
+            if (citaId != null) {
+              setHighlightedCitaId(null);
+              requestAnimationFrame(() => {
+                setHighlightedCitaId(citaId);
+                setTimeout(() => setHighlightedCitaId(null), 2800);
+              });
+            }
+            return;
+          }
+
+          const duration = Math.min(900, Math.max(400, Math.abs(distance) * 0.8));
+          let startTime: number | null = null;
+          const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+          const step = (timestamp: number) => {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            container.scrollTop = startScroll + distance * easeInOutCubic(progress);
+            if (progress < 1) {
+              requestAnimationFrame(step);
+            } else if (citaId != null) {
+              setHighlightedCitaId(null);
+              requestAnimationFrame(() => {
+                setHighlightedCitaId(citaId);
+                setTimeout(() => setHighlightedCitaId(null), 2800);
+              });
+            }
+          };
+          requestAnimationFrame(step);
+        } else if (citaId != null) {
+          setHighlightedCitaId(null);
+          requestAnimationFrame(() => {
+            setHighlightedCitaId(citaId);
+            setTimeout(() => setHighlightedCitaId(null), 2800);
+          });
         }
       }, 400);
     };
@@ -3076,7 +3106,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             <div className="flex items-center gap-3">
 
               {/* Título — extremo izquierdo */}
-              <h4 className="text-xl font-bold text-gray-lightest tracking-wide shrink-0 ml-11" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif" }}>Citas de la semana</h4>
+              <h4 className="text-xl font-bold text-gray-lightest tracking-wide shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif", marginLeft: '44px' }}>Citas de la semana</h4>
 
               {/* Buscador fantasma — ocupa todo el espacio disponible, abre lista de resultados */}
               <div ref={searchContainerRef} className="flex-1 min-w-0 relative flex items-center">
@@ -3444,9 +3474,48 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
           {/* Grid de horarios + headers de días — un solo card unificado */}
           <div className="std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
-            <div className="w-full py-5">
+            <div className="w-full py-5 pb-6">
               <div className="-mx-6 pl-3 pr-6">
 
+                {isLoading ? (
+                  <>
+                    <div
+                      className="grid gap-1 mb-2 animate-pulse"
+                      style={{ gridTemplateColumns: calendarGridTemplate }}
+                    >
+                      <div className="flex items-center justify-center">
+                        <div className="h-3 w-12 bg-gray-darker rounded" />
+                      </div>
+                      {Array.from({ length: 7 }).map((_, i) => (
+                        <div key={i} className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-lg border-2 border-transparent">
+                          <div className="h-3 w-8 bg-gray-darker rounded" />
+                          <div className="h-5 w-6 bg-gray-darker rounded" />
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      className="grid gap-1"
+                      style={{ gridTemplateColumns: calendarGridTemplate, height: '600px' }}
+                    >
+                      <div className="animate-pulse flex flex-col justify-between py-2">
+                        {Array.from({ length: 10 }).map((_, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            <div className="h-2.5 w-10 bg-gray-darker rounded" />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="rounded-lg border border-gray-dark flex items-start justify-center pt-10" style={{ backgroundColor: '#303030', gridColumn: 'span 7' }}>
+                        <div className="relative" style={{ width: '36px', height: '36px' }}>
+                          <svg className="animate-spin" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+                            <circle cx="18" cy="18" r="15" stroke="#3a3a3a" strokeWidth="3" />
+                            <path d="M18 3 A15 15 0 0 1 33 18" stroke="#d8b081" strokeWidth="3" strokeLinecap="round" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                <>
                 {/* Fila de headers de días — misma estructura que las filas del grid */}
                 <div
                   className="grid gap-1 mb-2"
@@ -3464,19 +3533,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     return (
                       <div
                         key={dia}
-                        className={`min-w-0 text-center cursor-pointer transition-all duration-200 rounded-lg py-3 border-2 flex flex-col items-center justify-center gap-1 ${
+                        className={`min-w-0 text-center cursor-pointer transition-all duration-200 rounded-lg py-3 border-2 flex flex-col items-center justify-center gap-1 relative ${
                           isSelected ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent hover:bg-gray-darker'
                         }`}
                         onClick={() => handleDateSelect(fechaCompleta)}
                       >
-                        <div className="flex justify-center items-center gap-1">
-                          <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-normal">{dia.slice(0, 3)}</h4>
-                          {discount > 0 && (
-                            <span style={{ backgroundColor: '#7a5c38', color: '#f3e8d8' }} className="text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                              -{discount}%
-                            </span>
-                          )}
-                        </div>
+                        {discount > 0 && (
+                          <span style={{ backgroundColor: '#7a5c38', color: '#f3e8d8', fontSize: '10px', lineHeight: 1, padding: '3px 5px' }} className="absolute top-1 right-1 font-bold rounded-full whitespace-nowrap">
+                            -{discount}%
+                          </span>
+                        )}
+                        <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-normal">{dia.slice(0, 3)}</h4>
                         <p className="text-xl text-gray-lightest leading-none">{parseInt(fechaCompleta.split('-')[2], 10)}</p>
                       </div>
                     );
@@ -3692,6 +3759,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     </div>
                   ));
                 })()}
+                </>
+                )}
               </div>
             </div>
           </div>
@@ -4288,7 +4357,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           aria-hidden={!showDiscardDialog}
         >
           <div
-            className="absolute inset-0 bg-black/80"
+            className="absolute inset-0"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(2px)' }}
             onClick={() => setShowDiscardDialog(false)}
           />
           <div

@@ -987,7 +987,14 @@ class ApiService {
       const parsed = await this.fetchAllPages('/Paquetes');
       logger.debug('✅ Paquetes obtenidos');
       const arr: any[] = Array.isArray(parsed) ? parsed : [];
-      const normalizedData = arr.map(item => this.normalizePaqueteData(item));
+      const seen = new Set<number>();
+      const unique = arr.filter(item => {
+        const id = Number(item?.id ?? item?.paqueteId ?? 0);
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+      const normalizedData = unique.map(item => this.normalizePaqueteData(item));
       logger.debug('✅ Paquetes normalizados:', normalizedData.length);
       this.setCache('paquetes', normalizedData);
       return normalizedData;

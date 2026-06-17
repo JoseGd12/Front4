@@ -107,7 +107,7 @@ export function BarberosPage() {
     return `${y}-${m}-${day}`;
   };
   const todayLocal = new Date();
-  const maxBirthDateEight = formatDateLocal(new Date(todayLocal.getFullYear() - 8, todayLocal.getMonth(), todayLocal.getDate()));
+  const maxBirthDateEight = formatDateLocal(new Date(todayLocal.getFullYear() - 16, todayLocal.getMonth(), todayLocal.getDate()));
   const minBirthDate = formatDateLocal(new Date(todayLocal.getFullYear() - 70, todayLocal.getMonth(), todayLocal.getDate()));
   const [usuariosAll, setUsuariosAll] = useState<any[]>([]);
   const [clientesAll, setClientesAll] = useState<any[]>([]);
@@ -118,7 +118,7 @@ export function BarberosPage() {
     const today = new Date(todayLocal.getFullYear(), todayLocal.getMonth(), todayLocal.getDate());
     return Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
   }, [newBarbero.fechaNacimiento]);
-  const isTooYoungNewBarbero = (edadNewBarbero ?? 1000) < 8;
+  const isTooYoungNewBarbero = (edadNewBarbero ?? 1000) < 16;
   const isDocDuplicateNewBarbero = React.useMemo(() => {
     const docVal = String(newBarbero.documento || '').trim();
     if (!docVal) return false;
@@ -300,7 +300,7 @@ export function BarberosPage() {
         return false;
       }
       if (birth > cutoff) {
-        errorAlert("Edad mínima no válida", "Debe tener al menos 8 años de edad.");
+        errorAlert("Edad mínima no válida", "Debe tener al menos 16 años de edad.");
         return false;
       }
       if (birth < min) {
@@ -308,7 +308,7 @@ export function BarberosPage() {
         return false;
       }
       if (edad < 8) {
-        errorAlert("Edad mínima no válida", "Debe tener al menos 8 años de edad.");
+        errorAlert("Edad mínima no válida", "Debe tener al menos 16 años de edad.");
         return false;
       }
     }
@@ -400,7 +400,7 @@ export function BarberosPage() {
         return;
       }
       if (birth > cutoff) {
-        errorAlert("Edad mínima no válida", "Debe tener al menos 8 años de edad.");
+        errorAlert("Edad mínima no válida", "Debe tener al menos 16 años de edad.");
         return;
       }
       if (birth < min) {
@@ -408,7 +408,7 @@ export function BarberosPage() {
         return;
       }
       if (edad < 8) {
-        errorAlert("Edad mínima no válida", "Debe tener al menos 8 años de edad.");
+        errorAlert("Edad mínima no válida", "Debe tener al menos 16 años de edad.");
         return;
       }
     }
@@ -618,6 +618,7 @@ export function BarberosPage() {
       if (isBarberoFormDirty()) {
         setIsConfirmDiscardOpen(true);
       } else {
+        setShowBarberoFormErrors(false);
         setIsDialogOpen(false);
       }
     } else {
@@ -990,7 +991,7 @@ export function BarberosPage() {
                   error={showBarberoFormErrors && !newBarbero.fechaNacimiento}
                   requiredMessage="Este campo es obligatorio."
                 />
-              {!!edadNewBarbero && <p className={`text-xs ${isTooYoungNewBarbero ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadNewBarbero} años{isTooYoungNewBarbero ? ' (mínimo 8)' : ''}</p>}
+              {!!edadNewBarbero && <p className={`text-xs ${isTooYoungNewBarbero ? 'text-red-400' : 'text-gray-lightest'}`}>Edad: {edadNewBarbero} años{isTooYoungNewBarbero ? ' (mínimo 16)' : ''}</p>}
               </div>
             </div>
 
@@ -1339,6 +1340,7 @@ export function BarberosPage() {
             <button
               onClick={() => {
                 setIsConfirmDiscardOpen(false);
+                setShowBarberoFormErrors(false);
                 resetForm();
                 setIsDialogOpen(false);
                 setEditingBarbero(null);

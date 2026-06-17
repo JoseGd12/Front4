@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "../../../shared/components/ui/badge";
 import { Calendar, DollarSign, Users, Scissors, Package, Clock, Download, ChevronDown, ChevronUp, RotateCcw, FileDown, FileSpreadsheet } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType, PieChart, Pie } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType, PieChart, Pie, AreaChart, Area } from "recharts";
 import { useThemeColors } from "../../../shared/utils/themeColors";
 import { Skeleton } from "../../../shared/components/ui/skeleton";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
@@ -1315,8 +1315,8 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
     () => [
       {
         value: "Ingresos totales",
-        type: "line" as LegendType,
-        color: "#22c55e",
+        type: "circle" as LegendType,
+        color: "#d8b081",
       },
     ],
     []
@@ -2273,10 +2273,16 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
             </div>
             <div className="pt-6" style={{ height: "340px" }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart
+                <AreaChart
                   data={dataGraficaPrincipal}
                   margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
+                  <defs>
+                    <linearGradient id="ingresosGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#d8b081" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#d8b081" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#292929" vertical={false} />
                   <XAxis
                     dataKey="label"
@@ -2296,18 +2302,20 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                     wrapperStyle={{ marginTop: 0, marginBottom: 0 }}
                     payload={legendPayload}
                   />
-                  <Line
+                  <Area
+                    type="monotone"
                     dataKey="ingresos"
-                    stroke="#22c55e"
-                    strokeWidth={4}
-                    dot={{ r: 6, fill: "#22c55e" }}
-                    activeDot={{ r: 7, strokeWidth: 2, stroke: "#16a34a" }}
+                    stroke="#d8b081"
+                    strokeWidth={2.5}
+                    fill="url(#ingresosGradient)"
+                    dot={false}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: "#d8b081", fill: "#1a1a1a" }}
                     name="Ingresos totales"
                     isAnimationActive
                     animationDuration={200}
                     animationEasing="ease-out"
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-6">

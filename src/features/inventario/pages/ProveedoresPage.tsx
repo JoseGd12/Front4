@@ -38,6 +38,7 @@ import {
   ToggleRight
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
@@ -185,6 +186,7 @@ export function ProveedoresPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedProveedor, setSelectedProveedor] = useState<Proveedor | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -409,6 +411,55 @@ export function ProveedoresPage() {
   useEffect(() => {
     cargarProveedores();
   }, []);
+
+  const isFormDirty = () => {
+    if (isEditDialogOpen && selectedProveedor) {
+      const p = selectedProveedor;
+      const tipo = (p.tipoProveedor === 'Natural' || p.tipoProveedor === 'Juridico') ? p.tipoProveedor : 'Juridico';
+      return (
+        formData.tipoProveedor !== tipo ||
+        formData.nombre !== (p.nombre || "") ||
+        formData.identificacion !== (p.identificacion || p.nit || "") ||
+        formData.correo !== (p.correo || "") ||
+        formData.telefono !== ((p.telefono as string) || p.numero || "") ||
+        formData.direccion !== (p.direccion || "") ||
+        formData.ciudad !== (p.ciudad || "") ||
+        formData.departamento !== (p.departamento || "") ||
+        formData.representanteLegal !== (p.representanteLegal || "") ||
+        formData.identificacionRepresentante !== (p.identificacionRepresentante || p.numeroIdentificacion || "") ||
+        formData.correoRepresentante !== (p.correoRepresentante || "") ||
+        formData.telefonoRepresentante !== (p.telefonoRepresentante || "")
+      );
+    }
+    return (
+      formData.nombre.trim() !== '' ||
+      formData.identificacion.trim() !== '' ||
+      formData.correo.trim() !== '' ||
+      formData.telefono.trim() !== '' ||
+      formData.direccion.trim() !== '' ||
+      formData.ciudad.trim() !== '' ||
+      formData.departamento.trim() !== '' ||
+      formData.representanteLegal.trim() !== '' ||
+      formData.identificacionRepresentante.trim() !== '' ||
+      formData.correoRepresentante.trim() !== '' ||
+      formData.telefonoRepresentante.trim() !== ''
+    );
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      if (isFormDirty()) {
+        setIsConfirmDiscardOpen(true);
+      } else {
+        setShowProveedorFormErrors(false);
+        setIsEditDialogOpen(false);
+        resetForm();
+        setIsDialogOpen(false);
+      }
+    } else {
+      setIsDialogOpen(true);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -827,13 +878,7 @@ export function ProveedoresPage() {
           <TableHeaderSection
             variant="dark"
             leftContent={(
-              <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) {
-                  setIsEditDialogOpen(false);
-                  resetForm();
-                }
-              }}>
+              <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
                 <DialogTrigger asChild>
                   <button
                     className="btn-std-primary"
@@ -1757,6 +1802,19 @@ export function ProveedoresPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+            <button onClick={() => { setIsConfirmDiscardOpen(false); resetForm(); setIsDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertContainer />
       <DoubleConfirmationContainer />

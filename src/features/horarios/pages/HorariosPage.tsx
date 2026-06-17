@@ -164,6 +164,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   const [barberoSearchTerm, setBarberoSearchTerm] = useState("");
   const [showBarberoResults, setShowBarberoResults] = useState(false);
   const [asignarATodos, setAsignarATodos] = useState(false);
+  const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
   const [isAsignarTodosDialogOpen, setIsAsignarTodosDialogOpen] = useState(false);
   const [creandoTodos, setCreandoTodos] = useState(false);
 
@@ -337,6 +338,24 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   }, [horarios, barberos]);
 
   // Resetear formulario
+  const isHorarioFormDirty = () => {
+    return nuevoHorario.barberoId !== '' || nuevoHorario.bloques.length > 0 || asignarATodos;
+  };
+
+  const handleHorarioDialogClose = (open: boolean) => {
+    if (!open) {
+      if (isHorarioFormDirty()) {
+        setIsConfirmDiscardOpen(true);
+      } else {
+        resetFormulario();
+        setEditingHorario(null);
+        setIsDialogOpen(false);
+      }
+    } else {
+      setIsDialogOpen(true);
+    }
+  };
+
   const resetFormulario = () => {
     setNuevoHorario({
       barberoId: "",
@@ -1101,7 +1120,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             variant="dark"
             leftContent={(
               <div className="flex items-center gap-2">
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isDialogOpen} onOpenChange={handleHorarioDialogClose}>
                   <DialogTrigger asChild>
                     <button
                       className="btn-std-primary"
@@ -1378,7 +1397,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
       </main>
 
       {/* Dialog de Creación/Edición */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleHorarioDialogClose}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-dark">
             <DialogTitle className="text-gray-lightest flex items-center gap-2">
@@ -2595,6 +2614,19 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+            <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+            <button onClick={() => { setIsConfirmDiscardOpen(false); resetFormulario(); setEditingHorario(null); setIsDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertContainer />
     </>

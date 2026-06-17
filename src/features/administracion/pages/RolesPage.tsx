@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Input } from "../../../shared/components/ui/input";
 import { NameInput } from "../../../shared/components/ui/NameInput";
 import {
@@ -82,6 +82,35 @@ export function RolesPage() {
     modulos: [],
     permisos: {}
   });
+  const [isConfirmDiscardCreateOpen, setIsConfirmDiscardCreateOpen] = useState(false);
+  const [isConfirmDiscardEditOpen, setIsConfirmDiscardEditOpen] = useState(false);
+  const editingRoleOriginalRef = useRef<RoleWithModules | null>(null);
+
+  const isCreateFormDirty = () => {
+    return nuevoRol.nombre.trim() !== '' || (nuevoRol.descripcion || '').trim() !== '' || nuevoRol.modulos.length > 0;
+  };
+
+  const isEditFormDirty = () => {
+    if (!editingRole || !editingRoleOriginalRef.current) return false;
+    const orig = editingRoleOriginalRef.current;
+    if (editingRole.nombre !== orig.nombre) return true;
+    if ((editingRole.descripcion || '') !== (orig.descripcion || '')) return true;
+    if (JSON.stringify([...editingRole.modulos].sort()) !== JSON.stringify([...orig.modulos].sort())) return true;
+    if (JSON.stringify(editingRole.permisosPorModulo || {}) !== JSON.stringify(orig.permisosPorModulo || {})) return true;
+    return false;
+  };
+
+  const handleCreateDialogClose = (open: boolean) => {
+    if (!open) {
+      if (isCreateFormDirty()) { setIsConfirmDiscardCreateOpen(true); } else { setHasTriedToSubmit(false); setIsDialogOpen(false); }
+    } else { setIsDialogOpen(true); }
+  };
+
+  const handleEditDialogClose = (open: boolean) => {
+    if (!open) {
+      if (isEditFormDirty()) { setIsConfirmDiscardEditOpen(true); } else { setHasTriedToSubmit(false); setIsEditDialogOpen(false); setEditingRole(null); }
+    } else { setIsEditDialogOpen(true); }
+  };
 
   // Cargar roles desde la API
   const loadRoles = useCallback(async () => {
@@ -785,6 +814,7 @@ export function RolesPage() {
                               };
 
                               setEditingRole(rolParaEditar);
+                              editingRoleOriginalRef.current = JSON.parse(JSON.stringify(rolParaEditar));
                               setIsEditDialogOpen(true);
                             }}
                             className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
@@ -831,7 +861,7 @@ export function RolesPage() {
           )}
         </div>
         {/* Dialog de Creación */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleCreateDialogClose}>
           <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
             <DialogHeader>
               <DialogTitle className="text-white-primary">Crear Nuevo Rol</DialogTitle>
@@ -884,7 +914,7 @@ export function RolesPage() {
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
               <button
-                onClick={() => setIsDialogOpen(false)}
+                onClick={() => handleCreateDialogClose(false)}
                 className="elegante-button-secondary"
               >
                 Cancelar
@@ -983,7 +1013,7 @@ export function RolesPage() {
         </Dialog>
 
         {/* Dialog de Edición */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogClose}>
           <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl" style={{ maxHeight: '85vh', overflowY: 'auto' }}>
             <DialogHeader>
               <DialogTitle className="text-white-primary">Editar Rol</DialogTitle>
@@ -1032,7 +1062,7 @@ export function RolesPage() {
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
               <button
-                onClick={() => setIsEditDialogOpen(false)}
+                onClick={() => handleEditDialogClose(false)}
                 className="elegante-button-secondary"
               >
                 Cancelar
@@ -1070,6 +1100,32 @@ export function RolesPage() {
                 {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 {isDeleting ? 'Eliminando...' : 'Eliminar'}
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={isConfirmDiscardCreateOpen} onOpenChange={setIsConfirmDiscardCreateOpen}>
+          <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setIsConfirmDiscardCreateOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+              <button onClick={() => { setIsConfirmDiscardCreateOpen(false); setHasTriedToSubmit(false); setNuevoRol({ nombre: '', descripcion: '', modulos: [], permisos: {} }); setIsDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={isConfirmDiscardEditOpen} onOpenChange={setIsConfirmDiscardEditOpen}>
+          <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setIsConfirmDiscardEditOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
+              <button onClick={() => { setIsConfirmDiscardEditOpen(false); setHasTriedToSubmit(false); setEditingRole(null); editingRoleOriginalRef.current = null; setIsEditDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

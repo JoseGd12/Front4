@@ -201,6 +201,7 @@ export function UsersPage() {
       if (isUserFormDirty()) {
         setIsConfirmDiscardOpen(true);
       } else {
+        setShowUserFormErrors(false);
         setIsDialogOpen(false);
       }
     } else {
@@ -540,6 +541,7 @@ export function UsersPage() {
         rolId: roleId
       });
       setUsers([mappedUser, ...users]);
+      setShowUserFormErrors(false);
       setIsDialogOpen(false);
       showSuccess("¡Usuario creado exitosamente!", `El usuario "${mappedUser.nombres} ${mappedUser.apellidos}" ha sido registrado en el sistema.`);
 
@@ -1421,6 +1423,7 @@ export function UsersPage() {
             <button
               onClick={() => {
                 setIsConfirmDiscardOpen(false);
+                setShowUserFormErrors(false);
                 resetForm();
                 setIsDialogOpen(false);
                 setEditingUser(null);
