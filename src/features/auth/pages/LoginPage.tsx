@@ -538,14 +538,18 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
 
             {/* Banner de bloqueo */}
             {isLockedOut && (
-              <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-red-900/20 border border-red-500/30">
+              <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-red-900/20 border border-red-500/30">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
                   <span className="text-red-400 text-sm font-semibold">Acceso no disponible</span>
                 </div>
                 <p className="text-red-300 text-sm text-center">
-                  Vuelve a intentarlo más tarde.
+                  Demasiados intentos fallidos. Vuelve a intentarlo en:
                 </p>
+                {/* Contador regresivo */}
+                <span className="text-red-300 text-sm font-normal tabular-nums tracking-wide mt-1">
+                  {formatCountdown(lockoutCountdown)}
+                </span>
               </div>
             )}
 

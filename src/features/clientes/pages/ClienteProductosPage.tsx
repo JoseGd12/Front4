@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, ShoppingBag, Check, Sparkles, Calendar, Loader2, Search, X } from "lucide-react";
+import { Package, ShoppingBag, Check, Sparkles, Calendar, Loader2, Search, X, Info } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
@@ -323,6 +323,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                         "Consulta a tu barbero sobre el uso ideal para tu tipo de cabello.",
                         "Almacenar en lugar fresco y seco para mayor duración.",
                         "Complementa tu rutina con otros productos de nuestra tienda.",
+                        "Para reservar este producto, hazlo al momento de agendar un servicio desde la sección de Agendamientos.",
                       ].map((tip, idx) => (
                         <div key={idx} className="flex gap-3">
                           <div className="w-1.5 h-1.5 rounded-full bg-orange-primary shrink-0 mt-1.5" />
@@ -330,6 +331,19 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+
+                {/* Banner de recomendación */}
+                <div className="flex items-start gap-3 bg-orange-primary/10 border border-orange-primary/30 rounded-xl px-4 py-3">
+                  <Info className="w-5 h-5 text-orange-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-orange-primary text-xs font-bold uppercase tracking-wide mb-0.5">
+                      ¿Quieres reservar este producto?
+                    </p>
+                    <p className="text-gray-lightest text-xs leading-relaxed">
+                      Los productos se reservan junto con un servicio. Cuando vayas a agendar tu próxima cita, podrás agregar este producto a tu reserva desde el módulo de <span className="text-white-primary font-semibold">Agendamientos</span>.
+                    </p>
                   </div>
                 </div>
 

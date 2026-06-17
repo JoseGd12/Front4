@@ -1536,10 +1536,10 @@ export function ProductosPage() {
             </AlertDialogContent>
           </AlertDialog>
 
-          {/* Dialog de detalles del producto - Replica de crear/editar con campos extra */}
+          {/* Dialog de detalles del producto */}
           <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-            <DialogContent className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
+            <DialogContent className="bg-gray-darkest border-gray-dark max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="pb-2">
                 <DialogTitle className="text-white-primary flex items-center gap-2">
                   <Package className="w-5 h-5 text-orange-primary" />
                   Detalles del Producto
@@ -1550,110 +1550,171 @@ export function ProductosPage() {
               </DialogHeader>
 
               {selectedProducto && (
-                <div className="space-y-4 pt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
+                <div className="space-y-3 pt-2">
+
+                  {/* ── Fila 1: Imagen izquierda · Nombre/Categoría/Marca/Descripción derecha ── */}
+                  <div className="flex gap-5">
+                    {/* Imagen */}
+                    <div className="shrink-0 w-[260px]">
+                      <div className="w-full min-h-[260px] rounded-lg border-2 border-gray-dark bg-gray-darker overflow-hidden">
+                        <ImageRenderer
+                          url={selectedProducto.imagenProduc}
+                          alt={selectedProducto.nombre}
+                          className="w-full h-full min-h-[260px] border-0 bg-transparent"
+                          fallbackVariant="product"
+                          showLabel={false}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Campos apilados verticalmente */}
+                    <div className="flex-1 flex flex-col gap-2">
+                      <div className="space-y-1">
                         <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                          Nombre
+                          <Tags className="w-3.5 h-3.5 text-orange-primary" />Nombre
                         </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                        <div className="elegante-input h-8 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
                           {selectedProducto.nombre}
                         </div>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                          Categoría
+                          <Tags className="w-3.5 h-3.5 text-orange-primary" />Categoría
                         </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                        <div className="elegante-input h-8 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
                           {typeof selectedProducto.categoria === 'string'
                             ? selectedProducto.categoria
                             : (selectedProducto.categoria as any)?.nombre ?? 'Sin categoría'}
                         </div>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                          Marca
+                          <Tags className="w-3.5 h-3.5 text-orange-primary" />Marca
                         </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
+                        <div className="elegante-input h-8 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
                           {selectedProducto.marca || 'Sin marca'}
                         </div>
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
-                        Imagen del Producto
-                      </Label>
-                      <div className="w-full min-h-[200px] rounded-lg border-2 border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden">
-                        <ImageRenderer
-                            url={selectedProducto.imagenProduc}
-                            alt={selectedProducto.nombre}
-                            className="w-full h-full min-h-[200px] border-0 bg-transparent"
-                            fallbackVariant="product"
-                            showLabel={false}
-                          />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-orange-primary" />
-                      Descripción
-                    </Label>
-                    <div className="elegante-input w-full min-h-[120px] text-sm p-3 rounded-md border border-gray-dark bg-gray-darker overflow-y-auto">
-                      {selectedProducto.descripcion || 'Sin descripción'}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 border-t border-gray-dark pt-4">
-                    <Label className="text-white-primary text-xs flex items-center gap-1.5 uppercase tracking-wide opacity-80">
-                      <Info className="w-3.5 h-3.5 text-orange-primary" />
-                      Información de venta
-                    </Label>
-                    <div className="space-y-1.5">
-                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                        <Package className="w-3.5 h-3.5 text-orange-primary" />
-                        Stock
-                      </Label>
-                      <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-orange-primary/20 font-bold text-orange-primary">
-                        {Number((selectedProducto as any).stock ?? selectedProducto.cantidad ?? 0)} unidades
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
+                      <div className="space-y-1 flex-1">
                         <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
-                          Precio compra
+                          <FileText className="w-3.5 h-3.5 text-orange-primary" />Descripción
                         </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                          {formatCurrency((selectedProducto as any).precioCompra ?? 0)}
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
-                          Precio venta
-                        </Label>
-                        <div className="elegante-input h-9 text-sm flex items-center px-3 bg-gray-darker border border-gray-dark">
-                          {formatCurrency((selectedProducto as any).precioVenta ?? selectedProducto.precioBase ?? 0)}
+                        <div className="elegante-input text-sm px-3 py-2 bg-gray-darker border border-gray-dark rounded-md overflow-y-auto" style={{ minHeight: '60px' }}>
+                          {selectedProducto.descripcion || 'Sin descripción'}
                         </div>
                       </div>
                     </div>
-
                   </div>
+
+                  {/* ── Fila 2: Información de venta (ancho completo) ── */}
+                  <div className="rounded-lg border border-gray-dark bg-gray-darker/40 p-3 space-y-2">
+                    <p className="text-xs uppercase tracking-wide text-gray-lightest flex items-center gap-1.5 font-medium">
+                      <Info className="w-3.5 h-3.5 text-orange-primary" />Información de venta
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-white-primary text-[10px] flex items-center gap-1">
+                          <Package className="w-3 h-3 text-orange-primary" />Stock
+                        </Label>
+                        <div className="h-8 text-xs flex items-center px-2 rounded bg-gray-darker border border-orange-primary/20 font-bold text-orange-primary">
+                          {Number((selectedProducto as any).stock ?? selectedProducto.cantidad ?? 0)} uds.
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-white-primary text-[10px] flex items-center gap-1">
+                          <DollarSign className="w-3 h-3 text-orange-primary" />P. compra
+                        </Label>
+                        <div className="h-8 text-xs flex items-center px-2 rounded bg-gray-darker border border-gray-dark text-white-primary">
+                          $ {formatCurrency((selectedProducto as any).precioCompra ?? 0)}
+                        </div>
+                      </div>
+<<<<<<< HEAD
+                    </div>
+
+=======
+                      <div className="space-y-1">
+                        <Label className="text-white-primary text-[10px] flex items-center gap-1">
+                          <DollarSign className="w-3 h-3 text-orange-primary" />P. venta
+                        </Label>
+                        <div className="h-8 text-xs flex items-center px-2 rounded bg-gray-darker border border-gray-dark text-white-primary">
+                          $ {formatCurrency((selectedProducto as any).precioVenta ?? selectedProducto.precioBase ?? 0)}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-gray-lightest">Estado</Label>
+                        <div className={`h-8 text-xs flex items-center px-2 rounded border ${
+                          selectedProducto.activo
+                            ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                            : 'bg-red-500/10 text-red-400 border-red-500/20'
+                        }`}>
+                          {selectedProducto.activo ? 'Activo' : 'Inactivo'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Fila 3: Promedio de precios de compra (ancho completo) ── */}
+                  <div className="rounded-lg border border-gray-dark bg-gray-darker/40 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-wide text-gray-lightest flex items-center gap-1.5 font-medium">
+                        <Tags className="w-3.5 h-3.5 text-orange-primary" />Promedio de precios de compra (últ. 5)
+                      </p>
+                      {precioCompraPromedio && precioCompraPromedio.cantidadComprasConsideradas > 0 && (
+                        <span className="text-[10px] text-gray-lightest">
+                          {precioCompraPromedio.cantidadComprasConsideradas} compra(s)
+                          {precioCompraPromedio.cantidadTotalComprada > 0 && ` · ${precioCompraPromedio.cantidadTotalComprada} uds.`}
+                        </span>
+                      )}
+                    </div>
+
+                    {precioCompraPromedio === null ? (
+                      <p className="text-xs text-gray-lightest italic">Cargando...</p>
+                    ) : precioCompraPromedio.cantidadComprasConsideradas === 0 ? (
+                      <p className="text-xs text-gray-lightest italic px-2 py-1.5 bg-gray-darker rounded border border-gray-dark">
+                        Sin compras registradas.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-[110px_1fr] gap-3 items-start">
+                        <div className="rounded border border-orange-primary/30 bg-orange-primary/10 px-3 py-2">
+                          <p className="text-[9px] text-gray-lighter uppercase tracking-widest mb-0.5">Promedio</p>
+                          <p className="text-base font-normal text-orange-primary leading-tight">
+                            $ {formatCurrency(precioCompraPromedio.precioCompraPromedio)}
+                          </p>
+                        </div>
+                        <div className="overflow-x-auto rounded border border-gray-dark">
+                          <table className="w-full" style={{ fontSize: '11px' }}>
+                            <thead className="bg-gray-darker">
+                              <tr className="text-left text-gray-lightest">
+                                <th className="px-2 py-1.5 font-medium">Fecha</th>
+                                <th className="px-2 py-1.5 font-medium">Factura</th>
+                                <th className="px-2 py-1.5 font-medium">Proveedor</th>
+                                <th className="px-2 py-1.5 font-medium text-right">Cant.</th>
+                                <th className="px-2 py-1.5 font-medium text-right">P. Unit.</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-dark text-white-primary">
+                              {precioCompraPromedio.ultimasCompras.map((c) => (
+                                <tr key={c.id} className="hover:bg-gray-darker/50 transition-colors">
+                                  <td className="px-2 py-1.5">{c.fechaFactura ?? (c.fechaRegistro ? new Date(c.fechaRegistro).toLocaleDateString() : '—')}</td>
+                                  <td className="px-2 py-1.5">{c.numeroFactura ?? `#${c.compraId}`}</td>
+                                  <td className="px-2 py-1.5">{c.proveedorNombre ?? '—'}</td>
+                                  <td className="px-2 py-1.5 text-right">{c.cantidad}</td>
+                                  <td className="px-2 py-1.5 text-right font-medium">$ {formatCurrency(c.precioUnitario)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+>>>>>>> f353fa6b0f4252b0e13d549fafbba8079f199209
+                  </div>
+
                 </div>
               )}
 
-              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
-                <button
-                  onClick={() => setIsDetailDialogOpen(false)}
-                  className="elegante-button-secondary px-6"
-                >
+              <div className="flex justify-end pt-3 border-t border-gray-dark">
+                <button onClick={() => setIsDetailDialogOpen(false)} className="elegante-button-secondary px-6">
                   Cerrar
                 </button>
               </div>

@@ -1315,7 +1315,11 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
     () => [
       {
         value: "Ingresos totales",
+<<<<<<< HEAD
         type: "circle" as LegendType,
+=======
+        type: "line" as LegendType,
+>>>>>>> f353fa6b0f4252b0e13d549fafbba8079f199209
         color: "#d8b081",
       },
     ],
@@ -2279,8 +2283,14 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                 >
                   <defs>
                     <linearGradient id="ingresosGradient" x1="0" y1="0" x2="0" y2="1">
+<<<<<<< HEAD
                       <stop offset="0%" stopColor="#d8b081" stopOpacity={0.4} />
                       <stop offset="100%" stopColor="#d8b081" stopOpacity={0.02} />
+=======
+                      <stop offset="0%" stopColor="#d8b081" stopOpacity={0.35} />
+                      <stop offset="75%" stopColor="#d8b081" stopOpacity={0.05} />
+                      <stop offset="100%" stopColor="#d8b081" stopOpacity={0} />
+>>>>>>> f353fa6b0f4252b0e13d549fafbba8079f199209
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#292929" vertical={false} />
@@ -2296,8 +2306,9 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                     tickFormatter={(value) => formatAxisValue(value as number)}
                     tick={{ fill: "#ccc", fontSize: 12 }}
                     axisLine={{ stroke: "#333" }}
+                    tickLine={false}
                   />
-                  <Tooltip content={renderIngresosTotalesTooltip} cursor={{ fill: `${colors.primary}20` }} />
+                  <Tooltip content={renderIngresosTotalesTooltip} cursor={{ stroke: "#d8b08140", strokeWidth: 1 }} />
                   <Legend
                     wrapperStyle={{ marginTop: 0, marginBottom: 0 }}
                     payload={legendPayload}
@@ -2309,10 +2320,14 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                     strokeWidth={2.5}
                     fill="url(#ingresosGradient)"
                     dot={false}
+<<<<<<< HEAD
                     activeDot={{ r: 5, strokeWidth: 2, stroke: "#d8b081", fill: "#1a1a1a" }}
+=======
+                    activeDot={{ r: 5, fill: "#d8b081", stroke: "#d8b08180", strokeWidth: 6 }}
+>>>>>>> f353fa6b0f4252b0e13d549fafbba8079f199209
                     name="Ingresos totales"
                     isAnimationActive
-                    animationDuration={200}
+                    animationDuration={600}
                     animationEasing="ease-out"
                   />
                 </AreaChart>
