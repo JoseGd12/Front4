@@ -38,6 +38,7 @@ import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
 import { productoService } from "../../productos/services/productos";
 import { horariosService } from "../../agendamiento/services/horariosService";
+import { descuentoDiaService } from "../../agendamiento/services/descuentoDiaService";
 import { formatDuracion } from "../../../shared/utils/dateUtils";
 import { MIN_ANTICIPACION_AGENDA_MINUTOS } from "../../agendamiento/constants";
 import {
@@ -182,6 +183,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   const CAROUSEL_PAGE_SIZE = 5;
   // Índice de la cita visible cuando hay varias en una misma franja (key: `${fecha}-${hora}`)
   const [slotCitaIndex, setSlotCitaIndex] = useState<Record<string, number>>({});
+  const [dayDiscounts, setDayDiscounts] = useState<Record<string, number>>({});
 
   // ── Admin-style hover / overflow / tooltip state ──
   const [hoveredSlotKey, setHoveredSlotKey] = useState<string | null>(null);
@@ -221,6 +223,10 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
   useEffect(() => {
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    descuentoDiaService.getDescuentos().then(setDayDiscounts).catch(() => {});
+  }, []);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -2178,12 +2184,18 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     <div />
                     {weekDays.map(({ dia, fecha, fechaCompleta }) => {
                       const isToday = fechaCompleta === toLocalDateString(new Date());
+                      const discount = dayDiscounts[fechaCompleta];
                       return (
                         <div
                           key={dia}
-                          className={`min-w-0 text-center rounded-lg py-3 border-2 flex flex-col items-center justify-center gap-1 ${isToday ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent'
+                          className={`min-w-0 text-center rounded-lg py-3 border-2 flex flex-col items-center justify-center gap-1 relative ${isToday ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent'
                             }`}
                         >
+                          {discount > 0 && (
+                            <span style={{ backgroundColor: '#7a5c38', color: '#f3e8d8', fontSize: '10px', lineHeight: 1, padding: '3px 5px' }} className="absolute top-1 right-1 font-bold rounded-full whitespace-nowrap">
+                              -{discount}%
+                            </span>
+                          )}
                           <h4 className="text-sm tracking-[0.06em] uppercase text-gray-lightest leading-none font-bold">{dia.slice(0, 3)}</h4>
                           <p className="text-sm tracking-[0.06em] text-gray-lightest">{fecha}</p>
                         </div>

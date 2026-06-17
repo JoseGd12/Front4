@@ -200,6 +200,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Hay sesión activa en Firebase: sincronizar con la API para obtener el rol real
           const firebaseProfile = firebaseAuthService.getUserProfile(firebaseUser);
 
+          // No permitir sesion si email no verificado
+          if (!firebaseProfile.emailVerified) {
+            await firebaseAuthService.signOut();
+            setUser(null);
+            setIsAuthenticated(false);
+            localStorage.removeItem('barbershop_user');
+            setIsLoading(false);
+            return;
+          }
+
           if (firebaseProfile.email) {
             const syncResult = await authSyncService.syncUsuarioConApi(
               firebaseProfile,
@@ -279,6 +289,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Autenticar con Firebase primero
       const userCredential = await firebaseAuthService.signIn(email, password);
       const firebaseProfile = firebaseAuthService.getUserProfile(userCredential.user);
+
+      // Bloquear acceso si el email no ha sido verificado
+      // No cerrar sesion de Firebase aqui para permitir reenvio de verificacion
+      if (!firebaseProfile.emailVerified) {
+        return { success: false, error: 'Verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada o carpeta de spam.' };
+      }
 
       // El rol lo devuelve la API tras sync — no lo leemos del localStorage
       const selectedRolId = rolId ?? AppRole.CLIENTE;

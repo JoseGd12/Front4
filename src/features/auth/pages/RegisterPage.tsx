@@ -76,13 +76,13 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
 
-    setShowRegisterFormErrors(true);
-    setRegisterValidationAttempt(prev => prev + 1);
-
     if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || confirmPasswordMissing || !passwordsMatch || !captchaValidated) {
+      setShowRegisterFormErrors(true);
+      setRegisterValidationAttempt(prev => prev + 1);
       return;
     }
 
+    setShowRegisterFormErrors(false);
     setIsLoading(true);
     setError('');
     setEmailConflictError('');

@@ -58,6 +58,7 @@ export class FirebaseAuthService {
   private auth = auth;
   private secondaryApp?: FirebaseApp;
   private secondaryAuth?: Auth;
+  private _unverifiedUser: import('firebase/auth').User | null = null;
 
   private ensureSecondaryAuth(): Auth {
     if (this.secondaryAuth) return this.secondaryAuth;
@@ -108,8 +109,9 @@ export class FirebaseAuthService {
       const result = await signInWithEmailAndPassword(this.auth, email, password);
 
       if (!result.user.emailVerified) {
-        await this.sendEmailVerification();
-        throw new Error('Por favor, verifica tu email antes de iniciar sesión. Hemos enviado un email de verificación a ' + email);
+        this._unverifiedUser = result.user;
+        await firebaseSignOut(this.auth);
+        throw new Error('Verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada o carpeta de spam.');
       }
 
       return result;
@@ -168,13 +170,14 @@ export class FirebaseAuthService {
 
   // Enviar email de verificación
   async sendEmailVerification(): Promise<void> {
-    const user = this.auth.currentUser;
+    const user = this._unverifiedUser || this.auth.currentUser;
     if (!user) {
       throw new Error('No hay usuario autenticado');
     }
 
     try {
       await sendEmailVerification(user, this.getEmailVerificationActionCodeSettings());
+      this._unverifiedUser = null;
     } catch (error: any) {
       throw this.handleAuthError(error);
     }

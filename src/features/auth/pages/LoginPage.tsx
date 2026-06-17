@@ -4,7 +4,7 @@ import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
 import { Label } from '../../../shared/components/ui/label';
-import { Eye, EyeOff, Lock, AlertCircle, Mail, ArrowLeft, Scissors, Star } from 'lucide-react';
+import { Eye, EyeOff, Lock, AlertCircle, Mail, ArrowLeft, Scissors, Star, CheckCircle } from 'lucide-react';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 import { PasswordResetPage } from './PasswordResetPage';
 import { SimpleCaptcha } from '../components/captcha/index';
@@ -165,12 +165,16 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    setShowLoginFormErrors(true);
-    setLoginValidationAttempt(prev => prev + 1);
-
     if (emailMissing || !isEmailValid || passwordMissing) {
+      setShowLoginFormErrors(true);
+      setLoginValidationAttempt(prev => prev + 1);
       return;
     }
+
+    // Limpiar errores previos antes de intentar login
+    setShowLoginFormErrors(false);
+    setCredentialsError(false);
+    setError('');
 
     // Verificar bloqueo por intentos fallidos
     if (isLockedOut) {
@@ -185,25 +189,32 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
     }
 
     setIsLoading(true);
-    setError('');
 
     try {
       const result = await login(formData.email, formData.password);
       if (!result.success) {
-        const newAttempts = failedAttempts + 1;
-        setFailedAttempts(newAttempts);
-
         const errMsg = result.error || 'Credenciales inválidas';
         const eLower = errMsg.toLowerCase();
-        const isSystemOrStatusError = eLower.includes('too-many-requests') || 
-                                      eLower.includes('too many') || 
-                                      eLower.includes('user-disabled') || 
-                                      eLower.includes('disabled') || 
-                                      eLower.includes('network') || 
-                                      eLower.includes('conexión') || 
-                                      eLower.includes('connection') || 
-                                      eLower.includes('verifica tu email') || 
-                                      eLower.includes('verify');
+
+        const isEmailVerificationError = eLower.includes('verifica tu email') || eLower.includes('verify');
+        const isSystemOrStatusError = eLower.includes('too-many-requests') ||
+                                      eLower.includes('too many') ||
+                                      eLower.includes('user-disabled') ||
+                                      eLower.includes('disabled') ||
+                                      eLower.includes('network') ||
+                                      eLower.includes('conexión') ||
+                                      eLower.includes('connection') ||
+                                      isEmailVerificationError;
+
+        if (isEmailVerificationError) {
+          setError(getLoginErrorMessage(errMsg));
+          setCredentialsError(false);
+          setIsLoading(false);
+          return;
+        }
+
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
 
         if (newAttempts >= MAX_ATTEMPTS) {
           const until = Date.now() + LOCKOUT_SECONDS * 1000;
@@ -230,12 +241,20 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
         setCredentialsError(false);
       }
     } catch (err) {
+      const caughtMsg = err instanceof Error ? err.message : String(err);
+      const caughtLower = caughtMsg.toLowerCase();
+
+      const isCaughtEmailVerification = caughtLower.includes('verifica tu email') || caughtLower.includes('verify');
+      if (isCaughtEmailVerification) {
+        setError(getLoginErrorMessage(caughtMsg));
+        setCredentialsError(false);
+        setIsLoading(false);
+        return;
+      }
+
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
 
-      // Clasificar el error capturado: distinguir sistema vs credenciales
-      const caughtMsg = err instanceof Error ? err.message : String(err);
-      const caughtLower = caughtMsg.toLowerCase();
       const isCaughtSystemError =
         caughtLower.includes('network') ||
         caughtLower.includes('conexión') ||
@@ -243,9 +262,7 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
         caughtLower.includes('too-many-requests') ||
         caughtLower.includes('too many') ||
         caughtLower.includes('user-disabled') ||
-        caughtLower.includes('disabled') ||
-        caughtLower.includes('verifica tu email') ||
-        caughtLower.includes('verify');
+        caughtLower.includes('disabled');
 
       if (newAttempts >= MAX_ATTEMPTS) {
         const until = Date.now() + LOCKOUT_SECONDS * 1000;
@@ -442,24 +459,31 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
               error.toLowerCase().includes('cerrada por el usuario') ? (
                 <p className="text-red-400 text-sm text-center">{error}</p>
               ) : (
-                <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
-                  <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                   <span className="text-red-400 text-sm">{error}</span>
                 </div>
               )
             )}
             {error.toLowerCase().includes('verifica tu email') && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">¿No recibiste el correo?</span>
-                <button
-                  type="button"
-                  onClick={handleResendVerification}
-                  disabled={resendLoading}
-                  className="text-xs text-[#d8b081] hover:text-[#e8c091] underline transition-colors"
-                >
-                  {resendLoading ? 'Enviando...' : (resendSent ? 'Enviado' : 'Reenviar verificación')}
-                </button>
-              </div>
+              resendSent ? (
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+                  <span className="text-sm text-green-400">Correo enviado. Revisa tu bandeja.</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">¿No recibiste el correo?</span>
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resendLoading}
+                    className="text-sm text-orange-primary hover:text-white font-semibold transition-all cursor-pointer px-2 py-0.5 rounded-md hover:bg-[#d8b081]/10 underline underline-offset-2"
+                  >
+                    {resendLoading ? 'Enviando...' : 'Reenviar verificación'}
+                  </button>
+                </div>
+              )
             )}
 
             <div className="space-y-2">
