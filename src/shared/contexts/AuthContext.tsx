@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { authSyncService, AppRole } from '../../features/auth/services/authSyncService';
 import { firebaseAuthService } from '../services/firebase';
 import { apiService } from '../services/api';
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const isRegisteringRef = useRef(false);
 
   // Limpiar el antiguo cache de roles del localStorage (ya no se usa — era un vector de escalación)
   localStorage.removeItem('barbershop_role_cache');
@@ -194,6 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Suscribirse a cambios de estado de Firebase (esto maneja la carga inicial y cambios posteriores)
     const unsubscribe = firebaseAuthService.onAuthStateChanged(async (firebaseUser) => {
       try {
+        // Durante el registro, ignorar cambios de auth state para evitar race conditions
+        if (isRegisteringRef.current) {
+          return;
+        }
+
         const storedUser = authSyncService.getStoredUser();
 
         if (firebaseUser) {
@@ -348,8 +354,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
     try {
-      setIsLoading(true);
-
       // Validaciones básicas
       if (!userData.name || !userData.email || !userData.password) {
         return { success: false, error: 'Todos los campos son obligatorios' };
@@ -373,26 +377,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...(userData.fechaNacimiento ? { fechaNacimiento: userData.fechaNacimiento } : {}),
       };
 
-      // Registrar en Firebase y sincronizar con API
-      const result = await authSyncService.registerAndSync(
-        userData.email,
-        userData.password,
-        rolId,
-        additionalData
-      );
+      // Bloquear onAuthStateChanged durante el registro para evitar race conditions
+      isRegisteringRef.current = true;
 
-      if (result.success && result.user) {
-        // En lugar de iniciar sesión, solo devolvemos éxito.
-        // El usuario debe verificar su email antes de poder hacer login.
-        return { success: true };
-      } else {
-        return { success: false, error: result.error || 'Error en el registro' };
+      try {
+        const result = await authSyncService.registerAndSync(
+          userData.email,
+          userData.password,
+          rolId,
+          additionalData
+        );
+
+        // Sign out manual tras registro (el usuario debe verificar email antes de login)
+        try { await firebaseAuthService.signOut(); } catch { /* ignorar */ }
+
+        if (result.success && result.user) {
+          return { success: true };
+        } else {
+          return { success: false, error: result.error || 'Error en el registro' };
+        }
+      } finally {
+        isRegisteringRef.current = false;
       }
     } catch (error: any) {
       console.error('Error en register:', error);
+      isRegisteringRef.current = false;
       return { success: false, error: error.message || 'Error desconocido' };
-    } finally {
-      setIsLoading(false);
     }
   };
 

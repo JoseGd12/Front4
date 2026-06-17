@@ -3504,7 +3504,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           </div>
                         ))}
                       </div>
-                      <div className="rounded-lg border border-gray-dark flex items-start justify-center pt-10" style={{ backgroundColor: '#303030', gridColumn: 'span 7' }}>
+                      <div className="rounded-lg border border-gray-dark flex items-center justify-center" style={{ backgroundColor: '#303030', gridColumn: 'span 7' }}>
                         <div className="relative" style={{ width: '36px', height: '36px' }}>
                           <svg className="animate-spin" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                             <circle cx="18" cy="18" r="15" stroke="#3a3a3a" strokeWidth="3" />

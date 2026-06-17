@@ -33,18 +33,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
   const [showRegisterFormErrors, setShowRegisterFormErrors] = useState(false);
   const [registerValidationAttempt, setRegisterValidationAttempt] = useState(0);
-  const [redirectCountdown, setRedirectCountdown] = useState(3);
-
-  useEffect(() => {
-    if (!success) return;
-    const interval = setInterval(() => {
-      setRedirectCountdown(prev => {
-        if (prev <= 1) { clearInterval(interval); onBack(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [success, onBack]);
 
   const validatePassword = (password: string) => {
     return {
@@ -117,121 +105,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
     setCaptchaValidated(isValid);
     if (showRegisterFormErrors) setShowRegisterFormErrors(false);
   };
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex font-body">
-        {/* ── Panel Izquierdo: Imagen + Branding ── */}
-        <div className="login-left-panel flex relative overflow-hidden items-center justify-center">
-          <div
-            className="absolute inset-0 bg-cover bg-center scale-125 grayscale opacity-50"
-            style={{
-              backgroundImage: `url('${LANDING_BG_URL}')`,
-              animation: 'login-slow-zoom 25s ease-in-out infinite alternate',
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/40 via-[#0d0d0d]/70 to-black" />
-          <div className="absolute inset-0 bg-black/30" />
-
-          <div className="relative z-10 px-12 xl:px-20 max-w-xl text-center">
-            <div className="mb-8">
-              <img
-                src={LOGO_URL}
-                alt="Manito Barbershop"
-                className="w-14 h-14 rounded-full object-cover mx-auto border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
-              />
-            </div>
-
-            <h1
-              className="font-bold tracking-tight font-title leading-none mb-6"
-              style={{
-                fontSize: 'clamp(2rem, 4vw, 3.5rem)',
-                background: 'linear-gradient(135deg, #fff 0%, #d8b081 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              MANITO BARBERSHOP
-            </h1>
-
-            <p className="text-gray-300 text-lg leading-relaxed mb-10 font-light">
-              Únete a nuestra comunidad y agenda tus citas fácilmente
-            </p>
-
-            <div className="flex items-center justify-center gap-4 mb-10">
-              <span className="block w-16 h-px bg-gradient-to-r from-transparent to-[#d8b081]/60" />
-              <Scissors className="w-5 h-5 text-[#d8b081]/60" />
-              <span className="block w-16 h-px bg-gradient-to-l from-transparent to-[#d8b081]/60" />
-            </div>
-
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 text-center">
-              <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">¡Casi listo!</h2>
-              <p className="text-gray-400 text-sm">Verifica tu correo para activar tu cuenta.</p>
-            </div>
-          </div>
-
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
-        </div>
-
-        {/* ── Panel Derecho: Mensaje de Éxito ── */}
-        <div className="login-right-panel flex items-center justify-center bg-[#0a0a0a] relative overflow-hidden min-h-screen">
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-1/4 right-0 w-96 h-96 rounded-full bg-[#d8b081]/5 blur-[120px]" />
-            <div className="absolute bottom-1/4 left-0 w-72 h-72 rounded-full bg-[#d8b081]/3 blur-[100px]" />
-          </div>
-
-          <div className="relative z-10 w-full max-w-md px-8 sm:px-12 py-12 text-center">
-            {/* Mobile logo */}
-            <div className="login-mobile-logo text-center mb-8">
-              <img
-                src={LOGO_URL}
-                alt="Manito Barbershop"
-                className="w-16 h-16 rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30"
-              />
-              <Mail className="w-12 h-12 text-green-400 mx-auto mb-4" />
-            </div>
-
-            <h1 className="text-3xl font-bold text-white mb-4 font-title">
-              ¡Revisa tu correo!
-            </h1>
-            <p className="text-gray-400 mb-6">
-              Tu cuenta ha sido creada exitosamente. Hemos enviado un enlace de verificación a <strong className="text-[#d8b081]">{formData.email}</strong>.
-            </p>
-            <p className="text-sm text-gray-500 mb-8">
-              Por favor revisa tu bandeja de entrada o carpeta de spam y haz clic en el enlace para activar tu cuenta antes de iniciar sesión.
-            </p>
-
-            <Button
-              onClick={onBack}
-              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
-            >
-              Ir al inicio de sesión ({redirectCountdown})
-            </Button>
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes login-slow-zoom {
-            0% { transform: scale(1.25); }
-            100% { transform: scale(1.35); }
-          }
-          .font-body { font-family: 'Outfit', sans-serif; }
-          .font-title { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
-          .login-btn { height: 48px !important; }
-          .login-left-panel { flex: 0 0 50%; }
-          .login-right-panel { flex: 0 0 50%; }
-          .login-mobile-logo { display: none; }
-
-          @media (max-width: 1023px) {
-            .login-left-panel { display: none !important; }
-            .login-right-panel { flex: 0 0 100%; }
-            .login-mobile-logo { display: block; }
-          }
-        `}</style>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex font-body">
@@ -313,9 +186,33 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               className="rounded-full object-cover mx-auto mb-4 border-2 border-[#d8b081]/30 shadow-[0_0_40px_rgba(216,176,129,0.2)]"
               style={{ width: 'var(--auth-logo-mobile-size)', height: 'var(--auth-logo-mobile-size)' }}
             />
-            <h1 className="text-2xl font-bold text-white font-title tracking-tight">MANITO BARBERSHOP</h1>
+            {!success && <h1 className="text-2xl font-bold text-white font-title tracking-tight">MANITO BARBERSHOP</h1>}
           </div>
 
+          {success ? (
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                  <Mail className="w-8 h-8 text-green-400" />
+                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-white font-title tracking-tight mb-4">¡Revisa tu correo!</h2>
+              <p className="text-gray-400 mb-2 text-sm">
+                Tu cuenta ha sido creada exitosamente. Enviamos un enlace de verificación a
+              </p>
+              <p className="text-[#d8b081] font-semibold mb-4">{formData.email}</p>
+              <p className="text-sm text-gray-500 mb-8">
+                Revisa tu bandeja de entrada o carpeta de spam y haz clic en el enlace para activar tu cuenta antes de iniciar sesión.
+              </p>
+              <Button
+                onClick={onBack}
+                className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+              >
+                Ir al inicio de sesión
+              </Button>
+            </div>
+          ) : (
+          <>
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-white font-title tracking-tight mb-2">Crear Cuenta</h2>
@@ -526,6 +423,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               Volver
             </button>
           </form>
+          </>
+          )}
         </div>
       </div>
 

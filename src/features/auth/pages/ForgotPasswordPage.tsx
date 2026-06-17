@@ -102,7 +102,7 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
           <div className="space-y-3">
             <Button
               onClick={onBack}
-              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]"
+              className="login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider pointer-events-auto bg-[#d8b081] text-black cursor-pointer"
             >
               Volver al inicio de sesión
             </Button>
@@ -190,9 +190,9 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
             <Button
               type="submit"
               disabled={isLoading || !email.trim()}
-              className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-300 ${
+              className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider pointer-events-auto ${
                 email.trim()
-                  ? 'bg-[#d8b081] hover:bg-[#e8c091] text-black shadow-[0_4px_20px_rgba(216,176,129,0.25)] hover:shadow-[0_8px_30px_rgba(216,176,129,0.35)] hover:scale-[1.02]'
+                  ? 'bg-[#d8b081] text-black cursor-pointer'
                   : 'bg-gray-800 text-gray-500 cursor-not-allowed'
               }`}
             >
@@ -304,6 +304,14 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
         }
         .login-btn {
           height: 48px !important;
+          transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .login-btn:not(:disabled):hover {
+          background-color: #c9974f !important;
+          transform: scale(1.02);
+        }
+        .login-btn:disabled:hover {
+          background-color: #4a3d24 !important;
         }
 
         .login-left-panel {

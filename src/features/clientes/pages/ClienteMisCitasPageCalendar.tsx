@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { Label } from "../../../shared/components/ui/label";
 import { Input } from "../../../shared/components/ui/input";
@@ -1201,8 +1200,80 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       />
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-orange-primary animate-pulse text-xl font-medium">Cargando tus citas...</div>
+        <div className="px-2 pt-2 pb-6">
+          {/* Nav + Carrusel card skeleton */}
+          <div className="std-card mb-4 !pt-3 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-24 bg-gray-darker rounded" />
+              <div className="flex-1 min-w-0" />
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 bg-gray-darker rounded-lg" />
+                <div className="text-center px-4 flex flex-col items-center gap-1">
+                  <div className="h-4 w-24 bg-gray-darker rounded" />
+                  <div className="h-3 w-32 bg-gray-darker rounded" />
+                </div>
+                <div className="h-7 w-7 bg-gray-darker rounded-lg" />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-16 bg-gray-darker rounded-xl" />
+                <div className="h-8 w-24 bg-gray-darker rounded-xl" />
+              </div>
+            </div>
+            <div className="border-t border-gray-darker -mx-6 mt-4" />
+            <div className="pt-4 pb-4 flex items-center gap-6">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="h-8 w-8 bg-gray-darker rounded-lg shrink-0" />
+                <div className="flex flex-1 gap-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex-1 h-14 bg-gray-darker rounded-xl" />
+                  ))}
+                </div>
+                <div className="h-8 w-8 bg-gray-darker rounded-lg shrink-0" />
+              </div>
+              <div className="h-14 w-36 bg-gray-darker rounded-lg shrink-0" />
+            </div>
+          </div>
+          {/* Calendar grid skeleton */}
+          <div className="std-card !py-0" style={{ marginBottom: '1.5rem' }}>
+            <div className="w-full py-5 pb-6">
+              <div className="-mx-6 pl-3 pr-6">
+                <div
+                  className="grid gap-1 mb-2 animate-pulse"
+                  style={{ gridTemplateColumns: calendarGridTemplate }}
+                >
+                  <div className="flex items-center justify-center">
+                    <div className="h-3 w-12 bg-gray-darker rounded" />
+                  </div>
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <div key={i} className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-lg border-2 border-transparent">
+                      <div className="h-3 w-8 bg-gray-darker rounded" />
+                      <div className="h-5 w-6 bg-gray-darker rounded" />
+                    </div>
+                  ))}
+                </div>
+                <div
+                  className="grid gap-1"
+                  style={{ gridTemplateColumns: calendarGridTemplate, height: '600px' }}
+                >
+                  <div className="animate-pulse flex flex-col justify-between py-2">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-center">
+                        <div className="h-2.5 w-10 bg-gray-darker rounded" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-gray-dark flex items-center justify-center" style={{ backgroundColor: '#303030', gridColumn: 'span 7' }}>
+                    <div className="relative" style={{ width: '36px', height: '36px' }}>
+                      <svg className="animate-spin" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+                        <circle cx="18" cy="18" r="15" stroke="#3a3a3a" strokeWidth="3" />
+                        <path d="M18 3 A15 15 0 0 1 33 18" stroke="#d8b081" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <>
@@ -1213,7 +1284,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             <>
               {/* Backdrop semi-transparente */}
               <div
-                className="fixed inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/75 backdrop-blur-[2px]"
                 style={{ zIndex: 9998 }}
                 onClick={() => handleCloseModal()}
               />
@@ -1991,27 +2062,49 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             document.body
           )}
 
-          <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-            <AlertDialogContent className="bg-gray-darkest border-gray-dark text-white-primary" style={{ zIndex: 200000 }}>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Descartar cambios</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-lighter">
-                  Tienes cambios sin guardar. Si cierras el formulario se perderan.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-transparent text-orange-primary border border-orange-primary hover:bg-orange-primary/10 font-semibold rounded-xl px-6 py-3 h-auto mt-0">
-                  Seguir editando
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-transparent text-destructive border border-destructive hover:bg-destructive/10 font-semibold rounded-xl px-6 py-3 h-auto"
-                  onClick={() => handleCloseModal(true)}
-                >
-                  Descartar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {createPortal(
+            <div
+              className={`fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-150 ${
+                showDiscardDialog ? 'opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+              style={{ zIndex: 200000 }}
+              aria-hidden={!showDiscardDialog}
+            >
+              <div
+                className="absolute inset-0"
+                style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(2px)' }}
+                onClick={() => setShowDiscardDialog(false)}
+              />
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                className="relative w-full max-w-md rounded-xl border border-gray-dark bg-gray-darkest p-6 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-lg font-semibold text-white-primary">¿Descartar cambios?</h2>
+                <p className="mt-2 text-sm text-gray-lightest">
+                  Tienes cambios sin guardar. Si cierras el formulario, se perderán.
+                </p>
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className="elegante-button-primary rounded-xl"
+                    onClick={() => setShowDiscardDialog(false)}
+                  >
+                    Seguir editando
+                  </button>
+                  <button
+                    type="button"
+                    className="bg-transparent text-gray-lightest border border-gray-dark hover:bg-gray-dark font-semibold rounded-xl px-6 py-3 transition-colors"
+                    onClick={() => { setShowDiscardDialog(false); handleCloseModal(true); }}
+                  >
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
 
           {/* VISTA DE CALENDARIO */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -2173,7 +2266,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
             {/* Grid de horarios + headers de días — un solo card unificado */}
             <div className="std-card !py-0" style={{ marginBottom: '1.5rem' }}>
-              <div className="w-full py-5">
+              <div className="w-full py-5 pb-6">
                 <div className="-mx-6 pl-3 pr-6">
 
                   {/* Fila de headers de días */}
@@ -2680,10 +2773,9 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                         <button
                           onClick={() => {
                             setCitaToDelete(selectedCita);
-                            setIsDetailDialogOpen(false);
                             setIsDeleteDialogOpen(true);
                           }}
-                          className="w-full py-2.5 text-sm font-medium text-red-400 hover:bg-red-600/10 border border-transparent hover:border-red-500/30 rounded-lg transition-all"
+                          className="w-full py-2.5 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-600/15 border border-transparent hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
                         >
                           Cancelar reservación
                         </button>
@@ -2698,21 +2790,53 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         </DialogContent>
       </Dialog>
 
-      {/* Confirmar Cancelación */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-gray-darkest border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary">¿Estás seguro de cancelar tu cita?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest">
+      {/* Confirmar Cancelación — siempre montado para evitar inert de Radix */}
+      {createPortal(
+        <div
+          className={`fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-150 ${
+            isDeleteDialogOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          style={{ zIndex: 200000 }}
+          aria-hidden={!isDeleteDialogOpen}
+        >
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(2px)' }}
+            onClick={() => setIsDeleteDialogOpen(false)}
+          />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="relative w-full max-w-md rounded-xl border border-gray-dark bg-gray-darkest p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-white-primary">¿Cancelar tu reservación?</h2>
+            <p className="mt-2 text-sm text-gray-lightest">
               Esta acción informará a la barbería y liberará el horario. No se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-gray-darker text-white-primary border-gray-dark">Volver</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancelCita} className="bg-red-600 hover:bg-red-700 text-white font-bold">Sí, cancelar cita</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
+                onClick={async () => {
+                  await handleCancelCita();
+                  setIsDetailDialogOpen(false);
+                }}
+              >
+                Sí, cancelar cita
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }

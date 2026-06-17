@@ -23,7 +23,9 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialFormDataRef = useRef<typeof formData | null>(null);
   
   // Estado para el formulario
   const [formData, setFormData] = useState({
@@ -59,7 +61,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
   useEffect(() => {
     if (user) {
       const nameParts = (user.name || "").split(" ");
-      setFormData({
+      const newData = {
         nombre: nameParts[0] || "",
         apellido: nameParts.slice(1).join(" ") || "",
         email: user.email || "",
@@ -70,7 +72,11 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
         fechaNacimiento: clienteExtraData.fechaNacimiento || "",
         direccion: clienteExtraData.direccion || "",
         barrio: clienteExtraData.barrio || ""
-      });
+      };
+      setFormData(newData);
+      if (isEditDialogOpen) {
+        initialFormDataRef.current = newData;
+      }
     }
   }, [user, isEditDialogOpen, clienteExtraData]);
 
@@ -218,6 +224,17 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
       showErrorAlert("Error crítico", err.message || "Ocurrió un error inesperado al guardar.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const hasChanges = initialFormDataRef.current !== null &&
+    JSON.stringify(formData) !== JSON.stringify(initialFormDataRef.current);
+
+  const handleCloseAttempt = () => {
+    if (hasChanges) {
+      setShowDiscardConfirm(true);
+    } else {
+      setIsEditDialogOpen(false);
     }
   };
 
@@ -369,8 +386,8 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
     </div>
 
       {/* Dialog para Editar Perfil */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-gray-darkest border-gray-dark text-white-primary max-w-2xl overflow-y-auto max-h-[90vh]">
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!open) handleCloseAttempt(); }}>
+        <DialogContent className={`bg-gray-darkest border border-gray-dark text-white-primary max-w-2xl max-h-[90vh] ${showDiscardConfirm ? 'overflow-visible' : 'overflow-y-auto'}`}>
           <DialogHeader>
             <DialogTitle className="text-2xl font-black tracking-tight text-white-primary flex items-center gap-3">
                <Edit className="w-6 h-6 text-orange-primary" />
@@ -384,7 +401,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 border-y border-gray-dark/50 my-2">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Nombre</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Nombre <span className="text-gray-lighter">*</span></Label>
                 <Input 
                   value={formData.nombre}
                   onChange={(e) => setFormData({...formData, nombre: e.target.value})}
@@ -393,7 +410,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Apellido</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Apellido <span className="text-gray-lighter">*</span></Label>
                 <Input 
                   value={formData.apellido}
                   onChange={(e) => setFormData({...formData, apellido: e.target.value})}
@@ -402,7 +419,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Teléfono</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Teléfono <span className="text-gray-lighter">*</span></Label>
                 <PhoneInput
                   value={formData.telefono}
                   onChange={(val) => setFormData({...formData, telefono: val})}
@@ -476,7 +493,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Correo Electrónico</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Correo Electrónico <span className="text-gray-lighter">*</span></Label>
                 <Input
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -531,8 +548,8 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
           </div>
 
           <DialogFooter className="gap-3 mt-4">
-            <button 
-              onClick={() => setIsEditDialogOpen(false)}
+            <button
+              onClick={handleCloseAttempt}
               className="elegante-button-secondary py-2.5 px-6 flex items-center gap-2"
               disabled={isSubmitting}
             >
@@ -557,8 +574,54 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
               )}
             </button>
           </DialogFooter>
+
+          {/* Overlay de confirmacion descartar — dentro del Dialog para evitar inert */}
+          {showDiscardConfirm && (
+            <div
+              className="z-50 flex items-center justify-center"
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: 'rgba(0, 0, 0, 0.80)',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                className="w-full max-w-md rounded-xl border border-gray-dark bg-gray-darkest p-6 shadow-xl mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-lg font-semibold text-white-primary">¿Descartar cambios?</h2>
+                <p className="mt-2 text-sm text-gray-lightest">
+                  Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
+                </p>
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className="elegante-button-primary rounded-xl"
+                    onClick={() => setShowDiscardConfirm(false)}
+                  >
+                    Seguir editando
+                  </button>
+                  <button
+                    type="button"
+                    className="bg-transparent text-gray-lightest border border-gray-dark hover:bg-gray-dark font-semibold rounded-xl px-6 py-3 transition-colors"
+                    onClick={() => { setShowDiscardConfirm(false); setIsEditDialogOpen(false); }}
+                  >
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
+
     <AlertContainer />
     </>
   );

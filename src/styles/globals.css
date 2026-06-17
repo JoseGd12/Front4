@@ -534,10 +534,19 @@ html {
     padding: 0.5rem 0.75rem;
   }
 
-  .elegante-input:focus {
+  .elegante-input:focus,
+  .elegante-input:focus-within {
     outline: none;
     border-color: var(--color-orange-primary);
     box-shadow: 0 0 0 1px var(--color-orange-primary);
+  }
+
+  .elegante-input input:focus,
+  .elegante-input input:focus-visible,
+  .elegante-input button:focus,
+  .elegante-input button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   .elegante-input::placeholder {

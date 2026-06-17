@@ -658,7 +658,7 @@ export function BarberosPage() {
           }`}
           style={{ transition: 'color 200ms ease, border-color 200ms ease' }}
         >
-          Deudas
+          Creditos
         </button>
       </div>
 
