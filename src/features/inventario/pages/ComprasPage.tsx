@@ -136,12 +136,44 @@ interface ComprasPageProps {
   onNavigate?: (page: string) => void;
 }
 
+const resolveImageSrc = (rawValue: unknown): string => {
+  const value = String(rawValue || '').trim();
+  if (!value) return '';
+  return value;
+};
+
+const getProductoDetalleImage = (producto: any, productosAPI: any[]): string => {
+  const nombreProducto = String(producto?.productoNombre || producto?.nombre || '').trim().toLowerCase();
+  const productoId = Number(String(producto?.productoId || producto?.id || '').replace(/\D/g, ''));
+
+  const productoCatalogo = productosAPI.find((p: any) => {
+    const sameId = !Number.isNaN(productoId) && productoId > 0 && Number(p.id) === productoId;
+    const sameName = !!nombreProducto && String(p.nombre || '').trim().toLowerCase() === nombreProducto;
+    return sameId || sameName;
+  });
+
+  return resolveImageSrc(
+    producto?.productoImagen ||
+    producto?.imagen ||
+    producto?.imagenProduc ||
+    producto?.imagenUrl ||
+    producto?.Imagen ||
+    producto?.ImagenProduc ||
+    producto?.ImagenUrl ||
+    productoCatalogo?.imagenProduc ||
+    (productoCatalogo as any)?.imagen ||
+    (productoCatalogo as any)?.imagenUrl ||
+    ''
+  );
+};
+
 export function ComprasPage({ onNavigate }: ComprasPageProps) {
   const { user } = useAuth();
   const { confirmDeleteAction, DoubleConfirmationContainer } = useDoubleConfirmation();
   const { created, success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
   const [compras, setCompras] = useState<Compra[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
+  const [productosAPI, setProductosAPI] = useState<any[]>([]);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedCompra, setSelectedCompra] = useState<Compra | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -239,7 +271,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
   };
 
 
-  // Cargar datos iniciales (compras y proveedores)
+  // Cargar datos iniciales (compras, proveedores, productos)
   const initData = async () => {
     const hasCache = !!sessionStorage.getItem('compras_cache');
 
@@ -249,12 +281,12 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
     }
 
     try {
-      // Iniciamos ambas cargas. loadCompras(true) se encarga de mostrar la cache
-      // primero si existe, y luego actualizar con datos frescos.
+      // Iniciamos todas las cargas
       const comprasPromise = loadCompras(true);
       const usuariosPromise = apiService.getUsuarios().then(setUsers).catch(() => setUsers([]));
+      const productosPromise = productoService.getProductos().then(setProductosAPI).catch(() => setProductosAPI([]));
       await comprasPromise;
-      usuariosPromise.catch(err => console.error("Error background usuarios:", err));
+      Promise.all([usuariosPromise, productosPromise]).catch(err => console.error("Error background data:", err));
     } catch (error) {
       console.error("Error en la carga inicial:", error);
     } finally {
@@ -985,7 +1017,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                       </div>
                       <div className="space-y-2 max-h-52 overflow-y-auto">
                         {selectedCompra.detalles.map((detalle, idx) => {
-                          const imgUrl = detalle.productoImagen;
+                          const imgUrl = getProductoDetalleImage(detalle, productosAPI);
 
                           return (
                             <div key={idx} className="bg-gray-darker rounded-lg px-3 py-2.5 border-l-2 border-orange-primary/20">
@@ -996,6 +1028,8 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                                     url={imgUrl}
                                     alt={detalle.productoNombre || 'Producto'}
                                     className="w-full h-full border-0 bg-transparent"
+                                    fallbackVariant="product"
+                                    showLabel={false}
                                   />
                                 </div>
                                 <div className="min-w-0 flex-1 shrink flex items-center justify-center">
