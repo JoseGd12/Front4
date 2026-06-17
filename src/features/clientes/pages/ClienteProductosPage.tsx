@@ -179,22 +179,12 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                 </div>
 
                 <div className="p-3 flex flex-col gap-2 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-orange-primary">
-                      {producto.categoria?.nombre || "Producto"}
-                    </span>
-                    <div className="flex items-center gap-1 text-gray-lighter text-[10px]">
-                      <ShoppingBag className="w-3 h-3" />
-                      <span>{producto.stock ?? producto.cantidad ?? 0}</span>
-                    </div>
-                  </div>
-
-                  <h3 className="text-sm font-bold text-white-primary group-hover:text-orange-primary transition-colors leading-tight line-clamp-1">
+                  <h3 className="text-base font-extrabold text-white-primary group-hover:text-orange-primary transition-colors leading-tight line-clamp-2">
                     {producto.nombre}
                   </h3>
 
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="text-orange-primary font-extrabold text-base">
+                  <div className="flex items-center justify-between">
+                    <span className="text-orange-primary font-extrabold text-lg">
                       ${formatCurrency(producto.precioVenta || producto.precio || 0)}
                     </span>
                     {producto.marca && (
@@ -202,6 +192,16 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
                         {producto.marca}
                       </span>
                     )}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-auto">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-orange-primary">
+                      {producto.categoria?.nombre || "Producto"}
+                    </span>
+                    <div className="flex items-center gap-1 text-gray-lighter text-[10px]">
+                      <ShoppingBag className="w-3 h-3" />
+                      <span>{producto.stock ?? producto.cantidad ?? 0}</span>
+                    </div>
                   </div>
 
                   <button

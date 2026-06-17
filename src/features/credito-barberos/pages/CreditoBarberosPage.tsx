@@ -362,6 +362,7 @@ export function CreditoBarberosPage() {
   const [activeTab, setActiveTab] = useState<Record<number, "ventas" | "abonos" | "stats">>({});
   const [inlineAbonos, setInlineAbonos]                     = useState<Record<number, AbonoCreditoBarberoDto[]>>({});
   const [loadingInlineAbonos, setLoadingInlineAbonos]       = useState<Record<number, boolean>>({});
+  const [showHistorial, setShowHistorial] = useState<Record<number, boolean>>({});
 
   // ── Modal: registrar abono ───────────────────────────────────────────────────
   const [registrarOpen,    setRegistrarOpen]    = useState(false);
@@ -398,7 +399,7 @@ export function CreditoBarberosPage() {
       const [res, barberos, ventas, productos] = await Promise.all([
         creditoBarberoService.getAll(page, PAGE_SIZE, q),
         barberosService.getBarberos().catch(() => []),
-        ventaService.getVentas().catch(() => []),
+        ventaService.getVentas(1, 500).catch(() => []),
         productoService.getProductos().catch(() => []),
       ]);
 
@@ -711,13 +712,24 @@ export function CreditoBarberosPage() {
                 ) : displayedCreditos.map(c => {
                   const isOpen     = expandedId === c.barberoId;
                   const barbero    = barberosMap[c.barberoId];
-                  const ventasCred = (ventasCreditoPorBarbero[c.barberoId] || []).filter((v: any) => {
-                    if (String(v.estado || "").toLowerCase() === "anulada") return false;
-                    const fechaVenta = new Date(v.fecha).getTime();
-                    const inicio = new Date(c.fechaInicio).getTime();
-                    const cierre = c.fechaCierre ? new Date(c.fechaCierre).getTime() : Infinity;
-                    return fechaVenta >= inicio && fechaVenta <= cierre;
+                  const todasVentasCred = (ventasCreditoPorBarbero[c.barberoId] || []).filter((v: any) =>
+                    String(v.estado || "").toLowerCase() !== "anulada"
+                  );
+                  const inicioDia = new Date(c.fechaInicio);
+                  inicioDia.setHours(0, 0, 0, 0);
+                  const cierreMs = c.fechaCierre ? new Date(c.fechaCierre).getTime() : Infinity;
+                  const ventasCiclo = todasVentasCred.filter((v: any) => {
+                    const t = new Date(v.fecha).getTime();
+                    return t >= inicioDia.getTime() && t <= cierreMs;
                   });
+                  const ventasHistoricas = todasVentasCred.filter((v: any) =>
+                    new Date(v.fecha).getTime() < inicioDia.getTime()
+                  );
+                  const deudaActiva = c.saldoDeuda > 0 && !esPagado(c.estado);
+                  const verHistorial = showHistorial[c.barberoId] || false;
+                  const ventasCred = deudaActiva
+                    ? (verHistorial ? todasVentasCred : ventasCiclo)
+                    : (verHistorial ? todasVentasCred : []);
                   const tab        = activeTab[c.barberoId] || "ventas";
 
                   // Condiciones para botones especiales
@@ -898,7 +910,7 @@ export function CreditoBarberosPage() {
                                 return (
                                 <>
                                   <div className="cred-sub-label">
-                                    Todas las ventas de{" "}
+                                    {verHistorial ? "Historial completo" : "Ventas del ciclo actual"} de{" "}
                                     <span style={{ color: "var(--orange-primary)", fontWeight: 600 }}>
                                       {c.barberoNombre || `Barbero #${c.barberoId}`}
                                     </span>
@@ -925,8 +937,14 @@ export function CreditoBarberosPage() {
                                     <tbody>
                                       {ventasCred.length === 0 ? (
                                         <tr>
-                                          <td colSpan={6} style={{ padding: 20, textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
-                                            Sin ventas a credito registradas.
+                                          <td colSpan={6} style={{ padding: 20, textAlign: "center", fontSize: 13 }}>
+                                            <span style={{ color: "var(--gray-dark)" }}>
+                                              {!deudaActiva && todasVentasCred.length > 0
+                                                ? "Deuda saldada. No hay ventas pendientes en este ciclo."
+                                                : deudaActiva && ventasHistoricas.length > 0
+                                                  ? "Sin ventas en el ciclo actual."
+                                                  : "Sin ventas a credito registradas."}
+                                            </span>
                                           </td>
                                         </tr>
                                       ) : ventasPaginadas.map((v: any) => {
@@ -989,9 +1007,32 @@ export function CreditoBarberosPage() {
 
                                   {/* Barra de acciones — tab ventas */}
                                   <div className="cred-actions-bar">
+                                    {verHistorial ? (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setShowHistorial(prev => ({ ...prev, [c.barberoId]: false })); setVentasPage(prev => ({ ...prev, [c.barberoId]: 1 })); }}
+                                        style={{
+                                          background: "none", border: "1px solid var(--gray-dark)",
+                                          color: "var(--orange-primary)", padding: "3px 12px", borderRadius: 6, fontSize: 11,
+                                          cursor: "pointer", fontWeight: 500
+                                        }}
+                                      >
+                                        Ocultar historial
+                                      </button>
+                                    ) : ventasHistoricas.length > 0 && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setShowHistorial(prev => ({ ...prev, [c.barberoId]: true })); setVentasPage(prev => ({ ...prev, [c.barberoId]: 1 })); }}
+                                        style={{
+                                          background: "none", border: "1px solid var(--gray-dark)",
+                                          color: "var(--gray-lightest)", padding: "3px 12px", borderRadius: 6, fontSize: 11,
+                                          cursor: "pointer", fontWeight: 500
+                                        }}
+                                      >
+                                        Ver historial completo ({todasVentasCred.length})
+                                      </button>
+                                    )}
                                     {/* Paginacion ventas */}
                                     {ventasTotalPages > 1 && (
-                                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: "auto" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                         <button
                                           className="cred-icon-btn"
                                           disabled={vPage <= 1}
