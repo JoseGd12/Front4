@@ -218,96 +218,81 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
             <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {displayedItems.map((item) => (
-                <div key={`${item.type}-${item.id}`} className="bg-gray-darkest rounded-xl border border-transparent p-0 relative flex flex-col h-full overflow-hidden group w-full transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)] cursor-pointer" onClick={() => handleViewDetails(item)}>
-                  {/* Imagen del item */}
-                  <div className="w-full aspect-square border-b border-gray-dark bg-gray-darkest relative overflow-hidden flex items-center justify-center">
+                <div
+                  key={`${item.type}-${item.id}`}
+                  className="bg-gray-darkest rounded-xl border border-transparent p-0 overflow-hidden group flex flex-col transition-all duration-300 hover:border-orange-primary/60 hover:shadow-[0_0_18px_2px_rgba(216,176,129,0.35)] cursor-pointer"
+                  onClick={() => handleViewDetails(item)}
+                >
+                  {/* Imagen */}
+                  <div className="w-full aspect-square bg-gray-darker relative overflow-hidden flex items-center justify-center">
                     {(item as any).imagen ? (
                       <img
                         src={(item as any).imagen}
                         alt={item.nombre}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : item.type === 'paquete' ? (
                       <img
-                        src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600"
+                        src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=90"
                         alt={item.nombre}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <div className="flex items-center justify-center pointer-events-none">
                         <Scissors className="w-10 h-10 text-gray-medium opacity-20" />
                       </div>
                     )}
-                    {item.type === 'paquete' && (
+                    {item.type === 'paquete' && (item as Paquete).descuento > 0 && (
                       <div className="absolute top-2 right-2 bg-orange-primary text-black-primary px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-widest shadow-lg">
-                        Oferta
+                        -{Math.round((item as Paquete).descuento)}% OFF
                       </div>
                     )}
                   </div>
 
-                  <div className="p-3 flex flex-col flex-1">
-                    {/* Badge de Categoría */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${item.type === 'paquete'
-                          ? 'bg-blue-600/20 text-blue-400'
-                          : 'bg-orange-primary/10 text-orange-primary'
-                        }`}>
-                        {item.type === 'paquete' ? 'Paquete' : getCategoria(item.nombre)}
-                      </span>
-                      <div className="flex items-center gap-1 text-gray-lighter">
-                        <Clock className="w-3 h-3" />
-                        <span className="text-[10px] font-medium">{formatDuracion(item.duracion)}</span>
-                      </div>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-white-primary mb-1 group-hover:text-orange-primary transition-colors line-clamp-1">
+                  {/* Contenido */}
+                  <div className="p-3 flex flex-col gap-2 flex-1">
+                    <h3 className="text-base font-extrabold text-white-primary group-hover:text-orange-primary transition-colors leading-tight line-clamp-2">
                       {item.nombre}
                     </h3>
 
-                    <p className="text-gray-lightest text-[11px] mb-3 line-clamp-2 leading-relaxed flex-1">
-                      {item.descripcion || "Sin descripción disponible."}
-                    </p>
-
-                    {/* Precio y Botones */}
-                    <div className="mt-auto space-y-2 pt-2 border-t border-gray-dark">
-                      <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
+                      {item.type === 'paquete' && (item as Paquete).descuento > 0 ? (
                         <div className="flex items-center gap-2">
-                          {item.type === 'paquete' && (item as Paquete).descuento > 0 ? (
-                            <>
-                              <span className="text-gray-medium line-through text-xs">
-                                ${formatCurrency(item.precio)}
-                              </span>
-                              <span className="text-orange-primary font-extrabold text-base">
-                                ${formatCurrency(item.precio - (item.precio * (item as Paquete).descuento / 100))}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-orange-primary font-extrabold text-base">
-                              ${formatCurrency(item.precio)}
-                            </span>
-                          )}
+                          <span className="text-gray-medium line-through text-xs">${formatCurrency(item.precio)}</span>
+                          <span className="text-orange-primary font-extrabold text-lg">
+                            ${formatCurrency(item.precio - (item.precio * (item as Paquete).descuento / 100))}
+                          </span>
                         </div>
-                        {item.type === 'paquete' && (item as Paquete).descuento > 0 && (
-                          <div className="bg-green-600/20 text-green-400 px-1.5 py-0.5 rounded text-[9px] font-bold">
-                            -{Math.round((item as Paquete).descuento)}% OFF
-                          </div>
-                        )}
+                      ) : (
+                        <span className="text-orange-primary font-extrabold text-lg">
+                          ${formatCurrency(item.precio)}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1 text-gray-lighter text-[10px]">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatDuracion(item.duracion)}</span>
                       </div>
+                    </div>
 
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
-                          className="elegante-button-secondary flex-1 text-xs py-2 font-bold uppercase tracking-wide"
-                        >
-                          Detalles
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleReservarItem(item); }}
-                          className="elegante-button-primary flex-1 text-xs py-2 font-bold uppercase tracking-wide shadow-lg shadow-orange-primary/10"
-                        >
-                          Reservar
-                        </button>
-                      </div>
+                    <div className="flex items-center justify-between mt-auto">
+                      <span className={`text-[9px] font-bold uppercase tracking-widest ${item.type === 'paquete' ? 'text-blue-400' : 'text-orange-primary'}`}>
+                        {item.type === 'paquete' ? 'Paquete' : getCategoria(item.nombre)}
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
+                        className="flex-1 py-1.5 rounded-lg border border-gray-dark text-gray-lightest text-[10px] font-bold uppercase tracking-wider hover:border-orange-primary hover:text-orange-primary transition-colors"
+                      >
+                        Ver Detalles
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleReservarItem(item); }}
+                        className="flex-1 py-1.5 rounded-lg bg-orange-primary text-black-primary text-[10px] font-bold uppercase tracking-wider hover:bg-orange-primary/90 transition-colors"
+                      >
+                        Reservar
+                      </button>
                     </div>
                   </div>
                 </div>

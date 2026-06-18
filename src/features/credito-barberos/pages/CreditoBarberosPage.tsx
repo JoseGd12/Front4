@@ -774,7 +774,7 @@ export function CreditoBarberosPage() {
                         {/* Saldo deuda */}
                         <td className="cred-td">
                           <span className="cred-num" style={{
-                            color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)",
+                            color: "#ffffff",
                           }}>
                             <DollarSign className="w-3.5 h-3.5" />
                             {formatCurrency(c.saldoDeuda)}
@@ -842,7 +842,7 @@ export function CreditoBarberosPage() {
                                   <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
                                     <div style={{ flex: "0 0 auto" }}>
                                       <div style={{ fontSize: 11, color: "var(--gray-light)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700, marginBottom: 4 }}>Deuda actual</div>
-                                      <div style={{ fontSize: 22, fontWeight: 700, color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)" }}>
+                                      <div style={{ fontSize: 22, fontWeight: 700, color: "#ffffff" }}>
                                         {formatCurrency(c.saldoDeuda)}
                                       </div>
                                     </div>
@@ -1248,7 +1248,7 @@ export function CreditoBarberosPage() {
                         <div style={{ fontSize: 11, color: "var(--gray-lighter)" }}>
                           Deuda:{" "}
                           <span style={{
-                            color: c.saldoDeuda > 0 ? "var(--status-red)" : "var(--status-green)",
+                            color: "#ffffff",
                             fontWeight: 600,
                           }}>
                             {formatCurrency(c.saldoDeuda)}
@@ -1416,7 +1416,7 @@ export function CreditoBarberosPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-lighter">Deuda actual</span>
-                  <span style={{ color: "var(--status-red)", fontWeight: 600 }}>{formatCurrency(extenderCredito.saldoDeuda)}</span>
+                  <span style={{ color: "#ffffff", fontWeight: 600 }}>{formatCurrency(extenderCredito.saldoDeuda)}</span>
                 </div>
               </div>
               <p className="text-xs text-gray-lighter px-1">

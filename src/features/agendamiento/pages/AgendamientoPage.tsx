@@ -3139,26 +3139,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </div>
 
           {/* Navegación de Semana */}
-          <div className="std-card mb-4 !pt-0 !pb-0 overflow-hidden">
-
-            {/* Banda superior: título + acciones principales */}
-            <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-dark/60">
+          <div className="std-card mb-4" style={{ padding: 0 }}>
+            <div className="flex items-center justify-between gap-4 px-6" style={{ minHeight: '56px' }}>
 
               {/* Título */}
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="w-1 h-8 rounded-full bg-orange-primary" />
-                <div>
-                  <h4 className="text-base font-bold text-white-primary leading-tight tracking-wide">Citas de la semana</h4>
-                  <p className="text-[11px] text-gray-lighter leading-none mt-0.5">
-                    {currentWeek === 0 ? 'Semana actual' : currentWeek > 0 ? `${currentWeek} semana${currentWeek > 1 ? 's' : ''} adelante` : `${Math.abs(currentWeek)} semana${Math.abs(currentWeek) > 1 ? 's' : ''} atrás`}
-                  </p>
-                </div>
-              </div>
+              <h4 className="text-base font-bold text-white-primary shrink-0 tracking-wide">Citas de la Semana</h4>
 
-              {/* Buscador fantasma — ocupa todo el espacio disponible, abre lista de resultados */}
-              <div ref={searchContainerRef} className="flex-1 min-w-0 relative flex items-center">
-                {/* Input — siempre ocupa el espacio completo, visibilidad por opacidad */}
-                <div className={`relative w-full transition-opacity duration-200 ease-out ${
+              {/* Buscador fantasma */}
+              <div ref={searchContainerRef} className="flex-1 min-w-0 relative flex items-center justify-end">
+                <div className={`relative w-full max-w-xs transition-opacity duration-200 ease-out ${
                   busquedaExpanded || carouselBusqueda ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}>
                   <input
@@ -3166,10 +3155,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     type="text"
                     placeholder="Buscar cita..."
                     value={carouselBusqueda}
-                    onChange={e => {
-                      setCarouselBusqueda(e.target.value);
-                      setShowSearchResults(true);
-                    }}
+                    onChange={e => { setCarouselBusqueda(e.target.value); setShowSearchResults(true); }}
                     onFocus={() => { if (carouselBusqueda) setShowSearchResults(true); }}
                     onBlur={() => {
                       searchBlurTimer.current = setTimeout(() => {
@@ -3177,39 +3163,24 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         if (!carouselBusqueda) setBusquedaExpanded(false);
                       }, 150);
                     }}
-                    className="elegante-input input-no-ring text-sm py-2 pl-4 w-full"
+                    className="elegante-input input-no-ring text-sm py-1.5 pl-3 w-full"
                   />
                   {carouselBusqueda && (
-                    <button
-                      type="button"
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => {
-                        setCarouselBusqueda('');
-                        setShowSearchResults(false);
-                        busquedaRef.current?.focus();
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost-icon-sm text-gray-lighter"
-                    >
+                    <button type="button" onMouseDown={e => e.preventDefault()}
+                      onClick={() => { setCarouselBusqueda(''); setShowSearchResults(false); busquedaRef.current?.focus(); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost-icon-sm text-gray-lighter">
                       <X className="w-4 h-4" />
                     </button>
                   )}
                 </div>
-                {/* Lupa — superpuesta en el mismo espacio, desaparece cuando el input está activo */}
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => { setBusquedaExpanded(true); requestAnimationFrame(() => busquedaRef.current?.focus()); }}
-                  className={`absolute right-0 btn-ghost-icon transition-opacity duration-200 ease-out ${
-                    busquedaExpanded || carouselBusqueda ? 'opacity-0 pointer-events-none' : 'opacity-100'
-                  }`}
-                >
-                  {/* Lupa con mango largo */}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-                    <circle cx="9" cy="9" r="6" />
-                    <line x1="13.5" y1="13.5" x2="22" y2="22" />
+                  className={`btn-ghost-icon transition-opacity duration-200 ${busquedaExpanded || carouselBusqueda ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <circle cx="9" cy="9" r="6" /><line x1="13.5" y1="13.5" x2="22" y2="22" />
                   </svg>
                 </button>
 
-                {/* Portal: dropdown fuera del árbol DOM del std-card para escapar overflow:clip */}
                 {carouselBusqueda.trim() && showSearchResults && searchContainerRef.current && createPortal(
                   (() => {
                     const rect = searchContainerRef.current!.getBoundingClientRect();
@@ -3313,24 +3284,24 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               </div>
 
               {/* Navegación de semana */}
-              <div className="flex items-center gap-1 shrink-0 bg-gray-darker rounded-xl px-1 py-1 border border-gray-dark">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
-                  className="p-1.5 rounded-lg hover:bg-gray-dark text-gray-lighter hover:text-white-primary transition-colors"
+                  className="btn-ghost-icon"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <div className="text-center px-3 min-w-[130px]">
-                  <p className="text-sm font-bold text-white-primary leading-tight">
+                <div className="text-center px-2 min-w-[120px]">
+                  <p className="text-sm font-semibold text-gray-lightest leading-tight">
                     {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
                   </p>
-                  <p className="text-[10px] text-gray-lighter leading-tight mt-0.5 tabular-nums">
-                    {getCurrentWeekDays()[0].fecha} – {getCurrentWeekDays()[6].fecha}
+                  <p className="text-[10px] text-gray-light leading-tight tabular-nums">
+                    {getCurrentWeekDays()[0].fecha} - {getCurrentWeekDays()[6].fecha}
                   </p>
                 </div>
                 <button
                   onClick={() => { setCurrentWeek(currentWeek + 1); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
-                  className="p-1.5 rounded-lg hover:bg-gray-dark text-gray-lighter hover:text-white-primary transition-colors"
+                  className="btn-ghost-icon"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -3338,21 +3309,17 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
               {/* Acciones */}
               <div className="flex items-center gap-2 shrink-0">
-                {/* Filtro de estado */}
                 <Select
                   value={carouselEstadoFiltro}
                   onValueChange={(v) => setCarouselEstadoFiltro(v as any)}
                 >
-                  <SelectTrigger className="h-8 px-3 text-xs font-semibold rounded-xl border border-gray-dark bg-gray-darker text-gray-lightest hover:border-orange-primary/50 hover:text-orange-primary transition-colors focus:ring-0 focus:ring-offset-0 min-w-[115px]">
+                  <SelectTrigger className="h-8 px-3 text-xs font-semibold rounded-xl border border-gray-dark bg-gray-darker text-gray-lightest hover:border-orange-primary/50 hover:text-orange-primary transition-colors focus:ring-0 focus:ring-offset-0 min-w-[105px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl">
                     {(['Todas', 'Pendiente', 'Completada', 'Cancelada'] as const).map(op => (
-                      <SelectItem
-                        key={op}
-                        value={op}
-                        className="text-gray-lightest text-xs cursor-pointer [&[data-highlighted]]:bg-orange-primary/20 [&[data-highlighted]]:text-white-primary [&[data-state=checked]]:text-white-primary"
-                      >
+                      <SelectItem key={op} value={op}
+                        className="text-gray-lightest text-xs cursor-pointer [&[data-highlighted]]:bg-orange-primary/20 [&[data-highlighted]]:text-white-primary [&[data-state=checked]]:text-white-primary">
                         {op}
                       </SelectItem>
                     ))}
@@ -3360,21 +3327,142 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 </Select>
                 <button
                   onClick={() => { setCurrentWeek(0); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
-                  className="h-8 px-3 rounded-xl border border-gray-dark bg-gray-darker text-gray-lightest text-xs font-semibold hover:border-orange-primary/50 hover:text-orange-primary transition-colors"
+                  className="elegante-button-secondary text-sm"
                 >
                   Hoy
                 </button>
-                <button
-                  onClick={handleOpenCreateModal}
-                  className="btn-std-primary !h-8 !text-xs !px-3"
-                >
-                  <Plus className="w-3.5 h-3.5" />
+                <button onClick={handleOpenCreateModal} className="btn-std-primary">
+                  <Plus className="w-4 h-4" />
                   Nueva Cita
                 </button>
               </div>
             </div>
-
           </div>
+
+          {/* Carrusel de citas de la semana */}
+          {(() => {
+            const mondayRef = getMondayOfWeek(currentWeek);
+            const weekDateSet = new Set(
+              Array.from({ length: 7 }, (_, i) => {
+                const d = new Date(mondayRef);
+                d.setDate(mondayRef.getDate() + i);
+                return toLocalDateString(d);
+              })
+            );
+            const semanaCitas = citas.filter((cita: any) => {
+              const f = normalizarFechaCita(cita.fecha);
+              return f.length === 10 && weekDateSet.has(f);
+            });
+            const citasSemana = semanaCitas.filter((cita: any) => {
+              if (carouselEstadoFiltro === 'Todas') return true;
+              const estadoNorm = String(cita.estado || '').toLowerCase();
+              if (carouselEstadoFiltro === 'Cancelada') return estadoNorm === 'cancelada' || estadoNorm === 'anulada';
+              return String(cita.estado || '') === carouselEstadoFiltro;
+            }).sort((a: any, b: any) => {
+              if (a.fecha < b.fecha) return -1;
+              if (a.fecha > b.fecha) return 1;
+              return (a.hora || '').localeCompare(b.hora || '');
+            });
+
+            const totalCarouselPages = Math.max(1, Math.ceil(citasSemana.length / CAROUSEL_PAGE_SIZE));
+            const safePage = Math.min(carouselPage, Math.max(0, totalCarouselPages - 1));
+            const canGoPrev = citasSemana.length > 0 && safePage > 0;
+            const canGoNext = citasSemana.length > 0 && safePage < totalCarouselPages - 1;
+            const pageCitas = citasSemana.slice(
+              safePage * CAROUSEL_PAGE_SIZE,
+              (safePage + 1) * CAROUSEL_PAGE_SIZE
+            );
+
+            return (
+              <div className="std-card mb-4" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+                <div className="flex items-center gap-4">
+
+                  {/* Flecha anterior */}
+                  <button
+                    onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
+                    disabled={!canGoPrev}
+                    className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${canGoPrev ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+
+                  {/* Tarjetas */}
+                  <div className="flex-1 flex gap-3 min-w-0">
+                    {isLoading ? (
+                      <div className="flex-1 flex items-center justify-center py-3">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-dark border-t-orange-primary" />
+                        <p className="text-xs text-gray-lighter ml-3 tracking-wider uppercase">Cargando agenda...</p>
+                      </div>
+                    ) : citasSemana.length === 0 ? (
+                      <p className="flex-1 text-center text-sm text-gray-dark py-2">
+                        Sin citas {carouselEstadoFiltro === 'Todas' ? '' : carouselEstadoFiltro.toLowerCase() + 's '}para esta semana
+                      </p>
+                    ) : (
+                      <>
+                        {pageCitas.map((cita: any) => {
+                          const servicio = formatNombre(cita.servicioNombre || cita.paqueteNombre || '—');
+                          const horaRango = formatRangoHorarioCita(cita);
+                          const subtitulo = [horaRango, formatNombre(cita.barberoNombre)].join(' — ');
+                          const estadoColor =
+                            cita.estado === 'Completada'
+                              ? 'border-l-[3px] border-l-[#7aab8a]'
+                              : cita.estado === 'Cancelada' || cita.estado === 'Anulada'
+                              ? 'border-l-[3px] border-l-[#b07070]'
+                              : 'border-l-[3px] border-l-orange-primary';
+                          return (
+                            <div
+                              key={cita.id}
+                              className={`flex-1 min-w-0 bg-gray-darker/40 rounded-lg cursor-pointer hover:bg-gray-dark border border-gray-dark/40 hover:border-gray-medium transition-all duration-200 ${estadoColor}`}
+                              style={{ padding: '12px 14px' }}
+                              onClick={(e) => {
+                                const [hStr, mStr] = (cita.hora || '09:00').split(':');
+                                const horaNum = parseInt(hStr) + (parseInt(mStr) / 60);
+                                const fechaObj = new Date(`${cita.fecha}T12:00:00`);
+                                const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
+                                openCitaPopover(
+                                  cita,
+                                  { dia: diaStr, hora: horaNum, fecha: cita.fecha },
+                                  e.currentTarget.getBoundingClientRect()
+                                );
+                              }}
+                            >
+                              <p className="text-sm text-gray-lightest truncate leading-tight">
+                                {formatNombre(cita.clienteNombre)}
+                              </p>
+                              <p className="text-xs text-gray-lighter/80 truncate mt-0.5 leading-tight">
+                                {servicio}
+                              </p>
+                              <p className="text-[11px] text-gray-light mt-1 leading-tight tracking-tight">
+                                {subtitulo}
+                              </p>
+                            </div>
+                          );
+                        })}
+                        {pageCitas.length < CAROUSEL_PAGE_SIZE && Array.from({ length: CAROUSEL_PAGE_SIZE - pageCitas.length }).map((_, i) => (
+                          <div key={`empty-${i}`} className="flex-1 min-w-0" />
+                        ))}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Flecha siguiente */}
+                  <button
+                    onClick={() => setCarouselPage(p => Math.min(totalCarouselPages - 1, p + 1))}
+                    disabled={!canGoNext}
+                    className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${canGoNext ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+
+                  {/* Total semana */}
+                  <div className="shrink-0 text-right select-none pl-3 border-l border-gray-darker">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-lighter leading-none">Total Semana</p>
+                    <p className="text-xs text-gray-lightest mt-1">{citasSemana.length} cita{citasSemana.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Grid de horarios + headers de días — un solo card unificado */}
           <div className="std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
