@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
-import { Package, ShoppingBag, Check, Sparkles, Calendar, Loader2, Search, X, Info } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Package, ShoppingBag, Check, Sparkles, Calendar, Loader2, Search, X, Info, ChevronDown } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
-import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { productoService, ApiProducto, ApiCategoria } from "../../productos/services/productos";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 
@@ -64,10 +63,11 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategoria, setSelectedCategoria] = useState("Todos");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(12);
   const [selectedProducto, setSelectedProducto] = useState<ApiProducto | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const ITEMS_PER_PAGE = 12;
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const ITEMS_PER_LOAD = 8;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -99,8 +99,27 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
     return matchSearch && matchCat;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredProductos.length / ITEMS_PER_PAGE));
-  const displayedProductos = filteredProductos.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(12); }, [searchTerm, selectedCategoria]);
+
+  const displayedProductos = filteredProductos.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredProductos.length;
+
+  const handleLoadMore = useCallback(() => {
+    setVisibleCount((prev) => prev + ITEMS_PER_LOAD);
+  }, []);
+
+  // Auto-scroll: cargar más al llegar al sentinel
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) handleLoadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, handleLoadMore]);
 
   return (
     <div className="space-y-6">
@@ -113,13 +132,13 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
             <Input
               placeholder="Buscar productos..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => { setSearchTerm(e.target.value); }}
               className="elegante-input pl-10 pr-8"
             />
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
+                onClick={() => { setSearchTerm(""); }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -131,7 +150,7 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
           {categoriasMenu.map((cat) => (
             <button
               key={cat}
-              onClick={() => { setSelectedCategoria(cat); setCurrentPage(1); }}
+              onClick={() => { setSelectedCategoria(cat); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 selectedCategoria === cat
                   ? "bg-orange-primary text-black-primary"
@@ -215,18 +234,24 @@ export function ClienteProductosPage({ onSelectProduct }: { onSelectProduct?: (p
             ))}
           </div>
 
-          {/* Paginación */}
-          {totalPages > 1 && (
-            <div className="std-pagination">
-              <div className="std-pag-info">
-                Página {currentPage} de {totalPages}
-              </div>
-              <EllipsisPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={(page) => setCurrentPage(page)}
-              />
+          {/* Ver más / scroll infinito */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="flex flex-col items-center gap-3 pt-4 pb-2">
+              <button
+                onClick={handleLoadMore}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-orange-primary/40 text-orange-primary text-sm font-semibold hover:bg-orange-primary/10 transition-colors"
+              >
+                <ChevronDown className="w-4 h-4" />
+                Ver más productos ({filteredProductos.length - visibleCount} restantes)
+              </button>
             </div>
+          )}
+
+          {/* Contador total */}
+          {!hasMore && filteredProductos.length > 0 && (
+            <p className="text-center text-xs text-gray-lightest/50 pb-2">
+              Mostrando {filteredProductos.length} de {filteredProductos.length} productos
+            </p>
           )}
         </>
       )}

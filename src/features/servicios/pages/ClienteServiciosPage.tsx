@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
-import { Search, Star, Clock, DollarSign, Scissors, Check, Calendar, Sparkles, Award, Loader2, Package, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Search, Star, Clock, DollarSign, Scissors, Check, Calendar, Sparkles, Award, Loader2, Package, X, ChevronDown } from "lucide-react";
 import { Input } from "../../../shared/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
-import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { apiService, Servicio, Paquete } from "../../../shared/services/api";
 import { formatDuracion } from "../../../shared/utils/dateUtils";
@@ -32,10 +31,11 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategoria, setSelectedCategoria] = useState("Todos");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(12);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const ITEMS_PER_LOAD = 8;
   const [selectedItem, setSelectedItem] = useState<(Servicio | Paquete) & { type?: 'servicio' | 'paquete' } | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const ITEMS_PER_PAGE = 12;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,8 +101,27 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
     return matchesSearch && matchesCategoria;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
-  const displayedItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  // Reset al cambiar filtros
+  useEffect(() => { setVisibleCount(12); }, [searchTerm, selectedCategoria]);
+
+  const displayedItems = filteredItems.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredItems.length;
+
+  const handleLoadMore = useCallback(() => {
+    setVisibleCount((prev) => prev + ITEMS_PER_LOAD);
+  }, []);
+
+  // Scroll infinito: carga automática al llegar al sentinel
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) handleLoadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, handleLoadMore]);
 
   const handleViewDetails = async (item: Servicio | Paquete | any) => {
     setSelectedItem(item);
@@ -155,13 +174,13 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
             <Input
               placeholder="Buscar servicios..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => { setSearchTerm(e.target.value); }}
               className="elegante-input pl-10 pr-8"
             />
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
+                onClick={() => { setSearchTerm(""); }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -177,7 +196,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
           ].map(({ label, value }) => (
             <button
               key={value}
-              onClick={() => { setSelectedCategoria(value); setCurrentPage(1); }}
+              onClick={() => { setSelectedCategoria(value); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 selectedCategoria === value
                   ? "bg-orange-primary text-black-primary"
@@ -295,18 +314,23 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
               ))}
             </div>
 
-            {/* Paginación */}
-            {totalPages > 1 && (
-              <div className="std-pagination">
-                <div className="std-pag-info">
-                  Página {currentPage} de {totalPages}
-                </div>
-                <EllipsisPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={(page) => setCurrentPage(page)}
-                />
+            {/* Ver más / scroll infinito */}
+            {hasMore && (
+              <div ref={loadMoreRef} className="flex flex-col items-center gap-3 pt-4 pb-2">
+                <button
+                  onClick={handleLoadMore}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl border border-orange-primary/40 text-orange-primary text-sm font-semibold hover:bg-orange-primary/10 transition-colors"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                  Ver más servicios ({filteredItems.length - visibleCount} restantes)
+                </button>
               </div>
+            )}
+
+            {!hasMore && filteredItems.length > 0 && (
+              <p className="text-center text-xs text-gray-lightest/50 pb-2">
+                Mostrando {filteredItems.length} de {filteredItems.length} servicios
+              </p>
             )}
             </>
           )}
