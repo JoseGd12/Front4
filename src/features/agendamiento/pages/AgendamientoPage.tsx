@@ -3522,11 +3522,16 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   {getCurrentWeekDays().map(({ dia, fecha, fechaCompleta }) => {
                     const isSelected = selectedDates.has(fechaCompleta);
                     const discount = dayDiscounts[fechaCompleta];
+                    const isPastDay = fechaCompleta < toLocalDateString(new Date());
                     return (
                       <div
                         key={dia}
                         className={`min-w-0 text-center cursor-pointer transition-all duration-200 rounded-lg py-3 border-2 flex flex-col items-center justify-center gap-1 relative ${
-                          isSelected ? 'border-orange-primary bg-orange-primary/10' : 'border-transparent hover:bg-gray-darker'
+                          isSelected
+                            ? 'border-orange-primary bg-orange-primary/10'
+                            : isPastDay
+                              ? 'border-transparent hover:bg-gray-darker cal-day-past'
+                              : 'border cal-day-future hover:bg-gray-darker/30'
                         }`}
                         onClick={() => handleDateSelect(fechaCompleta)}
                       >
@@ -3606,12 +3611,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               tieneCita
                                 ? `relative min-h-0 overflow-visible ${
                                     citasQueArrancanEnCelda.length === 0
-                                      ? isPastSlot ? 'cal-slot-past' : 'cal-slot-continuation'
+                                      ? isPastSlot ? 'cal-slot-past' : 'cal-slot-future'
                                       : isPastSlot ? 'cursor-default' : 'cursor-pointer group'
                                   }`
                                 : isPastSlot
                                   ? 'relative rounded border cal-slot-past cursor-not-allowed opacity-60'
-                                  : `relative rounded border cal-slot-available cursor-pointer group ${CAL_GRID_HOVER_CELL}`
+                                  : `relative rounded border cal-slot-future cursor-pointer group ${CAL_GRID_HOVER_CELL}`
                             }`}
                             onClick={(e) => {
                               if (isPastSlot) return;

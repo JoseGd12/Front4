@@ -37,6 +37,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const validatePassword = (password: string) => {
     return {
       minLength: password.length >= 6,
+      maxLength: password.length <= 8,
       hasNumber: /[0-9]/.test(password),
       hasUpperCase: /[A-Z]/.test(password),
       hasLowerCase: /[a-z]/.test(password)
@@ -44,6 +45,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   };
 
   const passwordValidations = validatePassword(formData.password);
+  const passwordOverMax = formData.password.length > 8;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
   const nameMissing = !formData.name.trim();
   const apellidoMissing = !formData.apellido.trim();
@@ -64,7 +66,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || confirmPasswordMissing || !passwordsMatch || !captchaValidated) {
+    if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || passwordOverMax || confirmPasswordMissing || !passwordsMatch || !captchaValidated) {
       setShowRegisterFormErrors(true);
       setRegisterValidationAttempt(prev => prev + 1);
       return;
@@ -117,8 +119,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             animation: 'login-slow-zoom 25s ease-in-out infinite alternate',
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/40 via-[#0d0d0d]/70 to-black" />
-        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/60 via-[#0d0d0d]/80 to-black" />
+        <div className="absolute inset-0 bg-black/50" />
 
         <div className="relative z-10 px-12 xl:px-20 max-w-xl text-center">
           <div className="mb-8">
@@ -300,8 +302,12 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={(e) => updateFormField('password', e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className={`login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength) ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                  placeholder="Entre 6 y 8 caracteres"
+                  className={`login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${
+                    (showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength || passwordOverMax)) || passwordOverMax
+                      ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
+                      : ''
+                  }`}
                 />
                 <Lock className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength) ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
                 <button
@@ -319,6 +325,12 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               {showRegisterFormErrors && !passwordMissing && !passwordValidations.minLength && (
                 <p className="text-xs text-red-400 mt-1">Debe tener al menos 6 caracteres</p>
               )}
+              {showRegisterFormErrors && passwordOverMax && (
+                <p className="text-xs text-red-400 mt-1">La contraseña no puede superar 8 caracteres.</p>
+              )}
+              {passwordOverMax && (
+                <p className="text-xs text-red-400 mt-1 font-semibold">Se excedió el número máximo de caracteres permitidos (8).</p>
+              )}
 
               {formData.password && (
                 <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10">
@@ -328,13 +340,17 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.minLength ? 'bg-green-400' : 'bg-gray-600'}`} />
                       Mínimo 6 caracteres
                     </div>
+                    <div className={`flex items-center gap-2 ${passwordValidations.maxLength ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.maxLength ? 'bg-green-400' : 'bg-red-500'}`} />
+                      Máximo 8 caracteres {!passwordValidations.maxLength && `(${formData.password.length}/8)`}
+                    </div>
                     <div className={`flex items-center gap-2 ${passwordValidations.hasNumber ? 'text-green-400' : 'text-gray-500'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasNumber ? 'bg-green-400' : 'bg-gray-600'}`} />
-                      Al menos un número 
+                      Al menos un número
                     </div>
                     <div className={`flex items-center gap-2 ${passwordValidations.hasUpperCase ? 'text-green-400' : 'text-gray-500'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasUpperCase ? 'bg-green-400' : 'bg-gray-600'}`} />
-                      Al menos una mayúscula 
+                      Al menos una mayúscula
                     </div>
                   </div>
                 </div>

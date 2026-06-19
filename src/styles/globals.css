@@ -786,6 +786,12 @@ html {
     border-color: rgba(58, 58, 58, 0.4);
   }
 
+  /* ─── Celda de slot vacío futuro (disponible) ─── */
+  .cal-slot-future {
+    background-color: #ffffff;
+    border-color: #e0deda;
+  }
+
   /* ─── Celda de continuación de cita (no arranca aquí) ─── */
   .cal-slot-continuation {
     background-color: var(--gray-darker);
@@ -1203,16 +1209,31 @@ html {
   color: #1a1a1a;
 }
 
-/* Header gris medio */
-:root.light-mode header {
+/* Header gris medio (dashboard; excluir hero de la landing) */
+:root.light-mode header:not(.hero-video-section) {
   background-color: #9a9590 !important;
   box-shadow: 0px 1px 4px rgba(0,0,0,0.18) !important;
   border-bottom-color: #8a8782 !important;
+  color: #1a1a1a !important;
+}
+
+/* Textos dentro del header del dashboard — negros */
+:root.light-mode header:not(.hero-video-section) h1,
+:root.light-mode header:not(.hero-video-section) h2,
+:root.light-mode header:not(.hero-video-section) p,
+:root.light-mode header:not(.hero-video-section) span:not(.bg-red-500):not(.bg-orange-primary) {
+  color: #1a1a1a !important;
+}
+:root.light-mode header:not(.hero-video-section) .text-white-primary {
+  color: #1a1a1a !important;
+}
+:root.light-mode header:not(.hero-video-section) .text-gray-lighter {
+  color: #2a2825 !important;
 }
 
 /* Sidebar gris claro */
 :root.light-mode aside,
-:root.light-mode nav {
+:root.light-mode nav:not(.landing-nav) {
   background-color: #d8d5cf !important;
   border-right-color: #c4c1bb !important;
 }
@@ -1301,10 +1322,25 @@ html {
 :root.light-mode h4 {
   color: #1a1a1a !important;
 }
+
+/* Excluir force-dark del override de títulos */
+:root.light-mode .force-dark h1,
+:root.light-mode .force-dark h2,
+:root.light-mode .force-dark h3,
+:root.light-mode .force-dark h4 {
+  color: inherit !important;
+}
 :root.light-mode p,
 :root.light-mode label,
 :root.light-mode span {
   color: #3a3835;
+}
+
+/* Excluir force-dark del override de color */
+:root.light-mode .force-dark p,
+:root.light-mode .force-dark label,
+:root.light-mode .force-dark span {
+  color: inherit !important;
 }
 
 /* Cards y contenedores */
@@ -1326,7 +1362,7 @@ html {
 :root.light-mode .std-thead th {
   background: #e4e1db;
   border-bottom-color: #c4c1bb;
-  color: #6b6865;
+  color: #5a5753 !important;
 }
 :root.light-mode .std-tbody tr {
   border-bottom-color: #c4c1bb;
@@ -1336,7 +1372,28 @@ html {
 }
 :root.light-mode .std-td,
 :root.light-mode .std-td-primary {
-  color: #2e2c2a;
+  color: #1a1a1a !important;
+}
+
+/* Tablas dashboard — números y celdas legibles (anula text-white / gray en modo claro) */
+:root.light-mode .std-table td,
+:root.light-mode .std-table-wrapper .std-td,
+:root.light-mode .std-table-wrapper .std-td-primary,
+:root.light-mode .module-content .std-table .text-gray-lightest,
+:root.light-mode .module-content .std-table .text-gray-lighter,
+:root.light-mode .module-content .std-table .text-white-primary,
+:root.light-mode .module-content .std-table .text-white,
+:root.light-mode .std-table-wrapper .text-gray-lightest,
+:root.light-mode .std-table-wrapper .text-gray-lighter,
+:root.light-mode .std-table-wrapper .text-white-primary {
+  color: #1a1a1a !important;
+}
+
+:root.light-mode .module-content .elegante-card h4.text-white-primary,
+:root.light-mode .module-content .std-card h4.text-white-primary,
+:root.light-mode .module-content .text-3xl.text-white-primary,
+:root.light-mode .module-content .text-2xl.text-white-primary {
+  color: #1a1a1a !important;
 }
 
 /* Paginación */
@@ -1354,13 +1411,53 @@ html {
 }
 :root.light-mode .pag-btn-custom:hover:not(:disabled) {
   background: #e4e1db;
-  border-color: #c9a96e;
-  color: #c9a96e;
+  border-color: #1a1a1a;
+  color: #1a1a1a;
 }
 :root.light-mode .pag-btn-custom.active {
-  background: #c9a96e;
-  border-color: #c9a96e;
+  background: #1a1a1a;
+  border-color: #1a1a1a;
   color: #ffffff;
+}
+
+/* Botones dashboard — modo claro: negro + blanco (café solo en oscuro) */
+:root.light-mode .elegante-button-primary:not(.bg-red-600):not(.bg-red-700) {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+:root.light-mode .elegante-button-primary:not(.bg-red-600):not(.bg-red-700):hover {
+  background-color: #333131 !important;
+  box-shadow: none !important;
+}
+:root.light-mode .elegante-button-secondary {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: #1a1a1a !important;
+}
+:root.light-mode .elegante-button-secondary:hover {
+  background-color: #333131 !important;
+  color: #ffffff !important;
+  border-color: #333131 !important;
+}
+:root.light-mode .btn-std-primary {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+}
+:root.light-mode .btn-std-primary:hover {
+  background: #333131 !important;
+}
+:root.light-mode .btn-std-primary svg {
+  color: #ffffff !important;
+}
+:root.light-mode .module-content button.bg-orange-primary:not(.bg-red-600),
+:root.light-mode .module-content .bg-orange-primary.text-black-primary {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+}
+:root.light-mode .module-content button.bg-orange-primary:not(.bg-red-600):hover {
+  background-color: #333131 !important;
+  color: #ffffff !important;
 }
 
 /* Badges */
@@ -1395,19 +1492,9 @@ html {
 }
 :root.light-mode .elegante-input:focus,
 :root.light-mode .elegante-input-dark:focus {
-  border-color: #c9a96e;
+  border-color: #1a1a1a;
 }
 
-/* Botones */
-:root.light-mode .btn-std-primary {
-  background: #1a1a1a;
-  color: #ffffff;
-}
-:root.light-mode .btn-std-primary:hover {
-  background: #333131;
-}
-
-/* Nav items */
 :root.light-mode .elegante-nav-item {
   color: #3a3835;
 }
@@ -1478,7 +1565,13 @@ html {
    - Celdas disponibles: blanco/gris muy claro
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* Celda disponible vacía */
+/* Celda disponible futura — blanco */
+:root.light-mode .cal-slot-future {
+  background-color: #ffffff !important;
+  border-color: #d8d5cf !important;
+}
+
+/* Celda disponible vacía (legacy) */
 :root.light-mode .cal-slot-available {
   background-color: #ccc9c3 !important;
   border-color: #b8b5af !important;
@@ -1513,6 +1606,19 @@ html {
   border-color: #c9a96e !important;
 }
 
+/* Encabezado de día futuro en calendario */
+.cal-day-future {
+  background-color: #ffffff;
+  border-color: #e0deda;
+}
+:root.light-mode .cal-day-future {
+  background-color: #ffffff !important;
+  border-color: #d8d5cf !important;
+}
+:root.light-mode .cal-day-past {
+  opacity: 0.85;
+}
+
 /* ═══════════════════════════════════════════
    DEVOLUCIONES — Light mode overrides
    Reemplaza los colores del objeto T (hardcodeados)
@@ -1540,11 +1646,17 @@ html {
 :root.light-mode .dev-search::placeholder {
   color: #8a8680 !important;
 }
+:root.light-mode .dev-search:focus {
+  border-color: #1a1a1a !important;
+}
 
 :root.light-mode .dev-select {
   background: #f0ede8 !important;
   border-color: #c4c1bb !important;
   color: #1a1a1a !important;
+}
+:root.light-mode .dev-select:focus {
+  border-color: #1a1a1a !important;
 }
 
 :root.light-mode .dev-count {
@@ -1604,13 +1716,6 @@ html {
   background: #f5f3ef !important;
 }
 
-:root.light-mode .dev-icon-btn {
-  color: #3a3835 !important;
-}
-:root.light-mode .dev-icon-btn:hover {
-  background: #e4e1db !important;
-}
-
 :root.light-mode .badge-anulada {
   background: #e8c8b8 !important;
   color: #7a2e1a !important;
@@ -1622,6 +1727,62 @@ html {
   color: #1a1a1a !important;
 }
 :root.light-mode .dev-saldo-text {
+  color: #1a1a1a !important;
+}
+
+/* Ver devoluciones + acciones — negro con iconos blancos */
+:root.light-mode .dev-expand-btn {
+  background: #1a1a1a !important;
+  border-color: #1a1a1a !important;
+  color: #ffffff !important;
+}
+:root.light-mode .dev-expand-btn:hover {
+  background: #333131 !important;
+  border-color: #333131 !important;
+  color: #ffffff !important;
+}
+:root.light-mode .dev-expand-btn svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+:root.light-mode .dev-icon-btn {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+  border: 1px solid #1a1a1a !important;
+}
+:root.light-mode .dev-icon-btn svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+:root.light-mode .dev-icon-btn:hover,
+:root.light-mode .dev-icon-btn.ban:hover,
+:root.light-mode .dev-icon-btn.eye:hover,
+:root.light-mode .dev-icon-btn.pdf:hover {
+  background: #333131 !important;
+  color: #ffffff !important;
+  border-color: #333131 !important;
+}
+:root.light-mode .dev-icon-btn:disabled {
+  background: #c4c1bb !important;
+  color: #8a8680 !important;
+  border-color: #c4c1bb !important;
+}
+
+:root.light-mode .dev-num {
+  color: #1a1a1a !important;
+}
+:root.light-mode .dev-num svg {
+  color: #1a1a1a !important;
+  stroke: #1a1a1a !important;
+}
+
+:root.light-mode .dev-exp-cell:has(.dev-accordion-wrap.open) {
+  border-bottom-color: #c4c1bb !important;
+  border-left-color: #1a1a1a !important;
+}
+
+:root.light-mode .dev-sub-label span {
   color: #1a1a1a !important;
 }
 
@@ -1759,22 +1920,35 @@ html {
   background: #b0ada7 !important;
 }
 :root.light-mode .cred-expand-btn {
-  background: rgba(201, 169, 110, 0.12) !important;
-  border-color: rgba(201, 169, 110, 0.35) !important;
-  color: #3a3835 !important;
+  background: #1a1a1a !important;
+  border-color: #1a1a1a !important;
+  color: #ffffff !important;
 }
 :root.light-mode .cred-expand-btn:hover {
-  background: rgba(201, 169, 110, 0.22) !important;
-  border-color: #c9a96e !important;
-  color: #7a5010 !important;
+  background: #333131 !important;
+  border-color: #333131 !important;
+  color: #ffffff !important;
+}
+:root.light-mode .cred-expand-btn svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 :root.light-mode .cred-icon-btn,
 :root.light-mode .cred-icon-action {
-  color: #3a3835 !important;
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+  border: 1px solid #1a1a1a !important;
+}
+:root.light-mode .cred-icon-btn svg,
+:root.light-mode .cred-icon-action svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 :root.light-mode .cred-icon-btn:hover,
 :root.light-mode .cred-icon-action:hover {
-  background: #dbd8d2 !important;
+  background: #333131 !important;
+  color: #ffffff !important;
+  border-color: #333131 !important;
 }
 :root.light-mode .cred-num {
   color: #1a1a1a !important;
@@ -1783,7 +1957,276 @@ html {
   color: #5a5753 !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════
+   LANDING — Light mode overrides
+   ═══════════════════════════════════════════ */
+
+/* Navbar landing — modo oscuro: transparente sobre hero; sólido al scroll */
+.landing-nav {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid transparent;
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+}
+
+.landing-nav.landing-nav--scrolled {
+  background-color: rgba(17, 17, 17, 0.92);
+  border-bottom: 1px solid rgba(58, 58, 58, 0.55);
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+}
+
+/* Modo oscuro: Ingresar/Registrar como enlaces dorados, no cajas blancas */
+:root:not(.light-mode) .landing-nav .landing-auth-btn.nav-link-hover {
+  display: inline-block;
+  padding: 0.25rem 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none !important;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  background: linear-gradient(90deg, #d8b081 0%, #f5e6d0 50%, #ffffff 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+:root:not(.light-mode) .landing-nav .landing-nav-link {
+  color: rgba(255, 255, 255, 0.78) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.78) !important;
+}
+
+:root:not(.light-mode) .landing-nav .landing-nav-link:hover {
+  color: #d8b081 !important;
+  -webkit-text-fill-color: #d8b081 !important;
+}
+
+:root.light-mode .landing-nav .landing-nav-link {
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+}
+
+:root.light-mode .landing-nav .landing-nav-link:hover {
+  color: #c9a96e !important;
+  -webkit-text-fill-color: #c9a96e !important;
+}
+
+:root.light-mode .landing-nav {
+  background-color: #9a9590 !important;
+  border-bottom: 1px solid #8a8782 !important;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18) !important;
+  backdrop-filter: none !important;
+}
+
+:root.light-mode .landing-nav.landing-nav--scrolled {
+  background-color: #9a9590 !important;
+}
+
+/* Letras del navbar landing en modo claro */
+:root.light-mode .landing-nav .nav-link-hover {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  color: #1a1a1a !important;
+}
+:root.light-mode .landing-nav .nav-link-hover:hover {
+  -webkit-text-fill-color: #c9a96e !important;
+  color: #c9a96e !important;
+}
+:root.light-mode .landing-nav .nav-link-hover span {
+  color: #c9a96e !important;
+  -webkit-text-fill-color: #c9a96e !important;
+}
+
+/* Botones Ingresar / Registrar en navbar landing */
+.landing-auth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.landing-auth-btn:hover {
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+:root.light-mode .force-dark .landing-nav .landing-auth-btn,
+:root.light-mode .landing-nav .landing-auth-btn {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  padding: 0.5rem 1.25rem !important;
+  border-radius: 0.75rem !important;
+}
+
+:root.light-mode .force-dark .landing-nav .landing-auth-btn:hover,
+:root.light-mode .landing-nav .landing-auth-btn:hover {
+  background-color: #f0ede8 !important;
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
+}
+
+/* Hero landing: texto blanco en modo claro (anula header global) */
+:root.light-mode .force-dark .hero-video-section,
+:root.light-mode .force-dark .hero-video-section p,
+:root.light-mode .force-dark .hero-video-section span,
+:root.light-mode .force-dark .hero-video-section button {
+  color: #ffffff !important;
+}
+
+:root.light-mode .force-dark .hero-video-section .hero-services-text,
+:root.light-mode .force-dark .hero-video-section .hero-tagline {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+:root.light-mode .force-dark .hero-video-section .hero-tagline {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+:root.light-mode .force-dark .hero-video-section .hero-cta-button,
+:root.light-mode .force-dark .hero-video-section .hero-cta-button span,
+:root.light-mode .force-dark .hero-video-section .hero-cta-button .text-gradient {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.85) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+}
+
+/* El resto de la landing (force-dark) mantiene letras blancas */
+:root.light-mode .force-dark .text-gradient {
+  background: linear-gradient(135deg, #fff 0%, #d8b081 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ═══════════════════════════════════════════
+   LOGIN / REGISTER — Light mode overrides
+   Panel derecho blanco; panel izquierdo oscuro
+   ═══════════════════════════════════════════ */
+
+/* Panel formulario: fondo blanco */
+:root.light-mode .login-right-panel {
+  background-color: #ffffff !important;
+}
+
+/* Tipografía del formulario */
+:root.light-mode .login-right-panel .text-white,
+:root.light-mode .login-right-panel h1,
+:root.light-mode .login-right-panel h2 {
+  color: #1a1a1a !important;
+}
+
+:root.light-mode .login-right-panel label,
+:root.light-mode .login-right-panel .text-gray-300 {
+  color: #3a3835 !important;
+}
+
+:root.light-mode .login-right-panel p,
+:root.light-mode .login-right-panel .text-gray-500,
+:root.light-mode .login-right-panel .text-gray-600 {
+  color: #5a5753 !important;
+}
+
+:root.light-mode .login-right-panel .text-orange-primary {
+  color: #c9a96e !important;
+}
+
+:root.light-mode .login-right-panel button.text-orange-primary:hover,
+:root.light-mode .login-right-panel a.text-orange-primary:hover {
+  color: #b8945a !important;
+}
+
+/* Inputs */
+:root.light-mode .login-input {
+  color: #1a1a1a !important;
+  background-color: #f0ede8 !important;
+  border-color: #c4c1bb !important;
+}
+
+:root.light-mode .login-input::placeholder {
+  color: #8a8680 !important;
+  opacity: 1 !important;
+}
+
+:root.light-mode .login-input:focus {
+  border-color: #c9a96e !important;
+  box-shadow: 0 0 0 2px rgba(201, 169, 110, 0.2) !important;
+}
+
+/* Botón Google y divisores */
+:root.light-mode .login-right-panel .login-btn-google {
+  background-color: #f0ede8 !important;
+  border-color: #c4c1bb !important;
+  color: #1a1a1a !important;
+}
+
+:root.light-mode .login-right-panel .login-btn-google:hover {
+  background-color: #e4e1db !important;
+  border-color: #b0ada7 !important;
+  color: #1a1a1a !important;
+}
+
+:root.light-mode .login-right-panel .border-white\/10 {
+  border-color: #c4c1bb !important;
+}
+
+/* Decoración de fondo más sutil sobre blanco */
+:root.light-mode .login-right-panel > .absolute.inset-0 {
+  opacity: 0.35 !important;
+}
+
+/* Captcha */
+:root.light-mode .login-right-panel .border-white\/5 {
+  border-color: #c4c1bb !important;
+}
+
+:root.light-mode .login-right-panel .bg-gray-darker\/40,
+:root.light-mode .login-right-panel .hover\:bg-gray-darker\/60:hover {
+  background-color: #f0ede8 !important;
+}
+
+:root.light-mode .login-right-panel .text-white-primary {
+  color: #1a1a1a !important;
+}
+
+/* Botón deshabilitado */
+:root.light-mode .login-right-panel .bg-gray-800 {
+  background-color: #e4e1db !important;
+}
+
+/* Panel izquierdo: mantener oscuro con imagen */
+:root.light-mode .login-left-panel {
+  background-color: #0a0a0a !important;
+}
+
+/* ═══════════════════════════════════════════
    FORCE-DARK — Clase para mantener el tema oscuro en componentes
    específicos (ej: LandingPage) cuando light-mode está activo.
    Se aplica al div raíz del componente con className="force-dark"
@@ -1815,4 +2258,84 @@ html {
 :root.light-mode .force-dark {
   background-color: #000000 !important;
   color: #ffffff !important;
+}
+
+/* Landing: forzar todas las clases de texto a blanco dentro de force-dark */
+:root.light-mode .force-dark,
+:root.light-mode .force-dark p,
+:root.light-mode .force-dark h1,
+:root.light-mode .force-dark h2,
+:root.light-mode .force-dark h3,
+:root.light-mode .force-dark h4,
+:root.light-mode .force-dark span,
+:root.light-mode .force-dark a,
+:root.light-mode .force-dark label,
+:root.light-mode .force-dark li {
+  color: inherit;
+}
+
+/* Los botones hero NO heredan — tienen su color forzado en landing.css */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DASHBOARD — Light mode: números y textos oscuros
+   Las cards usan text-white-primary y text-gray-lightest hardcodeados
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Valor numérico grande de las métricas */
+:root.light-mode .text-white-primary {
+  color: #1a1a1a !important;
+}
+:root.light-mode .text-gray-lightest {
+  color: #3a3835 !important;
+}
+:root.light-mode .text-gray-lighter {
+  color: #3a3835 !important;
+}
+
+/* Cards del dashboard */
+:root.light-mode .bg-gray-darkest {
+  background-color: #f0ede8 !important;
+}
+:root.light-mode .bg-gray-darker {
+  background-color: #e4e1db !important;
+}
+:root.light-mode .border-gray-dark {
+  border-color: #c4c1bb !important;
+}
+
+/* Gráficos Recharts — ejes y tooltips legibles en modo claro */
+:root.light-mode .recharts-cartesian-axis-tick-value {
+  fill: #3a3835 !important;
+}
+:root.light-mode .recharts-cartesian-axis-line,
+:root.light-mode .recharts-cartesian-axis-tick-line {
+  stroke: #8a8782 !important;
+}
+:root.light-mode .recharts-cartesian-grid-horizontal line,
+:root.light-mode .recharts-cartesian-grid-vertical line {
+  stroke: #d4d1cb !important;
+}
+:root.light-mode .recharts-default-tooltip {
+  background-color: #f0ede8 !important;
+  border-color: #c9a96e !important;
+}
+:root.light-mode .recharts-tooltip-label {
+  color: #1a1a1a !important;
+}
+:root.light-mode .recharts-tooltip-item {
+  color: #3a3835 !important;
+}
+:root.light-mode .recharts-legend-item-text {
+  color: #3a3835 !important;
+}
+
+/* Excepciones: el force-dark no debe verse afectado */
+:root.light-mode .force-dark .text-white-primary,
+:root.light-mode .force-dark .text-gray-lightest,
+:root.light-mode .force-dark .text-gray-lighter {
+  color: inherit !important;
+}
+:root.light-mode .force-dark .bg-gray-darkest,
+:root.light-mode .force-dark .bg-gray-darker {
+  background-color: inherit !important;
 }

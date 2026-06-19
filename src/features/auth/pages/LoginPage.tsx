@@ -371,8 +371,8 @@ export function LoginPage({ onRequestRegister, onBackToLanding, initialResetData
           }}
         />
         {/* Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/40 via-[#0d0d0d]/70 to-black" />
-        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a]/60 via-[#0d0d0d]/80 to-black" />
+        <div className="absolute inset-0 bg-black/50" />
 
         {/* Contenido del panel izquierdo */}
         <div className="relative z-10 px-12 xl:px-20 max-w-xl text-center">

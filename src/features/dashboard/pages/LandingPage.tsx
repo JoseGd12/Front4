@@ -626,7 +626,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     <div className="min-h-screen bg-black text-white font-body landing-page-container force-dark" style={{ overflowX: 'clip' }}>
 
       {/* Navbar */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 backdrop-blur-md ${scrolled ? 'bg-black/80 border-b border-white/5 py-4' : 'bg-black/20 py-6'}`}>
+      <nav
+        className={`landing-nav fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'landing-nav--scrolled py-4' : 'py-6'}`}
+      >
         <div className="content-max-width flex justify-between items-center">
           <div className="flex items-center gap-8 sm:gap-12 lg:gap-16">
             <button
@@ -645,7 +647,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className="nav-link-hover text-base font-semibold tracking-wide relative group py-1 transition-all duration-300"
+                className="landing-nav-link text-base font-semibold tracking-wide relative group py-1 transition-all duration-300 hidden lg:inline-block"
               >
                 {item.label}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -674,13 +676,24 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 </button>
               </>
             ) : (
-              <button
-                onClick={onRequestLogin}
-                className="nav-link-hover text-base font-semibold tracking-wide relative group py-1 transition-all duration-300"
-              >
-                Ingresar
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
-              </button>
+              <div className="flex items-center gap-6 lg:gap-8">
+                <button
+                  type="button"
+                  onClick={onRequestLogin}
+                  className="nav-link-hover landing-auth-btn text-base font-semibold tracking-wide relative group py-1 transition-all duration-300"
+                >
+                  Ingresar
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onRequestRegister}
+                  className="nav-link-hover landing-auth-btn text-base font-semibold tracking-wide relative group py-1 transition-all duration-300 hidden sm:inline-block"
+                >
+                  Registrar
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -730,7 +743,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   type="button"
                   onClick={() => scrollToSection('nosotros')}
                   className="hero-cta-button"
-                  style={{ background: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(216, 176, 129, 0.5)' }}
                 >
                   Conócenos
                   <ChevronRight className="w-6 h-6" />
@@ -740,7 +752,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   onClick={() => scrollToSection('servicios')}
                   className="hero-cta-button"
                 >
-                  <span className="text-gradient">Lo que ofrecemos</span>
+                  Lo que ofrecemos
                   <ChevronRight className="w-6 h-6" />
                 </button>
               </div>

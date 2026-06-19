@@ -3,6 +3,8 @@ import { Badge } from "../../../shared/components/ui/badge";
 import { Calendar, DollarSign, Users, Scissors, Package, Clock, Download, ChevronDown, ChevronUp, RotateCcw, FileDown, FileSpreadsheet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType, PieChart, Pie, AreaChart, Area } from "recharts";
 import { useThemeColors } from "../../../shared/utils/themeColors";
+import { useTheme } from "../../../shared/contexts/ThemeContext";
+import { getChartTheme, getChartTooltipProps } from "../../../shared/utils/chartTheme";
 import { Skeleton } from "../../../shared/components/ui/skeleton";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { Label } from "../../../shared/components/ui/label";
@@ -236,6 +238,9 @@ const periodoLabels: Record<PeriodoClave, string> = {
 
 export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data?: { producto?: string }) => void } = {}) {
   const colors = useThemeColors();
+  const { isLight } = useTheme();
+  const ct = useMemo(() => getChartTheme(isLight), [isLight]);
+  const chartTooltip = useMemo(() => getChartTooltipProps(isLight, colors.primary), [isLight, colors.primary]);
   const [periodoIngresos, setPeriodoIngresos] = useState<PeriodoClave>("mensual");
   const [showResumenPeriodos, setShowResumenPeriodos] = useState(true);
   const [ventas, setVentas] = useState<Venta[]>([]);
@@ -1299,7 +1304,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
     const punto = payload[0]?.payload;
     if (!punto) return null;
     return (
-      <div className="rounded-2xl border border-gray-dark bg-black/90 px-4 py-3 min-w-[220px] space-y-1">
+      <div className="rounded-2xl border border-gray-dark bg-gray-darkest px-4 py-3 min-w-[220px] space-y-1">
         <p className="text-sm text-white-primary font-semibold">{punto.label}</p>
         <p className="text-xs text-gray-lightest">Ingresos totales del periodo</p>
         <p className="text-xl text-orange-primary font-bold">${formatCurrencyValue(punto.ingresos)}</p>
@@ -1747,21 +1752,20 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                           </button>
 
                           {barberoSearchOpen && (
-                            <div className="absolute bottom-full mb-1 left-0 right-0 rounded-xl shadow-2xl z-[300] overflow-hidden" style={{ backgroundColor: "#1a1919", border: "1px solid rgba(216,176,129,0.3)" }}>
+                            <div className="absolute bottom-full mb-1 left-0 right-0 rounded-xl shadow-2xl z-[300] overflow-hidden bg-gray-darkest border border-orange-primary/30">
                               {/* Input de búsqueda */}
-                              <div className="p-2" style={{ borderBottom: "1px solid #3a3a3a" }}>
+                              <div className="p-2 border-b border-gray-dark">
                                 <input
                                   autoFocus
                                   type="text"
                                   placeholder="Buscar barbero..."
                                   value={barberoSearch}
                                   onChange={(e) => setBarberoSearch(e.target.value)}
-                                  className="w-full text-white-primary text-xs px-3 py-2 rounded-lg outline-none placeholder:text-gray-light transition-colors"
-                                  style={{ backgroundColor: "#2a2a2a", border: "1px solid #3a3a3a" }}
+                                  className="w-full text-white-primary text-xs px-3 py-2 rounded-lg outline-none placeholder:text-gray-light transition-colors bg-gray-darker border border-gray-dark"
                                 />
                               </div>
                               {/* Lista filtrada — máx. 5 items visibles con scroll */}
-                              <div className="overflow-y-auto py-1" style={{ maxHeight: "160px", backgroundColor: "#1a1919" }}>
+                              <div className="overflow-y-auto py-1 bg-gray-darkest" style={{ maxHeight: "160px" }}>
                                 {["Todos", ...listaBarberosUnicos]
                                   .filter(b => b === "Todos" || b.toLowerCase().includes(barberoSearch.toLowerCase()))
                                   .map(b => (
@@ -1900,28 +1904,22 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                 <ResponsiveContainer width="100%" height="100%">
                   {periodoHorasPico === "dia" ? (
                     <BarChart data={horasPico} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                      <XAxis dataKey="hora" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} interval={0} />
-                      <YAxis stroke="#888" allowDecimals={false} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                      <XAxis dataKey="hora" stroke={ct.axis} tick={{ fill: ct.tick, fontSize: 13 }} interval={0} />
+                      <YAxis stroke={ct.axis} allowDecimals={false} tick={{ fill: ct.tick, fontSize: 12 }} />
                       <Tooltip
-                        cursor={{ fill: "#ffffff10" }}
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        {...chartTooltip}
                         formatter={(value: any) => [`${value} citas`, "Citas"]}
                       />
                       <Bar dataKey="citas" radius={[8, 8, 0, 0]} fill={colors.gold} />
                     </BarChart>
                   ) : periodoHorasPico === "semana" ? (
                     <BarChart data={dataSemanaHorasPico} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                      <XAxis dataKey="label" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} />
-                      <YAxis stroke="#888" tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                      <XAxis dataKey="label" stroke={ct.axis} tick={{ fill: ct.tick, fontSize: 13 }} />
+                      <YAxis stroke={ct.axis} tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: ct.tick, fontSize: 12 }} />
                       <Tooltip
-                        cursor={{ fill: "#ffffff10" }}
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        {...chartTooltip}
                         formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
                       />
                       <Bar dataKey="ingresos" radius={[8, 8, 0, 0]} fill={colors.gold}>
@@ -1940,14 +1938,12 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                         if (idx !== undefined) setMesSeleccionadoDrilldown(idx);
                       }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                      <XAxis dataKey="label" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} />
-                      <YAxis stroke="#888" tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                      <XAxis dataKey="label" stroke={ct.axis} tick={{ fill: ct.tick, fontSize: 13 }} />
+                      <YAxis stroke={ct.axis} tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: ct.tick, fontSize: 12 }} />
                       <Tooltip
-                        cursor={{ fill: "#ffffff18" }}
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        {...chartTooltip}
+                        cursor={{ fill: ct.cursorStrong }}
                         formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
                       />
                       <Bar dataKey="ingresos" radius={[8, 8, 0, 0]} fill={colors.gold} cursor="pointer">
@@ -1959,14 +1955,11 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                     </BarChart>
                   ) : (
                     <BarChart data={dataDiasMes} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                      <XAxis dataKey="label" stroke="#888" tick={{ fill: "#ccc", fontSize: 11 }} label={{ value: "Día", position: "insideBottom", offset: -2, fill: "#888", fontSize: 12 }} />
-                      <YAxis stroke="#888" tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                      <XAxis dataKey="label" stroke={ct.axis} tick={{ fill: ct.tick, fontSize: 11 }} label={{ value: "Día", position: "insideBottom", offset: -2, fill: ct.axis, fontSize: 12 }} />
+                      <YAxis stroke={ct.axis} tickFormatter={v => `$${formatAxisValue(v as number)}`} tick={{ fill: ct.tick, fontSize: 12 }} />
                       <Tooltip
-                        cursor={{ fill: "#ffffff10" }}
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        {...chartTooltip}
                         formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
                         labelFormatter={(label: any) => `Día ${label}`}
                       />
@@ -2053,9 +2046,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                        itemStyle={{ color: "#d0d0d0" }}
-                        labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                        {...chartTooltip}
                         formatter={(value: any, name: any) => [`${value} citas`, name]}
                       />
                       <Legend formatter={(value) => <span className="text-sm text-gray-lightest">{value}</span>} />
@@ -2142,14 +2133,11 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={rankingBarberos} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" horizontal={false} />
-                    <XAxis type="number" stroke="#888" tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: "#ccc", fontSize: 12 }} />
-                    <YAxis type="category" dataKey="barbero" stroke="#888" width={120} tick={{ fill: "#ccc", fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} horizontal={false} />
+                    <XAxis type="number" stroke={ct.axis} tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: ct.tick, fontSize: 12 }} />
+                    <YAxis type="category" dataKey="barbero" stroke={ct.axis} width={120} tick={{ fill: ct.tick, fontSize: 12 }} />
                     <Tooltip
-                      cursor={{ fill: "#ffffff10" }}
-                      contentStyle={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12 }}
-                      itemStyle={{ color: "#d0d0d0" }}
-                      labelStyle={{ color: "#ffffff", fontWeight: 600 }}
+                      {...chartTooltip}
                       formatter={(value: any) => [`$${formatCurrencyValue(value as number)}`, "Ingresos"]}
                     />
                     <Bar dataKey="ingresos" name="Ingresos" fill={colors.gold} radius={[0, 8, 8, 0]} maxBarSize={28} />
@@ -2207,23 +2195,23 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={comprasHistoricas} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
-                      <XAxis dataKey="key" stroke="#888" tick={{ fill: "#ccc", fontSize: 13 }} />
-                      <YAxis stroke="#888" tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: "#ccc", fontSize: 12 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
+                      <XAxis dataKey="key" stroke={ct.axis} tick={{ fill: ct.tick, fontSize: 13 }} />
+                      <YAxis stroke={ct.axis} tickFormatter={(v) => formatAxisValue(v as number)} tick={{ fill: ct.tick, fontSize: 12 }} />
                       <Tooltip
-                        cursor={{ fill: "#ffffff10" }}
+                        {...chartTooltip}
                         content={({ active, payload }) => {
                           if (!active || !payload?.length) return null;
                           const d = payload[0].payload as { key: string; total: number; proveedorTop: string; proveedorTopTotal: number };
                           return (
-                            <div style={{ backgroundColor: "#1a1919", border: `1px solid ${colors.primary}`, borderRadius: 12, padding: "10px 14px", minWidth: 180 }}>
-                              <p style={{ color: "#ffffff", fontWeight: 600, marginBottom: 6 }}>{d.key}</p>
-                              <p style={{ color: "#d0d0d0", fontSize: 13, marginBottom: 4 }}>
-                                Gasto total: <span style={{ color: "#ffffff", fontWeight: 600 }}>${formatCurrencyValue(d.total)}</span>
+                            <div style={{ backgroundColor: ct.tooltipBg, border: `1px solid ${colors.primary}`, borderRadius: 12, padding: "10px 14px", minWidth: 180 }}>
+                              <p style={{ color: ct.tooltipLabel, fontWeight: 600, marginBottom: 6 }}>{d.key}</p>
+                              <p style={{ color: ct.tooltipItem, fontSize: 13, marginBottom: 4 }}>
+                                Gasto total: <span style={{ color: ct.tooltipLabel, fontWeight: 600 }}>${formatCurrencyValue(d.total)}</span>
                               </p>
-                              <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
-                                <p style={{ color: "#888", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Proveedor líder</p>
-                                <p style={{ color: "#ffffff", fontWeight: 600, fontSize: 13 }}>{d.proveedorTop}</p>
+                              <div style={{ borderTop: `1px solid ${ct.tooltipDivider}`, marginTop: 6, paddingTop: 6 }}>
+                                <p style={{ color: ct.axis, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Proveedor líder</p>
+                                <p style={{ color: ct.tooltipLabel, fontWeight: 600, fontSize: 13 }}>{d.proveedorTop}</p>
                                 {d.proveedorTopTotal > 0 && (
                                   <p style={{ color: colors.gold, fontSize: 12, fontWeight: 600 }}>${formatCurrencyValue(d.proveedorTopTotal)}</p>
                                 )}
@@ -2283,19 +2271,19 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                       <stop offset="100%" stopColor="#d8b081" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#292929" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
                   <XAxis
                     dataKey="label"
-                    stroke="#888"
-                    tick={{ fill: "#ccc", fontSize: 13 }}
-                    axisLine={{ stroke: "#333" }}
+                    stroke={ct.axis}
+                    tick={{ fill: ct.tick, fontSize: 13 }}
+                    axisLine={{ stroke: ct.grid }}
                     tickLine={false}
                   />
                   <YAxis
-                    stroke="#888"
+                    stroke={ct.axis}
                     tickFormatter={(value) => formatAxisValue(value as number)}
-                    tick={{ fill: "#ccc", fontSize: 12 }}
-                    axisLine={{ stroke: "#333" }}
+                    tick={{ fill: ct.tick, fontSize: 12 }}
+                    axisLine={{ stroke: ct.grid }}
                     tickLine={false}
                   />
                   <Tooltip content={renderIngresosTotalesTooltip} cursor={{ stroke: "#d8b08140", strokeWidth: 1 }} />
@@ -2310,7 +2298,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                     strokeWidth={2.5}
                     fill="url(#ingresosGradient)"
                     dot={false}
-                    activeDot={{ r: 5, strokeWidth: 2, stroke: "#d8b081", fill: "#1a1a1a" }}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: "#d8b081", fill: ct.activeDotFill }}
                     name="Ingresos totales"
                     isAnimationActive
                     animationDuration={600}

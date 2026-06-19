@@ -174,6 +174,18 @@
   background-position: 100% 50%;
 }
 
+/* Enlaces secundarios del navbar (Nosotros, Servicios, Productos) */
+.landing-nav-link {
+  color: rgba(255, 255, 255, 0.78);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.78);
+  background: none;
+}
+
+.landing-nav-link:hover {
+  color: #d8b081;
+  -webkit-text-fill-color: #d8b081;
+}
+
 /* Auth action containers with highlight effect */
 .auth-access-wrapper {
   padding: 0.4rem;
@@ -433,42 +445,45 @@
   font-size: clamp(0.7rem, 1.5vw, 0.95rem);
   letter-spacing: 0.35em;
   text-transform: none;
-  color: rgba(255, 255, 255, 0.55);
-  font-weight: 300;
+  color: #ffffff !important;
+  font-weight: 500;
   margin-bottom: 0.75rem;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5);
 }
 
-/* Tagline en itálica */
+/* Tagline en itálica — dorado como referencia */
 .hero-tagline {
   font-size: clamp(0.85rem, 1.8vw, 1.15rem);
   letter-spacing: 0.2em;
   text-transform: none;
-  color: #d8b081;
+  color: #d8b081 !important;
   font-weight: 700;
   font-style: italic;
   margin-bottom: 2.5rem;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
-/* Botón CTA premium */
+/* Botón CTA premium — borde y texto dorado (modo oscuro) */
 .hero-cta-button {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 2.8rem;
-  border: 2px solid #d8b081;
+  border: 2px solid #d8b081 !important;
   background: transparent;
-  color: #d8c876;
+  color: #d8c876 !important;
+  -webkit-text-fill-color: #d8c876 !important;
   font-family: 'Outfit', sans-serif;
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.15em;
-  
   border-radius: 0;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   transition: all 0.45s cubic-bezier(0.25, 0.8, 0.25, 1);
   z-index: 1;
+  text-shadow: none;
 }
 
 .hero-cta-button::before {
@@ -497,6 +512,22 @@
   background: none;
   -webkit-text-fill-color: #000;
   color: #000;
+}
+
+/* Modo claro: mantener texto blanco en CTAs del hero */
+:root.light-mode .force-dark .hero-video-section .hero-cta-button:hover,
+:root.light-mode .force-dark .hero-video-section .hero-cta-button:hover .text-gradient {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+}
+
+/* Forzar texto dorado dentro del botón CTA */
+.hero-cta-button .text-gradient {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: #d8c876 !important;
+  color: #d8c876 !important;
 }
 
 /* ── Responsive adjustments ── */
@@ -740,6 +771,10 @@ body {
 
 /* Make sure all buttons in the landing page have a pointer cursor */
 .landing-page-container button {
+  cursor: pointer !important;
+}
+
+.landing-nav .landing-auth-btn {
   cursor: pointer !important;
 }
 
