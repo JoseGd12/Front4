@@ -1224,7 +1224,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                           </span>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <span className={`std-badge ${horario.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          <span className={`std-badge ${horario.activo ? 'std-badge-green' : 'std-badge-negative'}`}>
                             {horario.activo ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
@@ -1283,7 +1283,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                 ) : (
                                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
-                                      <tr style={{ background: 'rgba(17,17,17,0.5)', borderBottom: '1px solid #2a2a2a' }}>
+                                      <tr style={{ background: 'var(--gray-darker)', borderBottom: '1px solid var(--gray-dark)' }}>
                                         <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: '52px' }}>Día</th>
                                         <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horario</th>
                                         <th style={{ padding: '9px 16px', fontSize: '10px', fontWeight: 400, color: 'var(--gray-lightest)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Citas</th>
@@ -1313,9 +1313,9 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                         }).length;
 
                                         return (
-                                          <tr key={dia} style={{ borderBottom: '1px solid rgba(42,42,42,0.8)', background: '#111111', transition: 'background 0.12s' }}
-                                            onMouseEnter={e => (e.currentTarget.style.background = '#1a1919')}
-                                            onMouseLeave={e => (e.currentTarget.style.background = '#111111')}
+                                          <tr key={dia} style={{ borderBottom: '1px solid var(--gray-dark)', background: 'var(--gray-darkest)', transition: 'background 0.12s' }}
+                                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-darker)')}
+                                            onMouseLeave={e => (e.currentTarget.style.background = 'var(--gray-darkest)')}
                                           >
                                             <td style={{ padding: '12px 16px', paddingLeft: '52px', fontSize: '13px', color: 'var(--gray-lightest)', textAlign: 'left', verticalAlign: 'middle' }}>
                                               <span style={{ fontWeight: 400 }}>{dia}</span>
@@ -1329,19 +1329,23 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                                             <td style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'center', verticalAlign: 'middle' }}>
                                               <span style={{
                                                 display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 400,
-                                                background: citasDelDia > 0 ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.05)',
+                                                background: citasDelDia > 0 ? 'rgba(59,130,246,0.12)' : 'rgba(128,128,128,0.12)',
                                                 color: citasDelDia > 0 ? '#60a5fa' : 'var(--gray-lightest)',
-                                                border: `1px solid ${citasDelDia > 0 ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)'}`
+                                                border: `1px solid ${citasDelDia > 0 ? 'rgba(59,130,246,0.25)' : 'var(--gray-dark)'}`
                                               }}>
                                                 {citasDelDia} cita{citasDelDia !== 1 ? 's' : ''}
                                               </span>
                                             </td>
                                             <td style={{ padding: '12px 16px', fontSize: '13px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                              <span style={{
-                                                display: 'inline-block', padding: '3px 12px', borderRadius: '999px', fontSize: '11px', fontWeight: 400,
-                                                background: activos > 0 ? 'var(--status-green)' : 'var(--status-red)',
-                                                color: '#1a1008'
-                                              }}>
+                                              <span
+                                                className={activos > 0 ? 'horario-estado-activo' : 'horario-estado-inactivo'}
+                                                style={{
+                                                  display: 'inline-block',
+                                                  padding: '3px 12px',
+                                                  borderRadius: '999px',
+                                                  fontSize: '11px',
+                                                  fontWeight: 600,
+                                                }}>
                                                 {activos > 0 ? 'Activo' : 'Inactivo'}
                                               </span>
                                             </td>

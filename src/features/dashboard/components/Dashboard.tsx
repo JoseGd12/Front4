@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
+import { useTheme } from "../../../shared/contexts/ThemeContext";
 import { authSyncService } from "../../auth/services/authSyncService";
 import { rolesApiService } from "../../administracion/services/rolesApiService";
 import { modulosService } from "../../administracion/services/modulosService";
@@ -27,6 +28,8 @@ import {
   AtSign,
   ArrowRight,
   CreditCard,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
 import {
@@ -255,6 +258,7 @@ interface DashboardProps {
 
 export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: DashboardProps) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme, isLight } = useTheme();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
@@ -485,12 +489,14 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         className={`flex items-center gap-3 w-full text-left px-6 py-2 transition-colors cursor-pointer ${
           isActive
             ? "bg-orange-primary/10 text-orange-primary border-r-2 border-orange-primary"
-            : "text-gray-lighter hover:bg-white/5"
+            : isLight
+              ? "sidebar-nav-inactive-light"
+              : "text-gray-lighter hover:bg-white/5"
           } ${sidebarCollapsed ? "justify-center px-0" : ""}`}
         title={item.label}
       >
-        <Icon className={`w-4 h-4 ${isActive ? "text-orange-primary" : "text-gray-lighter"}`} />
-        {!sidebarCollapsed && <span>{item.label}</span>}
+        <Icon className={`w-4 h-4 ${isActive ? "text-orange-primary" : isLight ? "sidebar-icon-light" : "text-gray-lighter"}`} />
+        {!sidebarCollapsed && <span className={isLight && !isActive ? "sidebar-text-light" : ""}>{item.label}</span>}
       </button>
     );
 
@@ -624,8 +630,8 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         <header
           className="border-b border-gray-dark py-4 flex items-center transition-colors z-[100] relative"
           style={{
-            backgroundColor: "#111111",
-            boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
+            backgroundColor: isLight ? "#9a9590" : "#111111",
+            boxShadow: isLight ? "0px 1px 6px rgba(0,0,0,0.18)" : "0px 0px 25px rgba(0,0,0,0.8)"
           }}
         >
           <div className="flex items-center w-full">
@@ -675,6 +681,31 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
+                {/* Botón toggle de tema claro/oscuro */}
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      className="p-2 rounded-md border transition-colors cursor-pointer"
+                      style={{
+                        backgroundColor: isLight ? "#f0e4cc" : "var(--gray-darker)",
+                        borderColor: isLight ? "#c9a96e" : "var(--gray-dark)",
+                        color: isLight ? "#c9a96e" : "var(--gray-lightest)",
+                      }}
+                      title={isLight ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
+                    >
+                      {isLight
+                        ? <Moon className="w-4 h-4" />
+                        : <Sun className="w-4 h-4" />
+                      }
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="bg-gray-darkest border-gray-dark text-white-primary">
+                    <p>{isLight ? "Modo oscuro" : "Modo claro"}</p>
+                  </TooltipContent>
+                </Tooltip>
+
                 <CitaNotificationBell
                   isOnAgendamientos={activePage === "Agendamientos"}
                   onNavigateToAgendamientos={() => setActivePage("Agendamientos")}
@@ -766,8 +797,8 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           <aside
             className={`border-r border-gray-dark flex flex-col transition-[width] duration-200 ease-out will-change-[width] shrink-0 z-[90] relative ${sidebarCollapsed ? "w-20" : "w-72"}`}
             style={{
-              backgroundColor: "#111111",
-              boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
+              backgroundColor: isLight ? "#d8d5cf" : "#111111",
+              boxShadow: isLight ? "1px 0px 8px rgba(0,0,0,0.08)" : "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
             <div className={`px-6 py-5 ${sidebarCollapsed ? "flex justify-center" : "flex items-center gap-3"}`}>

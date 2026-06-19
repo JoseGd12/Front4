@@ -3604,10 +3604,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             key={`${dia}-${hora}-${relevantKeys}`}
                             className={`min-w-0 h-full transition-all duration-200 ${
                               tieneCita
-                                ? `relative min-h-0 overflow-visible ${isPastSlot ? 'cursor-default' : 'cursor-pointer group'}`
+                                ? `relative min-h-0 overflow-visible ${
+                                    citasQueArrancanEnCelda.length === 0
+                                      ? isPastSlot ? 'cal-slot-past' : 'cal-slot-continuation'
+                                      : isPastSlot ? 'cursor-default' : 'cursor-pointer group'
+                                  }`
                                 : isPastSlot
-                                  ? 'relative rounded border bg-gray-darkest border-gray-dark/40 cursor-not-allowed opacity-60'
-                                  : `relative rounded border border-gray-dark bg-gray-darker cursor-pointer group ${CAL_GRID_HOVER_CELL}`
+                                  ? 'relative rounded border cal-slot-past cursor-not-allowed opacity-60'
+                                  : `relative rounded border cal-slot-available cursor-pointer group ${CAL_GRID_HOVER_CELL}`
                             }`}
                             onClick={(e) => {
                               if (isPastSlot) return;
@@ -3640,8 +3644,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                 <div
                                   className={`absolute inset-0 flex flex-col justify-start gap-1 rounded-md overflow-hidden px-1.5 pt-2 pb-1 group transition-[background-color,border-color] duration-200 ease-out ${
                                     isPastSlot
-                                      ? 'cursor-default border border-gray-dark/45 bg-gray-darkest/90 opacity-[0.92]'
-                                      : `border bg-gray-darker border-gray-dark${isBlockHovered ? ' cal-block-hovered' : ''}`
+                                      ? citasQueArrancanEnCelda.length === 0
+                                        ? 'cursor-default border-0 bg-transparent'
+                                        : 'cursor-default border cal-cita-past opacity-[0.92]'
+                                      : citasQueArrancanEnCelda.length === 0
+                                        ? `border-0 bg-transparent${isBlockHovered ? ' cal-block-hovered' : ''}`
+                                        : `border bg-gray-darker border-gray-dark${isBlockHovered ? ' cal-block-hovered' : ''}`
                                   }`}
                                   onMouseOver={!isPastSlot ? (e) => {
                                     // Only highlight when mouse is directly on the block background,

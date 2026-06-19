@@ -623,7 +623,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   }, [servicesView]);
 
   return (
-    <div className="min-h-screen bg-black text-white font-body landing-page-container" style={{ overflowX: 'clip' }}>
+    <div className="min-h-screen bg-black text-white font-body landing-page-container force-dark" style={{ overflowX: 'clip' }}>
 
       {/* Navbar */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 backdrop-blur-md ${scrolled ? 'bg-black/80 border-b border-white/5 py-4' : 'bg-black/20 py-6'}`}>

@@ -1,5 +1,6 @@
   import { useState, useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
+import { ThemeProvider } from "./shared/contexts/ThemeContext";
 import { AlertProvider, GlobalAlertContainer } from "./shared/components/ui/custom-alert";
 import { Dashboard } from "./features/dashboard/components/Dashboard";
 import { ClienteDashboard } from "./features/clientes/pages/ClienteDashboard";
@@ -84,7 +85,7 @@ function AppContent() {
   // (evita el flash de redirect a login cuando el usuario recarga estando autenticado)
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--black-primary)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--background)' }}>
         <div style={{ width: 40, height: 40, border: '3px solid var(--orange-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -180,13 +181,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AlertProvider>
-        <>
-          <AppContent />
-          <GlobalAlertContainer />
-        </>
-      </AlertProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AlertProvider>
+          <>
+            <AppContent />
+            <GlobalAlertContainer />
+          </>
+        </AlertProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

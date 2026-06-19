@@ -1600,7 +1600,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                           {/* Documento */}
                           <td className="dev-group-cell">
                             <div className="flex items-center gap-2">
-                              <span style={{ fontWeight: 400, color: T.grayLightest }}>
+                              <span className="dev-doc-text" style={{ fontWeight: 400 }}>
                                 {grupo.tipoDocumento} {grupo.documento}
                               </span>
                             </div>
@@ -1647,10 +1647,10 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
                           {/* Saldo a favor total */}
                           <td className="dev-td">
                             <span
+                              className="dev-saldo-text"
                               style={{
                                 fontWeight: 700,
                                 fontSize: "14px",
-                                color: grupo.saldoTotal > 0 ? (isAdminOrSuperAdmin ? T.red : T.green) : T.grayDark,
                               }}
                             >
                               ${formatCurrency(grupo.saldoTotal)}
