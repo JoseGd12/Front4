@@ -514,13 +514,6 @@
   color: #000;
 }
 
-/* Modo claro: mantener texto blanco en CTAs del hero */
-:root.light-mode .force-dark .hero-video-section .hero-cta-button:hover,
-:root.light-mode .force-dark .hero-video-section .hero-cta-button:hover .text-gradient {
-  color: #000 !important;
-  -webkit-text-fill-color: #000 !important;
-}
-
 /* Forzar texto dorado dentro del botón CTA */
 .hero-cta-button .text-gradient {
   background: none !important;

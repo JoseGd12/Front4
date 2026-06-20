@@ -3,7 +3,6 @@ import { Badge } from "../../../shared/components/ui/badge";
 import { Calendar, DollarSign, Users, Scissors, Package, Clock, Download, ChevronDown, ChevronUp, RotateCcw, FileDown, FileSpreadsheet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType, PieChart, Pie, AreaChart, Area } from "recharts";
 import { useThemeColors } from "../../../shared/utils/themeColors";
-import { useTheme } from "../../../shared/contexts/ThemeContext";
 import { getChartTheme, getChartTooltipProps } from "../../../shared/utils/chartTheme";
 import { Skeleton } from "../../../shared/components/ui/skeleton";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
@@ -238,9 +237,8 @@ const periodoLabels: Record<PeriodoClave, string> = {
 
 export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data?: { producto?: string }) => void } = {}) {
   const colors = useThemeColors();
-  const { isLight } = useTheme();
-  const ct = useMemo(() => getChartTheme(isLight), [isLight]);
-  const chartTooltip = useMemo(() => getChartTooltipProps(isLight, colors.primary), [isLight, colors.primary]);
+  const ct = useMemo(() => getChartTheme(false), []);
+  const chartTooltip = useMemo(() => getChartTooltipProps(false, colors.primary), [colors.primary]);
   const [periodoIngresos, setPeriodoIngresos] = useState<PeriodoClave>("mensual");
   const [showResumenPeriodos, setShowResumenPeriodos] = useState(true);
   const [ventas, setVentas] = useState<Venta[]>([]);

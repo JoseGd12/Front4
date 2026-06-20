@@ -1,6 +1,5 @@
   import { useState, useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
-import { ThemeProvider } from "./shared/contexts/ThemeContext";
 import { AlertProvider, GlobalAlertContainer } from "./shared/components/ui/custom-alert";
 import { Dashboard } from "./features/dashboard/components/Dashboard";
 import { ClienteDashboard } from "./features/clientes/pages/ClienteDashboard";
@@ -181,15 +180,13 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AlertProvider>
-          <>
-            <AppContent />
-            <GlobalAlertContainer />
-          </>
-        </AlertProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <AlertProvider>
+        <>
+          <AppContent />
+          <GlobalAlertContainer />
+        </>
+      </AlertProvider>
+    </AuthProvider>
   );
 }

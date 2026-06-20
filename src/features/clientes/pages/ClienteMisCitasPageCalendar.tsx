@@ -166,8 +166,6 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
 
     if (!cliente?.fechaNacimiento) faltantes.push('fechaNacimiento');
     if (!cliente?.telefono) faltantes.push('telefono');
-    if (!cliente?.direccion) faltantes.push('direccion');
-    if (!cliente?.barrio) faltantes.push('barrio');
     return faltantes;
   };
 

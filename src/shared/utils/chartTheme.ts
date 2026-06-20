@@ -12,40 +12,26 @@ export type ChartTheme = {
   activeDotFill: string;
 };
 
-export function getChartTheme(isLight: boolean): ChartTheme {
-  if (isLight) {
-    return {
-      grid: "#d4d1cb",
-      axis: "#8a8782",
-      tick: "#3a3835",
-      tooltipBg: "#f0ede8",
-      tooltipItem: "#3a3835",
-      tooltipLabel: "#1a1a1a",
-      tooltipBorder: "#c9a96e",
-      tooltipDivider: "#c4c1bb",
-      cursor: "rgba(26, 26, 26, 0.06)",
-      cursorStrong: "rgba(26, 26, 26, 0.10)",
-      activeDotFill: "#f0ede8",
-    };
-  }
+const DARK_CHART_THEME: ChartTheme = {
+  grid: "#2a2a2a",
+  axis: "#888",
+  tick: "#ccc",
+  tooltipBg: "#1a1919",
+  tooltipItem: "#d0d0d0",
+  tooltipLabel: "#ffffff",
+  tooltipBorder: "#d8b081",
+  tooltipDivider: "#333",
+  cursor: "#ffffff10",
+  cursorStrong: "#ffffff18",
+  activeDotFill: "#1a1a1a",
+};
 
-  return {
-    grid: "#2a2a2a",
-    axis: "#888",
-    tick: "#ccc",
-    tooltipBg: "#1a1919",
-    tooltipItem: "#d0d0d0",
-    tooltipLabel: "#ffffff",
-    tooltipBorder: "#d8b081",
-    tooltipDivider: "#333",
-    cursor: "#ffffff10",
-    cursorStrong: "#ffffff18",
-    activeDotFill: "#1a1a1a",
-  };
+export function getChartTheme(_isLight?: boolean): ChartTheme {
+  return DARK_CHART_THEME;
 }
 
-export function getChartTooltipProps(isLight: boolean, primaryColor: string) {
-  const ct = getChartTheme(isLight);
+export function getChartTooltipProps(_isLight: boolean, primaryColor: string) {
+  const ct = DARK_CHART_THEME;
   return {
     cursor: { fill: ct.cursor },
     contentStyle: {

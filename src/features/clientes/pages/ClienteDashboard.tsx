@@ -14,8 +14,6 @@ import {
   Search,
   X,
   ArrowRight,
-  Moon,
-  Sun
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
 import {
@@ -37,8 +35,6 @@ import { ClienteProductosPage } from "./ClienteProductosPage";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
 import { Input } from "../../../shared/components/ui/input";
-import { useTheme } from "../../../shared/contexts/ThemeContext";
-
 // Navegación para clientes - Sin agrupaciones
 const navItems = [
   { icon: Calendar, label: "Mis Citas" },
@@ -51,7 +47,6 @@ const navItems = [
 
 export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLanding?: () => void; initialItem?: any }) {
   const { user, logout } = useAuth();
-  const { toggleTheme, isLight } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedProduct, setPreSelectedProduct] = useState<any>(null);
@@ -116,14 +111,12 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
         className={`flex items-center gap-3 w-full text-left px-6 py-2 transition-colors cursor-pointer ${
           isActive
             ? "bg-orange-primary/10 text-orange-primary border-r-2 border-orange-primary"
-            : isLight
-              ? "sidebar-nav-inactive-light"
-              : "text-gray-lighter hover:bg-white/5"
+            : "text-gray-lighter hover:bg-white/5"
         } ${sidebarCollapsed ? "justify-center px-0" : ""}`}
         title={item.label}
       >
-        <Icon className={`w-5 h-5 ${isActive ? "text-orange-primary" : isLight ? "sidebar-icon-light" : "text-gray-lighter"}`} />
-        {!sidebarCollapsed && <span className={isLight && !isActive ? "sidebar-text-light" : ""}>{item.label}</span>}
+        <Icon className={`w-5 h-5 ${isActive ? "text-orange-primary" : "text-gray-lighter"}`} />
+        {!sidebarCollapsed && <span>{item.label}</span>}
       </button>
     );
 
@@ -176,8 +169,8 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
         <header
           className="border-b border-gray-dark py-4 flex items-center transition-colors z-[100] relative"
           style={{
-            backgroundColor: isLight ? "#9a9590" : "#111111",
-            boxShadow: isLight ? "0px 1px 6px rgba(0,0,0,0.18)" : "0px 0px 25px rgba(0,0,0,0.8)"
+            backgroundColor: "#111111",
+            boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
           }}
         >
           <div className="flex items-center w-full">
@@ -226,27 +219,6 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={toggleTheme}
-                      className="p-2 rounded-md border transition-colors cursor-pointer"
-                      style={{
-                        backgroundColor: isLight ? "#f0e4cc" : "var(--gray-darker)",
-                        borderColor: isLight ? "#c9a96e" : "var(--gray-dark)",
-                        color: isLight ? "#c9a96e" : "var(--gray-lightest)",
-                      }}
-                      title={isLight ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
-                    >
-                      {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="bg-gray-darkest border-gray-dark text-white-primary">
-                    <p>{isLight ? "Modo oscuro" : "Modo claro"}</p>
-                  </TooltipContent>
-                </Tooltip>
-
                 {onBackToLanding && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -333,8 +305,8 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
           <aside
             className={`border-r border-gray-dark flex flex-col transition-[width] duration-200 ease-out will-change-[width] shrink-0 z-[90] relative ${sidebarCollapsed ? "w-20" : "w-72"}`}
             style={{
-              backgroundColor: isLight ? "#d8d5cf" : "#111111",
-              boxShadow: isLight ? "1px 0px 8px rgba(0,0,0,0.08)" : "0px 0px 25px rgba(0,0,0,0.8)"
+              backgroundColor: "#111111",
+              boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
             {/* Navigation */}
