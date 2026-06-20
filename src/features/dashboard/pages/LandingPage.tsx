@@ -637,7 +637,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               className="flex items-center gap-4 transition-all duration-300 group"
             >
               <img src={LOGO_URL} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-lg" />
-              <div className="text-3xl font-bold tracking-tight nav-link-hover">Manito<span>Barbershop</span></div>
+              <div className="text-3xl font-title font-bold tracking-tight landing-wordmark-text">Manito<span>Barbershop</span></div>
             </button>
             {[
               { id: 'nosotros', label: 'Nosotros' },
@@ -647,7 +647,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className="landing-nav-link text-base font-semibold tracking-wide relative group py-1 transition-all duration-300 hidden lg:inline-block"
+                className="landing-nav-link font-title text-lg py-1 relative group transition-all duration-300"
               >
                 {item.label}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
@@ -1102,7 +1102,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         <div className="content-max-width text-center reveal-item relative z-10 px-4">
           <div className="supertitle-wrapper">
             <span className="supertitle-line opacity-70" />
-            <h2 className="section-supertitle font-bold font-title tracking-tight leading-none text-gradient drop-shadow-[0_4px_30px_rgba(0,0,0,1)]">
+            <h2 className="section-supertitle font-title font-bold tracking-tight leading-none landing-wordmark-text drop-shadow-[0_4px_30px_rgba(0,0,0,1)]">
               Lo Que Ofrecemos
             </h2>
             <span className="supertitle-line opacity-70" />

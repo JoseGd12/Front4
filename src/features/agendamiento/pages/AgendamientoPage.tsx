@@ -3117,7 +3117,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       {/* VISTA DE CALENDARIO */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {viewMode === 'calendar' && (
-        <div className="px-2 pt-2 pb-6">
+        <div className="px-2 pt-2 pb-6 agendamiento-dark-theme">
 
           {/* Stats Cards */}
           <div style={{ display: 'none' }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -3139,7 +3139,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           </div>
 
           {/* Navegación de Semana */}
-          <div className="std-card mb-4" style={{ padding: 0 }}>
+          <div className="std-card agendamiento-std-card mb-4" style={{ padding: 0 }}>
             <div className="flex items-center justify-between gap-4 px-6" style={{ minHeight: '56px' }}>
 
               {/* Título */}
@@ -3221,8 +3221,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                             : '';
                           const estado = String(cita.estado || '');
                           const estadoColor =
-                            estado === 'Completada' ? 'text-[#7aab8a]'
-                            : estado === 'Cancelada' || estado === 'Anulada' ? 'text-[#b07070]'
+                            estado === 'Completada' ? 'text-[var(--status-green)]'
+                            : estado === 'Cancelada' || estado === 'Anulada' ? 'text-[var(--status-red)]'
                             : 'text-orange-primary';
 
                           return (
@@ -3374,7 +3374,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             );
 
             return (
-              <div className="std-card mb-4" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+              <div className="std-card agendamiento-std-card mb-4" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
                 <div className="flex items-center gap-4">
 
                   {/* Flecha anterior */}
@@ -3405,14 +3405,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           const subtitulo = [horaRango, formatNombre(cita.barberoNombre)].join(' — ');
                           const estadoColor =
                             cita.estado === 'Completada'
-                              ? 'border-l-[3px] border-l-[#7aab8a]'
+                              ? 'border-l-[3px] border-l-[var(--status-green)]'
                               : cita.estado === 'Cancelada' || cita.estado === 'Anulada'
-                              ? 'border-l-[3px] border-l-[#b07070]'
+                              ? 'border-l-[3px] border-l-[var(--status-red)]'
                               : 'border-l-[3px] border-l-orange-primary';
                           return (
                             <div
                               key={cita.id}
-                              className={`flex-1 min-w-0 bg-gray-darker/40 rounded-lg cursor-pointer hover:bg-gray-dark border border-gray-dark/40 hover:border-gray-medium transition-all duration-200 ${estadoColor}`}
+                              className={`flex-1 min-w-0 agendamiento-cita-card rounded-lg cursor-pointer border transition-all duration-200 ${estadoColor}`}
                               style={{ padding: '12px 14px' }}
                               onClick={(e) => {
                                 const [hStr, mStr] = (cita.hora || '09:00').split(':');
@@ -3465,7 +3465,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           })()}
 
           {/* Grid de horarios + headers de días — un solo card unificado */}
-          <div className="std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
+          <div className="std-card agendamiento-std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
             <div className="w-full py-5 pb-6">
               <div className="-mx-6 pl-3 pr-6">
 
@@ -3496,7 +3496,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           </div>
                         ))}
                       </div>
-                      <div className="rounded-lg border border-gray-dark flex items-center justify-center" style={{ backgroundColor: '#303030', gridColumn: 'span 7' }}>
+                      <div className="rounded-lg border border-gray-dark bg-gray-darker flex items-center justify-center" style={{ gridColumn: 'span 7' }}>
                         <div className="relative" style={{ width: '36px', height: '36px' }}>
                           <svg className="animate-spin" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
                             <circle cx="18" cy="18" r="15" stroke="#3a3a3a" strokeWidth="3" />
@@ -3536,7 +3536,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         onClick={() => handleDateSelect(fechaCompleta)}
                       >
                         {discount > 0 && (
-                          <span style={{ backgroundColor: '#7a5c38', color: '#f3e8d8', fontSize: '10px', lineHeight: 1, padding: '3px 5px' }} className="absolute top-1 right-1 font-bold rounded-full whitespace-nowrap">
+                          <span className="absolute top-1 right-1 font-bold rounded-full whitespace-nowrap std-badge-negative" style={{ fontSize: '10px', lineHeight: 1, padding: '3px 5px' }}>
                             -{discount}%
                           </span>
                         )}
@@ -3555,7 +3555,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                       className="grid gap-1 h-20"
                       style={{ gridTemplateColumns: calendarGridTemplate }}
                     >
-                      <div className="flex h-full items-center justify-center text-center text-[11px] tracking-[0.04em] text-gray-lightest whitespace-nowrap">
+                      <div className="flex h-full items-center justify-center text-center text-[11px] tracking-[0.04em] text-gray-light whitespace-nowrap">
                         {formatHora12(hora)}
                       </div>
                       {diasSemana.map((dia) => {

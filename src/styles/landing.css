@@ -139,6 +139,25 @@
   letter-spacing: -0.02em;
 }
 
+/* Wordmark ManitoBarbershop — Outfit bold, tracking tight, gradiente crema→dorado */
+.landing-wordmark-text {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  background: linear-gradient(90deg, #d8b081 0%, #f5e6d0 50%, #ffffff 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: background-position 0.4s ease;
+}
+
+.landing-wordmark-text:hover {
+  background-position: 100% 50%;
+}
+
 .font-body {
   font-family: 'Outfit', sans-serif;
 }
@@ -176,14 +195,21 @@
 
 /* Enlaces secundarios del navbar (Nosotros, Servicios, Productos) */
 .landing-nav-link {
-  color: rgba(255, 255, 255, 0.78);
-  -webkit-text-fill-color: rgba(255, 255, 255, 0.78);
-  background: none;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #d8b081 0%, #f5e6d0 50%, #ffffff 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  transition: background-position 0.4s ease;
 }
 
 .landing-nav-link:hover {
-  color: #d8b081;
-  -webkit-text-fill-color: #d8b081;
+  background-position: 100% 50%;
 }
 
 /* Auth action containers with highlight effect */
@@ -463,20 +489,25 @@
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
-/* Botón CTA premium — borde y texto dorado (modo oscuro) */
+/* Botón CTA premium — mismo wordmark que ManitoBarbershop */
 .hero-cta-button {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 2.8rem;
   border: 2px solid #d8b081 !important;
-  background: transparent;
-  color: #d8c876 !important;
-  -webkit-text-fill-color: #d8c876 !important;
+  background-color: transparent;
+  background-image: linear-gradient(90deg, #d8b081 0%, #f5e6d0 50%, #ffffff 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
   font-family: 'Outfit', sans-serif;
-  font-size: 1rem;
+  font-size: clamp(1rem, 2vw, 1.125rem);
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: -0.02em;
   border-radius: 0;
   cursor: pointer;
   position: relative;
@@ -498,29 +529,27 @@
 }
 
 .hero-cta-button:hover {
-  color: #000;
   border-color: #e8c091;
   box-shadow: 0 8px 30px rgba(216, 176, 129, 0.35);
   transform: translateY(-2px);
+  background-image: none;
+  background-position: 100% 50%;
+  -webkit-text-fill-color: #000000;
+  color: #000000;
 }
 
 .hero-cta-button:hover::before {
   transform: scaleX(1);
 }
 
-.hero-cta-button:hover .text-gradient {
-  background: none;
-  -webkit-text-fill-color: #000;
-  color: #000;
+.hero-cta-button svg {
+  color: #e8d5b7;
+  flex-shrink: 0;
+  transition: color 0.35s ease;
 }
 
-/* Forzar texto dorado dentro del botón CTA */
-.hero-cta-button .text-gradient {
-  background: none !important;
-  -webkit-background-clip: unset !important;
-  background-clip: unset !important;
-  -webkit-text-fill-color: #d8c876 !important;
-  color: #d8c876 !important;
+.hero-cta-button:hover svg {
+  color: #000000;
 }
 
 /* ── Responsive adjustments ── */
@@ -769,6 +798,40 @@ body {
 
 .landing-nav .landing-auth-btn {
   cursor: pointer !important;
+}
+
+/* ── Landing Navbar base styles ── */
+.landing-nav {
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.landing-nav--scrolled {
+  background-color: rgba(0, 0, 0, 0.82) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Light mode: navbar oscuro igual que modo oscuro */
+:root.light-mode .landing-nav {
+  background-color: rgba(10, 10, 10, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+:root.light-mode .landing-nav--scrolled {
+  background-color: rgba(5, 5, 5, 0.92) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+/* Texto del navbar en light mode: mantener blanco/dorado */
+:root.light-mode .landing-nav .nav-link-hover,
+:root.light-mode .landing-nav .landing-nav-link,
+:root.light-mode .landing-nav .landing-auth-btn {
+  background: linear-gradient(90deg, #d8b081 0%, #f5e6d0 50%, #ffffff 100%) !important;
+  background-size: 200% 100% !important;
+  background-position: 0% 50% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
 }
 
 /* ── Section Titles ── */

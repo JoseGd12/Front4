@@ -764,14 +764,14 @@ html {
 
   /* ─── Calendar cell hover — explicit rule overrides Tailwind cascade ─── */
   .cal-cell-hover:hover {
-    background-color: #454545 !important;
-    border-color: #5f5f5f !important;
+    background-color: var(--gray-dark) !important;
+    border-color: var(--gray-medium) !important;
   }
 
   /* ─── Calendar block hover — JS-controlled, applied to all slots of same cita ─── */
   .cal-block-hovered {
-    background-color: #454545 !important;
-    border-color: #5f5f5f !important;
+    background-color: var(--gray-dark) !important;
+    border-color: var(--gray-medium) !important;
   }
 
   /* ─── Celda de slot vacío disponible ─── */
@@ -788,8 +788,22 @@ html {
 
   /* ─── Celda de slot vacío futuro (disponible) ─── */
   .cal-slot-future {
-    background-color: #ffffff;
-    border-color: #e0deda;
+    background-color: var(--gray-darker);
+    border-color: var(--gray-dark);
+  }
+
+  /* ─── Headers de día en calendario semanal ─── */
+  .cal-day-future {
+    border-color: var(--gray-dark);
+    background-color: transparent;
+  }
+
+  .cal-day-past {
+    opacity: 0.65;
+  }
+
+  .cal-day-future:hover {
+    background-color: rgba(42, 42, 42, 0.45);
   }
 
   /* ─── Celda de continuación de cita (no arranca aquí) ─── */
@@ -802,6 +816,50 @@ html {
   .cal-cita-past {
     background-color: rgba(26, 25, 25, 0.9);
     border-color: rgba(58, 58, 58, 0.45);
+  }
+
+  /* ═══ AGENDAMIENTO — tema oscuro (mockup MANITO) ═══ */
+  .agendamiento-dark-theme {
+    color: var(--gray-lightest);
+  }
+
+  .agendamiento-std-card {
+    background-color: var(--gray-darkest);
+    border-color: var(--gray-darker);
+  }
+
+  .agendamiento-dark-theme .btn-ghost-icon {
+    color: var(--orange-primary);
+  }
+
+  .agendamiento-dark-theme .btn-ghost-icon:hover {
+    background-color: rgba(216, 176, 129, 0.12);
+    color: var(--orange-lighter);
+  }
+
+  .agendamiento-dark-theme .btn-ghost-icon:active {
+    background-color: rgba(216, 176, 129, 0.2);
+  }
+
+  .agendamiento-dark-theme .agendamiento-cita-card {
+    background-color: var(--gray-darker);
+    border-color: var(--gray-dark);
+  }
+
+  .agendamiento-dark-theme .agendamiento-cita-card:hover {
+    background-color: var(--gray-dark);
+    border-color: var(--gray-medium);
+  }
+
+  .agendamiento-dark-theme .elegante-button-secondary {
+    color: var(--white-primary);
+    background-color: var(--black-secondary);
+    border-color: var(--orange-primary);
+  }
+
+  .agendamiento-dark-theme .elegante-button-secondary:hover {
+    background-color: rgba(216, 176, 129, 0.1);
+    color: var(--orange-primary);
   }
 
   /* Oculta encabezados heredados dentro del contenido principal,
@@ -1129,4 +1187,446 @@ html {
 }
 .row-accordion-inner {
   overflow: hidden;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIGHT MODE — Tema claro (clase .light-mode en <html>)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root.light-mode {
+  --black-primary:    #e8e6e1;
+  --black-secondary:  #9a9590;
+  --gray-darkest:     #f0ede8;
+  --gray-darker:      #e4e1db;
+  --gray-dark:        #c4c1bb;
+  --gray-medium:      #b0ada7;
+  --gray-light:       #8a8680;
+  --gray-lighter:     #5a5753;
+  --gray-lightest:    #2e2c2a;
+  --orange-primary:   #c9a96e;
+  --orange-secondary: #c9a96e;
+  --orange-lighter:   #f0e4cc;
+  --orange-darker:    #b8945a;
+  --white-primary:    #1a1a1a;
+  --white-secondary:  #3a3835;
+  --background:       #e8e6e1;
+  --foreground:       #1a1a1a;
+  --card:             #f0ede8;
+  --card-foreground:  #1a1a1a;
+  --popover:          #f0ede8;
+  --popover-foreground: #1a1a1a;
+  --primary:          #c9a96e;
+  --primary-foreground: #ffffff;
+  --secondary:        #e4e1db;
+  --secondary-foreground: #1a1a1a;
+  --muted:            #e4e1db;
+  --muted-foreground: #6b6865;
+  --accent:           #c9a96e;
+  --accent-foreground: #ffffff;
+  --destructive:      #DC2626;
+  --destructive-foreground: #ffffff;
+  --border:           #c4c1bb;
+  --input:            #f0ede8;
+  --input-background: #f0ede8;
+  --switch-background: #b0ada7;
+  --ring:             #c9a96e;
+  --sidebar:          #d8d5cf;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary:  #1a1a1a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent:   #c9a96e;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border:   #c4c1bb;
+  --sidebar-ring:     #c9a96e;
+  --search-filter-bg: #f0ede8;
+  --status-green:     #4a8c5c;
+  --status-red:       #c0392b;
+}
+
+/* ── Body ── */
+:root.light-mode body {
+  background-color: #e8e6e1;
+  color: #1a1a1a;
+}
+
+/* ── Header ── */
+:root.light-mode header {
+  background-color: #9a9590 !important;
+  box-shadow: 0px 1px 4px rgba(0,0,0,0.18) !important;
+  border-bottom-color: #8a8782 !important;
+  color: #1a1a1a !important;
+}
+:root.light-mode header h1,
+:root.light-mode header h2,
+:root.light-mode header p,
+:root.light-mode header span:not(.bg-red-500):not(.bg-orange-primary) {
+  color: #1a1a1a !important;
+}
+:root.light-mode header .text-white-primary { color: #1a1a1a !important; }
+:root.light-mode header .text-gray-lighter  { color: #2a2825 !important; }
+
+/* ── Sidebar ── */
+:root.light-mode aside,
+:root.light-mode nav {
+  background-color: #d8d5cf !important;
+  border-right-color: #c4c1bb !important;
+}
+
+/* Nav items del sidebar */
+.sidebar-nav-inactive-light { color: #1a1a1a; }
+.sidebar-nav-inactive-light:hover {
+  background-color: rgba(120, 80, 20, 0.15);
+  box-shadow: inset 3px 0 0 rgba(201, 169, 110, 0.6);
+  color: #4a2e08;
+}
+.sidebar-icon-light  { color: #2a1f0a; }
+.sidebar-nav-inactive-light:hover .sidebar-icon-light,
+.sidebar-nav-inactive-light:hover svg { color: #c9a96e; filter: drop-shadow(0 0 4px rgba(201,169,110,0.7)); }
+.sidebar-text-light  { color: #1a1a1a; font-weight: 500; }
+
+/* ── Títulos globales ── */
+:root.light-mode h1,
+:root.light-mode h2,
+:root.light-mode h3,
+:root.light-mode h4 { color: #1a1a1a !important; }
+
+:root.light-mode .force-dark h1,
+:root.light-mode .force-dark h2,
+:root.light-mode .force-dark h3,
+:root.light-mode .force-dark h4 { color: inherit !important; }
+
+:root.light-mode p,
+:root.light-mode label,
+:root.light-mode span { color: #3a3835; }
+
+:root.light-mode .force-dark p,
+:root.light-mode .force-dark label,
+:root.light-mode .force-dark span { color: inherit !important; }
+
+/* ── Texto en el dashboard (cards métricas) ── */
+:root.light-mode .text-white-primary  { color: #1a1a1a !important; }
+:root.light-mode .text-gray-lightest  { color: #3a3835 !important; }
+:root.light-mode .text-gray-lighter   { color: #3a3835 !important; }
+:root.light-mode .force-dark .text-white-primary,
+:root.light-mode .force-dark .text-gray-lightest,
+:root.light-mode .force-dark .text-gray-lighter { color: inherit !important; }
+
+/* ── Cards y contenedores ── */
+:root.light-mode .elegante-card {
+  background-color: #f0ede8;
+  border-color: #c4c1bb;
+  box-shadow: rgba(0,0,0,0.08) 0px 2px 8px;
+}
+:root.light-mode .std-card {
+  background-color: #f0ede8;
+  border-color: #c4c1bb;
+}
+
+/* ── AGENDAMIENTO: mantener fondo oscuro como en modo oscuro ── */
+:root.light-mode .agendamiento-card {
+  background-color: #1a1919 !important;
+  border-color: #2a2a2a !important;
+}
+
+/* Carrusel de citas y grid del calendario — fondo oscuro */
+:root.light-mode .std-card.agendamiento-std-card {
+  background-color: #1a1919 !important;
+  border-color: #2a2a2a !important;
+}
+
+/* Celdas del calendario en light mode */
+:root.light-mode .cal-slot-available {
+  background-color: #2a2a2a !important;
+  border-color: #3a3a3a !important;
+}
+:root.light-mode .cal-slot-past {
+  background-color: #1a1919 !important;
+  border-color: rgba(58,58,58,0.4) !important;
+  opacity: 0.7 !important;
+}
+:root.light-mode .cal-slot-continuation {
+  background-color: #2a2a2a !important;
+  border-color: #3a3a3a !important;
+}
+:root.light-mode .cal-cita-past {
+  background-color: rgba(26,25,25,0.9) !important;
+  border-color: rgba(58,58,58,0.45) !important;
+}
+:root.light-mode .cal-cell-hover:hover {
+  background-color: var(--gray-dark) !important;
+  border-color: var(--gray-medium) !important;
+}
+:root.light-mode .cal-block-hovered {
+  background-color: var(--gray-dark) !important;
+  border-color: var(--gray-medium) !important;
+}
+:root.light-mode .cal-slot-future {
+  background-color: var(--gray-darker) !important;
+  border-color: var(--gray-dark) !important;
+}
+
+/* ── Tablas estándar ── */
+:root.light-mode .std-table    { background: #f0ede8; }
+:root.light-mode .std-thead th { background: #e4e1db; border-bottom-color: #c4c1bb; color: #6b6865; }
+:root.light-mode .std-tbody tr { border-bottom-color: #c4c1bb; }
+:root.light-mode .std-tbody tr:hover { background: #e4e1db; }
+:root.light-mode .std-td,
+:root.light-mode .std-td-primary { color: #2e2c2a; }
+:root.light-mode .std-pagination { background: #f0ede8; border-top-color: #c4c1bb; }
+:root.light-mode .std-pag-info  { color: #6b6865; }
+:root.light-mode .pag-btn-custom { background: #f0ede8; border-color: #c4c1bb; color: #3a3835; }
+:root.light-mode .pag-btn-custom:hover:not(:disabled) { background: #e4e1db; border-color: #c9a96e; color: #c9a96e; }
+:root.light-mode .pag-btn-custom.active { background: #c9a96e; border-color: #c9a96e; color: #ffffff; font-weight: 700; }
+:root.light-mode .std-full-divider { border-top-color: #c4c1bb; }
+
+/* ── Badges ── */
+:root.light-mode .std-badge-positive { background: #c9a96e; color: #ffffff; }
+:root.light-mode .std-badge-negative { background: #f0d0c8; color: #8b2e1a; }
+:root.light-mode .std-badge-green    { background: rgba(180,130,70,0.18) !important; color: #7a5020 !important; border-color: rgba(180,130,70,0.40) !important; }
+:root.light-mode .std-badge-neutral  { background: #dbd9d4; color: #3a3835; }
+
+/* ── Inputs ── */
+:root.light-mode .elegante-input,
+:root.light-mode .elegante-input-dark {
+  background-color: #f0ede8;
+  border-color: #c4c1bb;
+  color: #1a1a1a;
+}
+:root.light-mode .elegante-input::placeholder,
+:root.light-mode .elegante-input-dark::placeholder { color: #8a8680; }
+:root.light-mode .elegante-input:focus,
+:root.light-mode .elegante-input-dark:focus { border-color: #c9a96e; }
+
+/* ── Botones ── */
+:root.light-mode .btn-std-primary { background: #1a1a1a; color: #ffffff; }
+:root.light-mode .btn-std-primary:hover { background: #333131; }
+:root.light-mode .bg-orange-primary\/10 { background-color: rgba(201,169,110,0.15) !important; }
+
+/* ── Ghost icon buttons ── */
+:root.light-mode .btn-ghost-icon:hover,
+:root.light-mode .btn-ghost-icon-sm:hover { background-color: rgba(0,0,0,0.07); }
+
+/* ── Status badge pill ── */
+:root.light-mode .status-badge-pill { background-color: #c4c1bb; color: #2e2c2a; }
+
+/* ── Scrollbars ── */
+:root.light-mode * { scrollbar-color: #b0ada7 transparent; }
+:root.light-mode *::-webkit-scrollbar-track { background: #e4e1db; }
+:root.light-mode *::-webkit-scrollbar-thumb { background: #b0ada7; }
+:root.light-mode *::-webkit-scrollbar-thumb:hover { background: #8a8680; }
+
+/* ── Devoluciones ── */
+:root.light-mode .dev-root        { background: #e8e6e1 !important; color: #1a1a1a !important; }
+:root.light-mode .dev-card        { background: #f0ede8 !important; border-color: #c4c1bb !important; }
+:root.light-mode .dev-toolbar     { border-bottom-color: #c4c1bb !important; }
+:root.light-mode .dev-search      { background: #f0ede8 !important; border-color: #c4c1bb !important; color: #1a1a1a !important; }
+:root.light-mode .dev-search::placeholder { color: #8a8680 !important; }
+:root.light-mode .dev-select      { background: #f0ede8 !important; border-color: #c4c1bb !important; color: #1a1a1a !important; }
+:root.light-mode .dev-count       { color: #5a5753 !important; }
+:root.light-mode .dev-thead th    { background: #e4e1db !important; color: #6b6865 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .dev-group-row   { background: #f0ede8 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .dev-group-row:hover { background: #e4e1db !important; }
+:root.light-mode .dev-client-name { color: #1a1a1a !important; }
+:root.light-mode .dev-client-doc  { color: #5a5753 !important; }
+:root.light-mode .dev-item-row    { background: #f5f3ef !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .dev-item-row:hover { background: #ebe8e3 !important; }
+:root.light-mode .dev-td          { color: #2e2c2a !important; }
+:root.light-mode .dev-sub-label   { background: rgba(200,197,191,0.4) !important; border-bottom-color: #c4c1bb !important; color: #3a3835 !important; }
+:root.light-mode .dev-sub-header th { background: rgba(196,193,187,0.35) !important; color: #6b6865 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .dev-empty       { color: #8a8680 !important; }
+:root.light-mode .dev-exp-cell    { background: #f5f3ef !important; }
+:root.light-mode .dev-icon-btn    { color: #3a3835 !important; }
+:root.light-mode .dev-icon-btn:hover { background: #e4e1db !important; }
+:root.light-mode .badge-anulada   { background: #e8c8b8 !important; color: #7a2e1a !important; border-color: #d4a090 !important; }
+:root.light-mode .dev-doc-text    { color: #1a1a1a !important; }
+:root.light-mode .dev-saldo-text  { color: #1a1a1a !important; }
+.dev-doc-text   { color: #d0d0d0; }
+.dev-saldo-text { color: #d8b081; }
+
+/* ── Horarios badges ── */
+:root.light-mode .horario-estado-activo   { background: rgba(180,130,70,0.18) !important; color: #7a5020 !important; border: 1px solid rgba(180,130,70,0.40) !important; }
+:root.light-mode .horario-estado-inactivo { background: rgba(192,57,43,0.10) !important; color: #8b2e1a !important; border: 1px solid rgba(192,57,43,0.25) !important; }
+.horario-estado-activo   { background: rgba(74,140,92,0.18); color: #3a8c52; border: 1px solid rgba(74,140,92,0.40); }
+.horario-estado-inactivo { background: rgba(192,57,43,0.12); color: #c0392b; border: 1px solid rgba(192,57,43,0.30); }
+
+/* ── Crédito Barberos ── */
+:root.light-mode .cred-root         { background: #e8e6e1 !important; color: #1a1a1a !important; }
+:root.light-mode .cred-card         { background: #f0ede8 !important; border-color: #c4c1bb !important; }
+:root.light-mode .cred-thead th     { background: #e4e1db !important; color: #3a3835 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-group-row    { background: #f0ede8 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-group-row:hover { background: #e4e1db !important; }
+:root.light-mode .cred-td           { color: #1a1a1a !important; }
+:root.light-mode .cred-exp-cell     { background: #eae7e2 !important; }
+:root.light-mode .cred-stats-bar    { background: rgba(200,195,188,0.5) !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-stat-label   { color: #6b6865 !important; }
+:root.light-mode .cred-stat-val     { color: #1a1a1a !important; }
+:root.light-mode .cred-tabs         { background: rgba(196,193,187,0.35) !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-tab          { color: #3a3835 !important; border-color: #b0ada7 !important; }
+:root.light-mode .cred-tab:hover    { border-color: #c9a96e !important; color: #7a5010 !important; }
+:root.light-mode .cred-tab.active   { background: rgba(201,169,110,0.18) !important; border-color: #c9a96e !important; color: #7a5010 !important; }
+:root.light-mode .cred-sub-label    { background: rgba(196,193,187,0.4) !important; color: #3a3835 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-sub-header th { background: rgba(196,193,187,0.45) !important; color: #3a3835 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-item-row     { background: #f0ede8 !important; border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-item-row:hover { background: #e8e5e0 !important; }
+:root.light-mode .cred-sub-td       { color: #1a1a1a !important; }
+:root.light-mode .cred-abono-row    { border-bottom-color: #c4c1bb !important; }
+:root.light-mode .cred-abono-row:hover { background: rgba(0,0,0,0.04) !important; }
+:root.light-mode .cred-actions-bar  { background: rgba(196,193,187,0.35) !important; border-top-color: #c4c1bb !important; }
+:root.light-mode .cred-progress-track { background: #b0ada7 !important; }
+:root.light-mode .cred-expand-btn   { background: rgba(201,169,110,0.12) !important; border-color: rgba(201,169,110,0.35) !important; color: #3a3835 !important; }
+:root.light-mode .cred-expand-btn:hover { background: rgba(201,169,110,0.22) !important; border-color: #c9a96e !important; color: #7a5010 !important; }
+:root.light-mode .cred-icon-btn,
+:root.light-mode .cred-icon-action  { color: #3a3835 !important; }
+:root.light-mode .cred-icon-btn:hover,
+:root.light-mode .cred-icon-action:hover { background: #dbd8d2 !important; }
+:root.light-mode .cred-num          { color: #1a1a1a !important; }
+:root.light-mode .cred-count        { color: #5a5753 !important; }
+
+/* ── Login/Register: forzar paneles oscuros ── */
+:root.light-mode .login-right-panel { background-color: #0a0a0a !important; }
+:root.light-mode .login-left-panel  { background-color: #0a0a0a !important; }
+:root.light-mode .login-input::placeholder { color: #9a9590 !important; opacity: 1 !important; }
+:root.light-mode .login-input { color: #ffffff !important; background-color: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.15) !important; }
+
+/* ── Landing navbar ── */
+:root.light-mode .landing-nav { background-color: rgba(10,10,10,0.75) !important; backdrop-filter: blur(12px) !important; }
+:root.light-mode .landing-nav--scrolled { background-color: rgba(5,5,5,0.92) !important; border-bottom: 1px solid rgba(255,255,255,0.07) !important; }
+
+/* ── FORCE-DARK: revierte todo al tema oscuro ── */
+:root.light-mode .force-dark,
+:root.light-mode .force-dark * {
+  --black-primary: #212020; --black-secondary: #111111;
+  --gray-darkest: #1a1919; --gray-darker: #2a2a2a; --gray-dark: #3a3a3a;
+  --gray-medium: #333131; --gray-light: #888888; --gray-lighter: #b0b0b0;
+  --gray-lightest: #d0d0d0; --orange-primary: #d8b081; --orange-secondary: #d8b081;
+  --orange-lighter: #eedcb8; --orange-darker: #c4a06d;
+  --white-primary: #ffffff; --white-secondary: #f5f5f5;
+  --background: #212020; --foreground: #ffffff; --border: #3a3a3a;
+  color-scheme: dark;
+}
+:root.light-mode .force-dark { background-color: #000000 !important; color: #ffffff !important; }
+:root.light-mode .force-dark .text-gradient {
+  background: linear-gradient(135deg, #fff 0%, #d8b081 100%) !important;
+  -webkit-background-clip: text !important; background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* ── AGENDAMIENTO-DARK-THEME: revierte variables a oscuro SIN cambiar el fondo del contenedor ── */
+:root.light-mode .agendamiento-dark-theme,
+:root.light-mode .agendamiento-dark-theme * {
+  --black-primary: #212020;
+  --black-secondary: #111111;
+  --gray-darkest: #1a1919;
+  --gray-darker: #2a2a2a;
+  --gray-dark: #3a3a3a;
+  --gray-medium: #333131;
+  --gray-light: #888888;
+  --gray-lighter: #b0b0b0;
+  --gray-lightest: #d0d0d0;
+  --orange-primary: #d8b081;
+  --orange-secondary: #d8b081;
+  --orange-darker: #c4a06d;
+  --white-primary: #ffffff;
+  --white-secondary: #f5f5f5;
+  --border: #3a3a3a;
+  color-scheme: dark;
+  color: #d0d0d0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HORARIOS — std-badge-green base (dark mode)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   AGENDAMIENTO — Forzar colores oscuros dentro de .agendamiento-dark-theme
+   Sobreescribe clases Tailwind con especificidad alta
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Celdas disponibles (cal-slot-available) */
+:root.light-mode .agendamiento-dark-theme .cal-slot-available {
+  background-color: #2a2a2a !important;
+  border-color: #3a3a3a !important;
+}
+
+/* Celdas pasadas (cal-slot-past) */
+:root.light-mode .agendamiento-dark-theme .cal-slot-past {
+  background-color: #1a1919 !important;
+  border-color: rgba(58,58,58,0.4) !important;
+  opacity: 0.65 !important;
+}
+
+/* Celdas de continuación */
+:root.light-mode .agendamiento-dark-theme .cal-slot-continuation {
+  background-color: #2a2a2a !important;
+  border-color: #3a3a3a !important;
+}
+
+/* Bloque de cita pasada */
+:root.light-mode .agendamiento-dark-theme .cal-cita-past {
+  background-color: rgba(26,25,25,0.9) !important;
+  border-color: rgba(58,58,58,0.45) !important;
+}
+
+/* Bloque de cita disponible — bg-gray-darker border-gray-dark */
+:root.light-mode .agendamiento-dark-theme .bg-gray-darker {
+  background-color: #2a2a2a !important;
+}
+:root.light-mode .agendamiento-dark-theme .border-gray-dark {
+  border-color: #3a3a3a !important;
+}
+:root.light-mode .agendamiento-dark-theme .bg-gray-darkest {
+  background-color: #1a1919 !important;
+}
+
+/* Cards del agendamiento (std-card) */
+:root.light-mode .agendamiento-dark-theme .std-card,
+:root.light-mode .agendamiento-dark-theme .agendamiento-std-card {
+  background-color: #1a1919 !important;
+  border-color: #2a2a2a !important;
+}
+
+/* Hover de celdas */
+:root.light-mode .agendamiento-dark-theme .cal-slot-future {
+  background-color: #2a2a2a !important;
+  border-color: #3a3a3a !important;
+}
+:root.light-mode .agendamiento-dark-theme .cal-cell-hover:hover {
+  background-color: var(--gray-dark) !important;
+  border-color: var(--gray-medium) !important;
+}
+:root.light-mode .agendamiento-dark-theme .cal-block-hovered {
+  background-color: var(--gray-dark) !important;
+  border-color: var(--gray-medium) !important;
+}
+:root.light-mode .agendamiento-dark-theme .btn-ghost-icon {
+  color: var(--orange-primary) !important;
+}
+:root.light-mode .agendamiento-dark-theme .btn-ghost-icon:hover {
+  background-color: rgba(216, 176, 129, 0.12) !important;
+  color: var(--orange-lighter) !important;
+}
+:root.light-mode .agendamiento-dark-theme .elegante-button-secondary {
+  color: var(--white-primary) !important;
+  background-color: var(--black-secondary) !important;
+  border-color: var(--orange-primary) !important;
+}
+:root.light-mode .agendamiento-dark-theme .elegante-button-secondary:hover {
+  background-color: rgba(216, 176, 129, 0.1) !important;
+  color: var(--orange-primary) !important;
+}
+
+/* Textos dentro del agendamiento — blancos */
+:root.light-mode .agendamiento-dark-theme .text-gray-lightest { color: #d0d0d0 !important; }
+:root.light-mode .agendamiento-dark-theme .text-gray-lighter  { color: #b0b0b0 !important; }
+:root.light-mode .agendamiento-dark-theme .text-gray-light    { color: #888888 !important; }
+:root.light-mode .agendamiento-dark-theme .text-white-primary { color: #ffffff !important; }
+:root.light-mode .agendamiento-dark-theme h4 { color: #ffffff !important; }
+:root.light-mode .agendamiento-dark-theme p  { color: #d0d0d0 !important; }
+:root.light-mode .agendamiento-dark-theme span { color: inherit !important; }
+
+/* Borde de los días header */
+:root.light-mode .agendamiento-dark-theme .border-gray-dark\/40,
+:root.light-mode .agendamiento-dark-theme [class*="border-gray-dark"] {
+  border-color: #3a3a3a !important;
 }
