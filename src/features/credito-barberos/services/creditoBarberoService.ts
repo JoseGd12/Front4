@@ -57,6 +57,11 @@ export interface NuevoCicloInput {
   plazoDias?: number;
 }
 
+export interface SubirLimiteInput {
+  usuarioId: number;
+  incremento: number;
+}
+
 class CreditoBarberoService {
   private normalize(raw: any): CreditoBarberoDto {
     return {
@@ -177,6 +182,11 @@ class CreditoBarberoService {
   // Registra un abono directo al barbero — el backend resuelve el ciclo activo internamente
   async registrarAbono(barberoId: number, input: AbonoInput): Promise<AbonoCreditoBarberoDto> {
     return this.crearAbono(barberoId, input);
+  }
+
+  async subirLimiteCredito(barberoId: number, input: SubirLimiteInput): Promise<CreditoBarberoDto> {
+    const data = await httpClient.put(`/credito-barbero/barbero/${barberoId}/subir-limite`, input);
+    return this.normalize(data);
   }
 
   async getByBarbero(barberoId: number): Promise<CreditoBarberoDto | null> {

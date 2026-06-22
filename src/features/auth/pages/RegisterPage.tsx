@@ -1,10 +1,13 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
 import { Label } from '../../../shared/components/ui/label';
-import { Eye, EyeOff, User, Mail, ArrowLeft, CheckCircle, AlertCircle, Scissors, Star, Lock } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, ArrowLeft, CheckCircle, AlertCircle, Scissors, Star, Lock, Loader2 } from 'lucide-react';
 import { SimpleCaptcha } from '../components/captcha/index';
+import { auth } from '../../../shared/services/firebase';
+import { fetchSignInMethodsForEmail } from 'firebase/auth';
+import { API_BASE_URL } from '../../../shared/config/api';
 import manitoLogo from '../../../assets/Manito.jpeg';
 const LOGO_URL = manitoLogo;
 const LANDING_BG_URL = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1920&h=1080&fit=crop";
@@ -34,6 +37,11 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const [showRegisterFormErrors, setShowRegisterFormErrors] = useState(false);
   const [registerValidationAttempt, setRegisterValidationAttempt] = useState(0);
 
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [emailAlreadyExists, setEmailAlreadyExists] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
+  const cachedEmailsRef = useRef<string[] | null>(null);
+
   const validatePassword = (password: string) => {
     return {
       minLength: password.length >= 6,
@@ -42,6 +50,54 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
       hasUpperCase: /[A-Z]/.test(password),
       hasLowerCase: /[a-z]/.test(password)
     };
+  };
+
+  const getEmailsFromApi = async (): Promise<string[]> => {
+    if (cachedEmailsRef.current !== null) return cachedEmailsRef.current;
+    const base = (API_BASE_URL || '').replace(/\/+$/, '');
+    const res = await fetch(`${base}/Usuarios?page=1&pageSize=1000`);
+    if (!res.ok) throw new Error('not_ok');
+    const data = await res.json();
+    const items: any[] = Array.isArray(data) ? data : (data?.items ?? data?.$values ?? []);
+    const emails = items.map((u: any) =>
+      (u.correo || u.Correo || u.email || '').toLowerCase().trim()
+    ).filter(Boolean);
+    cachedEmailsRef.current = emails;
+    return emails;
+  };
+
+  const validateEmailRealTime = async (email: string) => {
+    const trimmed = email.trim().toLowerCase();
+    // Disparar en cuanto haya @ con texto antes — no esperar email completo con TLD
+    const atIndex = trimmed.indexOf('@');
+    if (atIndex < 1) {
+      setEmailAlreadyExists(false);
+      setIsCheckingEmail(false);
+      return;
+    }
+
+    setIsCheckingEmail(true);
+    try {
+      // Intento 1: lista de emails de la API (fetch directo, sin httpClient ni auth:unauthorized)
+      const emails = await getEmailsFromApi();
+      const exists = emails.some(e => e === trimmed);
+      setEmailAlreadyExists(exists);
+    } catch {
+      // Intento 2: Firebase (funciona si la protección de enumeración está desactivada)
+      try {
+        const isFullEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+        if (isFullEmail) {
+          const methods = await fetchSignInMethodsForEmail(auth, trimmed);
+          setEmailAlreadyExists(methods.length > 0);
+        } else {
+          setEmailAlreadyExists(false);
+        }
+      } catch {
+        setEmailAlreadyExists(false);
+      }
+    } finally {
+      setIsCheckingEmail(false);
+    }
   };
 
   const passwordValidations = validatePassword(formData.password);
@@ -59,14 +115,22 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const updateFormField = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (showRegisterFormErrors) setShowRegisterFormErrors(false);
-    if (emailConflictError) setEmailConflictError('');
     if (error) setError('');
+
+    if (field === 'email') {
+      if (emailConflictError) setEmailConflictError('');
+      if (emailAlreadyExists) setEmailAlreadyExists(false);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        validateEmailRealTime(value);
+      }, 300);
+    }
   };
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || passwordOverMax || confirmPasswordMissing || !passwordsMatch || !captchaValidated) {
+    if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || passwordOverMax || confirmPasswordMissing || !passwordsMatch || !captchaValidated || emailAlreadyExists) {
       setShowRegisterFormErrors(true);
       setRegisterValidationAttempt(prev => prev + 1);
       return;
@@ -279,9 +343,12 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   value={formData.email}
                   onChange={(e) => updateFormField('email', e.target.value)}
                   placeholder="tu@email.com"
-                  className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                  className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError || emailAlreadyExists ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
-                <Mail className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
+                <Mail className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError || emailAlreadyExists ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
+                {isCheckingEmail && formData.email && (
+                  <Loader2 className="absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-orange-primary/60 animate-spin" style={{ right: '14px' }} />
+                )}
               </div>
               {showRegisterFormErrors && emailMissing && (
                 <p className="text-xs text-red-400 mt-1">El email es obligatorio</p>
@@ -289,8 +356,13 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               {showRegisterFormErrors && !emailMissing && !isEmailValid && (
                 <p className="text-xs text-red-400 mt-1">Ingresa un email válido</p>
               )}
-              {emailConflictError && (
-                <p className="text-xs text-red-400 mt-1">{emailConflictError}</p>
+              {(emailConflictError || emailAlreadyExists) && (
+                <div className="flex items-center gap-2 mt-1 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span className="text-sm text-red-400 font-medium">
+                    {emailConflictError || 'Este correo ya está registrado'}
+                  </span>
+                </div>
               )}
             </div>
 
@@ -398,9 +470,9 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
             <div>
               <button
                 type="submit"
-                disabled={isLoading || !captchaValidated}
+                disabled={isLoading || !captchaValidated || isCheckingEmail || emailAlreadyExists}
                 className={`login-btn w-full h-12 rounded-xl font-bold text-sm uppercase tracking-wider pointer-events-auto mt-2 ${
-                  isLoading || !captchaValidated
+                  isLoading || !captchaValidated || isCheckingEmail || emailAlreadyExists
                     ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                     : 'bg-[#d8b081] text-black cursor-pointer'
                 }`}

@@ -259,6 +259,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedCompraProducto, setPreSelectedCompraProducto] = useState<string | null>(null);
   const [subNavOverride, setSubNavOverride] = useState<ModuleSubNavOverride>(null);
+  const [barberoActiveView, setBarberoActiveView] = useState<'barberos' | 'creditos'>('barberos');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -526,7 +527,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
       case "Solicitudes de Cambio de Horario":
         return <RevisarSolicitudesPage usuarioId={Number(user?.id || 0)} onBack={() => setActivePage("Horarios")} />;
       case "Barberos":
-        return <BarberosPage />;
+        return <BarberosPage activeView={barberoActiveView} onViewChange={setBarberoActiveView} />;
       case "Servicios":
         return <ServiciosPage />;
       case "Paquetes":
@@ -839,6 +840,34 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               backTitle={currentSubNav.backTitle}
               icon={currentSubNav.icon}
               iconContainerClassName={currentSubNav.iconContainerClassName}
+              rightContent={activePage === 'Barberos' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--gray-darker)', borderRadius: '10px', padding: '3px', border: '1px solid var(--gray-dark)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setBarberoActiveView('barberos')}
+                    style={{
+                      padding: '5px 18px', borderRadius: '7px', fontSize: '13px', fontWeight: 600,
+                      cursor: 'pointer', border: 'none', transition: 'all 200ms ease',
+                      background: barberoActiveView === 'barberos' ? 'var(--orange-primary)' : 'transparent',
+                      color: barberoActiveView === 'barberos' ? 'var(--black-primary)' : 'var(--gray-lighter)',
+                    }}
+                  >
+                    Barberos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBarberoActiveView('creditos')}
+                    style={{
+                      padding: '5px 18px', borderRadius: '7px', fontSize: '13px', fontWeight: 600,
+                      cursor: 'pointer', border: 'none', transition: 'all 200ms ease',
+                      background: barberoActiveView === 'creditos' ? 'var(--orange-primary)' : 'transparent',
+                      color: barberoActiveView === 'creditos' ? 'var(--black-primary)' : 'var(--gray-lighter)',
+                    }}
+                  >
+                    Créditos
+                  </button>
+                </div>
+              ) : undefined}
             />
             <div
               className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion"

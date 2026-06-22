@@ -13,11 +13,12 @@ import {
   FileText,
   RefreshCw,
   CalendarClock,
+  TrendingUp,
 } from "lucide-react";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
-  .cred-root { min-height:100vh; background:var(--black-primary); color:var(--white-primary); padding:0; }
+  .cred-root { min-height:100vh; background:var(--black-primary); color:var(--white-primary); padding:0; overflow-x:hidden; }
   .cred-card { background:var(--gray-darkest); border:1px solid var(--gray-darker); border-radius:14px; overflow:hidden; }
 
   /* Toolbar */
@@ -25,7 +26,7 @@ const css = `
   .cred-count { margin-left:auto; font-size:13px; color:var(--gray-lightest); white-space:nowrap; }
 
   /* Main table */
-  .cred-table { width:100%; border-collapse:collapse; }
+  .cred-table { width:100%; border-collapse:collapse; table-layout:fixed; }
   .cred-thead th {
     padding:13px 16px; font-size:11px; font-weight:700; color:var(--gray-lightest);
     text-align:center; letter-spacing:.06em; text-transform:uppercase;
@@ -46,7 +47,7 @@ const css = `
     justify-content:center; font-size:12px; font-weight:700; color:var(--black-primary);
     flex-shrink:0; background:var(--orange-primary);
   }
-  .cred-barber-name { font-size:14px; font-weight:400; color:var(--gray-lightest); line-height:1.3; }
+  .cred-barber-name { font-size:14px; font-weight:400; color:var(--gray-lightest); line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cred-barber-sub  { font-size:12px; color:var(--gray-dark); margin-top:1px; }
 
   /* Accent button (expand) */
@@ -214,6 +215,16 @@ const css = `
     z-index: 20;
   }
   .cred-icon-action[data-tip]:hover::after { opacity: 1; }
+
+  /* Boton subir limite */
+  .cred-action-btn-warn {
+    background:rgba(216,176,129,0.08); border:1px solid rgba(216,176,129,0.25); border-radius:8px;
+    padding:7px 14px; color:var(--orange-primary); cursor:pointer; font-size:12px; font-weight:600;
+    display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-family:inherit;
+    transition:background .15s, border-color .15s;
+  }
+  .cred-action-btn-warn:hover { background:rgba(216,176,129,0.15); border-color:var(--orange-primary); }
+  .cred-action-btn-warn:disabled { opacity:.4; cursor:not-allowed; }
 `;
 
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
@@ -391,6 +402,12 @@ export function CreditoBarberosPage() {
   const [extenderOpen,    setExtenderOpen]    = useState(false);
   const [extenderCredito, setExtenderCredito] = useState<CreditoBarberoDto | null>(null);
   const [extendiendo,     setExtendiendo]     = useState(false);
+
+  // ── Modal: subir limite de credito ──────────────────────────────────────────
+  const [subirLimiteOpen,    setSubirLimiteOpen]    = useState(false);
+  const [subirLimiteCredito, setSubirLimiteCredito] = useState<CreditoBarberoDto | null>(null);
+  const [subiendoLimite,     setSubiendoLimite]     = useState(false);
+  const [incrementoVeces,    setIncrementoVeces]    = useState(1);
 
   // ── Carga principal ──────────────────────────────────────────────────────────
   const fetchCreditos = useCallback(async (page: number, q: string) => {
@@ -625,6 +642,28 @@ export function CreditoBarberosPage() {
       showErrorAlert("Error", err?.message || "No se pudo extender el plazo");
     } finally {
       setExtendiendo(false);
+    }
+  };
+
+  // ── Subir limite de credito ─────────────────────────────────────────────────
+  const incrementoTotal = incrementoVeces * 10000;
+
+  const handleSubirLimite = async () => {
+    if (!subirLimiteCredito) return;
+    try {
+      setSubiendoLimite(true);
+      await creditoBarberoService.subirLimiteCredito(subirLimiteCredito.barberoId, {
+        usuarioId: Number(user?.id ?? 0),
+        incremento: incrementoTotal,
+      });
+      created("Limite aumentado", `El limite de credito de ${subirLimiteCredito.barberoNombre} se aumento en ${formatCurrency(incrementoTotal)}.`);
+      setSubirLimiteOpen(false);
+      setIncrementoVeces(1);
+      fetchCreditos(1, searchTerm);
+    } catch (err: any) {
+      showErrorAlert("Error", err?.message || "No se pudo aumentar el limite");
+    } finally {
+      setSubiendoLimite(false);
     }
   };
 
@@ -891,12 +930,20 @@ export function CreditoBarberosPage() {
                                   </div>
 
                                   {/* Fila 3: Acciones */}
-                                  {puedeExtender && (
-                                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                                      <button className="cred-action-btn-ext" onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}>
-                                        <CalendarClock className="w-4 h-4" />
-                                        Extender Plazo
-                                      </button>
+                                  {(puedeExtender || !esPagado(c.estado)) && (
+                                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                                      {!esPagado(c.estado) && (
+                                        <button className="cred-action-btn-warn" onClick={() => { setSubirLimiteCredito(c); setIncrementoVeces(1); setSubirLimiteOpen(true); }}>
+                                          <TrendingUp className="w-4 h-4" />
+                                          Subir Limite (+$10.000)
+                                        </button>
+                                      )}
+                                      {puedeExtender && (
+                                        <button className="cred-action-btn-ext" onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}>
+                                          <CalendarClock className="w-4 h-4" />
+                                          Extender Plazo
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1434,6 +1481,107 @@ export function CreditoBarberosPage() {
                 >
                   {extendiendo ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
                   {extendiendo ? "Extendiendo..." : "Confirmar Extension"}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Subir Limite de Credito */}
+      <Dialog open={subirLimiteOpen} onOpenChange={open => { if (!subiendoLimite) { setSubirLimiteOpen(open); if (!open) setIncrementoVeces(1); } }}>
+        <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white-primary flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-orange-primary" />
+              Subir Limite de Credito
+            </DialogTitle>
+            <DialogDescription className="text-gray-lightest">
+              Aumenta el limite en incrementos de $10.000 para casos excepcionales donde el barbero necesita insumos pero tiene su deuda al limite.
+            </DialogDescription>
+          </DialogHeader>
+
+          {subirLimiteCredito && (
+            <div className="space-y-4 pt-1">
+              {/* Selector de incrementos */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 0" }}>
+                <span style={{ fontSize: 11, color: "var(--gray-lighter)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700 }}>Incremento a aplicar</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    type="button"
+                    disabled={incrementoVeces <= 1 || subiendoLimite}
+                    onClick={() => setIncrementoVeces(v => Math.max(1, v - 1))}
+                    style={{
+                      width: 36, height: 36, borderRadius: 8, border: "1px solid var(--gray-dark)",
+                      background: incrementoVeces <= 1 ? "transparent" : "var(--gray-darker)",
+                      color: incrementoVeces <= 1 ? "var(--gray-dark)" : "var(--white-primary)",
+                      fontSize: 20, fontWeight: 700, cursor: incrementoVeces <= 1 ? "not-allowed" : "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s",
+                    }}
+                  >
+                    -
+                  </button>
+                  <div style={{ textAlign: "center", minWidth: 120 }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--orange-primary)", lineHeight: 1 }}>
+                      {formatCurrency(incrementoTotal)}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--gray-lighter)", marginTop: 4 }}>
+                      {incrementoVeces}x $10.000
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={subiendoLimite}
+                    onClick={() => setIncrementoVeces(v => v + 1)}
+                    style={{
+                      width: 36, height: 36, borderRadius: 8, border: "1px solid var(--orange-primary)",
+                      background: "rgba(216,176,129,0.1)", color: "var(--orange-primary)",
+                      fontSize: 20, fontWeight: 700, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s",
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-gray-darker p-3 rounded-lg space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Barbero</span>
+                  <span className="text-white-primary font-medium">{subirLimiteCredito.barberoNombre}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Limite actual</span>
+                  <span className="text-white-primary font-semibold">{formatCurrency(subirLimiteCredito.cupoMaximo)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Nuevo limite</span>
+                  <span style={{ color: "var(--orange-primary)", fontWeight: 700 }}>{formatCurrency(subirLimiteCredito.cupoMaximo + incrementoTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Deuda actual</span>
+                  <span style={{ color: "var(--status-red)", fontWeight: 600 }}>{formatCurrency(subirLimiteCredito.saldoDeuda)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-lighter">Disponible tras aumento</span>
+                  <span style={{ color: "var(--status-green)", fontWeight: 600 }}>
+                    {formatCurrency((subirLimiteCredito.cupoMaximo + incrementoTotal) - subirLimiteCredito.saldoDeuda)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button onClick={() => { setSubirLimiteOpen(false); setIncrementoVeces(1); }} disabled={subiendoLimite} className="elegante-button-secondary">
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSubirLimite}
+                  disabled={subiendoLimite}
+                  className="elegante-button-primary flex items-center gap-2"
+                  style={{ padding: "0.45rem 1.2rem", fontSize: "13px" }}
+                >
+                  {subiendoLimite ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+                  {subiendoLimite ? "Aumentando..." : `Aumentar ${formatCurrency(incrementoTotal)}`}
                 </button>
               </div>
             </div>

@@ -238,6 +238,12 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
     }
   };
 
+  const maxFechaNacimiento = (() => {
+    const today = new Date();
+    const eightYearsAgo = new Date(today.getFullYear() - 8, today.getMonth(), today.getDate());
+    return eightYearsAgo.toISOString().split('T')[0];
+  })();
+
   return (
     <>
     <div>
@@ -507,10 +513,11 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                 <Label className="text-xs font-bold uppercase tracking-widest text-gray-lighter ml-1">Número de Documento</Label>
                 <Input
                   value={formData.documento}
-                  onChange={(e) => setFormData({...formData, documento: e.target.value.replace(/[^0-9\-]/g, '')})}
+                  onChange={(e) => setFormData({...formData, documento: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})}
                   className="elegante-input"
                   placeholder="Ej: 1234567890"
                   inputMode="numeric"
+                  maxLength={10}
                 />
               </div>
               <div className="space-y-2">
@@ -520,7 +527,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
                   onChange={(e) => setFormData({...formData, fechaNacimiento: e.target.value})}
                   className="elegante-input"
                   type="date"
-                  max={new Date().toISOString().split('T')[0]}
+                  max={maxFechaNacimiento}
                 />
               </div>
               <div className="space-y-2">
