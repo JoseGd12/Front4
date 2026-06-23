@@ -465,6 +465,10 @@ export function UsersPage() {
       }
     }
     const docVal = String(newUser.documento || '').trim();
+    if (docVal.length < 4) {
+      showError('Documento inválido', 'El número de documento debe tener al menos 4 dígitos.');
+      return;
+    }
     const existeEnUsuarios = users.some((u: any) => String(u.documento || '').trim() === docVal);
     const existeEnClientes = clientesCatalogo.some((c: any) => String((c as any).documento || (c as any).numeroDocumento || '').trim() === docVal);
     const existeEnBarberos = barberosCatalogo.some((b: any) => String((b as any).documento || '').trim() === docVal);
@@ -618,6 +622,10 @@ export function UsersPage() {
       }
     }
     const docVal = String(newUser.documento || '').trim();
+    if (docVal.length < 4) {
+      showError('Documento inválido', 'El número de documento debe tener al menos 4 dígitos.');
+      return;
+    }
     if (newUser.documento !== editingUser.documento) {
       const existeEnUsuarios = users.some((u: any) => u.id !== editingUser.id && String(u.documento || '').trim() === docVal);
       const existeEnClientes = clientesCatalogo.some((c: any) => String((c as any).documento || (c as any).numeroDocumento || '').trim() === docVal);
