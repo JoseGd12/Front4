@@ -379,6 +379,8 @@ export function CreditoBarberosPage() {
   const [registrarOpen,    setRegistrarOpen]    = useState(false);
   const [registrarStep,    setRegistrarStep]    = useState<"select" | "form">("select");
   const [barberoSearch,    setBarberoSearch]    = useState("");
+  const [modalCreditos,    setModalCreditos]    = useState<CreditoBarberoDto[]>([]);
+  const [loadingModalCreditos, setLoadingModalCreditos] = useState(false);
   const [registrarCredito, setRegistrarCredito] = useState<CreditoBarberoDto | null>(null);
   const [selectedVentaAbono, setSelectedVentaAbono] = useState<any | null>(null);
   const [montoInput,       setMontoInput]       = useState("");
@@ -441,7 +443,7 @@ export function CreditoBarberosPage() {
     }
   }, []);
 
-  useEffect(() => { fetchCreditos(1, searchTerm, statusFilter); }, [searchTerm, statusFilter, fetchCreditos]);
+  useEffect(() => { setCurrentPage(1); fetchCreditos(1, searchTerm, statusFilter); }, [searchTerm, statusFilter, fetchCreditos]);
 
   // Cargar abonos y ventas lazy al expandir una fila
   useEffect(() => {
@@ -453,9 +455,6 @@ export function CreditoBarberosPage() {
     }
     loadVentasCredito(expandedId);
   }, [expandedId]);
-
-  // El backend ya filtra por estado y búsqueda; solo se usa para el modal de barbero search
-  const filteredAndOrdered = creditos;
 
   // ── Abonos inline ────────────────────────────────────────────────────────────
   const loadInlineAbonos = useCallback(async (barberoId: number) => {
@@ -528,6 +527,12 @@ export function CreditoBarberosPage() {
       setRegistrarCredito(null);
       setRegistrarStep("select");
       setBarberoSearch("");
+      // Cargar la lista completa de barberos con deuda (independiente de la paginacion)
+      setLoadingModalCreditos(true);
+      creditoBarberoService.getAll(1, 1000, "", "sin-pagar")
+        .then(r => setModalCreditos(r.items))
+        .catch(() => setModalCreditos([]))
+        .finally(() => setLoadingModalCreditos(false));
     }
     setRegistrarOpen(true);
   };
@@ -603,7 +608,7 @@ export function CreditoBarberosPage() {
       });
       created("Limite aumentado", `El limite de credito de ${subirLimiteCredito.barberoNombre} se aumento en ${formatCurrency(incrementoTotal)}.`);
       setSubirLimiteOpen(false);
-      setIncrementoVeces(1);
+      setIncrementoRaw('');
       fetchCreditos(1, searchTerm, statusFilter);
     } catch (err: any) {
       showErrorAlert("Error", err?.message || "No se pudo aumentar el limite");
@@ -624,12 +629,12 @@ export function CreditoBarberosPage() {
 
   const creditosFiltradosModal = useMemo(() => {
     const q = barberoSearch.toLowerCase().trim();
-    if (!q) return filteredAndOrdered;
-    return filteredAndOrdered.filter(c =>
+    if (!q) return modalCreditos;
+    return modalCreditos.filter(c =>
       (c.barberoNombre || "").toLowerCase().includes(q) ||
       String(c.barberoId).includes(q)
     );
-  }, [filteredAndOrdered, barberoSearch]);
+  }, [modalCreditos, barberoSearch]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -663,7 +668,7 @@ export function CreditoBarberosPage() {
                 { value: "bloqueado", label: "Solo Bloqueados" },
               ],
             }}
-            recordsText={`${filteredAndOrdered.length} registro${filteredAndOrdered.length !== 1 ? "s" : ""}`}
+            recordsText={`${totalCount} registro${totalCount !== 1 ? "s" : ""}`}
             recordsPlacement="right"
           />
 
@@ -1221,7 +1226,11 @@ export function CreditoBarberosPage() {
               </div>
 
               <div className="cred-selector-list">
-                {creditosFiltradosModal.length === 0 ? (
+                {loadingModalCreditos ? (
+                  <div style={{ padding: "16px 0", textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
+                    Cargando barberos...
+                  </div>
+                ) : creditosFiltradosModal.length === 0 ? (
                   <div style={{ padding: "16px 0", textAlign: "center", color: "var(--gray-dark)", fontSize: 13 }}>
                     Sin resultados
                   </div>
