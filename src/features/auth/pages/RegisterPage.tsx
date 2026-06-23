@@ -1,9 +1,9 @@
-import { useState, useEffect, FormEvent, useRef } from 'react';
+import { useState, FormEvent, useRef } from 'react';
 import { useAuth } from '../../../shared/contexts/AuthContext';
 import { Input } from '../../../shared/components/ui/input';
 import { Button } from '../../../shared/components/ui/button';
 import { Label } from '../../../shared/components/ui/label';
-import { Eye, EyeOff, User, Mail, ArrowLeft, CheckCircle, AlertCircle, Scissors, Star, Lock, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, AlertCircle, Scissors, Star, Lock, Loader2 } from 'lucide-react';
 import { SimpleCaptcha } from '../components/captcha/index';
 import { auth } from '../../../shared/services/firebase';
 import { fetchSignInMethodsForEmail } from 'firebase/auth';
@@ -30,7 +30,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [emailConflictError, setEmailConflictError] = useState('');
   const [success, setSuccess] = useState(false);
   const [captchaValidated, setCaptchaValidated] = useState<boolean>(false);
 
@@ -40,35 +39,18 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [emailAlreadyExists, setEmailAlreadyExists] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
-  const cachedEmailsRef = useRef<string[] | null>(null);
 
   const validatePassword = (password: string) => {
     return {
       minLength: password.length >= 6,
-      maxLength: password.length <= 8,
       hasNumber: /[0-9]/.test(password),
       hasUpperCase: /[A-Z]/.test(password),
       hasLowerCase: /[a-z]/.test(password)
     };
   };
 
-  const getEmailsFromApi = async (): Promise<string[]> => {
-    if (cachedEmailsRef.current !== null) return cachedEmailsRef.current;
-    const base = (API_BASE_URL || '').replace(/\/+$/, '');
-    const res = await fetch(`${base}/Usuarios?page=1&pageSize=1000`);
-    if (!res.ok) throw new Error('not_ok');
-    const data = await res.json();
-    const items: any[] = Array.isArray(data) ? data : (data?.items ?? data?.$values ?? []);
-    const emails = items.map((u: any) =>
-      (u.correo || u.Correo || u.email || '').toLowerCase().trim()
-    ).filter(Boolean);
-    cachedEmailsRef.current = emails;
-    return emails;
-  };
-
   const validateEmailRealTime = async (email: string) => {
     const trimmed = email.trim().toLowerCase();
-    // Disparar en cuanto haya @ con texto antes — no esperar email completo con TLD
     const atIndex = trimmed.indexOf('@');
     if (atIndex < 1) {
       setEmailAlreadyExists(false);
@@ -78,30 +60,29 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
     setIsCheckingEmail(true);
     try {
-      // Intento 1: lista de emails de la API (fetch directo, sin httpClient ni auth:unauthorized)
-      const emails = await getEmailsFromApi();
-      const exists = emails.some(e => e === trimmed);
-      setEmailAlreadyExists(exists);
-    } catch {
-      // Intento 2: Firebase (funciona si la protección de enumeración está desactivada)
-      try {
-        const isFullEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-        if (isFullEmail) {
-          const methods = await fetchSignInMethodsForEmail(auth, trimmed);
-          setEmailAlreadyExists(methods.length > 0);
-        } else {
-          setEmailAlreadyExists(false);
-        }
-      } catch {
-        setEmailAlreadyExists(false);
+      // Intento 1: endpoint público del backend — respuesta inmediata y confiable
+      const base = (API_BASE_URL || '').replace(/\/+$/, '');
+      const res = await fetch(`${base}/Usuarios/existe-email?email=${encodeURIComponent(trimmed)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEmailAlreadyExists(Boolean(data.existe));
+        setIsCheckingEmail(false);
+        return;
       }
+    } catch { /* si el backend no responde, intento Firebase */ }
+
+    try {
+      // Intento 2: Firebase (funciona si la protección de enumeración está desactivada)
+      const methods = await fetchSignInMethodsForEmail(auth, trimmed);
+      setEmailAlreadyExists(methods.length > 0);
+    } catch {
+      setEmailAlreadyExists(false);
     } finally {
       setIsCheckingEmail(false);
     }
   };
 
   const passwordValidations = validatePassword(formData.password);
-  const passwordOverMax = formData.password.length > 8;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
   const nameMissing = !formData.name.trim();
   const apellidoMissing = !formData.apellido.trim();
@@ -118,7 +99,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
     if (error) setError('');
 
     if (field === 'email') {
-      if (emailConflictError) setEmailConflictError('');
       if (emailAlreadyExists) setEmailAlreadyExists(false);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(() => {
@@ -130,7 +110,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || passwordOverMax || confirmPasswordMissing || !passwordsMatch || !captchaValidated || emailAlreadyExists) {
+    if (nameMissing || apellidoMissing || emailMissing || !isEmailValid || passwordMissing || !passwordValidations.minLength || !passwordValidations.hasNumber || !passwordValidations.hasUpperCase || !passwordValidations.hasLowerCase || confirmPasswordMissing || !passwordsMatch || !captchaValidated || emailAlreadyExists) {
       setShowRegisterFormErrors(true);
       setRegisterValidationAttempt(prev => prev + 1);
       return;
@@ -153,12 +133,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
       if (result.success) {
         setSuccess(true);
       } else {
-        const errorMsg = result.error?.toLowerCase() || '';
-        if (errorMsg.includes('ya está en uso') || errorMsg.includes('already in use') || errorMsg.includes('ya está registrado')) {
-          setEmailConflictError('El email ya está registrado o en uso.');
-        } else {
-          setError(result.error || 'Error al crear la cuenta');
-        }
+        setError(result.error || 'Error al crear la cuenta');
       }
     } catch (err) {
       setError('Error al crear la cuenta. Intenta de nuevo.');
@@ -343,9 +318,9 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   value={formData.email}
                   onChange={(e) => updateFormField('email', e.target.value)}
                   placeholder="tu@email.com"
-                  className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError || emailAlreadyExists ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                  className={`login-input h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailAlreadyExists ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
                 />
-                <Mail className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailConflictError || emailAlreadyExists ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
+                <Mail className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none ${(showRegisterFormErrors && (emailMissing || !isEmailValid)) || emailAlreadyExists ? 'text-red-400' : 'text-gray-500'}`} style={{ left: '14px' }} />
                 {isCheckingEmail && formData.email && (
                   <Loader2 className="absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-orange-primary/60 animate-spin" style={{ right: '14px' }} />
                 )}
@@ -356,13 +331,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               {showRegisterFormErrors && !emailMissing && !isEmailValid && (
                 <p className="text-xs text-red-400 mt-1">Ingresa un email válido</p>
               )}
-              {(emailConflictError || emailAlreadyExists) && (
-                <div className="flex items-center gap-2 mt-1 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-                  <span className="text-sm text-red-400 font-medium">
-                    {emailConflictError || 'Este correo ya está registrado'}
-                  </span>
-                </div>
+              {emailAlreadyExists && (
+                <p className="text-xs text-red-400 mt-1">Este correo ya está registrado</p>
               )}
             </div>
 
@@ -374,9 +344,9 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={(e) => updateFormField('password', e.target.value)}
-                  placeholder="Entre 6 y 8 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                   className={`login-input login-input-password h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 rounded-xl focus:border-[#d8b081]/50 focus:ring-[#d8b081]/20 transition-all ${
-                    (showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength || passwordOverMax)) || passwordOverMax
+                    showRegisterFormErrors && (passwordMissing || !passwordValidations.minLength || !passwordValidations.hasNumber || !passwordValidations.hasUpperCase || !passwordValidations.hasLowerCase)
                       ? `border-red-500 ring-1 ring-red-500 ${shakeClass}`
                       : ''
                   }`}
@@ -397,11 +367,8 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               {showRegisterFormErrors && !passwordMissing && !passwordValidations.minLength && (
                 <p className="text-xs text-red-400 mt-1">Debe tener al menos 6 caracteres</p>
               )}
-              {showRegisterFormErrors && passwordOverMax && (
-                <p className="text-xs text-red-400 mt-1">La contraseña no puede superar 8 caracteres.</p>
-              )}
-              {passwordOverMax && (
-                <p className="text-xs text-red-400 mt-1 font-semibold">Se excedió el número máximo de caracteres permitidos (8).</p>
+              {showRegisterFormErrors && !passwordMissing && passwordValidations.minLength && (!passwordValidations.hasNumber || !passwordValidations.hasUpperCase || !passwordValidations.hasLowerCase) && (
+                <p className="text-xs text-red-400 mt-1">La contraseña no cumple todos los requisitos de seguridad</p>
               )}
 
               {formData.password && (
@@ -412,10 +379,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.minLength ? 'bg-green-400' : 'bg-gray-600'}`} />
                       Mínimo 6 caracteres
                     </div>
-                    <div className={`flex items-center gap-2 ${passwordValidations.maxLength ? 'text-green-400' : 'text-red-400'}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.maxLength ? 'bg-green-400' : 'bg-red-500'}`} />
-                      Máximo 8 caracteres {!passwordValidations.maxLength && `(${formData.password.length}/8)`}
-                    </div>
                     <div className={`flex items-center gap-2 ${passwordValidations.hasNumber ? 'text-green-400' : 'text-gray-500'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasNumber ? 'bg-green-400' : 'bg-gray-600'}`} />
                       Al menos un número
@@ -423,6 +386,10 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
                     <div className={`flex items-center gap-2 ${passwordValidations.hasUpperCase ? 'text-green-400' : 'text-gray-500'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasUpperCase ? 'bg-green-400' : 'bg-gray-600'}`} />
                       Al menos una mayúscula
+                    </div>
+                    <div className={`flex items-center gap-2 ${passwordValidations.hasLowerCase ? 'text-green-400' : 'text-gray-500'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordValidations.hasLowerCase ? 'bg-green-400' : 'bg-gray-600'}`} />
+                      Al menos una minúscula
                     </div>
                   </div>
                 </div>
@@ -502,14 +469,6 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={onBack}
-              className="flex items-center gap-2 text-sm text-orange-primary hover:text-[#e8c091] transition-all mx-auto mt-2 cursor-pointer px-3 py-1.5 rounded-lg hover:bg-[#d8b081]/10"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Volver
-            </button>
           </form>
           </>
           )}

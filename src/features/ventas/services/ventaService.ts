@@ -387,6 +387,23 @@ class VentaService {
     return res.items;
   }
 
+  async getVentasCredito(barberoId: number, page = 1, pageSize = 500): Promise<PagedVentas> {
+    try {
+      const payload = await httpClient.get(`/Ventas/credito-barbero/${barberoId}?page=${page}&pageSize=${pageSize}`);
+      const rawItems = this.extractArrayPayload(payload);
+      const items = await Promise.all(rawItems.map((v: any) => this.normalizeVentaData(v)));
+      return {
+        items,
+        totalCount: Number(payload?.totalCount ?? items.length),
+        page: Number(payload?.page ?? page),
+        pageSize: Number(payload?.pageSize ?? pageSize),
+        totalPages: Number(payload?.totalPages ?? 1),
+      };
+    } catch {
+      return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
+    }
+  }
+
   async getVentasByClienteId(clienteId: number): Promise<Venta[]> {
     try {
       const payload = await httpClient.get(`/Ventas/cliente/${clienteId}`);

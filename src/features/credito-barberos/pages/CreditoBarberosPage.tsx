@@ -243,7 +243,6 @@ import { useAuth } from "../../../shared/contexts/AuthContext";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { barberosService, type Barbero } from "../../administracion/services/barberosService";
 import { ventaService } from "../../ventas/services/ventaService";
-import { productoService } from "../../productos/services/productos";
 import {
   creditoBarberoService,
   CreditoBarberoDto,
@@ -355,7 +354,7 @@ export function CreditoBarberosPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages]   = useState(1);
-  const PAGE_SIZE = 5; // Fetch a large enough page to filter on frontend
+  const PAGE_SIZE = 1000; // Trae todos los creditos; el filtrado y la paginacion se hacen en el frontend
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm,  setSearchTerm]  = useState("");
@@ -365,9 +364,10 @@ export function CreditoBarberosPage() {
   const [ventasPage, setVentasPage] = useState<Record<number, number>>({});
   const [abonosPage, setAbonosPage] = useState<Record<number, number>>({});
 
-  const [barberosMap, setBarberosMap]     = useState<Record<number, Barbero>>({});
-  const [ventasCreditoPorBarbero, setVentasCreditoPorBarbero] = useState<Record<number, any[]>>({});
-  const [abonosStats, setAbonosStats]     = useState<Record<number, string>>({});
+  const [barberosMap, setBarberosMap]       = useState<Record<number, Barbero>>({});
+  const [ventasCreditoLazy, setVentasCreditoLazy] = useState<Record<number, any[]>>({});
+  const [loadingVentasLazy, setLoadingVentasLazy] = useState<Record<number, boolean>>({});
+  const [abonosStats, setAbonosStats]       = useState<Record<number, string>>({});
 
   // ── Tab por barbero ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<Record<number, "ventas" | "abonos" | "stats">>({});
@@ -413,52 +413,23 @@ export function CreditoBarberosPage() {
   const fetchCreditos = useCallback(async (page: number, q: string) => {
     try {
       setLoading(true);
-      const [res, barberos, ventas, productos] = await Promise.all([
+      const [res, barberos] = await Promise.all([
         creditoBarberoService.getAll(page, PAGE_SIZE, q),
         barberosService.getBarberos().catch(() => []),
-        ventaService.getVentas(1, 500).catch(() => []),
-        productoService.getProductos().catch(() => []),
       ]);
 
       const bMap: Record<number, Barbero> = {};
       (barberos || []).forEach((b: any) => { if (b.id) bMap[b.id] = b; });
       setBarberosMap(bMap);
 
-      const imagenesMap = new Map<number, string>();
-      (productos || []).forEach((p: any) => {
-        const id = Number(p?.id || 0);
-        const img = String(p?.imagen || p?.imagenProduc || p?.imagenUrl || p?.Imagen || '');
-        if (id > 0 && img.trim()) imagenesMap.set(id, img);
-      });
-
-      const vcMap: Record<number, any[]> = {};
-      (ventas || []).forEach((v: any) => {
-        const bid = Number(v.barberoId || 0);
-        if (bid > 0 && String(v.metodoPago || "").toLowerCase() === "creditobarbero") {
-          vcMap[bid] = vcMap[bid] || [];
-          const productosEnriquecidos = (v.productosDetalle || []).map((p: any) => {
-            if (!p.imagen || !p.imagen.trim()) {
-              const img = imagenesMap.get(Number(p.id || 0));
-              if (img) return { ...p, imagen: img };
-            }
-            return p;
-          });
-          vcMap[bid].push({ ...v, productosDetalle: productosEnriquecidos });
-        }
-      });
-      Object.values(vcMap).forEach(arr =>
-        arr.sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime())
-      );
-      setVentasCreditoPorBarbero(vcMap);
-
+      // UltimoAbono y VentasCicloCount vienen calculados desde el backend
       const aStats: Record<number, string> = {};
-      await Promise.all(res.items.map(async (c) => {
-        try {
-          const r = await creditoBarberoService.getAbonos(c.barberoId, 1, 1);
-          if (r.items.length > 0) aStats[c.barberoId] = r.items[0].fecha;
-        } catch { /* ignore */ }
-      }));
+      res.items.forEach((c: any) => { if (c.ultimoAbono) aStats[c.barberoId] = c.ultimoAbono; });
       setAbonosStats(aStats);
+
+      // Limpiar caché de ventas lazy para que se recarguen al expandir
+      setVentasCreditoLazy({});
+      setLoadingVentasLazy({});
 
       setCreditos(res.items);
       setTotalCount(res.totalCount);
@@ -472,7 +443,7 @@ export function CreditoBarberosPage() {
 
   useEffect(() => { fetchCreditos(1, searchTerm); }, [searchTerm, fetchCreditos]);
 
-  // Cargar abonos al expandir una fila
+  // Cargar abonos y ventas lazy al expandir una fila
   useEffect(() => {
     if (expandedId === null) return;
     const cred = creditos.find(c => c.barberoId === expandedId);
@@ -480,6 +451,7 @@ export function CreditoBarberosPage() {
     if (inlineAbonos[expandedId] === undefined && !loadingInlineAbonos[expandedId]) {
       loadInlineAbonos(expandedId);
     }
+    loadVentasCredito(expandedId);
   }, [expandedId]);
 
   const filteredAndOrdered = useMemo(() => {
@@ -534,6 +506,20 @@ export function CreditoBarberosPage() {
       setLoadingInlineAbonos(prev => ({ ...prev, [barberoId]: false }));
     }
   }, []);
+
+  const loadVentasCredito = useCallback(async (barberoId: number) => {
+    if (ventasCreditoLazy[barberoId] !== undefined || loadingVentasLazy[barberoId]) return;
+    setLoadingVentasLazy(prev => ({ ...prev, [barberoId]: true }));
+    try {
+      const r = await ventaService.getVentasCredito(barberoId);
+      const sorted = [...r.items].sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime());
+      setVentasCreditoLazy(prev => ({ ...prev, [barberoId]: sorted }));
+    } catch {
+      setVentasCreditoLazy(prev => ({ ...prev, [barberoId]: [] }));
+    } finally {
+      setLoadingVentasLazy(prev => ({ ...prev, [barberoId]: false }));
+    }
+  }, [ventasCreditoLazy, loadingVentasLazy]);
 
   const handleSwitchTab = useCallback((barberoId: number, tab: "ventas" | "abonos" | "stats") => {
     setActiveTab(prev => ({ ...prev, [barberoId]: tab }));
@@ -593,11 +579,7 @@ export function CreditoBarberosPage() {
     setShowFormErrors(true);
     setAbonoApiError(null);
     const monto = Number(montoInput);
-    if (!monto || monto <= 0) {
-      setMontoShakeCount(n => n + 1);
-      return;
-    }
-    if (registrarCredito && monto > registrarCredito.saldoDeuda) {
+    if (!monto || monto < 5000 || monto % 50 !== 0 || (registrarCredito && monto > registrarCredito.saldoDeuda)) {
       setMontoShakeCount(n => n + 1);
       return;
     }
@@ -669,7 +651,7 @@ export function CreditoBarberosPage() {
 
   // ── Computed para formulario ──────────────────────────────────────────────────
   const montoNum       = Number(montoInput);
-  const montoValido    = montoNum > 0 && (!registrarCredito || montoNum <= registrarCredito.saldoDeuda);
+  const montoValido    = montoNum >= 5000 && montoNum % 50 === 0 && (!registrarCredito || montoNum <= registrarCredito.saldoDeuda);
   const saldoTrasAbono = registrarCredito ? Math.max(0, registrarCredito.saldoDeuda - montoNum) : 0;
 
   const handleSearch = (val: string) => {
@@ -751,7 +733,7 @@ export function CreditoBarberosPage() {
                 ) : displayedCreditos.map(c => {
                   const isOpen     = expandedId === c.barberoId;
                   const barbero    = barberosMap[c.barberoId];
-                  const todasVentasCred = (ventasCreditoPorBarbero[c.barberoId] || []).filter((v: any) =>
+                  const todasVentasCred = (ventasCreditoLazy[c.barberoId] || []).filter((v: any) =>
                     String(v.estado || "").toLowerCase() !== "anulada"
                   );
                   const inicioDia = new Date(c.fechaInicio);
@@ -769,6 +751,7 @@ export function CreditoBarberosPage() {
                   const ventasCred = deudaActiva
                     ? (verHistorial ? todasVentasCred : ventasCiclo)
                     : (verHistorial ? todasVentasCred : []);
+                  const ventasCargando = loadingVentasLazy[c.barberoId] || false;
                   const tab        = activeTab[c.barberoId] || "ventas";
 
                   // Condiciones para botones especiales
@@ -806,7 +789,7 @@ export function CreditoBarberosPage() {
                         {/* Ventas a credito */}
                         <td className="cred-td">
                           <span className="cred-num" style={{ color: "var(--white-primary)" }}>
-                            {ventasCred.length}
+                            {c.ventasCicloCount}
                           </span>
                         </td>
 
@@ -951,6 +934,11 @@ export function CreditoBarberosPage() {
 
                               {/* Vista: Ventas a Credito */}
                               {tab === "ventas" && (() => {
+                                if (ventasCargando) return (
+                                  <div style={{ padding: 32, textAlign: "center" }}>
+                                    <RefreshCw className="w-5 h-5 animate-spin inline-block" style={{ color: "var(--orange-primary)" }} />
+                                  </div>
+                                );
                                 const vPage = ventasPage[c.barberoId] || 1;
                                 const ventasTotalPages = Math.ceil(ventasCred.length / SUBTAB_PAGE_SIZE);
                                 const ventasPaginadas = ventasCred.slice((vPage - 1) * SUBTAB_PAGE_SIZE, vPage * SUBTAB_PAGE_SIZE);
@@ -1028,10 +1016,11 @@ export function CreditoBarberosPage() {
                                             <td className="cred-sub-td">
                                               {(() => {
                                                 const anulada = String(v.estado || "").toLowerCase() === "anulada";
-                                                const tieneAbono = (inlineAbonos[c.barberoId] || []).some(
+                                                const abonosCargados = inlineAbonos[c.barberoId] !== undefined && !loadingInlineAbonos[c.barberoId];
+                                                const tieneAbono = abonosCargados && (inlineAbonos[c.barberoId] || []).some(
                                                   a => a.ventaId === v.id
                                                 );
-                                                if (anulada || tieneAbono) return null;
+                                                if (anulada || !abonosCargados || tieneAbono) return null;
                                                 return (
                                                   <button
                                                     className="cred-icon-btn"
@@ -1360,7 +1349,13 @@ export function CreditoBarberosPage() {
                 />
                 {showFormErrors && !montoValido && (
                   <p style={{ color: "var(--status-red)", fontSize: 14, fontWeight: 600 }}>
-                    {montoNum <= 0 ? "El monto debe ser mayor a 0" : `Maximo: ${formatCurrency(registrarCredito?.saldoDeuda ?? 0)}`}
+                    {montoNum <= 0
+                      ? "El monto debe ser mayor a 0"
+                      : montoNum < 5000
+                        ? "El monto mínimo de abono es $5.000"
+                        : montoNum % 50 !== 0
+                          ? "El abono debe ser múltiplo de $50 (ej: $5.000, $20.050)"
+                          : `Máximo: ${formatCurrency(registrarCredito?.saldoDeuda ?? 0)}`}
                   </p>
                 )}
                 {abonoApiError && (

@@ -16,6 +16,8 @@ export interface CreditoBarberoDto {
   fechaCierre: string | null;
   extensionUsada: boolean;
   fechaActualizacion: string | null;
+  ultimoAbono: string | null;
+  ventasCicloCount: number;
 }
 
 export interface AbonoCreditoBarberoDto {
@@ -79,6 +81,8 @@ class CreditoBarberoService {
       fechaCierre: raw.fechaCierre ?? raw.FechaCierre ?? null,
       extensionUsada: Boolean(raw.extensionUsada ?? raw.ExtensionUsada ?? false),
       fechaActualizacion: raw.fechaActualizacion ?? raw.FechaActualizacion ?? null,
+      ultimoAbono: raw.ultimoAbono ?? raw.UltimoAbono ?? null,
+      ventasCicloCount: Number(raw.ventasCicloCount ?? raw.VentasCicloCount ?? 0),
     };
   }
 
@@ -174,9 +178,18 @@ class CreditoBarberoService {
   }
 
   async getAllAbonosByBarbero(barberoId: number, page = 1, pageSize = 20): Promise<PagedResult<AbonoCreditoBarberoDto>> {
-    const credito = await this.getCreditoByBarberoId(barberoId);
-    if (!credito) return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
-    return this.getHistorialAbonos(credito.id, page, pageSize);
+    try {
+      const data = await httpClient.get<PagedResult<any>>(
+        `/credito-barbero/barbero/${barberoId}/abonos/todos?page=${page}&pageSize=${pageSize}`
+      );
+      return {
+        ...data,
+        items: (data.items || []).map((r: any) => this.normalizeAbono(r)),
+      };
+    } catch (error: any) {
+      if (error.message?.includes('404')) return { items: [], totalCount: 0, page, pageSize, totalPages: 0 };
+      throw error;
+    }
   }
 
   // Registra un abono directo al barbero — el backend resuelve el ciclo activo internamente
