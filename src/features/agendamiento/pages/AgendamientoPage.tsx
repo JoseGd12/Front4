@@ -1081,16 +1081,15 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     return citasDelDia.filter(cita => {
       const estadoNorm = (cita.estado || '').toLowerCase();
 
-      // Aplicar filtro global del carrusel a la grilla
+      // Aplicar filtro global del carrusel a la grilla (misma lógica que el móvil)
       if (carouselEstadoFiltro !== 'Todas') {
         if (carouselEstadoFiltro === 'Cancelada') {
-          if (estadoNorm !== 'cancelada' && estadoNorm !== 'anulada') return false;
+          if (estadoNorm !== 'cancelada' && estadoNorm !== 'cancelado' && estadoNorm !== 'anulada') return false;
+        } else if (carouselEstadoFiltro === 'Completada') {
+          if (estadoNorm !== 'completada' && estadoNorm !== 'completado' && estadoNorm !== 'finalizado' && estadoNorm !== 'finalizada') return false;
         } else {
-          if (String(cita.estado || '') !== carouselEstadoFiltro) return false;
+          if (estadoNorm !== carouselEstadoFiltro.toLowerCase()) return false;
         }
-      } else {
-        // "Todas": ocultar canceladas de la grilla (comportamiento original)
-        if (estadoNorm === 'cancelada') return false;
       }
 
       const horaSplit = (cita.hora || '').split(':');
@@ -3355,9 +3354,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             });
             const citasSemana = semanaCitas.filter((cita: any) => {
               if (carouselEstadoFiltro === 'Todas') return true;
-              const estadoNorm = String(cita.estado || '').toLowerCase();
-              if (carouselEstadoFiltro === 'Cancelada') return estadoNorm === 'cancelada' || estadoNorm === 'anulada';
-              return String(cita.estado || '') === carouselEstadoFiltro;
+              const estadoNorm = String(cita.estado || '').toLowerCase().trim();
+              if (carouselEstadoFiltro === 'Cancelada') return estadoNorm === 'cancelada' || estadoNorm === 'cancelado' || estadoNorm === 'anulada';
+              if (carouselEstadoFiltro === 'Completada') return estadoNorm === 'completada' || estadoNorm === 'completado' || estadoNorm === 'finalizado' || estadoNorm === 'finalizada';
+              return estadoNorm === carouselEstadoFiltro.toLowerCase();
             }).sort((a: any, b: any) => {
               if (a.fecha < b.fecha) return -1;
               if (a.fecha > b.fecha) return 1;
