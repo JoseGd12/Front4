@@ -354,7 +354,7 @@ export function CreditoBarberosPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages]   = useState(1);
-  const PAGE_SIZE = 1000; // Trae todos los creditos; el filtrado y la paginacion se hacen en el frontend
+  const PAGE_SIZE = 5;
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm,  setSearchTerm]  = useState("");
@@ -410,11 +410,11 @@ export function CreditoBarberosPage() {
   const [incrementoRaw,      setIncrementoRaw]      = useState('');
 
   // ── Carga principal ──────────────────────────────────────────────────────────
-  const fetchCreditos = useCallback(async (page: number, q: string) => {
+  const fetchCreditos = useCallback(async (page: number, q: string, estado: string) => {
     try {
       setLoading(true);
       const [res, barberos] = await Promise.all([
-        creditoBarberoService.getAll(page, PAGE_SIZE, q),
+        creditoBarberoService.getAll(page, PAGE_SIZE, q, estado),
         barberosService.getBarberos().catch(() => []),
       ]);
 
@@ -441,7 +441,7 @@ export function CreditoBarberosPage() {
     }
   }, []);
 
-  useEffect(() => { fetchCreditos(1, searchTerm); }, [searchTerm, fetchCreditos]);
+  useEffect(() => { fetchCreditos(1, searchTerm, statusFilter); }, [searchTerm, statusFilter, fetchCreditos]);
 
   // Cargar abonos y ventas lazy al expandir una fila
   useEffect(() => {
@@ -454,45 +454,8 @@ export function CreditoBarberosPage() {
     loadVentasCredito(expandedId);
   }, [expandedId]);
 
-  const filteredAndOrdered = useMemo(() => {
-    let result = [...creditos];
-
-    // Filter by status
-    if (statusFilter !== "todos") {
-      if (statusFilter === "sin-pagar") {
-        result = result.filter(c => !esPagado(c.estado));
-      } else if (statusFilter === "bloqueado") {
-        result = result.filter(c => esBloqueado(c.estado));
-      } else {
-        result = result.filter(c => c.estado.toLowerCase() === statusFilter.toLowerCase());
-      }
-    }
-
-    // Filter by search term (if not already handled by server)
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase().trim();
-      result = result.filter(c =>
-        (c.barberoNombre || "").toLowerCase().includes(q) ||
-        String(c.barberoId).includes(q) ||
-        c.estado.toLowerCase().includes(q)
-      );
-    }
-
-    return result.sort((a, b) => estadoPrioridad(a.estado) - estadoPrioridad(b.estado));
-  }, [creditos, statusFilter, searchTerm]);
-
-  // Pagination for the filtered list
-  const UI_PAGE_SIZE = 8;
-  const uiTotalPages = Math.max(1, Math.ceil(filteredAndOrdered.length / UI_PAGE_SIZE));
-  const displayedCreditos = useMemo(() => {
-    const start = (currentPage - 1) * UI_PAGE_SIZE;
-    return filteredAndOrdered.slice(start, start + UI_PAGE_SIZE);
-  }, [filteredAndOrdered, currentPage]);
-
-  useEffect(() => {
-    // Reset to first page when filter changes
-    setCurrentPage(1);
-  }, [statusFilter, searchTerm]);
+  // El backend ya filtra por estado y búsqueda; solo se usa para el modal de barbero search
+  const filteredAndOrdered = creditos;
 
   // ── Abonos inline ────────────────────────────────────────────────────────────
   const loadInlineAbonos = useCallback(async (barberoId: number) => {
@@ -599,7 +562,7 @@ export function CreditoBarberosPage() {
       if (inlineAbonos[registrarCredito!.barberoId] !== undefined) {
         loadInlineAbonos(registrarCredito!.barberoId);
       }
-      fetchCreditos(1, searchTerm);
+      fetchCreditos(1, searchTerm, statusFilter);
     } catch (err: any) {
       const raw: string = err?.message || "No se pudo registrar el abono";
       setAbonoApiError(raw.replace(/^Error del servidor \(\d+\):\s*/i, "").trim());
@@ -619,7 +582,7 @@ export function CreditoBarberosPage() {
       });
       created("Plazo extendido", `El plazo del ciclo de ${extenderCredito.barberoNombre} se extendió a 14 dias.`);
       setExtenderOpen(false);
-      fetchCreditos(1, searchTerm);
+      fetchCreditos(1, searchTerm, statusFilter);
     } catch (err: any) {
       showErrorAlert("Error", err?.message || "No se pudo extender el plazo");
     } finally {
@@ -641,7 +604,7 @@ export function CreditoBarberosPage() {
       created("Limite aumentado", `El limite de credito de ${subirLimiteCredito.barberoNombre} se aumento en ${formatCurrency(incrementoTotal)}.`);
       setSubirLimiteOpen(false);
       setIncrementoVeces(1);
-      fetchCreditos(1, searchTerm);
+      fetchCreditos(1, searchTerm, statusFilter);
     } catch (err: any) {
       showErrorAlert("Error", err?.message || "No se pudo aumentar el limite");
     } finally {
@@ -724,13 +687,13 @@ export function CreditoBarberosPage() {
                       Cargando creditos...
                     </td>
                   </tr>
-                ) : displayedCreditos.length === 0 ? (
+                ) : creditos.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
                       No hay barberos con credito registrado.
                     </td>
                   </tr>
-                ) : displayedCreditos.map(c => {
+                ) : creditos.map(c => {
                   const isOpen     = expandedId === c.barberoId;
                   const barbero    = barberosMap[c.barberoId];
                   const todasVentasCred = (ventasCreditoLazy[c.barberoId] || []).filter((v: any) =>
@@ -1211,8 +1174,8 @@ export function CreditoBarberosPage() {
 
           {/* Paginacion */}
           <div className="std-pagination">
-            <span className="std-pag-info">Pagina {currentPage} de {uiTotalPages}</span>
-            <EllipsisPagination currentPage={currentPage} totalPages={uiTotalPages} onPageChange={setCurrentPage} />
+            <span className="std-pag-info">Pagina {currentPage} de {totalPages}</span>
+            <EllipsisPagination currentPage={currentPage} totalPages={totalPages} onPageChange={(p) => { setCurrentPage(p); fetchCreditos(p, searchTerm, statusFilter); }} />
           </div>
         </div>
       </div>

@@ -148,11 +148,12 @@ class CreditoBarberoService {
   }
 
   // Compatibility methods
-  async getAll(page = 1, pageSize = 20, q = ''): Promise<PagedResult<CreditoBarberoDto>> {
+  async getAll(page = 1, pageSize = 5, q = '', estado = ''): Promise<PagedResult<CreditoBarberoDto>> {
     const params = new URLSearchParams();
     params.append('page', String(page));
     params.append('pageSize', String(pageSize));
     if (q) params.append('q', q);
+    if (estado && estado !== 'todos') params.append('estado', estado);
 
     const data = await httpClient.get<PagedResult<any>>(`/credito-barbero?${params.toString()}`);
     return {
