@@ -256,15 +256,17 @@ class HorariosService {
 
         if (!estado) {
             if (options?.usuarioSolicitanteId) {
-                payload.UsuarioSolicitanteId = Number(options.usuarioSolicitanteId);
+                payload.usuarioSolicitanteId = Number(options.usuarioSolicitanteId);
             }
             if (options?.fechaReferencia) {
-                payload.FechaReferencia = options.fechaReferencia;
+                payload.fechaReferencia = options.fechaReferencia.includes('T')
+                    ? options.fechaReferencia
+                    : options.fechaReferencia + 'T00:00:00';
             }
             if (options?.motivo) {
-                payload.Motivo = options.motivo;
+                payload.motivo = options.motivo;
             }
-            payload.CantidadSugerencias = options?.cantidadSugerencias && options.cantidadSugerencias > 0
+            payload.cantidadSugerencias = options?.cantidadSugerencias && options.cantidadSugerencias > 0
                 ? Number(options.cantidadSugerencias)
                 : 3;
         }
@@ -284,10 +286,13 @@ class HorariosService {
         cantidadSugerencias?: number;
     }): Promise<any> {
         const payload: any = {
-            UsuarioSolicitanteId: Number(options.usuarioSolicitanteId),
-            FechaReferencia: options.fechaReferencia,
-            Motivo: options.motivo,
-            CantidadSugerencias: options.cantidadSugerencias && options.cantidadSugerencias > 0
+            estado: false,
+            usuarioSolicitanteId: Number(options.usuarioSolicitanteId),
+            fechaReferencia: options.fechaReferencia.includes('T')
+                ? options.fechaReferencia
+                : options.fechaReferencia + 'T00:00:00',
+            motivo: options.motivo || "Día cancelado por administración.",
+            cantidadSugerencias: options.cantidadSugerencias && options.cantidadSugerencias > 0
                 ? Number(options.cantidadSugerencias)
                 : 3
         };

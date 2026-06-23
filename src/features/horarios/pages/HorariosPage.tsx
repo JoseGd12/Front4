@@ -764,13 +764,18 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
     setSelectedDates([]);
     setCancelMotive("Día cancelado por administración.");
     setCancelTab('dia');
-    // Calcular la fecha del próximo día de la semana correspondiente
-    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const targetDow = diasSemana.indexOf(dia);
-    const hoy = new Date();
-    const diff = (targetDow - hoy.getDay() + 7) % 7;
-    const fecha = new Date(hoy);
-    fecha.setDate(hoy.getDate() + (diff === 0 ? 0 : diff));
+    // Calcular la fecha del día dentro del rango del horario semanal (no desde hoy)
+    const DIAS_NOMBRE_TO_NUM: Record<string, number> = {
+      "Lunes": 1, "Martes": 2, "Miércoles": 3, "Jueves": 4,
+      "Viernes": 5, "Sábado": 6, "Domingo": 7
+    };
+    const targetNum = DIAS_NOMBRE_TO_NUM[dia] || 1;
+    // Usar FechaInicioSemana del horario (lunes) como base
+    const inicioSemana = horario.fechaInicioSemana
+      ? new Date(horario.fechaInicioSemana + 'T00:00:00')
+      : new Date();
+    const fecha = new Date(inicioSemana);
+    fecha.setDate(inicioSemana.getDate() + (targetNum - 1));
     const targetStr = formatDateLocal(fecha);
     setCancelFechaDia(targetStr);
     setCancelFechaInicio(targetStr);
@@ -863,39 +868,37 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
         error("Datos incompletos", "Por favor selecciona una fecha.");
         return;
       }
+      const usuarioSolicitanteId = obtenerUsuarioSolicitanteId();
+      if (!usuarioSolicitanteId) {
+        error("Sesión inválida", "No se pudo identificar el usuario solicitante.");
+        return;
+      }
       try {
         setIsProcessingSpecialCancel(true);
-        const todasCitas = await agendamientoService.getAgendamientos();
-        const afectadas = todasCitas.filter(c => {
-          if (c.fecha !== cancelFechaDia) return false;
-          if (Number(c.barberoId) !== Number(selectedHorario.barberoId)) return false;
-          const est = String(c.estado || '').toLowerCase();
-          return est !== 'cancelada' && est !== 'completada';
+        const resultado = await horariosService.cancelarDiaPorBarbero(selectedHorario.barberoId, {
+          usuarioSolicitanteId,
+          fechaReferencia: cancelFechaDia,
+          motivo: (cancelMotive || "").trim() || "Día cancelado por administración.",
+          cantidadSugerencias: 3
+        });
+        const totalCanceladas = Number(resultado?.citasCanceladas || 0);
+        const detalle = Array.isArray(resultado?.detalle) ? resultado.detalle : [];
+
+        detalle.forEach((item: any) => {
+          if (item?.clienteCorreo) {
+            emailJsService.notificarCancelacion({
+              cliente_nombre: item.clienteNombre || "Cliente",
+              cliente_email: item.clienteCorreo,
+              barbero_nombre: item.barberoNombre || selectedHorario.barbero,
+              fecha_original: item.fechaHoraOriginal ? new Date(item.fechaHoraOriginal).toLocaleString('es-CO') : cancelFechaDia,
+              motivo_cancelacion: (cancelMotive || "").trim() || "Día cancelado por administración.",
+            });
+          }
         });
 
-        let canceladas = 0;
-        for (const cita of afectadas) {
-          try {
-            await agendamientoService.updateAgendamientoStatus(cita.id, 'Cancelada');
-            canceladas++;
-            try {
-              const clienteData = await (await import('../../clientes/services/clientesService')).clientesService.getClienteById(Number(cita.clienteId));
-              if (clienteData?.correo) {
-                const horaFmt = String(cita.hora || '').substring(0, 5);
-                emailJsService.notificarCancelacion({
-                  cliente_nombre: cita.clienteNombre || 'Cliente',
-                  cliente_email: clienteData.correo,
-                  barbero_nombre: selectedHorario.barbero,
-                  fecha_original: horaFmt ? `${cancelFechaDia}T${horaFmt}:00` : cancelFechaDia,
-                  motivo_cancelacion: cancelMotive || 'Cancelación del día.',
-                });
-              }
-            } catch { /* seguir */ }
-          } catch { /* seguir */ }
-        }
         setIsSpecialCancelDialogOpen(false);
         await loadData(true);
-        success("Día cancelado", `Se cancelaron ${canceladas} cita(s) del ${cancelFechaDia}.`);
+        success("Día cancelado", `Se cancelaron ${totalCanceladas} cita(s) del ${cancelFechaDia} y el día fue removido del horario.`);
       } catch (err: any) {
         error("Error", err?.message || "No se pudo procesar la cancelación del día.");
       } finally {
