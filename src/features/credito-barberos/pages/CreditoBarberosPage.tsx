@@ -407,7 +407,7 @@ export function CreditoBarberosPage() {
   const [subirLimiteOpen,    setSubirLimiteOpen]    = useState(false);
   const [subirLimiteCredito, setSubirLimiteCredito] = useState<CreditoBarberoDto | null>(null);
   const [subiendoLimite,     setSubiendoLimite]     = useState(false);
-  const [incrementoVeces,    setIncrementoVeces]    = useState(1);
+  const [incrementoRaw,      setIncrementoRaw]      = useState('');
 
   // ── Carga principal ──────────────────────────────────────────────────────────
   const fetchCreditos = useCallback(async (page: number, q: string) => {
@@ -628,7 +628,7 @@ export function CreditoBarberosPage() {
   };
 
   // ── Subir limite de credito ─────────────────────────────────────────────────
-  const incrementoTotal = incrementoVeces * 10000;
+  const incrementoTotal = Math.min(200000, Number(incrementoRaw) || 0);
 
   const handleSubirLimite = async () => {
     if (!subirLimiteCredito) return;
@@ -805,7 +805,7 @@ export function CreditoBarberosPage() {
 
                         {/* Ultimo abono */}
                         <td className="cred-td" style={{ fontSize: 12 }}>
-                          {formatDate(abonosStats[c.barberoId] || null)}
+                          {formatDate(abonosStats[c.barberoId] || c.fechaInicio || null)}
                         </td>
 
                         {/* Acciones */}
@@ -916,7 +916,7 @@ export function CreditoBarberosPage() {
                                   {(puedeExtender || !esPagado(c.estado)) && (
                                     <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
                                       {!esPagado(c.estado) && (
-                                        <button className="cred-action-btn-warn" onClick={() => { setSubirLimiteCredito(c); setIncrementoVeces(1); setSubirLimiteOpen(true); }}>
+                                        <button className="cred-action-btn-warn" onClick={() => { setSubirLimiteCredito(c); setIncrementoRaw(''); setSubirLimiteOpen(true); }}>
                                           <TrendingUp className="w-4 h-4" />
                                           Subir Limite (+$10.000)
                                         </button>
@@ -1344,18 +1344,34 @@ export function CreditoBarberosPage() {
                     const max = Math.min(registrarCredito?.saldoDeuda ?? 999_999, 999_999);
                     setMontoInput(String(Math.min(n, max)));
                   }}
+                  onBlur={() => {
+                    if (!montoInput) return;
+                    const max = registrarCredito?.saldoDeuda ?? 999_999;
+                    let n = Number(montoInput);
+                    if (n < 5000) n = 5000;
+                    else if (n % 50 !== 0) n = Math.ceil(n / 50) * 50;
+                    n = Math.min(n, max);
+                    setMontoInput(String(n));
+                  }}
                   placeholder="Ej: 50.000"
                   className={`elegante-input ${(showFormErrors && !montoValido) || abonoApiError ? "border-destructive ring-1 ring-destructive" : ""} ${montoShakeCount % 2 === 1 ? "input-required-shake-a" : montoShakeCount > 0 ? "input-required-shake-b" : ""}`}
                 />
-                {showFormErrors && !montoValido && (
+                {montoNum > 0 && montoNum < 5000 && (
+                  <p style={{ color: "var(--status-red)", fontSize: 13, fontWeight: 600 }}>
+                    Minimo $5.000 — se ajustara automaticamente
+                  </p>
+                )}
+                {montoNum >= 5000 && montoNum % 50 !== 0 && (
+                  <p style={{ color: "var(--status-red)", fontSize: 13, fontWeight: 600 }}>
+                    La denominacion es de $50 — se ajustara a {formatCurrency(Math.ceil(montoNum / 50) * 50)}
+                  </p>
+                )}
+                {showFormErrors && !montoValido && montoNum === 0 && (
+                  <p style={{ color: "var(--status-red)", fontSize: 14, fontWeight: 600 }}>El monto debe ser mayor a 0</p>
+                )}
+                {showFormErrors && !montoValido && montoNum > 0 && montoNum >= 5000 && montoNum % 50 === 0 && (
                   <p style={{ color: "var(--status-red)", fontSize: 14, fontWeight: 600 }}>
-                    {montoNum <= 0
-                      ? "El monto debe ser mayor a 0"
-                      : montoNum < 5000
-                        ? "El monto mínimo de abono es $5.000"
-                        : montoNum % 50 !== 0
-                          ? "El abono debe ser múltiplo de $50 (ej: $5.000, $20.050)"
-                          : `Máximo: ${formatCurrency(registrarCredito?.saldoDeuda ?? 0)}`}
+                    Maximo: {formatCurrency(registrarCredito?.saldoDeuda ?? 0)}
                   </p>
                 )}
                 {abonoApiError && (
@@ -1484,7 +1500,7 @@ export function CreditoBarberosPage() {
       </Dialog>
 
       {/* Modal: Subir Limite de Credito */}
-      <Dialog open={subirLimiteOpen} onOpenChange={open => { if (!subiendoLimite) { setSubirLimiteOpen(open); if (!open) setIncrementoVeces(1); } }}>
+      <Dialog open={subirLimiteOpen} onOpenChange={open => { if (!subiendoLimite) { setSubirLimiteOpen(open); if (!open) setIncrementoRaw(''); } }}>
         <DialogContent className="bg-gray-darkest border-gray-dark max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-white-primary flex items-center gap-2">
@@ -1492,51 +1508,41 @@ export function CreditoBarberosPage() {
               Subir Limite de Credito
             </DialogTitle>
             <DialogDescription className="text-gray-lightest">
-              Aumenta el limite en incrementos de $10.000 para casos excepcionales donde el barbero necesita insumos pero tiene su deuda al limite.
+              Ingresa el monto a agregar al limite de credito (maximo $200.000).
             </DialogDescription>
           </DialogHeader>
 
           {subirLimiteCredito && (
             <div className="space-y-4 pt-1">
-              {/* Selector de incrementos */}
+              {/* Input de incremento */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 0" }}>
                 <span style={{ fontSize: 11, color: "var(--gray-lighter)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700 }}>Incremento a aplicar</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button
-                    type="button"
-                    disabled={incrementoVeces <= 1 || subiendoLimite}
-                    onClick={() => setIncrementoVeces(v => Math.max(1, v - 1))}
-                    style={{
-                      width: 36, height: 36, borderRadius: 8, border: "1px solid var(--gray-dark)",
-                      background: incrementoVeces <= 1 ? "transparent" : "var(--gray-darker)",
-                      color: incrementoVeces <= 1 ? "var(--gray-dark)" : "var(--white-primary)",
-                      fontSize: 20, fontWeight: 700, cursor: incrementoVeces <= 1 ? "not-allowed" : "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s",
-                    }}
-                  >
-                    -
-                  </button>
-                  <div style={{ textAlign: "center", minWidth: 120 }}>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--orange-primary)", lineHeight: 1 }}>
-                      {formatCurrency(incrementoTotal)}
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--gray-lighter)", marginTop: 4 }}>
-                      {incrementoVeces}x $10.000
-                    </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "var(--orange-primary)", lineHeight: 1, marginBottom: 8 }}>
+                    {incrementoTotal > 0 ? formatCurrency(incrementoTotal) : <span style={{ color: "var(--gray-dark)" }}>$0</span>}
                   </div>
-                  <button
-                    type="button"
+                  <input
+                    type="text"
+                    inputMode="numeric"
                     disabled={subiendoLimite}
-                    onClick={() => setIncrementoVeces(v => v + 1)}
-                    style={{
-                      width: 36, height: 36, borderRadius: 8, border: "1px solid var(--orange-primary)",
-                      background: "rgba(216,176,129,0.1)", color: "var(--orange-primary)",
-                      fontSize: 20, fontWeight: 700, cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s",
+                    value={incrementoRaw ? Number(incrementoRaw).toLocaleString('es-CO') : ''}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      const num = Math.min(200000, Number(digits) || 0);
+                      setIncrementoRaw(num > 0 ? String(num) : '');
                     }}
-                  >
-                    +
-                  </button>
+                    placeholder="Ej: 50.000"
+                    style={{
+                      background: "var(--gray-darker)", border: "1px solid var(--gray-dark)",
+                      borderRadius: 8, color: "var(--white-primary)", fontSize: 15, fontWeight: 600,
+                      padding: "8px 14px", textAlign: "center", width: 160, outline: "none",
+                    }}
+                    onFocus={e => (e.target.style.borderColor = "var(--orange-primary)")}
+                    onBlur={e => (e.target.style.borderColor = "var(--gray-dark)")}
+                  />
+                  {incrementoTotal >= 200000 && (
+                    <div style={{ fontSize: 11, color: "var(--orange-primary)", marginTop: 4 }}>Maximo alcanzado</div>
+                  )}
                 </div>
               </div>
 
@@ -1566,17 +1572,17 @@ export function CreditoBarberosPage() {
               </div>
 
               <div className="flex justify-end gap-3">
-                <button onClick={() => { setSubirLimiteOpen(false); setIncrementoVeces(1); }} disabled={subiendoLimite} className="elegante-button-secondary">
+                <button onClick={() => { setSubirLimiteOpen(false); setIncrementoRaw(''); }} disabled={subiendoLimite} className="elegante-button-secondary">
                   Cancelar
                 </button>
                 <button
                   onClick={handleSubirLimite}
-                  disabled={subiendoLimite}
+                  disabled={subiendoLimite || incrementoTotal <= 0}
                   className="elegante-button-primary flex items-center gap-2"
                   style={{ padding: "0.45rem 1.2rem", fontSize: "13px" }}
                 >
                   {subiendoLimite ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                  {subiendoLimite ? "Aumentando..." : `Aumentar ${formatCurrency(incrementoTotal)}`}
+                  {subiendoLimite ? "Aumentando..." : incrementoTotal > 0 ? `Aumentar ${formatCurrency(incrementoTotal)}` : "Ingresa un monto"}
                 </button>
               </div>
             </div>
