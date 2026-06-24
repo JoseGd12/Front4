@@ -155,6 +155,7 @@ export function PaquetesPage() {
   const [horaInput, setHoraInput] = useState('');
   const [minutosInput, setMinutosInput] = useState('');
   const [isConfirmDiscardOpen, setIsConfirmDiscardOpen] = useState(false);
+  const [formErrors, setFormErrors] = useState({ nombre: '', servicios: '' });
 
   // Estado inicial para reset
   const estadoInicialPaquete = {
@@ -187,6 +188,7 @@ export function PaquetesPage() {
       setPrecioInput('');
       setPorcentajeInput('');
       setShowDiscountWarning(false);
+      setFormErrors({ nombre: '', servicios: '' });
     }
   };
 
@@ -233,6 +235,7 @@ export function PaquetesPage() {
       }];
 
       setServiciosAgregados(nuevosServicios);
+      if (nuevosServicios.length >= 2) setFormErrors(prev => ({ ...prev, servicios: '' }));
       const nuevoPrecio = nuevosServicios.reduce((total, s) => total + s.precio, 0);
       // Recalcular duración total con base en los servicios agregados
       const totalMinutos = nuevosServicios.reduce((acc, s) => {
@@ -300,10 +303,14 @@ export function PaquetesPage() {
   const handleCreatePaquete = async () => {
     const nombreTrim = (nuevoPaquete.nombre || '').trim();
 
-    // Descripción ya no es obligatoria: sólo validar nombre y al menos un servicio
-    if (!nombreTrim || serviciosAgregados.length === 0) {
+    const errors = { nombre: '', servicios: '' };
+    if (!nombreTrim) errors.nombre = 'Campo obligatorio';
+    if (serviciosAgregados.length < 2) errors.servicios = 'Mínimo 2 servicios';
+    if (errors.nombre || errors.servicios) {
+      setFormErrors(errors);
       return;
     }
+    setFormErrors({ nombre: '', servicios: '' });
 
     // Validar que no exista otro paquete con el mismo nombre (case-insensitive)
     const nombreLower = nombreTrim.toLowerCase();
@@ -431,13 +438,14 @@ export function PaquetesPage() {
     if (!editingPaquete) return;
 
     const nombreTrim = (nuevoPaquete.nombre || '').trim();
-    if (!nombreTrim) {
-      showErrorAlert(
-        "Nombre inválido",
-        "El nombre del paquete es obligatorio."
-      );
+    const errors = { nombre: '', servicios: '' };
+    if (!nombreTrim) errors.nombre = 'Campo obligatorio';
+    if (serviciosAgregados.length < 2) errors.servicios = 'Mínimo 2 servicios';
+    if (errors.nombre || errors.servicios) {
+      setFormErrors(errors);
       return;
     }
+    setFormErrors({ nombre: '', servicios: '' });
 
     // Validar duplicado contra otros paquetes (excluyendo el que se está editando)
     const nombreLower = nombreTrim.toLowerCase();
@@ -813,10 +821,16 @@ export function PaquetesPage() {
                   </Label>
                   <NameInput
                     value={nuevoPaquete.nombre}
-                    onChange={(val) => setNuevoPaquete({ ...nuevoPaquete, nombre: val })}
+                    onChange={(val) => {
+                      setNuevoPaquete({ ...nuevoPaquete, nombre: val });
+                      if (val.trim()) setFormErrors(prev => ({ ...prev, nombre: '' }));
+                    }}
                     placeholder="Ej: Paquete Premium Completo"
-                    className="elegante-input"
+                    className={`elegante-input${formErrors.nombre ? ' border-red-500 ring-1 ring-red-500' : ''}`}
                   />
+                  {formErrors.nombre && (
+                    <p className="text-xs text-red-400 mt-1">{formErrors.nombre}</p>
+                  )}
                 </div>
               </div>
 
@@ -836,7 +850,7 @@ export function PaquetesPage() {
               </div>
 
               {/* Sección de Servicios mejorada UI/UX - Versión Compacta */}
-              <div className="space-y-3 bg-gray-darker p-3 rounded-xl border border-gray-dark/50">
+              <div className={`space-y-3 bg-gray-darker p-3 rounded-xl border ${formErrors.servicios ? 'border-red-500' : 'border-gray-dark/50'}`}>
                 <div className="flex items-center justify-between">
                   <Label className="text-white-primary flex items-center gap-2 text-base font-medium">
                     <Scissors className="w-4 h-4 text-orange-primary" />
@@ -846,6 +860,9 @@ export function PaquetesPage() {
                     {serviciosAgregados.length} servicios
                   </span>
                 </div>
+                {formErrors.servicios && (
+                  <p className="text-xs text-red-400">{formErrors.servicios}</p>
+                )}
 
                 <div className="flex flex-col sm:flex-row gap-2 items-center">
                   <div className="flex-1 w-full">
@@ -1289,7 +1306,7 @@ export function PaquetesPage() {
             </AlertDialogHeader>
             <AlertDialogFooter className="mt-6 flex justify-end gap-3">
               <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
-              <button onClick={() => { setIsConfirmDiscardOpen(false); setViewMode('list'); setEditingPaquete(null); setNuevoPaquete({ ...estadoInicialPaquete }); setServiciosAgregados([]); setServicioSeleccionado(''); setPrecioInput(''); setPorcentajeInput(''); setShowDiscountWarning(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
+              <button onClick={() => { setIsConfirmDiscardOpen(false); setViewMode('list'); setEditingPaquete(null); setNuevoPaquete({ ...estadoInicialPaquete }); setServiciosAgregados([]); setServicioSeleccionado(''); setPrecioInput(''); setPorcentajeInput(''); setShowDiscountWarning(false); setFormErrors({ nombre: '', servicios: '' }); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
