@@ -986,7 +986,7 @@ html {
     font-family: 'DM Sans', 'Segoe UI', sans-serif;
     background: var(--gray-darkest);
     table-layout: fixed;
-    min-width: 640px;
+    min-width: 860px;
   }
 
   /*
@@ -1021,6 +1021,27 @@ html {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Celdas que contienen un badge: mostrar completo sin recortar, con padding lateral para separación */
+  .std-td:has(.std-badge),
+  .std-td-primary:has(.std-badge) {
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+
+  /* Columna de acciones (última columna): nunca recortar botones/iconos */
+  .std-thead th:last-child {
+    overflow: visible;
+  }
+  .std-td:last-child,
+  .std-td-primary:last-child {
+    overflow: visible;
+    position: relative;
+    z-index: 1;
   }
 
   /*

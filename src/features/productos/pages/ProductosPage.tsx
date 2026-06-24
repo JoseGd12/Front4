@@ -1260,15 +1260,6 @@ export function ProductosPage() {
             {/* Tabla de Productos */}
             <div className="std-table-wrapper">
               <table className="std-table">
-                <colgroup>
-                  <col style={{ width: '72px' }} />
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '130px' }} />
-                  <col style={{ width: '130px' }} />
-                  <col style={{ width: '100px' }} />
-                  <col style={{ width: '110px' }} />
-                  <col style={{ width: '160px' }} />
-                </colgroup>
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                   <tr className="border-b border-gray-dark">
                     <th className="text-center py-3 px-4 text-gray-lightest font-normal text-sm">Imagen</th>

@@ -33,7 +33,11 @@ import {
   X,
   RotateCcw,
   Download,
-  Smartphone
+  Smartphone,
+  Menu,
+  Home,
+  Image,
+  LayoutGrid
 } from 'lucide-react';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
@@ -217,6 +221,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const { info, success } = useCustomAlert();
   const [scrolled, setScrolled] = useState(false);
   const [heroVideoReady, setHeroVideoReady] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
 
@@ -650,37 +655,164 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   return (
     <div className="min-h-screen bg-black text-white font-body landing-page-container force-dark" style={{ overflowX: 'clip' }}>
 
+      {/* Mobile Sidebar Drawer */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/70 z-[120] transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+      <aside
+        className="fixed top-0 left-0 h-full z-[130] flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)]"
+        style={{
+          width: '288px',
+          backgroundColor: '#111111',
+          boxShadow: mobileMenuOpen ? '4px 0 25px rgba(0,0,0,0.8)' : 'none',
+          transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
+          borderRight: '1px solid rgba(255,255,255,0.07)',
+        }}
+        aria-hidden={!mobileMenuOpen}
+      >
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="flex items-center gap-3">
+            <img src={LOGO_URL} alt="Logo" className="w-10 h-10 rounded-full object-cover shadow-lg" />
+            <div>
+              <p className="text-white font-bold text-base leading-tight">MANITO</p>
+              <p className="text-[#d8b081] text-xs font-semibold tracking-widest">BARBERSHOP</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-2 rounded-md transition-colors hover:bg-white/10"
+            aria-label="Cerrar menú"
+          >
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Drawer nav */}
+        <nav className="flex-1 overflow-y-auto py-4">
+          {/* Navegación principal */}
+          <div className="px-4 mb-2">
+            <p className="text-[10px] uppercase tracking-[0.35em] text-gray-500 px-2 mb-2">Navegación</p>
+            {[
+              { id: 'inicio', label: 'Inicio', icon: Home },
+              { id: 'nosotros', label: 'Nosotros', icon: Users },
+              { id: 'servicios', label: 'Servicios', icon: Scissors },
+              { id: 'productos', label: 'Productos', icon: Package },
+            ].map(item => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => { scrollToSection(item.id); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg text-gray-300 hover:bg-white/5 hover:text-[#d8b081] transition-colors"
+                >
+                  <Icon className="w-4 h-4 text-[#d8b081] shrink-0" />
+                  <span className="text-sm font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Separador */}
+          <div className="mx-6 my-3 h-px bg-white/5" />
+
+          {/* Sección de cuenta */}
+          <div className="px-4">
+            <p className="text-[10px] uppercase tracking-[0.35em] text-gray-500 px-2 mb-2">Cuenta</p>
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => { onRequestDashboard?.(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg text-gray-300 hover:bg-white/5 hover:text-[#d8b081] transition-colors"
+                >
+                  <LayoutGrid className="w-4 h-4 text-[#d8b081] shrink-0" />
+                  <span className="text-sm font-medium">Dashboard</span>
+                </button>
+                <button
+                  onClick={() => { logout(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <LogOut className="w-4 h-4 shrink-0" />
+                  <span className="text-sm font-medium">Cerrar sesión</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { onRequestLogin?.(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg text-gray-300 hover:bg-white/5 hover:text-[#d8b081] transition-colors"
+                >
+                  <User className="w-4 h-4 text-[#d8b081] shrink-0" />
+                  <span className="text-sm font-medium">Ingresar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onRequestRegister?.(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-lg text-gray-300 hover:bg-white/5 hover:text-[#d8b081] transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#d8b081] shrink-0" />
+                  <span className="text-sm font-medium">Registrarse</span>
+                </button>
+              </>
+            )}
+          </div>
+        </nav>
+
+        {/* Footer del drawer */}
+        <div className="px-6 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="text-xs text-gray-600 text-center">© 2025 Manito Barbershop</p>
+        </div>
+      </aside>
+
       {/* Navbar */}
       <nav
         className={`landing-nav fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'landing-nav--scrolled py-4' : 'py-6'}`}
       >
         <div className="content-max-width flex justify-between items-center">
           <div className="flex items-center gap-8 sm:gap-12 lg:gap-16">
+            {/* Hamburger — solo en mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex md:hidden items-center justify-center p-2 rounded-md hover:bg-white/10 transition-colors"
+              aria-label="Abrir menú"
+            >
+              <Menu className="w-6 h-6 text-white" />
+            </button>
+
             <button
               onClick={() => scrollToSection('inicio')}
-             
               className="flex items-center gap-4 transition-all duration-300 group"
             >
               <img src={LOGO_URL} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-lg" />
               <div className="text-3xl font-title font-bold tracking-tight landing-wordmark-text">Manito<span>Barbershop</span></div>
             </button>
-            {[
-              { id: 'nosotros', label: 'Nosotros' },
-              { id: 'servicios', label: 'Servicios' },
-              { id: 'productos', label: 'Productos' }
-            ].map(item => (
-              <button
-                key={item.id}
-                onClick={() => scrollToSection(item.id)}
-                className="landing-nav-link font-title text-lg py-1 relative group transition-all duration-300"
-              >
-                {item.label}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
-              </button>
-            ))}
+            {/* Links de navegación — ocultos en mobile */}
+            <div className="hidden md:flex items-center gap-8 sm:gap-12 lg:gap-16">
+              {[
+                { id: 'nosotros', label: 'Nosotros' },
+                { id: 'servicios', label: 'Servicios' },
+                { id: 'productos', label: 'Productos' }
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className="landing-nav-link font-title text-lg py-1 relative group transition-all duration-300"
+                >
+                  {item.label}
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center gap-8">
+          {/* Botones de auth — ocultos en mobile (están en el drawer) */}
+          <div className="hidden md:flex items-center gap-8">
             {isAuthenticated ? (
               <>
                 <Link
@@ -713,7 +845,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <button
                   type="button"
                   onClick={onRequestRegister}
-                  className="nav-link-hover landing-auth-btn text-base font-semibold tracking-wide relative group py-1 transition-all duration-300 hidden sm:inline-block"
+                  className="nav-link-hover landing-auth-btn text-base font-semibold tracking-wide relative group py-1 transition-all duration-300"
                 >
                   Registrar
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#d8b081] group-hover:w-full transition-all duration-300" />

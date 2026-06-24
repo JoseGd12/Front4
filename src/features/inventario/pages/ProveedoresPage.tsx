@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
@@ -742,26 +742,26 @@ export function ProveedoresPage() {
     confirmDeleteAction(
       proveedor.nombre,
       async () => {
+        // Pre-check: compras asociadas a este proveedor
+        let comprasAsociadas = 0;
         try {
-          // Pre‑check: compras asociadas a este proveedor
-          let comprasAsociadas = 0;
-          try {
-            const compras = await compraService.getCompras();
-            const normalize = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-            comprasAsociadas = (compras || []).filter(c =>
-              Number(c.proveedorId) === Number(proveedor.id) ||
-              (normalize(c.proveedorNombre) && normalize(c.proveedorNombre) === normalize(proveedor.nombre))
-            ).length;
-          } catch { }
+          const compras = await compraService.getCompras();
+          const normalize = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+          comprasAsociadas = (compras || []).filter(c =>
+            Number(c.proveedorId) === Number(proveedor.id) ||
+            (normalize(c.proveedorNombre) && normalize(c.proveedorNombre) === normalize(proveedor.nombre))
+          ).length;
+        } catch { }
 
-          if (comprasAsociadas > 0) {
-            error(
-              "No se puede eliminar",
-              `El proveedor "${proveedor.nombre}" no se puede eliminar porque tiene ${comprasAsociadas} compra(s) registradas a su nombre.`
-            );
-            throw new Error('Proveedor asociado a compras');
-          }
+        if (comprasAsociadas > 0) {
+          error(
+            "No se puede eliminar",
+            `El proveedor "${proveedor.nombre}" no se puede eliminar porque tiene ${comprasAsociadas} compra(s) registradas a su nombre.`
+          );
+          throw new Error('BLOCKED');
+        }
 
+        try {
           if (proveedor.id) {
             await proveedorService.eliminarProveedor(proveedor.id);
           }
@@ -769,6 +769,7 @@ export function ProveedoresPage() {
         } catch (err: any) {
           console.error('Error eliminando proveedor:', err);
           error('Error al eliminar proveedor', err?.message || 'No se pudo eliminar el proveedor.');
+          throw err;
         }
       },
       {

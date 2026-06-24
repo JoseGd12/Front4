@@ -1975,15 +1975,6 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
               {/* Tabla de Ventas */}
               <div className="std-table-wrapper">
                 <table className="std-table">
-                  <colgroup>
-                    <col style={{ width: "10%" }} />
-                    <col style={{ width: "15%" }} />
-                    <col style={{ width: "20%" }} />
-                    <col style={{ width: "15%" }} />
-                    <col style={{ width: "15%" }} />
-                    <col style={{ width: "10%" }} />
-                    <col style={{ width: "15%" }} />
-                  </colgroup>
                   <StandardTable.Header className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
                     <tr>
                       <StandardTable.HeadCell>Número</StandardTable.HeadCell>

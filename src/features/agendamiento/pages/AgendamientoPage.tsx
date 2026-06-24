@@ -1139,7 +1139,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
   const getCitaDotColor = (cita: { estado?: string; barberoNombre?: string } | null | undefined): string => {
     if (!cita) return '#d8b081';
-    if (String(cita.estado || '') === 'Completada') return '#6B7280';
+    const estado = String(cita.estado || '');
+    if (estado === 'Completada') return '#2563EB';
+    if (estado === 'Cancelada' || estado === 'Anulada') return '#DC2626';
     const nombre = String((cita as any).barberoNombre || '');
     for (const { match, color } of BARBERO_DOT_COLORS) {
       if (match.test(nombre)) return color;
@@ -3627,7 +3629,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                               tieneCita
                                 ? `relative min-h-0 overflow-visible ${
                                     citasQueArrancanEnCelda.length === 0
-                                      ? isPastSlot ? 'cal-slot-past' : 'cal-slot-future'
+                                      ? isPastSlot ? 'cal-slot-past cursor-default' : 'cal-slot-future cursor-default'
                                       : isPastSlot ? 'cursor-default' : 'cursor-pointer group'
                                   }`
                                 : isPastSlot
@@ -3666,10 +3668,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   className={`absolute inset-0 flex flex-col justify-start gap-1 rounded-md overflow-hidden px-1.5 pt-2 pb-1 group transition-[background-color,border-color] duration-200 ease-out ${
                                     isPastSlot
                                       ? citasQueArrancanEnCelda.length === 0
-                                        ? 'cursor-default border-0 bg-transparent'
+                                        ? 'cursor-default border-0 border-t border-t-[rgba(58,58,58,0.45)] bg-transparent'
                                         : 'cursor-default border cal-cita-past opacity-[0.92]'
                                       : citasQueArrancanEnCelda.length === 0
-                                        ? `border-0 bg-transparent${isBlockHovered ? ' cal-block-hovered' : ''}`
+                                        ? `border-0 border-t border-t-[var(--gray-dark)] bg-transparent${isBlockHovered ? ' cal-block-hovered' : ''}`
                                         : `border bg-gray-darker border-gray-dark${isBlockHovered ? ' cal-block-hovered' : ''}`
                                   }`}
                                   onMouseOver={!isPastSlot ? (e) => {
@@ -3753,10 +3755,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                   ) : (
                                     /* Continuation slot: cita spans from previous row */
                                     <>
-                                      <div
-                                        className="absolute inset-y-2 left-1.5 rounded-full"
-                                        style={{ width: 2, background: getCitaDotColor(citasEnCelda[0]) }}
-                                      />
                                       {!isPastSlot && (
                                         <div
                                           className={`absolute inset-0 z-10 rounded-md ${CAL_GRID_HOVER_SHIMMER}`}
@@ -3766,10 +3764,6 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                         </div>
                                       )}
                                     </>
-                                  )}
-
-                                  {citasEnCelda.some(c => c.estado === 'Completada') && (
-                                    <div className="absolute bottom-0 left-0 h-0.5 bg-blue-600 w-full" />
                                   )}
                                 </div>
                               </div>
