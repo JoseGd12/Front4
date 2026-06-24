@@ -2180,6 +2180,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               opacity: modalPhase === 'open' ? 1 : 0,
               transform: modalPhase === 'enter' ? 'translateY(-10px) scale(0.97)' : 'translateY(0) scale(1)',
               transition: dragState.current.dragging ? 'none' : 'opacity 200ms ease-out, transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+              willChange: isModalDragging ? 'top, left, height' : 'auto',
             }}
           >
             {/* Header con drag handle */}
@@ -2190,38 +2191,51 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 const currentLeft = modalLeft ?? modalPosition.left;
                 dragState.current = { dragging: true, startY: e.clientY, startX: e.clientX, startHeight: modalHeight, startTop: modalTop, startLeft: currentLeft };
                 setIsModalDragging(true);
-                const onMove = (ev: MouseEvent) => {
-                  if (!dragState.current.dragging) return;
-                  const deltaY = ev.clientY - dragState.current.startY;
-                  const deltaX = ev.clientX - dragState.current.startX;
+                let rafId = 0;
+                let latestX = e.clientX;
+                let latestY = e.clientY;
+                let lastH = modalHeight;
+                let lastT = modalTop;
+                let lastL = currentLeft;
+                const applyFrame = () => {
+                  rafId = 0;
+                  if (!dragState.current.dragging || !modalRef.current) return;
+                  const deltaY = latestY - dragState.current.startY;
+                  const deltaX = latestX - dragState.current.startX;
                   const { startHeight, startTop } = dragState.current;
-
-                  // "virtual" = how far above minimum state we are
-                  // [0 .. MODAL_HEIGHT-MIN] = height range (docked)
-                  // [MODAL_HEIGHT-MIN .. MAX] = move-up range (full height)
                   const moveUpMax = MODAL_DOCKED_TOP - 16;
                   const startMoveUp = Math.max(0, MODAL_DOCKED_TOP - startTop);
                   const startVirtual = (startHeight - MODAL_MIN_HEIGHT) + startMoveUp;
                   const newVirtual = Math.max(0, Math.min((MODAL_HEIGHT - MODAL_MIN_HEIGHT) + moveUpMax, startVirtual - deltaY));
-
                   const heightRange = MODAL_HEIGHT - MODAL_MIN_HEIGHT;
+                  let nextH: number, nextT: number;
                   if (newVirtual <= heightRange) {
-                    // Phase 1: height adjustment, docked
-                    const nextH = MODAL_MIN_HEIGHT + newVirtual;
-                    setModalHeight(nextH);
-                    setModalTop(window.innerHeight - 16 - nextH);
+                    nextH = MODAL_MIN_HEIGHT + newVirtual;
+                    nextT = window.innerHeight - 16 - nextH;
                   } else {
-                    // Phase 2: move modal up at full height
                     const movedUp = newVirtual - heightRange;
-                    setModalHeight(MODAL_HEIGHT);
-                    setModalTop(MODAL_DOCKED_TOP - movedUp);
+                    nextH = MODAL_HEIGHT;
+                    nextT = MODAL_DOCKED_TOP - movedUp;
                   }
-
                   const nextL = Math.min(window.innerWidth - 480, Math.max(0, dragState.current.startLeft + deltaX));
-                  setModalLeft(nextL);
+                  const clampedT = Math.max(16, Math.min(window.innerHeight - nextH - 16, nextT));
+                  modalRef.current.style.top = clampedT + 'px';
+                  modalRef.current.style.left = nextL + 'px';
+                  modalRef.current.style.height = nextH + 'px';
+                  lastH = nextH; lastT = nextT; lastL = nextL;
+                };
+                const onMove = (ev: MouseEvent) => {
+                  if (!dragState.current.dragging) return;
+                  latestX = ev.clientX;
+                  latestY = ev.clientY;
+                  if (!rafId) rafId = requestAnimationFrame(applyFrame);
                 };
                 const onUp = () => {
                   dragState.current.dragging = false;
+                  if (rafId) cancelAnimationFrame(rafId);
+                  setModalHeight(lastH);
+                  setModalTop(lastT);
+                  setModalLeft(lastL);
                   setIsModalDragging(false);
                   window.removeEventListener('mousemove', onMove);
                   window.removeEventListener('mouseup', onUp);
@@ -3139,10 +3153,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
           {/* Navegación de Semana */}
           <div className="std-card agendamiento-std-card mb-4" style={{ padding: 0 }}>
-            <div className="flex items-center justify-between gap-4 px-6" style={{ minHeight: '56px' }}>
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6" style={{ minHeight: '56px' }}>
 
               {/* Título */}
-              <h4 className="text-base font-bold text-white-primary shrink-0 tracking-wide">Citas de la Semana</h4>
+              <h4 className="text-sm sm:text-base font-bold text-white-primary shrink-0 tracking-wide">Citas de la Semana</h4>
 
               {/* Buscador fantasma */}
               <div ref={searchContainerRef} className="flex-1 min-w-0 relative flex items-center justify-end">
@@ -3375,87 +3389,88 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
             return (
               <div className="std-card agendamiento-std-card mb-4" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {/* Flecha anterior */}
+                    <button
+                      onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
+                      disabled={!canGoPrev}
+                      className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${canGoPrev ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
 
-                  {/* Flecha anterior */}
-                  <button
-                    onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
-                    disabled={!canGoPrev}
-                    className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${canGoPrev ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
+                    {/* Tarjetas */}
+                    <div className="flex-1 flex gap-3 min-w-0 overflow-x-auto sm:overflow-visible">
+                      {isLoading ? (
+                        <div className="flex-1 flex items-center justify-center py-3">
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-dark border-t-orange-primary" />
+                          <p className="text-xs text-gray-lighter ml-3 tracking-wider uppercase">Cargando agenda...</p>
+                        </div>
+                      ) : citasSemana.length === 0 ? (
+                        <p className="flex-1 text-center text-sm text-gray-dark py-2">
+                          Sin citas {carouselEstadoFiltro === 'Todas' ? '' : carouselEstadoFiltro.toLowerCase() + 's '}para esta semana
+                        </p>
+                      ) : (
+                        <>
+                          {pageCitas.map((cita: any) => {
+                            const servicio = formatNombre(cita.servicioNombre || cita.paqueteNombre || '—');
+                            const horaRango = formatRangoHorarioCita(cita);
+                            const subtitulo = [horaRango, formatNombre(cita.barberoNombre)].join(' — ');
+                            const estadoColor =
+                              cita.estado === 'Completada'
+                                ? 'border-l-[3px] border-l-[var(--status-green)]'
+                                : cita.estado === 'Cancelada' || cita.estado === 'Anulada'
+                                ? 'border-l-[3px] border-l-[var(--status-red)]'
+                                : 'border-l-[3px] border-l-orange-primary';
+                            return (
+                              <div
+                                key={cita.id}
+                                className={`min-w-[160px] sm:min-w-0 sm:flex-1 agendamiento-cita-card rounded-lg cursor-pointer border transition-all duration-200 ${estadoColor}`}
+                                style={{ padding: '12px 14px' }}
+                                onClick={(e) => {
+                                  const [hStr, mStr] = (cita.hora || '09:00').split(':');
+                                  const horaNum = parseInt(hStr) + (parseInt(mStr) / 60);
+                                  const fechaObj = new Date(`${cita.fecha}T12:00:00`);
+                                  const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
+                                  openCitaPopover(
+                                    cita,
+                                    { dia: diaStr, hora: horaNum, fecha: cita.fecha },
+                                    e.currentTarget.getBoundingClientRect()
+                                  );
+                                }}
+                              >
+                                <p className="text-sm text-gray-lightest truncate leading-tight">
+                                  {formatNombre(cita.clienteNombre)}
+                                </p>
+                                <p className="text-xs text-gray-lighter/80 truncate mt-0.5 leading-tight">
+                                  {servicio}
+                                </p>
+                                <p className="text-[11px] text-gray-light mt-1 leading-tight tracking-tight">
+                                  {subtitulo}
+                                </p>
+                              </div>
+                            );
+                          })}
+                          {pageCitas.length < CAROUSEL_PAGE_SIZE && Array.from({ length: CAROUSEL_PAGE_SIZE - pageCitas.length }).map((_, i) => (
+                            <div key={`empty-${i}`} className="hidden sm:block flex-1 min-w-0" />
+                          ))}
+                        </>
+                      )}
+                    </div>
 
-                  {/* Tarjetas */}
-                  <div className="flex-1 flex gap-3 min-w-0">
-                    {isLoading ? (
-                      <div className="flex-1 flex items-center justify-center py-3">
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-dark border-t-orange-primary" />
-                        <p className="text-xs text-gray-lighter ml-3 tracking-wider uppercase">Cargando agenda...</p>
-                      </div>
-                    ) : citasSemana.length === 0 ? (
-                      <p className="flex-1 text-center text-sm text-gray-dark py-2">
-                        Sin citas {carouselEstadoFiltro === 'Todas' ? '' : carouselEstadoFiltro.toLowerCase() + 's '}para esta semana
-                      </p>
-                    ) : (
-                      <>
-                        {pageCitas.map((cita: any) => {
-                          const servicio = formatNombre(cita.servicioNombre || cita.paqueteNombre || '—');
-                          const horaRango = formatRangoHorarioCita(cita);
-                          const subtitulo = [horaRango, formatNombre(cita.barberoNombre)].join(' — ');
-                          const estadoColor =
-                            cita.estado === 'Completada'
-                              ? 'border-l-[3px] border-l-[var(--status-green)]'
-                              : cita.estado === 'Cancelada' || cita.estado === 'Anulada'
-                              ? 'border-l-[3px] border-l-[var(--status-red)]'
-                              : 'border-l-[3px] border-l-orange-primary';
-                          return (
-                            <div
-                              key={cita.id}
-                              className={`flex-1 min-w-0 agendamiento-cita-card rounded-lg cursor-pointer border transition-all duration-200 ${estadoColor}`}
-                              style={{ padding: '12px 14px' }}
-                              onClick={(e) => {
-                                const [hStr, mStr] = (cita.hora || '09:00').split(':');
-                                const horaNum = parseInt(hStr) + (parseInt(mStr) / 60);
-                                const fechaObj = new Date(`${cita.fecha}T12:00:00`);
-                                const diaStr = diasSemana[(fechaObj.getDay() + 6) % 7];
-                                openCitaPopover(
-                                  cita,
-                                  { dia: diaStr, hora: horaNum, fecha: cita.fecha },
-                                  e.currentTarget.getBoundingClientRect()
-                                );
-                              }}
-                            >
-                              <p className="text-sm text-gray-lightest truncate leading-tight">
-                                {formatNombre(cita.clienteNombre)}
-                              </p>
-                              <p className="text-xs text-gray-lighter/80 truncate mt-0.5 leading-tight">
-                                {servicio}
-                              </p>
-                              <p className="text-[11px] text-gray-light mt-1 leading-tight tracking-tight">
-                                {subtitulo}
-                              </p>
-                            </div>
-                          );
-                        })}
-                        {pageCitas.length < CAROUSEL_PAGE_SIZE && Array.from({ length: CAROUSEL_PAGE_SIZE - pageCitas.length }).map((_, i) => (
-                          <div key={`empty-${i}`} className="flex-1 min-w-0" />
-                        ))}
-                      </>
-                    )}
+                    {/* Flecha siguiente */}
+                    <button
+                      onClick={() => setCarouselPage(p => Math.min(totalCarouselPages - 1, p + 1))}
+                      disabled={!canGoNext}
+                      className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${canGoNext ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
                   </div>
 
-                  {/* Flecha siguiente */}
-                  <button
-                    onClick={() => setCarouselPage(p => Math.min(totalCarouselPages - 1, p + 1))}
-                    disabled={!canGoNext}
-                    className={`btn-ghost-icon shrink-0 transition-opacity duration-150 ${canGoNext ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-
                   {/* Total semana */}
-                  <div className="shrink-0 text-right select-none pl-3 border-l border-gray-darker">
+                  <div className="shrink-0 sm:text-right text-center select-none sm:pl-3 sm:border-l border-gray-darker">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-gray-lighter leading-none">Total Semana</p>
                     <p className="text-xs text-gray-lightest mt-1">{citasSemana.length} cita{citasSemana.length !== 1 ? 's' : ''}</p>
                   </div>
@@ -3467,7 +3482,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
           {/* Grid de horarios + headers de días — un solo card unificado */}
           <div className="std-card agendamiento-std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
             <div className="w-full py-5 pb-6">
-              <div className="-mx-6 pl-3 pr-6">
+              <div className="-mx-6 pl-3 pr-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div style={{ minWidth: '700px' }}>
 
                 {isLoading ? (
                   <>
@@ -3706,7 +3722,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                             className="w-1.5 h-1.5 rounded-full shrink-0"
                                             style={{ background: dotColor }}
                                           />
-                                          <span className="truncate text-[9px] font-bold text-gray-lightest leading-tight" style={{ transition: 'color 150ms' }}>
+                                          <span className="truncate text-[13px] font-bold text-gray-lightest leading-tight" style={{ transition: 'color 150ms' }}>
                                             {visibleText}
                                           </span>
                                         </div>
@@ -3715,7 +3731,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                                     {citasQueArrancanEnCelda.length > 2 && (
                                       <button
                                         type="button"
-                                        className="self-start text-left text-[8px] font-semibold leading-tight rounded transition-all duration-150 px-0.5"
+                                        className="self-start text-left text-[12px] font-semibold leading-tight rounded transition-all duration-150 px-0.5"
                                         style={{ color: 'rgba(160,160,168,0.80)', paddingLeft: '3px', cursor: 'pointer' }}
                                         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.90)'; }}
                                         onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(160,160,168,0.80)'; }}
@@ -3766,6 +3782,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 })()}
                 </>
                 )}
+                </div>
               </div>
             </div>
           </div>

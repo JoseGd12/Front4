@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { authSyncService } from "../../auth/services/authSyncService";
@@ -61,6 +61,7 @@ const RolesPage = React.lazy(() => import("../../administracion/pages/RolesPage"
 const UsersPage = React.lazy(() => import("../../administracion/pages/UsersPage").then(m => ({ default: m.UsersPage })));
 const AdminPerfilPage = React.lazy(() => import("../pages/AdminPerfilPage").then(m => ({ default: m.AdminPerfilPage })));
 import { CitaNotificationBell } from "./CitaNotificationBell";
+import { useIsMobile } from "../../../shared/hooks/useIsMobile";
 import manitoLogo from "../../../assets/Manito.jpeg";
 
 type ModuleSubNavOverride = {
@@ -255,7 +256,18 @@ interface DashboardProps {
 
 export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: DashboardProps) {
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarTransitioning, setSidebarTransitioning] = useState(false);
+  const sidebarTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const toggleSidebarWithTransition = useCallback(() => {
+    setSidebarTransitioning(true);
+    setSidebarCollapsed(prev => !prev);
+    if (sidebarTransitionTimer.current) clearTimeout(sidebarTransitionTimer.current);
+    sidebarTransitionTimer.current = setTimeout(() => setSidebarTransitioning(false), 320);
+  }, []);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedCompraProducto, setPreSelectedCompraProducto] = useState<string | null>(null);
   const [subNavOverride, setSubNavOverride] = useState<ModuleSubNavOverride>(null);
@@ -330,6 +342,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
   const setActivePage = (page: string) => {
     const path = pageToPath(page);
     navigate(path ? `/dashboard/${path}` : '/dashboard');
+    if (isMobile) setMobileDrawerOpen(false);
   };
 
   const roleLabel =
@@ -629,52 +642,29 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           }}
         >
           <div className="flex items-center w-full">
-            <div className="w-72 shrink-0 px-4 flex items-center gap-3">
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible cursor-pointer"
-                    style={{
-                      boxShadow: 'none'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(174, 120, 14, 0.81), 0 4px 8px rgba(0, 0, 0, 0.1)';
-                      e.currentTarget.style.borderColor = 'rgba(244, 194, 69, 0.6)';
-                      e.currentTarget.style.backgroundColor = 'rgba(145, 129, 112, 0.98)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.borderColor = 'rgba(93, 64, 55, 0.4)';
-                      e.currentTarget.style.backgroundColor = '';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    <div className="transition-transform duration-150 ease-out group-hover:scale-110">
-                      <BarberPole />
-                    </div>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-gray-darkest border-gray-dark text-white-primary">
-                  <p>{sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="flex-1 px-6 lg:px-8 flex items-center justify-between gap-6">
+            {isMobile && (
+              <div className="px-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
+                  className="p-2 rounded-md bg-muted border border-gray-dark transition-colors duration-150 flex items-center justify-center cursor-pointer hover:bg-gray-medium"
+                >
+                  <Menu className="w-5 h-5 text-orange-primary" />
+                </button>
+              </div>
+            )}
+            <div className="flex-1 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sm:gap-6 min-w-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-2xl flex items-center justify-center elegante-shadow-lg relative overflow-hidden shrink-0">
                   <img src={manitoLogo} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 hidden sm:block">
                   <h1 className="text-lg font-bold text-white-primary truncate">MANITO BARBERSHOP</h1>
                   <p className="text-xs text-gray-lighter font-medium truncate">Sistema de Gestión</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <CitaNotificationBell
                   isOnAgendamientos={activePage === "Agendamientos"}
                   onNavigateToAgendamientos={() => setActivePage("Agendamientos")}
@@ -763,36 +753,102 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         </header>
 
         <div className="flex flex-1 overflow-hidden">
+          {/* Backdrop overlay para drawer movil */}
+          {isMobile && mobileDrawerOpen && (
+            <div
+              className="fixed inset-0 bg-black/60 z-[89] transition-opacity"
+              onClick={() => setMobileDrawerOpen(false)}
+            />
+          )}
           <aside
-            className={`border-r border-gray-dark flex flex-col transition-[width] duration-200 ease-out will-change-[width] shrink-0 z-[90] relative ${sidebarCollapsed ? "w-20" : "w-72"}`}
+            className={`border-r border-gray-dark flex flex-col transition-[width,transform] duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] shrink-0 z-[90] ${
+              isMobile
+                ? `fixed top-0 left-0 h-full w-72 ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"}`
+                : `relative ${sidebarCollapsed ? "w-20" : "w-72"} will-change-[width]`
+            }`}
             style={{
               backgroundColor: "#111111",
-              boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
+              boxShadow: isMobile && mobileDrawerOpen ? "4px 0 25px rgba(0,0,0,0.8)" : "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
-            <div className={`px-6 py-5 ${sidebarCollapsed ? "flex justify-center" : "flex items-center gap-3"}`}>
-              {!sidebarCollapsed && (
+            {/* Toggle button — borde derecho, parte superior */}
+            {!isMobile && (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={toggleSidebarWithTransition}
+                    className="sidebar-toggle-btn"
+                    style={{
+                      position: 'absolute',
+                      right: '-16px',
+                      top: '24px',
+                      zIndex: 100,
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--black-secondary)',
+                      border: '1px solid var(--gray-dark)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
+                    }}
+                  >
+                    <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg" overflow="visible">
+                      <defs>
+                        <mask id="bar-mask-1"><rect x="0" y="0" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                        <mask id="bar-mask-2"><rect x="0" y="9.5" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                      </defs>
+                      {[
+                        { mask: 'url(#bar-mask-1)', y: 0 },
+                        { mask: 'url(#bar-mask-2)', y: 9.5 },
+                      ].map((bar, i) => (
+                        <g key={i} mask={bar.mask}>
+                          <rect x="0" y={bar.y} width="20" height="4.5" rx="2.25" fill="#484848" />
+                          <g className="barber-bar-stripes">
+                            {[...Array(10)].map((_, j) => (
+                              <rect
+                                key={j}
+                                x={j * 9 - 18}
+                                y={bar.y - 4}
+                                width="2.2"
+                                height="13"
+                                fill="var(--orange-primary)"
+                                transform={`rotate(-35 ${j * 9 - 18 + 1.1} ${bar.y + 2.25})`}
+                              />
+                            ))}
+                          </g>
+                        </g>
+                      ))}
+                    </svg>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-gray-darkest border-gray-dark text-white-primary">
+                  <p>{sidebarCollapsed ? "Expandir menú" : "Colapsar menú"}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <div className={`px-6 py-5 ${sidebarCollapsed && !isMobile ? "flex justify-center" : "flex items-center gap-3"}`}>
+              {(!sidebarCollapsed || isMobile) && (
                 <div>
                   <p className="text-white-primary font-semibold text-lg mt-5 leading-tight">Panel Principal</p>
                   <p className="text-sm mt-5 mb-4 text-gray-lighter">Accesos directos</p>
                 </div>
               )}
             </div>
-            <nav className={`flex-1 overflow-y-auto mt-5 pb-6 ${sidebarCollapsed ? "space-y-2" : "space-y-6"}`}>
-              {sidebarCollapsed ? (
+            <nav className={`flex-1 overflow-y-auto mt-5 pb-6 ${sidebarCollapsed && !isMobile ? "space-y-2" : "space-y-6"}`}>
+              {sidebarCollapsed && !isMobile ? (
                 <div className="space-y-1">
-                  {/* Dashboard independiente */}
                   {renderNavItem({ icon: LayoutGrid, label: "Dashboard", page: "Dashboard" })}
-                  {/* Otros módulos filtrados */}
                   {filteredMenuSections.flatMap(section => section.items).map(renderNavItem)}
                 </div>
               ) : (
                 <>
-                  {/* Dashboard como elemento independiente */}
                   <div className="space-y-1">
                     {renderNavItem({ icon: LayoutGrid, label: "Dashboard", page: "Dashboard" })}
                   </div>
-                  {/* Secciones desplegables filtradas */}
                   {filteredMenuSections.map(section => {
                     const isCollapsed = collapsedSections[section.title];
                     return (
@@ -815,7 +871,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                           </span>
                         </button>
                         <div
-                          className={`overflow-hidden space-y-1`}
+                          className="overflow-hidden space-y-1"
                           style={{
                             maxHeight: isCollapsed ? 0 : `${section.items.length * 44}px`,
                             opacity: isCollapsed ? 0 : 1,
@@ -832,7 +888,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               )}
             </nav>
           </aside>
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className={`flex-1 flex flex-col overflow-hidden${sidebarTransitioning ? ' sidebar-transitioning' : ''}`}>
             <ModuleSubNav
               title={currentSubNav.title}
               subtitle={currentSubNav.subtitle}
@@ -870,7 +926,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               ) : undefined}
             />
             <div
-              className={`module-content flex-1 min-h-0 px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion"
+              className={`module-content flex-1 min-h-0 px-4 sm:px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion"
                   ? "overflow-hidden flex flex-col"
                   : "overflow-y-auto"
                 }`}

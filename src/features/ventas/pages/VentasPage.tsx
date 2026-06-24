@@ -2182,7 +2182,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-gray-lightest flex items-center gap-2">
                         <User className="w-4 h-4 text-orange-primary" />
@@ -2262,7 +2262,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-gray-lightest flex items-center gap-2">
                         <User className="w-4 h-4 text-orange-primary" />

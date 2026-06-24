@@ -2132,16 +2132,16 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             {/* Navegación de Semana */}
             <div className="std-card mb-4 !pt-3">
 
-              {/* Fila única: título | spacer | nav semana | acciones */}
-              <div className="flex items-center gap-3">
+              {/* Fila: titulo | spacer | nav semana | acciones */}
+              <div className="flex flex-wrap items-center gap-3">
 
-                {/* Título — extremo izquierdo */}
-                <h4 className="text-xl font-bold text-gray-lightest tracking-wide shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif" }}>Mis Citas</h4>
+                {/* Titulo */}
+                <h4 className="text-lg sm:text-xl font-bold text-gray-lightest tracking-wide shrink-0" style={{ fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif" }}>Mis Citas</h4>
 
                 {/* Spacer */}
-                <div className="flex-1 min-w-0" />
+                <div className="hidden sm:block flex-1 min-w-0" />
 
-                {/* Navegación de semana */}
+                {/* Navegacion de semana */}
                 <div className="flex items-center shrink-0">
                   <button
                     onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); }}
@@ -2149,11 +2149,11 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <div className="text-center px-4">
-                    <h3 className="text-base font-semibold text-gray-lightest leading-tight">
+                  <div className="text-center px-2 sm:px-4">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-lightest leading-tight">
                       {currentWeek === 0 ? 'Esta Semana' : `Semana ${currentWeek > 0 ? '+' : ''}${currentWeek}`}
                     </h3>
-                    <p className="text-xs text-gray-light">
+                    <p className="text-[10px] sm:text-xs text-gray-light">
                       {weekDays[0].fecha} - {weekDays[6].fecha}
                     </p>
                   </div>
@@ -2166,7 +2166,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                 </div>
 
                 {/* Acciones */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
                   <button
                     onClick={() => { setCurrentWeek(0); setCarouselPage(0); }}
                     className="elegante-button-secondary text-sm"
@@ -2178,7 +2178,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     className="btn-std-primary"
                   >
                     <Plus className="w-4 h-4" />
-                    Nueva Cita
+                    <span className="hidden sm:inline">Nueva Cita</span>
+                    <span className="sm:hidden">Cita</span>
                   </button>
                 </div>
               </div>
@@ -2204,8 +2205,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                 );
 
                 return (
-                  <div className="pt-4 pb-4 flex items-center gap-6">
-                    <div className="flex items-center gap-2 flex-1">
+                  <div className="pt-4 pb-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                       <button
                         onClick={() => setCarouselPage(p => Math.max(0, p - 1))}
                         disabled={carouselPage === 0 || citasSemana.length === 0}
@@ -2217,7 +2218,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                         <ChevronLeft className="w-5 h-5" />
                       </button>
 
-                      <div className="flex-1 flex gap-3 min-w-0 pr-20">
+                      <div className="flex-1 flex gap-3 min-w-0 overflow-x-auto sm:overflow-visible sm:pr-20">
                         {citasSemana.length === 0 ? (
                           <p className="flex-1 text-center text-sm text-gray-dark">Sin citas para esta semana</p>
                         ) : (
@@ -2235,7 +2236,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               return (
                                 <div
                                   key={cita.id}
-                                  className={`flex-1 min-w-0 bg-gray-darker/40 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-gray-dark border border-gray-dark/40 hover:border-gray-medium transition-all duration-200 ${estadoColor}`}
+                                  className={`min-w-[160px] sm:min-w-0 sm:flex-1 bg-gray-darker/40 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-gray-dark border border-gray-dark/40 hover:border-gray-medium transition-all duration-200 ${estadoColor}`}
                                   onClick={() => {
                                     setSelectedCita(cita);
                                     setIsDetailDialogOpen(true);
@@ -2254,7 +2255,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                               );
                             })}
                             {pageCitas.length < CAROUSEL_PAGE_SIZE && Array.from({ length: CAROUSEL_PAGE_SIZE - pageCitas.length }).map((_, i) => (
-                              <div key={`empty-${i}`} className="flex-1 min-w-0" />
+                              <div key={`empty-${i}`} className="hidden sm:block flex-1 min-w-0" />
                             ))}
                           </>
                         )}
@@ -2272,7 +2273,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       </button>
                     </div>
 
-                    <div className="ml-10 w-[220px] shrink-0 flex justify-end">
+                    <div className="sm:ml-10 sm:w-[220px] shrink-0 flex justify-center sm:justify-end">
                       <div className="rounded-lg border border-gray-dark bg-gray-darker/50 px-3 py-2 text-center min-w-[170px]">
                         <p className="text-[10px] uppercase tracking-widest text-gray-lighter">Total Semana</p>
                         <p className="text-sm font-semibold text-gray-lightest tabular-nums">{citasSemana.length} citas</p>
@@ -2286,7 +2287,8 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
             {/* Grid de horarios + headers de días — un solo card unificado */}
             <div className="std-card !py-0" style={{ marginBottom: '1.5rem' }}>
               <div className="w-full py-5 pb-6">
-                <div className="-mx-6 pl-3 pr-6">
+                <div className="-mx-6 pl-3 pr-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <div style={{ minWidth: '700px' }}>
 
                   {/* Fila de headers de días */}
                   <div
@@ -2508,6 +2510,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                       </div>
                     ));
                   })()}
+                  </div>
                 </div>
               </div>
             </div>

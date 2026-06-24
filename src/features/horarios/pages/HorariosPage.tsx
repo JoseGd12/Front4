@@ -1791,7 +1791,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-gray-lightest text-xs">Hora inicio *</Label>
                     <TimeInput12h value={cancelHoraStart} onChange={setCancelHoraStart} />

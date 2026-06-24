@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
+import { useIsMobile } from "../../../shared/hooks/useIsMobile";
 import {
   Calendar,
   DollarSign,
@@ -14,6 +15,7 @@ import {
   Search,
   X,
   ArrowRight,
+  Menu,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
 import {
@@ -47,7 +49,9 @@ const navItems = [
 
 export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLanding?: () => void; initialItem?: any }) {
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedProduct, setPreSelectedProduct] = useState<any>(null);
   const [autoOpenPerfilEdit, setAutoOpenPerfilEdit] = useState(false);
@@ -81,6 +85,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
   const setActivePage = (page: string) => {
     const path = clientePageToPath(page);
     navigate(path ? `/dashboard/${path}` : '/dashboard');
+    if (isMobile) setMobileDrawerOpen(false);
   };
 
   const roleLabel = "Cliente";
@@ -174,12 +179,12 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
           }}
         >
           <div className="flex items-center w-full">
-            <div className="w-72 shrink-0 px-4 flex items-center gap-3">
+            <div className={`${isMobile ? "px-3" : "w-72 shrink-0 px-4"} flex items-center gap-3`}>
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    onClick={() => isMobile ? setMobileDrawerOpen(!mobileDrawerOpen) : setSidebarCollapsed(!sidebarCollapsed)}
                     className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible cursor-pointer"
                     style={{ boxShadow: 'none' }}
                     onMouseEnter={(e) => {
@@ -195,30 +200,33 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                       e.currentTarget.style.transform = 'translateY(0)';
                     }}
                   >
-                    <div className="transition-transform duration-150 ease-out group-hover:scale-110">
-                      <BarberPole />
-                    </div>
+                    {isMobile ? (
+                      <Menu className="w-5 h-5 text-orange-primary" />
+                    ) : (
+                      <div className="transition-transform duration-150 ease-out group-hover:scale-110">
+                        <BarberPole />
+                      </div>
+                    )}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="bg-gray-darkest border-gray-dark text-white-primary">
-                  <p>{sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}</p>
+                  <p>{isMobile ? "Menú" : sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}</p>
                 </TooltipContent>
               </Tooltip>
-
             </div>
 
-            <div className="flex-1 px-6 lg:px-8 flex items-center justify-between gap-6">
+            <div className="flex-1 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sm:gap-6 min-w-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-2xl flex items-center justify-center elegante-shadow-lg relative overflow-hidden shrink-0">
                   <img src={LOGO_URL} alt="Manito Barbershop Logo" className="w-full h-full object-contain" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 hidden sm:block">
                   <h1 className="text-lg font-bold text-white-primary truncate">MANITO BARBERSHOP</h1>
                   <p className="text-xs text-gray-lighter font-medium truncate">Panel de Clientes</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 {onBackToLanding && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -301,12 +309,21 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
+          {isMobile && mobileDrawerOpen && (
+            <div
+              className="fixed inset-0 bg-black/60 z-[89] transition-opacity"
+              onClick={() => setMobileDrawerOpen(false)}
+            />
+          )}
           <aside
-            className={`border-r border-gray-dark flex flex-col transition-[width] duration-200 ease-out will-change-[width] shrink-0 z-[90] relative ${sidebarCollapsed ? "w-20" : "w-72"}`}
+            className={`border-r border-gray-dark flex flex-col transition-all duration-200 ease-out shrink-0 z-[90] ${
+              isMobile
+                ? `fixed top-0 left-0 h-full w-72 ${mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"}`
+                : `relative ${sidebarCollapsed ? "w-20" : "w-72"} will-change-[width]`
+            }`}
             style={{
               backgroundColor: "#111111",
-              boxShadow: "0px 0px 25px rgba(0,0,0,0.8)"
+              boxShadow: isMobile && mobileDrawerOpen ? "4px 0 25px rgba(0,0,0,0.8)" : "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
             {/* Navigation */}
@@ -326,7 +343,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 return <Icon className="w-5 h-5 text-orange-primary" />;
               })()}
             />
-            <div className="module-content flex-1 overflow-y-auto px-6 lg:px-8 pt-4 pb-6">
+            <div className="module-content flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-4 pb-6">
               {renderContent()}
             </div>
           </div>

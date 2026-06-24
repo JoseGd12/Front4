@@ -1868,7 +1868,7 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
           {selectedDevolucion && (
             <div className="space-y-6 pt-4">
               {/* Selección de Venta (Lectura) */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label className="text-gray-lightest flex items-center gap-2">
                     <Receipt className="w-4 h-4 text-orange-primary" />

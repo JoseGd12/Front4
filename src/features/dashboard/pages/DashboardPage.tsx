@@ -1714,8 +1714,8 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
 
                 if (metric.id === "ganancias-barberos") {
                   return (
-                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-3">
-                        <div className="flex items-start justify-between gap-2">
+                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
                           <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
                           <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
                             <Icon className="w-3.5 h-3.5 text-orange-primary" />
@@ -1794,29 +1794,29 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
 
                 if (metric.id === "ganancia-barberia") {
                   return (
-                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-5">
-                        <div className="flex items-start justify-between gap-3 mb-3">
+                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
                           <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
-                          <div className="w-8 h-8 rounded-xl bg-gray-darker border border-gray-dark flex items-center justify-center shrink-0">
-                            <Icon className="w-4 h-4 text-orange-primary" />
+                          <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
+                            <Icon className="w-3.5 h-3.5 text-orange-primary" />
                           </div>
                         </div>
-                        <p className="text-3xl font-bold text-white-primary mb-1">{metric.value}</p>
-                        <p className="text-xs text-gray-lightest mt-1">{metric.change}</p>
+                        <p className="text-3xl font-bold text-white-primary leading-none">{metric.value}</p>
+                        {metric.change && <p className="text-xs text-gray-lightest">{metric.change}</p>}
                     </div>
                   );
                 }
 
                 return (
-                  <div key={metric.title} className="rounded-xl bg-gray-darkest p-5 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-lightest uppercase tracking-[0.2em]">{metric.title}</p>
-                      <p className="text-3xl font-bold text-white-primary mt-2">{metric.value}</p>
-                      <span className="text-sm font-semibold text-gray-lightest">{metric.change}</span>
+                  <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
+                      <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
+                        <Icon className={`w-3.5 h-3.5 ${metric.iconColor}`} />
+                      </div>
                     </div>
-                    <div className="w-12 h-12 rounded-xl bg-gray-darker border border-gray-dark flex items-center justify-center">
-                      <Icon className={`w-6 h-6 ${metric.iconColor}`} />
-                    </div>
+                    <p className="text-3xl font-bold text-white-primary leading-none">{metric.value}</p>
+                    {metric.change && <span className="text-xs text-gray-lightest">{metric.change}</span>}
                   </div>
                 );
               })}
@@ -2004,7 +2004,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                         onClick={() => setPeriodoTasaCitas(p)}
                         className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
                           periodoTasaCitas === p
-                            ? "bg-orange-primary text-white"
+                            ? "bg-orange-primary text-black-primary"
                             : "bg-gray-darker text-gray-lightest hover:bg-gray-dark"
                         }`}
                       >
@@ -2112,7 +2112,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                     onClick={() => setPeriodoRankingBarberos(p)}
                     className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
                       periodoRankingBarberos === p
-                        ? "bg-orange-primary text-white"
+                        ? "bg-orange-primary text-black-primary"
                         : "bg-gray-darker text-gray-lightest hover:bg-gray-dark"
                     }`}
                   >

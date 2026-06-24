@@ -66,6 +66,10 @@
   --sidebar-ring: var(--orange-primary);
   --search-filter-bg: #333232;
 
+  /* Auth logo sizes */
+  --auth-logo-size: 110px;
+  --auth-logo-mobile-size: 120px;
+
   /* Tokens de estado para tablas estandarizadas */
   --status-green: #7aab8a;
   --status-red: #b07070;
@@ -957,12 +961,9 @@ html {
     margin-left: -1.5rem;
     margin-right: -1.5rem;
     margin-top: 0;
-    overflow-x: hidden;
+    overflow-x: auto;
     width: calc(100% + 3rem);
-    /* Sin border-top ni border-bottom propios:
-       - El border-b del TableHeaderSection (variant=dark) actúa como separador superior.
-       - El std-full-divider de la paginación actúa como separador inferior.
-       Agregar bordes aquí causaría duplicidad visual. */
+    -webkit-overflow-scrolling: touch;
   }
 
   /*
@@ -986,6 +987,7 @@ html {
     font-family: 'DM Sans', 'Segoe UI', sans-serif;
     background: var(--gray-darkest);
     table-layout: fixed;
+    min-width: 640px;
   }
 
   /*
@@ -1284,6 +1286,31 @@ html {
 .sidebar-nav-inactive-light:hover .sidebar-icon-light,
 .sidebar-nav-inactive-light:hover svg { color: #c9a96e; filter: drop-shadow(0 0 4px rgba(201,169,110,0.7)); }
 .sidebar-text-light  { color: #1a1a1a; font-weight: 500; }
+
+/* ── Sidebar toggle button ── */
+.sidebar-toggle-btn:hover {
+  background-color: #1a1a1a !important;
+  border-color: var(--orange-primary) !important;
+  box-shadow: 0 2px 12px rgba(216, 176, 129, 0.25);
+}
+
+@keyframes barber-stripe-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(9px); }
+}
+
+.barber-bar-stripes {
+  animation: barber-stripe-slide 1s linear infinite;
+}
+
+/* ── Freeze Recharts during sidebar transition to prevent jank ── */
+.sidebar-transitioning .recharts-responsive-container {
+  pointer-events: none;
+  visibility: hidden;
+}
+.sidebar-transitioning .recharts-responsive-container > * {
+  visibility: hidden;
+}
 
 /* ── Títulos globales ── */
 :root.light-mode h1,

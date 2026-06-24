@@ -165,7 +165,7 @@
 .content-max-width {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 clamp(1rem, 4vw, 2rem);
 }
 
 .section-padding {
@@ -575,6 +575,29 @@
   .hero-cta-button {
     padding: 0.85rem 2rem;
     font-size: 0.85rem;
+  }
+
+  .section-padding {
+    padding: 4rem 0;
+  }
+
+  .magister-gap {
+    gap: 2.5rem;
+  }
+
+  .gallery-heading-separator {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-cta-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.8rem;
+  }
+
+  .section-padding {
+    padding: 3rem 0;
   }
 }
 
@@ -1207,6 +1230,29 @@ body {
 }
 .group:hover .barber-crop-christian {
   transform: scale(1.4);
+}
+
+/* ── Barber Grid: CSS-only expand on hover (GPU-friendly) ── */
+.barber-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  gap: 6px;
+  transition: grid-template-columns 0.28s cubic-bezier(0.22, 0.68, 0, 1);
+}
+
+.barber-grid:has(.barber-panel:nth-child(1):hover) { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
+.barber-grid:has(.barber-panel:nth-child(2):hover) { grid-template-columns: 1fr 2fr 1fr 1fr 1fr; }
+.barber-grid:has(.barber-panel:nth-child(3):hover) { grid-template-columns: 1fr 1fr 2fr 1fr 1fr; }
+.barber-grid:has(.barber-panel:nth-child(4):hover) { grid-template-columns: 1fr 1fr 1fr 2fr 1fr; }
+.barber-grid:has(.barber-panel:nth-child(5):hover) { grid-template-columns: 1fr 1fr 1fr 1fr 2fr; }
+
+.barber-panel-btn {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.barber-panel:hover .barber-panel-btn {
+  background-color: #d8b081;
+  color: #000;
 }
 
 /* Sin arrastre ni selección accidental en imágenes de carruseles y barberos */

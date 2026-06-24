@@ -297,7 +297,7 @@ export default function RevisarSolicitudesPage({ usuarioId, onBack }: Props) {
             </div>
 
             <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-lightest">Motivo</p>
                   <p className="text-white-primary font-medium">{selected.motivoCategoria}</p>
@@ -382,7 +382,7 @@ export default function RevisarSolicitudesPage({ usuarioId, onBack }: Props) {
                       </table>
                     )}
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <Input type="date" value={diaTmp} onChange={(e) => setDiaTmp(e.target.value)} className="elegante-input" />
                       <TimeInput12h value={horaInicioTmp} onChange={setHoraInicioTmp} />
                       <TimeInput12h value={horaFinTmp} onChange={setHoraFinTmp} />

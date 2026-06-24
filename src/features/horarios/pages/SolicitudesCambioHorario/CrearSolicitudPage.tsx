@@ -187,7 +187,7 @@ export default function CrearSolicitudPage({ onNavigate, barberoId: propBarberoI
                     className="elegante-input h-9 text-xs"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label className="text-[10px] uppercase font-bold text-gray-lighter">Hora Inicio</Label>
                     <TimeInput12h value={horaInicioTmp} onChange={setHoraInicioTmp} />

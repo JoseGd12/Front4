@@ -269,7 +269,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-gray-300 text-sm font-medium">Nombre *</Label>
                 <div className="relative">

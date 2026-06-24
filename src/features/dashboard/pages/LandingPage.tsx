@@ -39,6 +39,7 @@ import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
 import { formatDuracion } from '../../../shared/utils/dateUtils';
 import { barberosService } from '../../administracion/services/barberosService';
+import { horariosService } from '../../agendamiento/services/horariosService';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
 import heroVideo from '../../../assets/hero-video.mp4';
@@ -222,31 +223,46 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   // WhatsApp Chat Widget
   const [waChatOpen, setWaChatOpen] = useState(false);
   const [waMessage, setWaMessage] = useState('');
-  const [waBarbers, setWaBarbers] = useState<{ nombre: string; foto: string; telefono: string; rol: string }[]>([]);
+  const [waBarbers, setWaBarbers] = useState<{ nombre: string; foto: string | null; telefono: string; rol: string }[]>([]);
 
   useEffect(() => {
     const fetchWaBarbers = async () => {
       try {
-        const barbers = await barberosService.getBarberos();
+        const [barbers, horarios] = await Promise.all([
+          barberosService.getBarberos(),
+          horariosService.getHorarios().catch(() => []),
+        ]);
+
+        const barberosConHorario = new Set(
+          horarios.map(h => Number(h.barberoId))
+        );
+
         const activeWithPhone = barbers
-          .filter(b => b.status === 'active' && b.telefono && b.telefono.trim() !== '')
+          .filter(b => {
+            if (b.status !== 'active') return false;
+            if (!b.telefono || b.telefono.trim() === '') return false;
+            if (barberosConHorario.size > 0 && !barberosConHorario.has(Number(b.id))) return false;
+            return true;
+          })
           .map(b => {
-            let foto = imgMaicol; // fallback
-            const lowerName = b.nombre.toLowerCase();
+            let foto: string | null = null;
             if (b.fotoPerfil && b.fotoPerfil.startsWith('http')) {
               foto = b.fotoPerfil;
-            } else if (lowerName.includes('christian')) foto = imgChristian;
-            else if (lowerName.includes('eduardo')) foto = imgEduardo;
-            else if (lowerName.includes('edwin')) foto = imgEdwin;
-            else if (lowerName.includes('juan')) foto = imgJuan;
-            else if (lowerName.includes('maicol')) foto = imgMaicol;
+            } else {
+              const lowerName = b.nombre.toLowerCase();
+              if (lowerName.includes('christian')) foto = imgChristian;
+              else if (lowerName.includes('eduardo')) foto = imgEduardo;
+              else if (lowerName.includes('edwin')) foto = imgEdwin;
+              else if (lowerName.includes('juan')) foto = imgJuan;
+              else if (lowerName.includes('maicol')) foto = imgMaicol;
+            }
 
             let formattedPhone = b.telefono.replace(/\D/g, '');
             if (formattedPhone.length === 10) formattedPhone = '57' + formattedPhone;
 
             return {
               nombre: b.nombre,
-              foto: foto,
+              foto,
               telefono: formattedPhone,
               rol: b.especialidad || b.rol || 'Barbero'
             };
@@ -261,6 +277,15 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
   const [waSelectedBarber, setWaSelectedBarber] = useState(0);
   const waInputRef = useRef<HTMLInputElement>(null);
+
+  const WaAvatar = ({ foto, nombre, size, border }: { foto: string | null; nombre: string; size: number; border: string }) =>
+    foto ? (
+      <img src={foto} alt={nombre} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border, flexShrink: 0 }} />
+    ) : (
+      <div style={{ width: size, height: size, borderRadius: '50%', border, flexShrink: 0, background: 'rgba(37,211,102,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, fontWeight: 800, color: '#25D366', textTransform: 'uppercase' }}>
+        {nombre.split(' ').map(w => w[0]).join('').slice(0, 2)}
+      </div>
+    );
 
   const handleWaSend = useCallback(() => {
     const barber = waBarbers[waSelectedBarber];
@@ -1402,7 +1427,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             <p className="text-gray-400 mt-4 max-w-xl mx-auto text-lg mb-4 leading-relaxed">Conoce a los artistas detrás de tu imagen. Nuestra dedicación se refleja en cada detalle.</p>
           </div>
           
-          <div className="flex w-full max-w-[850px] mx-auto overflow-hidden" style={{ height: '480px', gap: '6px' }}>
+          <div className="barber-grid w-full max-w-[850px] mx-auto overflow-hidden" style={{ height: '480px' }}>
             {[
               { nombre: 'Maicol', foto: imgMaicol, imageClass: 'barber-crop-default' },
               { nombre: 'Juan', foto: imgJuan, imageClass: 'barber-crop-juan' },
@@ -1410,43 +1435,32 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               { nombre: 'Eduardo', foto: imgEduardo, imageClass: 'barber-crop-eduardo' },
               { nombre: 'Christian', foto: imgChristian, imageClass: 'barber-crop-christian' },
             ].map((barbero, idx) => (
-              <div 
-                key={idx} 
-                className="relative flex flex-col bg-[#fdfdfd] rounded-2xl overflow-hidden shadow-2xl transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group"
-                style={{ flex: '1' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.flex = '2';
-                  const btn = e.currentTarget.querySelector('button') as HTMLButtonElement | null;
-                  if (btn) { btn.style.backgroundColor = '#d8b081'; btn.style.color = '#000'; }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.flex = '1';
-                  const btn = e.currentTarget.querySelector('button') as HTMLButtonElement | null;
-                  if (btn) { btn.style.backgroundColor = ''; btn.style.color = ''; }
-                }}
+              <div
+                key={idx}
+                className="barber-panel relative flex flex-col bg-[#141414] rounded-2xl overflow-hidden shadow-2xl group"
               >
-                {/* Nombre arriba en negro con letra elegante */}
-                <div className="py-5 text-center px-2 flex flex-col justify-center items-center bg-[#fdfdfd] z-10">
-                  <h3 className="text-2xl md:text-3xl font-black font-title tracking-tight text-[#111111] group-hover:text-[#d8b081] transition-colors duration-300">
+                {/* Nombre arriba */}
+                <div className="py-5 text-center px-2 flex flex-col justify-center items-center bg-[#141414] z-10">
+                  <h3 className="text-2xl md:text-3xl font-black font-title tracking-tight text-white group-hover:text-[#d8b081] transition-colors duration-200">
                     {barbero.nombre}
                   </h3>
                 </div>
 
                 {/* Imagen rellenando el espacio medio */}
-                <div className="flex-1 w-full relative overflow-hidden bg-black">
+                <div className="flex-1 w-full relative overflow-hidden bg-[#141414]">
                   <img
                     src={barbero.foto}
                     alt={barbero.nombre}
-                    className={`barber-card-img w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 ${barbero.imageClass}`}
+                    className={`barber-card-img w-full h-full object-cover transition-all duration-250 ${barbero.imageClass}`}
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
                   />
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all duration-500 pointer-events-none" />
+                  <div className="absolute inset-0 bg-transparent group-hover:bg-black/55 transition-all duration-250 pointer-events-none" />
                 </div>
 
-                {/* Botón de agendar directo sin contenedor */}
+                {/* Botón de agendar */}
                 <button
-                  className="relative z-10 w-full py-6 font-bold tracking-[0.2em] text-xs transition-all duration-300 outline-none border-t border-black/5 bg-transparent text-[#111111] hover:bg-[#d8b081] hover:text-black cursor-pointer"
+                  className="barber-panel-btn relative z-10 w-full py-6 font-bold tracking-[0.2em] text-xs outline-none border-t border-white/10 bg-transparent text-white cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (isAuthenticated) {
@@ -2014,18 +2028,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                       onMouseEnter={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                       onMouseLeave={e => { if (waSelectedBarber !== i) e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <img
-                        src={b.foto}
-                        alt={b.nombre}
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          border: waSelectedBarber === i ? '2px solid #25D366' : '2px solid rgba(255,255,255,0.1)',
-                          transition: 'border 0.2s',
-                        }}
-                      />
+                      <WaAvatar foto={b.foto} nombre={b.nombre} size={32} border={waSelectedBarber === i ? '2px solid #25D366' : '2px solid rgba(255,255,255,0.1)'} />
                       <div style={{ overflow: 'hidden' }}>
                         <div style={{ fontSize: '11px', fontWeight: 700, color: waSelectedBarber === i ? '#fff' : '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.nombre}</div>
                         <div style={{ fontSize: '9px', color: '#555', letterSpacing: '0.05em' }}>{b.rol}</div>
@@ -2051,11 +2054,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   background: 'rgba(0,0,0,0.4)',
                   borderBottom: '1px solid rgba(255,255,255,0.06)',
                 }}>
-                  <img
-                    src={waBarbers[waSelectedBarber]?.foto}
-                    alt=""
-                    style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #25D366' }}
-                  />
+                  <WaAvatar foto={waBarbers[waSelectedBarber]?.foto ?? null} nombre={waBarbers[waSelectedBarber]?.nombre ?? ''} size={36} border="2px solid #25D366" />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{waBarbers[waSelectedBarber]?.nombre}</div>
                     <div style={{ fontSize: '10px', color: '#25D366', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2076,7 +2075,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                 <div style={{ flex: 1, padding: '20px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: '10px' }}>
                   {/* Welcome message from barber */}
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                    <img src={waBarbers[waSelectedBarber]?.foto} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                    <WaAvatar foto={waBarbers[waSelectedBarber]?.foto ?? null} nombre={waBarbers[waSelectedBarber]?.nombre ?? ''} size={24} border="none" />
                     <div style={{
                       background: 'rgba(255,255,255,0.07)',
                       borderRadius: '12px 12px 12px 4px',
