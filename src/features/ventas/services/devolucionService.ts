@@ -72,9 +72,11 @@ class DevolucionService {
                 return 'Completada';
             })(),
             usuarioId: data.usuarioId || data.UsuarioId || 0,
-            responsableNombre: usuario
-                ? `${usuario.nombre || usuario.Nombre || ''} ${usuario.apellido || usuario.Apellido || ''}`.trim() || 'Responsable'
-                : (data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre || data.usuarioNombreCompleto || data.UsuarioNombreCompleto || 'Responsable'),
+            responsableNombre: (data.usuarioNombre || data.UsuarioNombre || data.usuarioApellido || data.UsuarioApellido) 
+                ? `${data.usuarioNombre || data.UsuarioNombre || ''} ${data.usuarioApellido || data.UsuarioApellido || ''}`.trim() || 'Responsable'
+                : (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre || (usuario 
+                    ? `${usuario.nombre || usuario.Nombre || ''} ${usuario.apellido || usuario.Apellido || ''}`.trim() || 'Responsable' 
+                    : 'Responsable')),
             observaciones: data.observaciones || data.Observaciones || '',
             barberoId: barbero ? Number(barbero.id || barbero.Id || 0) : (data.barberoId || data.BarberoId || undefined),
             barberoNombre: barbero
