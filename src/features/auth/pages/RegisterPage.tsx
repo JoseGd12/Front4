@@ -38,6 +38,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
 
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [emailAlreadyExists, setEmailAlreadyExists] = useState(false);
+  const [emailConflictError, setEmailConflictError] = useState('');
   const debounceTimerRef = useRef<NodeJS.Timeout>();
 
   const validatePassword = (password: string) => {
@@ -97,6 +98,7 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (showRegisterFormErrors) setShowRegisterFormErrors(false);
     if (error) setError('');
+    if (emailConflictError) setEmailConflictError('');
 
     if (field === 'email') {
       if (emailAlreadyExists) setEmailAlreadyExists(false);
@@ -133,7 +135,16 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
       if (result.success) {
         setSuccess(true);
       } else {
-        setError(result.error || 'Error al crear la cuenta');
+        const msg = result.error || '';
+        if (
+          msg.toLowerCase().includes('conflict') ||
+          msg.toLowerCase().includes('correo') ||
+          msg.toLowerCase().includes('email')
+        ) {
+          setEmailConflictError(msg || 'Este correo ya está en uso');
+        } else {
+          setError(msg || 'Error al crear la cuenta');
+        }
       }
     } catch (err) {
       setError('Error al crear la cuenta. Intenta de nuevo.');
@@ -266,6 +277,12 @@ export function RegisterPage({ onBack }: RegisterPageProps) {
               <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
                 <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
                 <span className="text-red-400 text-sm">{error}</span>
+              </div>
+            )}
+            {emailConflictError && (
+              <div className="flex items-center space-x-3 p-3.5 rounded-xl bg-red-900/15 border border-red-500/20">
+                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <span className="text-red-400 text-sm">{emailConflictError}</span>
               </div>
             )}
 
