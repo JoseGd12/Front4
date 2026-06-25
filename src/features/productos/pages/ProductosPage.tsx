@@ -175,8 +175,12 @@ export function ProductosPage() {
     marca: '', imagenProduc: '', activo: true, usoProducto: 'venta_e_insumo'
   };
 
-  const hasUnsavedChanges = () =>
-    formInitialStateRef.current !== JSON.stringify(nuevoProducto);
+  const hasUnsavedChanges = () => {
+    // Solo hay cambios si el ref fue inicializado (el dialog se abrió correctamente)
+    // y el estado actual difiere del estado inicial
+    if (!formInitialStateRef.current) return false;
+    return formInitialStateRef.current !== JSON.stringify(nuevoProducto);
+  };
 
   const closeFormClean = () => {
     setIsDialogOpen(false);
@@ -524,9 +528,8 @@ export function ProductosPage() {
   };
 
   const handleEditProducto = async (producto: any) => {
-    setIsDialogOpen(true);
-    setEditingProducto(producto);
-
+    // Primero fetch y preparar el estado, luego abrir el dialog
+    // Así el ref y el estado quedan sincronizados desde el primer render
     let p = producto;
     try {
       p = await productoService.getProductoById(Number(producto.id));
@@ -550,12 +553,20 @@ export function ProductosPage() {
       activo: p.activo ?? true,
       usoProducto: getUsoProductoActual(p)
     };
+
+    // Setear todo el estado antes de abrir el dialog
+    setEditingProducto(producto);
     setNuevoProducto(editForm);
     formInitialStateRef.current = JSON.stringify(editForm);
     setCategorySearchTerm(categoriaVal);
     setImagenPreview(p.imagenProduc || null);
     setImageError(null);
     setNombreProductoError(null);
+    setShowProductoFormErrors(false);
+    setProductoValidationAttempt(0);
+
+    // Abrir el dialog una vez que el estado ya está listo
+    setIsDialogOpen(true);
   };
 
   const handleUpdateProducto = async () => {
@@ -897,8 +908,6 @@ export function ProductosPage() {
             <TableHeaderSection
               variant="dark"
               leftContent={(
-                <Dialog open={isDialogOpen} onOpenChange={(open) => { if (open) setIsDialogOpen(true); else handleRequestCloseForm(); }}>
-                  <DialogTrigger asChild>
                     <button
                       className="btn-std-primary"
                       onClick={() => {
@@ -910,327 +919,12 @@ export function ProductosPage() {
                         setShowProductoFormErrors(false);
                         setProductoValidationAttempt(0);
                         setNombreProductoError(null);
+                        setIsDialogOpen(true);
                       }}
                     >
                       <Plus className="w-4 h-4" />
                       Nuevo Producto
                     </button>
-                  </DialogTrigger>
-                  <DialogContent
-                    className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto"
-                    onInteractOutside={(e: any) => {
-                      e.preventDefault();
-                      const target = e.target as HTMLElement | null;
-                      if (!target?.closest('[data-alert-container="true"]')) {
-                        handleRequestCloseForm();
-                      }
-                    }}
-                    onEscapeKeyDown={(e) => {
-                      e.preventDefault();
-                      handleRequestCloseForm();
-                    }}
-                  >
-                    <DialogHeader>
-                      <DialogTitle className="text-white-primary flex items-center gap-2">
-                        <Package className="w-5 h-5 text-orange-primary" />
-                        {editingProducto ? 'Editar Producto' : 'Agregar Nuevo Producto'}
-                      </DialogTitle>
-                      <DialogDescription className="text-gray-lightest">
-                        {editingProducto ? 'Modifica la información del producto' : 'Completa los datos del nuevo producto o accesorio'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <div className="space-y-1.5">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5 py-2">
-                              <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                              Nombre *
-                            </Label>
-                            <NameInput
-                              value={nuevoProducto.nombre}
-                              onChange={(val) => {
-                                const capped = val.slice(0, NOMBRE_MAX);
-                                setNuevoProducto({ ...nuevoProducto, nombre: capped });
-                                if (nombreProductoError) setNombreProductoError(null);
-                              }}
-                              placeholder="Ej: Cadena de Rodio"
-                              className={`elegante-input h-9 text-sm ${
-                                showProductoFormErrors && (nombreProductoError || isNombreDuplicado)
-                                  ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
-                              }`}
-                            />
-                            {showProductoFormErrors && nombreProductoError && (
-                              <p className="text-[10px] text-red-400 mt-1">{nombreProductoError}</p>
-                            )}
-                            {!nombreProductoError && isNombreDuplicado && (
-                              <p className="text-[10px] text-red-400 mt-1">Nombre ya existe en el sistema.</p>
-                            )}
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                              <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                              Categoría *
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                placeholder="Escribe para buscar categoría..."
-                                value={categorySearchTerm}
-                                onChange={(e) => {
-                                  setCategorySearchTerm(e.target.value);
-                                  setShowCategoryResults(true);
-                                }}
-                                onFocus={() => setShowCategoryResults(true)}
-                                onBlur={() => {
-                                  setTimeout(() => setShowCategoryResults(false), 120);
-                                }}
-                                className={`elegante-input h-9 text-sm ${showProductoFormErrors && !nuevoProducto.categoria ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
-                              />
-                              {categorySearchTerm && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCategorySearchTerm('');
-                                    setShowCategoryResults(false);
-                                    setNuevoProducto({ ...nuevoProducto, categoria: '' });
-                                  }}
-                                  title="Limpiar búsqueda"
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              )}
-                              {showCategoryResults && categorySearchTerm.trim() !== '' && (
-                                <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar">
-                                  {(() => {
-                                    const q = categorySearchTerm.trim().toLowerCase();
-                                    const list = categorias
-                                      .filter(c => c.estado === true)
-                                      .filter(c => String(c.nombre || '').toLowerCase().includes(q))
-                                      .slice(0, 20);
-                                    if (list.length === 0) {
-                                      return (
-                                        <div className="p-3 text-center text-gray-lightest italic">
-                                          Sin resultados.
-                                        </div>
-                                      );
-                                    }
-                                    return list.map((c: any) => (
-                                      <div
-                                        key={c.id}
-                                        onClick={() => {
-                                          setNuevoProducto({ ...nuevoProducto, categoria: c.nombre });
-                                          setCategorySearchTerm(c.nombre);
-                                          setShowCategoryResults(false);
-                                        }}
-                                        className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer"
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-white-primary text-sm">{c.nombre}</span>
-                                        </div>
-                                      </div>
-                                    ));
-                                  })()}
-                                </div>
-                              )}
-                            </div>
-                            {showProductoFormErrors && !nuevoProducto.categoria && (
-                              <p className="text-[10px] text-red-400 mt-1">Selecciona una categoría</p>
-                            )}
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                              <Tags className="w-3.5 h-3.5 text-orange-primary" />
-                              Marca
-                            </Label>
-                            <Input
-                              value={nuevoProducto.marca}
-                              onChange={(e) => setNuevoProducto({ ...nuevoProducto, marca: e.target.value })}
-                              placeholder="Nombre de la marca"
-                              className="elegante-input h-9 text-sm"
-                            />
-                          </div>
-
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-2 h-9">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                              <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
-                              Imagen del Producto
-                            </Label>
-                            <button
-                              onClick={triggerFileSelect}
-                              disabled={uploadingImage}
-                              className="elegante-button-secondary  px-4 py-2 gap-2 flex items-center text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                              type="button"
-                            >
-                              {uploadingImage ? (
-                                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...</>
-                              ) : (
-                                <><Camera className="w-4 h-4" /> {imagenPreview ? 'Cambiar' : 'Subir Imagen'}</>
-                              )}
-                            </button>
-                          </div>
-                          <div className={`w-full rounded-lg border-2 border-dashed border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden relative ${imagenPreview ? 'h-52' : 'h-[14rem]'}`}>
-                            {uploadingImage ? (
-                              <div className="flex flex-col items-center gap-2">
-                                <Loader2 className="w-10 h-10 text-orange-primary animate-spin" />
-                                <span className="text-xs text-gray-lighter">Subiendo...</span>
-                              </div>
-                            ) : (
-                              <div className="relative w-full h-full group">
-                                <ImageRenderer
-                                  url={imagenPreview ?? undefined}
-                                  alt="Vista previa"
-                                  className="w-full h-full border-0 bg-transparent"
-                                  fallbackVariant="product"
-                                  showLabel={false}
-                                />
-                                {imagenPreview && (
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <button
-                                      onClick={removeImage}
-                                      className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors shadow-lg"
-                                      type="button"
-                                      title="Eliminar imagen"
-                                    >
-                                      <X className="w-5 h-5" />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-gray-lightest px-1 flex items-center gap-1.5 opacity-80">
-                            <Info className="w-3 h-3 text-orange-primary" />
-                            Tamaño máx: 5MB. Formatos: JPG, PNG, GIF, WEBP.
-                          </p>
-                          {imageError && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-md p-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
-                              <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
-                              <p className="text-[10px] text-red-400 font-medium">
-                                {imageError}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-orange-primary" />
-                          Descripción
-                        </Label>
-                        <Textarea
-                          value={nuevoProducto.descripcion}
-                          onChange={(e) => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })}
-                          placeholder="Detalles del producto, características, instrucciones de uso..."
-                          className="elegante-input w-full min-h-[120px] resize-none text-sm"
-                        />
-                      </div>
-
-                      {editingProducto && (
-                        <div className="space-y-4 border-t border-gray-dark pt-4">
-                          <Label className="text-white-primary text-xs flex items-center gap-1.5 uppercase tracking-wide opacity-80">
-                            <Info className="w-3.5 h-3.5 text-orange-primary" />
-                            Información de venta
-                          </Label>
-                          <div className="space-y-1.5">
-                            <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                              <Boxes className="w-3.5 h-3.5 text-orange-primary" />
-                              Stock
-                            </Label>
-                            <Input
-                              type="text"
-                              readOnly
-                              value={(nuevoProducto as any).stock ?? 0}
-                              className="elegante-input h-9 text-sm opacity-60 cursor-not-allowed"
-                            />
-                            <p className="text-[10px] mt-0.5" style={{ color: "var(--gray-lighter)" }}>
-                              El stock solo se actualiza mediante compras.
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                              <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                                <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
-                                Precio compra *
-                              </Label>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                min={0}
-                                step={0.01}
-                                value={(nuevoProducto as any).precioCompra === '' ? '' : (nuevoProducto.precioCompra ?? '')}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setNuevoProducto({
-                                    ...nuevoProducto,
-                                    precioCompra: v === '' ? ('' as any) : (isNaN(Number(v)) ? (nuevoProducto as any).precioCompra : Number(v))
-                                  });
-                                }}
-                                className="elegante-input h-9 text-sm"
-                              />
-                              {showProductoFormErrors && (String(nuevoProducto.precioCompra) === '' || Number(nuevoProducto.precioCompra) < 0) && (
-                                <p className="text-[10px] text-red-400 mt-1">Precio compra inválido</p>
-                              )}
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-white-primary text-xs flex items-center gap-1.5">
-                                <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
-                                Precio venta *
-                              </Label>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                min={0}
-                                step={0.01}
-                                value={(nuevoProducto as any).precioVenta === '' ? '' : (nuevoProducto.precioVenta ?? '')}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setNuevoProducto({
-                                    ...nuevoProducto,
-                                    precioVenta: v === '' ? ('' as any) : (isNaN(Number(v)) ? (nuevoProducto as any).precioVenta : Number(v))
-                                  });
-                                }}
-                                className="elegante-input h-9 text-sm"
-                              />
-                              {showProductoFormErrors && (String(nuevoProducto.precioVenta) === '' || Number(nuevoProducto.precioVenta) < 0) && (
-                                <p className="text-[10px] text-red-400 mt-1">Precio venta inválido</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                    <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
-                      <button onClick={handleRequestCloseForm} disabled={isSubmitting} className="elegante-button-secondary px-6">
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={editingProducto ? handleUpdateProducto : handleCreateProductoSubmit}
-                        disabled={isSubmitting}
-                        className="elegante-button-primary px-8 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isSubmitting && (
-                          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                        )}
-                        {isSubmitting
-                          ? (editingProducto ? 'Actualizando...' : 'Creando...')
-                          : (editingProducto ? 'Actualizar' : 'Agregar') + ' Producto'
-                        }
-                      </button>
-                    </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               )}
               searchValue={searchTerm}
               onSearchChange={handleSearchChange}
@@ -1623,6 +1317,323 @@ export function ProductosPage() {
               />
             </div>
           </div>
+
+          {/* Dialog de crear/editar producto */}
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) handleRequestCloseForm(); }}>
+            <DialogContent
+              className="bg-gray-darkest border-gray-dark max-w-2xl max-h-[90vh] overflow-y-auto"
+              onInteractOutside={(e: any) => {
+                e.preventDefault();
+                const target = e.target as HTMLElement | null;
+                if (!target?.closest('[data-alert-container="true"]')) {
+                  handleRequestCloseForm();
+                }
+              }}
+              onEscapeKeyDown={(e) => {
+                e.preventDefault();
+                handleRequestCloseForm();
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle className="text-white-primary flex items-center gap-2">
+                  <Package className="w-5 h-5 text-orange-primary" />
+                  {editingProducto ? 'Editar Producto' : 'Agregar Nuevo Producto'}
+                </DialogTitle>
+                <DialogDescription className="text-gray-lightest">
+                  {editingProducto ? 'Modifica la información del producto' : 'Completa los datos del nuevo producto o accesorio'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5 py-2">
+                        <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                        Nombre *
+                      </Label>
+                      <NameInput
+                        value={nuevoProducto.nombre}
+                        onChange={(val) => {
+                          const capped = val.slice(0, NOMBRE_MAX);
+                          setNuevoProducto({ ...nuevoProducto, nombre: capped });
+                          if (nombreProductoError) setNombreProductoError(null);
+                        }}
+                        placeholder="Ej: Cadena de Rodio"
+                        className={`elegante-input h-9 text-sm ${
+                          showProductoFormErrors && (nombreProductoError || isNombreDuplicado)
+                            ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''
+                        }`}
+                      />
+                      {showProductoFormErrors && nombreProductoError && (
+                        <p className="text-[10px] text-red-400 mt-1">{nombreProductoError}</p>
+                      )}
+                      {!nombreProductoError && isNombreDuplicado && (
+                        <p className="text-[10px] text-red-400 mt-1">Nombre ya existe en el sistema.</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                        Categoría *
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          placeholder="Escribe para buscar categoría..."
+                          value={categorySearchTerm}
+                          onChange={(e) => {
+                            setCategorySearchTerm(e.target.value);
+                            setShowCategoryResults(true);
+                          }}
+                          onFocus={() => setShowCategoryResults(true)}
+                          onBlur={() => {
+                            setTimeout(() => setShowCategoryResults(false), 120);
+                          }}
+                          className={`elegante-input h-9 text-sm ${showProductoFormErrors && !nuevoProducto.categoria ? `border-red-500 ring-1 ring-red-500 ${shakeClass}` : ''}`}
+                        />
+                        {categorySearchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCategorySearchTerm('');
+                              setShowCategoryResults(false);
+                              setNuevoProducto({ ...nuevoProducto, categoria: '' });
+                            }}
+                            title="Limpiar búsqueda"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        {showCategoryResults && categorySearchTerm.trim() !== '' && (
+                          <div className="absolute z-50 w-full mt-2 bg-gray-darkest border border-gray-dark rounded-xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar">
+                            {(() => {
+                              const q = categorySearchTerm.trim().toLowerCase();
+                              const list = categorias
+                                .filter(c => c.estado === true)
+                                .filter(c => String(c.nombre || '').toLowerCase().includes(q))
+                                .slice(0, 20);
+                              if (list.length === 0) {
+                                return (
+                                  <div className="p-3 text-center text-gray-lightest italic">
+                                    Sin resultados.
+                                  </div>
+                                );
+                              }
+                              return list.map((c: any) => (
+                                <div
+                                  key={c.id}
+                                  onClick={() => {
+                                    setNuevoProducto({ ...nuevoProducto, categoria: c.nombre });
+                                    setCategorySearchTerm(c.nombre);
+                                    setShowCategoryResults(false);
+                                  }}
+                                  className="p-3 border-b border-gray-dark hover:bg-gray-dark transition-colors cursor-pointer"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white-primary text-sm">{c.nombre}</span>
+                                  </div>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                      {showProductoFormErrors && !nuevoProducto.categoria && (
+                        <p className="text-[10px] text-red-400 mt-1">Selecciona una categoría</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <Tags className="w-3.5 h-3.5 text-orange-primary" />
+                        Marca
+                      </Label>
+                      <Input
+                        value={nuevoProducto.marca}
+                        onChange={(e) => setNuevoProducto({ ...nuevoProducto, marca: e.target.value })}
+                        placeholder="Nombre de la marca"
+                        className="elegante-input h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 h-9">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-orange-primary" />
+                        Imagen del Producto
+                      </Label>
+                      <button
+                        onClick={triggerFileSelect}
+                        disabled={uploadingImage}
+                        className="elegante-button-secondary px-4 py-2 gap-2 flex items-center text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                        type="button"
+                      >
+                        {uploadingImage ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...</>
+                        ) : (
+                          <><Camera className="w-4 h-4" /> {imagenPreview ? 'Cambiar' : 'Subir Imagen'}</>
+                        )}
+                      </button>
+                    </div>
+                    <div className={`w-full rounded-lg border-2 border-dashed border-gray-dark bg-gray-darker flex items-center justify-center overflow-hidden relative ${imagenPreview ? 'h-52' : 'h-[14rem]'}`}>
+                      {uploadingImage ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="w-10 h-10 text-orange-primary animate-spin" />
+                          <span className="text-xs text-gray-lighter">Subiendo...</span>
+                        </div>
+                      ) : (
+                        <div className="relative w-full h-full group">
+                          <ImageRenderer
+                            url={imagenPreview ?? undefined}
+                            alt="Vista previa"
+                            className="w-full h-full border-0 bg-transparent"
+                            fallbackVariant="product"
+                            showLabel={false}
+                          />
+                          {imagenPreview && (
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button
+                                onClick={removeImage}
+                                className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors shadow-lg"
+                                type="button"
+                                title="Eliminar imagen"
+                              >
+                                <X className="w-5 h-5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-lightest px-1 flex items-center gap-1.5 opacity-80">
+                      <Info className="w-3 h-3 text-orange-primary" />
+                      Tamaño máx: 5MB. Formatos: JPG, PNG, GIF, WEBP.
+                    </p>
+                    {imageError && (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded-md p-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                        <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-red-400 font-medium">
+                          {imageError}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-orange-primary" />
+                    Descripción
+                  </Label>
+                  <Textarea
+                    value={nuevoProducto.descripcion}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })}
+                    placeholder="Detalles del producto, características, instrucciones de uso..."
+                    className="elegante-input w-full min-h-[120px] resize-none text-sm"
+                  />
+                </div>
+
+                {editingProducto && (
+                  <div className="space-y-4 border-t border-gray-dark pt-4">
+                    <Label className="text-white-primary text-xs flex items-center gap-1.5 uppercase tracking-wide opacity-80">
+                      <Info className="w-3.5 h-3.5 text-orange-primary" />
+                      Información de venta
+                    </Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                        <Boxes className="w-3.5 h-3.5 text-orange-primary" />
+                        Stock
+                      </Label>
+                      <Input
+                        type="text"
+                        readOnly
+                        value={(nuevoProducto as any).stock ?? 0}
+                        className="elegante-input h-9 text-sm opacity-60 cursor-not-allowed"
+                      />
+                      <p className="text-[10px] mt-0.5" style={{ color: "var(--gray-lighter)" }}>
+                        El stock solo se actualiza mediante compras.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
+                          Precio compra *
+                        </Label>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          min={0}
+                          step={0.01}
+                          value={(nuevoProducto as any).precioCompra === '' ? '' : (nuevoProducto.precioCompra ?? '')}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setNuevoProducto({
+                              ...nuevoProducto,
+                              precioCompra: v === '' ? ('' as any) : (isNaN(Number(v)) ? (nuevoProducto as any).precioCompra : Number(v))
+                            });
+                          }}
+                          className="elegante-input h-9 text-sm"
+                        />
+                        {showProductoFormErrors && (String(nuevoProducto.precioCompra) === '' || Number(nuevoProducto.precioCompra) < 0) && (
+                          <p className="text-[10px] text-red-400 mt-1">Precio compra inválido</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white-primary text-xs flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-orange-primary" />
+                          Precio venta *
+                        </Label>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          min={0}
+                          step={0.01}
+                          value={(nuevoProducto as any).precioVenta === '' ? '' : (nuevoProducto.precioVenta ?? '')}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setNuevoProducto({
+                              ...nuevoProducto,
+                              precioVenta: v === '' ? ('' as any) : (isNaN(Number(v)) ? (nuevoProducto as any).precioVenta : Number(v))
+                            });
+                          }}
+                          className="elegante-input h-9 text-sm"
+                        />
+                        {showProductoFormErrors && (String(nuevoProducto.precioVenta) === '' || Number(nuevoProducto.precioVenta) < 0) && (
+                          <p className="text-[10px] text-red-400 mt-1">Precio venta inválido</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">
+                  <button onClick={handleRequestCloseForm} disabled={isSubmitting} className="elegante-button-secondary px-6">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={editingProducto ? handleUpdateProducto : handleCreateProductoSubmit}
+                    disabled={isSubmitting}
+                    className="elegante-button-primary px-8 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting && (
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    )}
+                    {isSubmitting
+                      ? (editingProducto ? 'Actualizando...' : 'Creando...')
+                      : (editingProducto ? 'Actualizar' : 'Agregar') + ' Producto'
+                    }
+                  </button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Dialog de descartar cambios */}
           <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
