@@ -616,6 +616,46 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
           }}
         />
       )}
+      <AlertDialog open={!!confirmPendiente} onOpenChange={(open) => { if (!open) setConfirmPendiente(null); }}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary">
+              {confirmPendiente?.tipo === 'completar' ? 'Completar cita' : 'Cancelar cita'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest">
+              {confirmPendiente?.tipo === 'completar'
+                ? '¿Confirmas que la cita fue atendida y deseas marcarla como completada?'
+                : 'La cita será cancelada. Esta acción no se puede deshacer.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <button
+              onClick={() => setConfirmPendiente(null)}
+              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
+            >
+              No, volver
+            </button>
+            <button
+              className={`px-4 py-2 rounded-md font-semibold text-white ${
+                confirmPendiente?.tipo === 'cancelar'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-orange-primary hover:bg-orange-primary/90 text-black-primary'
+              }`}
+              onClick={() => {
+                if (!confirmPendiente) return;
+                handleAction(
+                  confirmPendiente.citaId,
+                  confirmPendiente.tipo === 'completar' ? 'Completada' : 'Cancelada',
+                  confirmPendiente.notifId
+                );
+                setConfirmPendiente(null);
+              }}
+            >
+              {confirmPendiente?.tipo === 'completar' ? 'Sí, completar' : 'Sí, cancelar'}
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertContainer />
     </div>
   );

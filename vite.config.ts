@@ -5,6 +5,11 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig(({ mode }) => ({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test-setup.ts'],
+  },
   plugins: [tailwindcss(), react()],
   esbuild: {
     // En producción, eliminar console.* y debugger para no exponer datos sensibles

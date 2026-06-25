@@ -184,6 +184,7 @@ export function ProductosPage() {
 
   const closeFormClean = () => {
     setIsDialogOpen(false);
+    setIsDiscardDialogOpen(false);
     setEditingProducto(null);
     setNuevoProducto(defaultFormState);
     setCategorySearchTerm('');
@@ -516,6 +517,7 @@ export function ProductosPage() {
       setImagenPreview(null);
       formInitialStateRef.current = '';
       setIsDialogOpen(false);
+      setIsDiscardDialogOpen(false);
 
       created("Producto creado ✔️", `El producto "${productoCreado.nombre}" ha sido agregado exitosamente al inventario.`);
     } catch (err: any) {
@@ -662,6 +664,7 @@ export function ProductosPage() {
       setImagenPreview(null);
       formInitialStateRef.current = '';
       setIsDialogOpen(false);
+      setIsDiscardDialogOpen(false);
 
       edited("Producto editado ✔️", `El producto "${productoActualizado.nombre}" ha sido actualizado correctamente.`);
     } catch (err: any) {

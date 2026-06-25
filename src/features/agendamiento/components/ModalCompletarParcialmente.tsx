@@ -120,7 +120,7 @@ export function ModalCompletarParcialmente({
   const portal = createPortal(
     <div
       className="fixed inset-0 flex items-center justify-center bg-black/50 p-4"
-      style={{ zIndex: 100000 }}
+      style={{ zIndex: 10000 }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) { e.stopPropagation(); onClose(); } }}
     >
       <div

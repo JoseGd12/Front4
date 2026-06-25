@@ -16,6 +16,15 @@ type TableHeaderStatusFilterConfig = {
   placeholder?: string;
 };
 
+type DarkSearchBarProps = {
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  searchPlaceholder: string;
+  searchContainerClassName?: string;
+  searchInputClassName?: string;
+  maxWidth?: string;
+};
+
 type TableHeaderSectionProps = {
   leftContent?: ReactNode;
   /** Omitir para ocultar la barra de búsqueda */
@@ -38,6 +47,41 @@ type TableHeaderSectionProps = {
    */
   variant?: "default" | "dark";
 };
+
+function DarkSearchBar({
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
+  searchContainerClassName,
+  searchInputClassName,
+  maxWidth,
+}: DarkSearchBarProps) {
+  return (
+    <div
+      className={cn("relative", searchContainerClassName)}
+      style={{ flex: "1", minWidth: "160px", maxWidth: maxWidth ?? "100%" }}
+    >
+      <input
+        type="text"
+        placeholder={searchPlaceholder}
+        value={searchValue}
+        onChange={(e) => onSearchChange(e.target.value)}
+        className={cn("elegante-input-dark", searchInputClassName)}
+        style={{ width: "100%" }}
+      />
+      {searchValue && (
+        <button
+          type="button"
+          onClick={() => onSearchChange("")}
+          title="Limpiar búsqueda"
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function TableHeaderSection({
   leftContent,
@@ -87,34 +131,6 @@ export function TableHeaderSection({
     </div>
   ) : null;
 
-  /** Barra de búsqueda reutilizable para variante dark */
-  const DarkSearchBar = ({ maxWidth }: { maxWidth?: string }) =>
-    onSearchChange ? (
-      <div
-        className={cn("relative", searchContainerClassName)}
-        style={{ flex: "1", minWidth: "160px", maxWidth: maxWidth ?? "100%" }}
-      >
-        <input
-          type="text"
-          placeholder={searchPlaceholder}
-          value={searchValue}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className={cn("elegante-input-dark", searchInputClassName)}
-          style={{ width: "100%" }}
-        />
-        {searchValue && (
-          <button
-            type="button"
-            onClick={() => onSearchChange("")}
-            title="Limpiar búsqueda"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    ) : null;
-
   if (variant === "dark") {
     const wrapperStyle = {
       marginLeft: "-24px",
@@ -131,7 +147,16 @@ export function TableHeaderSection({
         {/* ══ DESKTOP (sm+): fila única — igual que antes ══ */}
         <div className="hidden sm:flex items-center gap-4">
           {leftContent}
-          <DarkSearchBar maxWidth="380px" />
+          {onSearchChange && (
+            <DarkSearchBar
+              searchValue={searchValue}
+              onSearchChange={onSearchChange}
+              searchPlaceholder={searchPlaceholder}
+              searchContainerClassName={searchContainerClassName}
+              searchInputClassName={searchInputClassName}
+              maxWidth="380px"
+            />
+          )}
           {filterWidget}
           {extraFilters}
           <div className="flex items-center gap-3 ml-auto">
@@ -150,7 +175,14 @@ export function TableHeaderSection({
           )}
           {/* Fila 2: buscador ancho completo */}
           {onSearchChange && (
-            <DarkSearchBar maxWidth="100%" />
+            <DarkSearchBar
+              searchValue={searchValue}
+              onSearchChange={onSearchChange}
+              searchPlaceholder={searchPlaceholder}
+              searchContainerClassName={searchContainerClassName}
+              searchInputClassName={searchInputClassName}
+              maxWidth="100%"
+            />
           )}
           {/* Fila 3: filtro (izquierda) + contador (derecha) */}
           {(filterWidget || extraFilters || renderRecords || rightContent) && (
