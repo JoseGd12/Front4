@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { Label } from "../../../shared/components/ui/label";
 import { Input } from "../../../shared/components/ui/input";
@@ -1287,11 +1288,10 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {isCreateModalOpen && modalPosition && createPortal(
             <>
-              {/* Backdrop semi-transparente */}
+              {/* Backdrop semi-transparente — pointer-events-none para no bloquear scroll */}
               <div
-                className="fixed inset-0 bg-black/75 backdrop-blur-[2px]"
+                className="fixed inset-0 bg-black/40 pointer-events-none"
                 style={{ zIndex: 9998 }}
-                onClick={() => handleCloseModal()}
               />
 
               {/* Modal container */}
@@ -1308,6 +1308,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                   opacity: modalPhase === 'open' ? 1 : 0,
                   transform: modalPhase === 'enter' ? 'translateY(-10px) scale(0.97)' : 'translateY(0) scale(1)',
                   transition: dragState.current.dragging ? 'none' : 'opacity 200ms ease-out, transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+                  willChange: isModalDragging ? 'top, left, height' : 'auto',
                 }}
               >
                 {/* Header con grip visual y drag handle */}
@@ -1318,33 +1319,51 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
                     const currentLeft = modalLeft ?? modalPosition.left;
                     dragState.current = { dragging: true, startY: e.clientY, startX: e.clientX, startHeight: modalHeight, startTop: modalTop, startLeft: currentLeft };
                     setIsModalDragging(true);
-                    const onMove = (ev: MouseEvent) => {
-                      if (!dragState.current.dragging) return;
-                      const deltaY = ev.clientY - dragState.current.startY;
-                      const deltaX = ev.clientX - dragState.current.startX;
+                    let rafId = 0;
+                    let latestX = e.clientX;
+                    let latestY = e.clientY;
+                    let lastH = modalHeight;
+                    let lastT = modalTop;
+                    let lastL = currentLeft;
+                    const applyFrame = () => {
+                      rafId = 0;
+                      if (!dragState.current.dragging || !modalRef.current) return;
+                      const deltaY = latestY - dragState.current.startY;
+                      const deltaX = latestX - dragState.current.startX;
                       const { startHeight, startTop } = dragState.current;
-
                       const moveUpMax = MODAL_DOCKED_TOP - 16;
                       const startMoveUp = Math.max(0, MODAL_DOCKED_TOP - startTop);
                       const startVirtual = (startHeight - MODAL_MIN_HEIGHT) + startMoveUp;
                       const newVirtual = Math.max(0, Math.min((MODAL_HEIGHT - MODAL_MIN_HEIGHT) + moveUpMax, startVirtual - deltaY));
-
                       const heightRange = MODAL_HEIGHT - MODAL_MIN_HEIGHT;
+                      let nextH: number, nextT: number;
                       if (newVirtual <= heightRange) {
-                        const nextH = MODAL_MIN_HEIGHT + newVirtual;
-                        setModalHeight(nextH);
-                        setModalTop(window.innerHeight - 16 - nextH);
+                        nextH = MODAL_MIN_HEIGHT + newVirtual;
+                        nextT = window.innerHeight - 16 - nextH;
                       } else {
                         const movedUp = newVirtual - heightRange;
-                        setModalHeight(MODAL_HEIGHT);
-                        setModalTop(MODAL_DOCKED_TOP - movedUp);
+                        nextH = MODAL_HEIGHT;
+                        nextT = MODAL_DOCKED_TOP - movedUp;
                       }
-
                       const nextL = Math.min(window.innerWidth - 480, Math.max(0, dragState.current.startLeft + deltaX));
-                      setModalLeft(nextL);
+                      const clampedT = Math.max(16, Math.min(window.innerHeight - nextH - 16, nextT));
+                      modalRef.current.style.top = clampedT + 'px';
+                      modalRef.current.style.left = nextL + 'px';
+                      modalRef.current.style.height = nextH + 'px';
+                      lastH = nextH; lastT = nextT; lastL = nextL;
+                    };
+                    const onMove = (ev: MouseEvent) => {
+                      if (!dragState.current.dragging) return;
+                      latestX = ev.clientX;
+                      latestY = ev.clientY;
+                      if (!rafId) rafId = requestAnimationFrame(applyFrame);
                     };
                     const onUp = () => {
                       dragState.current.dragging = false;
+                      if (rafId) cancelAnimationFrame(rafId);
+                      setModalHeight(lastH);
+                      setModalTop(lastT);
+                      setModalLeft(lastL);
                       setIsModalDragging(false);
                       window.removeEventListener('mousemove', onMove);
                       window.removeEventListener('mouseup', onUp);
@@ -2812,53 +2831,31 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
         </DialogContent>
       </Dialog>
 
-      {/* Confirmar Cancelación — siempre montado para evitar inert de Radix */}
-      {createPortal(
-        <div
-          className={`fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-150 ${
-            isDeleteDialogOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
-          }`}
-          style={{ zIndex: 200000 }}
-          aria-hidden={!isDeleteDialogOpen}
-        >
-          <div
-            className="absolute inset-0"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(2px)' }}
-            onClick={() => setIsDeleteDialogOpen(false)}
-          />
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            className="relative w-full max-w-md rounded-xl border border-gray-dark bg-gray-darkest p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-lg font-semibold text-white-primary">¿Cancelar tu reservación?</h2>
-            <p className="mt-2 text-sm text-gray-lightest">
+      {/* Confirmar Cancelación — AlertDialog de Radix para manejo correcto de foco y stack */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="border-gray-dark bg-gray-darkest text-white-primary">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary">¿Cancelar tu reservación?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest">
               Esta acción informará a la barbería y liberará el horario. No se puede deshacer.
-            </p>
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
-                onClick={() => setIsDeleteDialogOpen(false)}
-              >
-                Volver
-              </button>
-              <button
-                type="button"
-                className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
-                onClick={async () => {
-                  await handleCancelCita();
-                  setIsDetailDialogOpen(false);
-                }}
-              >
-                Sí, cancelar cita
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker">
+              Volver
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700 font-semibold"
+              onClick={async () => {
+                await handleCancelCita();
+                setIsDetailDialogOpen(false);
+              }}
+            >
+              Sí, cancelar cita
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -103,6 +103,67 @@
   );
 }
 
+/* ── Mobile carousels: touch scroll, no arrows, no auto-scroll ── */
+@media (max-width: 639px) {
+  /* Hide lateral arrow buttons */
+  .landing-carousel-arrows {
+    display: none !important;
+  }
+
+  /* Remove fade/glow overlays on mobile */
+  .hero-gallery-wall-glow,
+  .hero-gallery-fade-in {
+    display: none !important;
+  }
+
+  /* Make track a native horizontal scroll container */
+  .hero-gallery-track-wrap {
+    overflow-x: auto !important;
+    overflow-x: overlay !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+  }
+  .hero-gallery-track-wrap::-webkit-scrollbar {
+    display: none;
+  }
+  .hero-gallery-track-wrap > div {
+    scroll-snap-align: unset;
+  }
+
+  /* Gallery scroll also native */
+  .gallery-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+  .gallery-scroll > div {
+    scroll-snap-align: start;
+  }
+
+  /* Reduce card width for mobile and enable snap per card */
+  .landing-carousel-card {
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+    scroll-snap-align: start;
+  }
+
+  /* Barber: hide grid, show mobile scroll */
+  .barber-grid {
+    display: none !important;
+  }
+  .barber-mobile-scroll {
+    scrollbar-width: none;
+  }
+  .barber-mobile-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .barber-mobile-scroll .barber-panel {
+    height: 100%;
+  }
+}
+
 /* Nosotros gallery — slide transitions */
 @keyframes nosotrosSlideRight {
   from {

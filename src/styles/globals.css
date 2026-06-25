@@ -1413,7 +1413,7 @@ html {
 .sidebar-toggle-btn:hover {
   background-color: #1a1a1a !important;
   border-color: var(--orange-primary) !important;
-  box-shadow: 0 2px 12px rgba(216, 176, 129, 0.25);
+  box-shadow: 0 1px 6px rgba(216, 176, 129, 0.2);
 }
 
 @keyframes barber-stripe-slide {
@@ -1778,4 +1778,11 @@ html {
 :root.light-mode .agendamiento-dark-theme .border-gray-dark\/40,
 :root.light-mode .agendamiento-dark-theme [class*="border-gray-dark"] {
   border-color: #3a3a3a !important;
+}
+
+/* Master-detail layout for sales/purchases/returns forms */
+@media (min-width: 1024px) {
+  .lg\:grid-cols-master-detail {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+  }
 }

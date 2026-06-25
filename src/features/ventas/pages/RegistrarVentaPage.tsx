@@ -1135,8 +1135,8 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
       >
         {/* LEFT: Form */}
         <aside className="lg:min-h-0 lg:min-w-0">
-          <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-5">
+          <div className="elegante-card lg:h-full lg:min-h-0 flex flex-col lg:overflow-hidden">
+            <div className="flex-1 lg:min-h-0 lg:overflow-y-auto custom-scrollbar p-5 space-y-5">
               {/* Section 1: Basic Info */}
               <FormSection
                 title="Información Básica"

@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "../../../shared/components/ui/dropdown-menu";
-import { BarberPole } from "../../../shared/components/ui/BarberPole";
 import manitoLogo from "../../../assets/Manito.jpeg";
 const LOGO_URL = manitoLogo;
 import { ClienteMisCitasPageCalendar } from "./ClienteMisCitasPageCalendar";
@@ -179,41 +178,55 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
           }}
         >
           <div className="flex items-center w-full">
-            <div className={`${isMobile ? "px-3" : "w-72 shrink-0 px-4"} flex items-center gap-3`}>
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => isMobile ? setMobileDrawerOpen(!mobileDrawerOpen) : setSidebarCollapsed(!sidebarCollapsed)}
-                    className="group relative p-2 rounded-md bg-muted border border-[#5D4037]/40 transition-[transform,box-shadow,background-color,border-color] duration-150 ease-out flex items-center justify-center overflow-visible cursor-pointer"
-                    style={{ boxShadow: 'none' }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(174, 120, 14, 0.81), 0 4px 8px rgba(0, 0, 0, 0.1)';
-                      e.currentTarget.style.borderColor = 'rgba(244, 194, 69, 0.6)';
-                      e.currentTarget.style.backgroundColor = 'rgba(145, 129, 112, 0.98)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = 'none';
-                      e.currentTarget.style.borderColor = 'rgba(93, 64, 55, 0.4)';
-                      e.currentTarget.style.backgroundColor = '';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    {isMobile ? (
-                      <Menu className="w-5 h-5 text-orange-primary" />
-                    ) : (
-                      <div className="transition-transform duration-150 ease-out group-hover:scale-110">
-                        <BarberPole />
-                      </div>
-                    )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="bg-gray-darkest border-gray-dark text-white-primary">
-                  <p>{isMobile ? "Menú" : sidebarCollapsed ? "Mostrar menú" : "Ocultar menú"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+            {isMobile && (
+              <div className="px-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
+                  className="sidebar-toggle-btn"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--black-secondary)',
+                    border: '1px solid var(--gray-dark)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
+                  }}
+                >
+                  <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
+                    <defs>
+                      <mask id="bar-mask-cliente-mobile-1"><rect x="0" y="0" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                      <mask id="bar-mask-cliente-mobile-2"><rect x="0" y="9.5" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                    </defs>
+                    {[
+                      { mask: 'url(#bar-mask-cliente-mobile-1)', y: 0 },
+                      { mask: 'url(#bar-mask-cliente-mobile-2)', y: 9.5 },
+                    ].map((bar, i) => (
+                      <g key={i} mask={bar.mask}>
+                        <rect x="0" y={bar.y} width="20" height="4.5" rx="2.25" fill="#E3C6A5" />
+                        <g className="barber-bar-stripes">
+                          {[...Array(10)].map((_, j) => (
+                            <rect
+                              key={j}
+                              x={j * 9 - 18}
+                              y={bar.y - 4}
+                              width="2.2"
+                              height="13"
+                              fill="#A06C31"
+                              transform={`rotate(-35 ${j * 9 - 18 + 1.1} ${bar.y + 2.25})`}
+                            />
+                          ))}
+                        </g>
+                      </g>
+                    ))}
+                  </svg>
+                </button>
+              </div>
+            )}
 
             <div className="flex-1 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sm:gap-6 min-w-0">
               <div className="flex items-center gap-3 min-w-0">
@@ -326,8 +339,60 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
               boxShadow: isMobile && mobileDrawerOpen ? "4px 0 25px rgba(0,0,0,0.8)" : "0px 0px 25px rgba(0,0,0,0.8)"
             }}
           >
+            {/* Toggle button desktop — borde derecho */}
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="sidebar-toggle-btn"
+                style={{
+                  position: 'absolute',
+                  right: '-16px',
+                  top: '24px',
+                  zIndex: 100,
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--black-secondary)',
+                  border: '1px solid var(--gray-dark)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
+                }}
+              >
+                <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
+                  <defs>
+                    <mask id="bar-mask-cliente-1"><rect x="0" y="0" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                    <mask id="bar-mask-cliente-2"><rect x="0" y="9.5" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                  </defs>
+                  {[
+                    { mask: 'url(#bar-mask-cliente-1)', y: 0 },
+                    { mask: 'url(#bar-mask-cliente-2)', y: 9.5 },
+                  ].map((bar, i) => (
+                    <g key={i} mask={bar.mask}>
+                      <rect x="0" y={bar.y} width="20" height="4.5" rx="2.25" fill="#E3C6A5" />
+                      <g className="barber-bar-stripes">
+                        {[...Array(10)].map((_, j) => (
+                          <rect
+                            key={j}
+                            x={j * 9 - 18}
+                            y={bar.y - 4}
+                            width="2.2"
+                            height="13"
+                            fill="#A06C31"
+                            transform={`rotate(-35 ${j * 9 - 18 + 1.1} ${bar.y + 2.25})`}
+                          />
+                        ))}
+                      </g>
+                    </g>
+                  ))}
+                </svg>
+              </button>
+            )}
             {/* Navigation */}
-            <nav className="flex-1 py-6 overflow-y-auto space-y-1">
+            <nav className={`flex-1 overflow-y-auto space-y-1 ${isMobile ? "pt-20 pb-6" : "py-6"}`}>
               {navItems.map((item) => renderNavItem(item, activePage === item.label))}
             </nav>
           </aside>

@@ -693,8 +693,18 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
       }
     });
 
-    const productosItems = (selectedVenta.productosDetalle || []).map((producto: any, index: number) => {
-      const cantidadOriginal = Number(producto?.cantidad || 1);
+    const productosAgrupados = new Map<number, { producto: any; cantidad: number }>();
+    (selectedVenta.productosDetalle || []).forEach((producto: any) => {
+      const prodId = Number(producto?.id || producto?.productoId || producto?.ProductoId || 0);
+      const cant = Number(producto?.cantidad || 1);
+      const existing = productosAgrupados.get(prodId);
+      if (existing) {
+        existing.cantidad += cant;
+      } else {
+        productosAgrupados.set(prodId, { producto, cantidad: cant });
+      }
+    });
+    const productosItems = Array.from(productosAgrupados.values()).map(({ producto, cantidad: cantidadOriginal }, index) => {
       const precio = Number(producto?.precio || 0);
       const nombre = String(producto?.nombre || 'Producto');
       const prodId = Number(producto?.id || producto?.productoId || producto?.ProductoId || 0);
@@ -704,7 +714,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         ?? 0;
       const cantidadFinal = Math.max(0, cantidadOriginal - cantidadDevuelta);
       return {
-        key: `producto-${producto?.id ?? index}-${index}`,
+        key: `producto-${prodId}-${index}`,
         nombre,
         tipo: 'Producto',
         cantidadOriginal,

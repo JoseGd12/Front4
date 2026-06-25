@@ -449,86 +449,71 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     descuentoDiaService.getDescuentos().then(setDayDiscounts).catch(() => {});
   }, []);
 
-  // Escuchar evento de scroll desde el sistema de notificaciones
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { hora, fecha, citaId } = (e as CustomEvent<{ hora: string; fecha: string; citaId?: number }>).detail || {};
-      if (!hora) return;
+  // Scroll-to-cita: ref que guarda datos pendientes hasta que el calendario cargue
+  const pendingScrollRef = useRef<{ hora: string; fecha: string; citaId?: number } | null>(null);
 
-      // Asegurarse de estar en vista calendario
-      setViewMode('calendar');
+  const executeScrollToCita = useCallback((data: { hora: string; fecha: string; citaId?: number }) => {
+    const { hora, fecha, citaId } = data;
 
-      // Si viene con fecha, calcular el weekOffset para navegar a esa semana
-      if (fecha) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dayOfWeek = today.getDay();
-        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const thisMonday = new Date(today);
-        thisMonday.setDate(today.getDate() + diffToMonday);
+    setViewMode('calendar');
 
-        const citaDate = new Date(`${fecha}T12:00:00`);
-        citaDate.setHours(0, 0, 0, 0);
-        const citaDayOfWeek = citaDate.getDay();
-        const diffToCitaMonday = citaDayOfWeek === 0 ? -6 : 1 - citaDayOfWeek;
-        const citaMonday = new Date(citaDate);
-        citaMonday.setDate(citaDate.getDate() + diffToCitaMonday);
+    if (fecha) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dayOfWeek = today.getDay();
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const thisMonday = new Date(today);
+      thisMonday.setDate(today.getDate() + diffToMonday);
 
-        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-        const weekOffset = Math.round((citaMonday.getTime() - thisMonday.getTime()) / msPerWeek);
+      const citaDate = new Date(`${fecha}T12:00:00`);
+      citaDate.setHours(0, 0, 0, 0);
+      const citaDayOfWeek = citaDate.getDay();
+      const diffToCitaMonday = citaDayOfWeek === 0 ? -6 : 1 - citaDayOfWeek;
+      const citaMonday = new Date(citaDate);
+      citaMonday.setDate(citaDate.getDate() + diffToCitaMonday);
 
-        // Siempre actualizar currentWeek, incluso si weekOffset es 0:
-        // el usuario puede estar viendo otra semana y hay que volver a la actual.
-        setCurrentWeek(weekOffset);
+      const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+      const weekOffset = Math.round((citaMonday.getTime() - thisMonday.getTime()) / msPerWeek);
+      setCurrentWeek(weekOffset);
+    }
+
+    const [hStr, mStr] = hora.split(':');
+    const horaDecimal = parseInt(hStr) + parseInt(mStr || '0') / 60;
+    const GRID_START = 9;
+    const SLOT_HEIGHT = 84;
+    const slotIndex = Math.max(0, Math.round((horaDecimal - GRID_START) / 0.5));
+    const slotTop = slotIndex * SLOT_HEIGHT;
+
+    const doScroll = () => {
+      const container = document.querySelector('.module-content');
+      if (!container) return;
+
+      const halfViewport = container.clientHeight / 2;
+      const scrollTarget = Math.max(0, slotTop - halfViewport + SLOT_HEIGHT / 2);
+      const startScroll = container.scrollTop;
+      const distance = scrollTarget - startScroll;
+
+      if (Math.abs(distance) < 2) {
+        if (citaId != null) {
+          setHighlightedCitaId(null);
+          requestAnimationFrame(() => {
+            setHighlightedCitaId(citaId);
+            setTimeout(() => setHighlightedCitaId(null), 2800);
+          });
+        }
+        return;
       }
 
-      // Calcular posición de scroll: grilla empieza en 9:00, cada slot = h-20 (80px) + gap-1 (4px) = 84px
-      const [hStr, mStr] = hora.split(':');
-      const horaDecimal = parseInt(hStr) + parseInt(mStr || '0') / 60;
-      const GRID_START = 9;
-      const SLOT_HEIGHT = 84;
-      const slotIndex = Math.max(0, Math.round((horaDecimal - GRID_START) / 0.5));
-      const slotTop = slotIndex * SLOT_HEIGHT;
+      const duration = Math.min(900, Math.max(400, Math.abs(distance) * 0.8));
+      let startTime: number | null = null;
+      const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-      setTimeout(() => {
-        const container = document.querySelector('.module-content');
-        if (container) {
-          const halfViewport = container.clientHeight / 2;
-          const scrollTarget = Math.max(0, slotTop - halfViewport + SLOT_HEIGHT / 2);
-          const startScroll = container.scrollTop;
-          const distance = scrollTarget - startScroll;
-
-          if (Math.abs(distance) < 2) {
-            // Ya esta en posicion -- activar highlight directo
-            if (citaId != null) {
-              setHighlightedCitaId(null);
-              requestAnimationFrame(() => {
-                setHighlightedCitaId(citaId);
-                setTimeout(() => setHighlightedCitaId(null), 2800);
-              });
-            }
-            return;
-          }
-
-          const duration = Math.min(900, Math.max(400, Math.abs(distance) * 0.8));
-          let startTime: number | null = null;
-          const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-          const step = (timestamp: number) => {
-            if (!startTime) startTime = timestamp;
-            const elapsed = timestamp - startTime;
-            const progress = Math.min(1, elapsed / duration);
-            container.scrollTop = startScroll + distance * easeInOutCubic(progress);
-            if (progress < 1) {
-              requestAnimationFrame(step);
-            } else if (citaId != null) {
-              setHighlightedCitaId(null);
-              requestAnimationFrame(() => {
-                setHighlightedCitaId(citaId);
-                setTimeout(() => setHighlightedCitaId(null), 2800);
-              });
-            }
-          };
+      const step = (timestamp: number) => {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        container.scrollTop = startScroll + distance * easeInOutCubic(progress);
+        if (progress < 1) {
           requestAnimationFrame(step);
         } else if (citaId != null) {
           setHighlightedCitaId(null);
@@ -537,12 +522,50 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             setTimeout(() => setHighlightedCitaId(null), 2800);
           });
         }
-      }, 400);
+      };
+      requestAnimationFrame(step);
+    };
+
+    requestAnimationFrame(() => requestAnimationFrame(doScroll));
+  }, []);
+
+  // Consumir pending de la navegacion desde otro modulo
+  useEffect(() => {
+    const pending = (window as any).__pendingScrollToCita;
+    if (pending) {
+      delete (window as any).__pendingScrollToCita;
+      if (isLoading) {
+        pendingScrollRef.current = pending;
+      } else {
+        executeScrollToCita(pending);
+      }
+    }
+  }, [isLoading, executeScrollToCita]);
+
+  // Cuando isLoading pasa a false y hay scroll pendiente, ejecutarlo
+  useEffect(() => {
+    if (!isLoading && pendingScrollRef.current) {
+      const data = pendingScrollRef.current;
+      pendingScrollRef.current = null;
+      requestAnimationFrame(() => executeScrollToCita(data));
+    }
+  }, [isLoading, executeScrollToCita]);
+
+  // Escuchar evento directo (cuando ya esta en agendamientos)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ hora: string; fecha: string; citaId?: number }>).detail;
+      if (!detail?.hora) return;
+      if (isLoading) {
+        pendingScrollRef.current = detail;
+      } else {
+        executeScrollToCita(detail);
+      }
     };
 
     window.addEventListener('scroll-to-cita-hora', handler);
     return () => window.removeEventListener('scroll-to-cita-hora', handler);
-  }, []);
+  }, [isLoading, executeScrollToCita]);
 
   // Sincronizar cambios de estado hechos desde notificaciones externas (ej. bell)
   useEffect(() => {
@@ -581,7 +604,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [citaToDelete, setCitaToDelete] = useState<any>(null);
 
   // Confirmación de acción de estado de cita
-  const [confirmAccion, setConfirmAccion] = useState<null | { tipo: 'cancelar' | 'completar' | 'parcial'; citaId: number }>(null);
+  const [confirmAccion, setConfirmAccion] = useState<null | { tipo: 'cancelar' | 'completar'; citaId: number }>(null);
   const confirmAccionRef = useRef<typeof confirmAccion>(null);
 
   // Estados para buscadores dentro del formulario de cita
@@ -4218,7 +4241,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     {!isFuture && (
                       <>
                         <button
-                          onClick={() => setConfirmAccion({ tipo: 'parcial', citaId: selectedCita.id })}
+                          onClick={() => { hidePopoverKeepCita(); setShowModalParcial(true); }}
                           className="px-4 py-2 rounded-lg text-sm font-medium border border-orange-primary/40 text-orange-primary hover:bg-orange-primary/10 transition-all cursor-pointer"
                         >
                           Completar Parcialmente
@@ -4285,13 +4308,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               <AlertDialogTitle className="text-white-primary">
                 {confirmAccion?.tipo === 'cancelar' && 'Cancelar cita'}
                 {confirmAccion?.tipo === 'completar' && 'Completar cita'}
-                {confirmAccion?.tipo === 'parcial' && 'Completar parcialmente'}
               </AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-gray-lightest">
               {confirmAccion?.tipo === 'cancelar' && 'La cita será cancelada y la venta asociada quedará anulada. Esta acción no se puede deshacer.'}
               {confirmAccion?.tipo === 'completar' && '¿Confirmas que la cita fue atendida y deseas marcarla como completada?'}
-              {confirmAccion?.tipo === 'parcial' && '¿Deseas registrar los servicios realizados en esta cita de forma parcial?'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -4308,16 +4329,12 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   handleChangeEstado(confirmAccion.citaId, 'Cancelada');
                 } else if (confirmAccion.tipo === 'completar') {
                   handleChangeEstado(confirmAccion.citaId, 'Completada');
-                } else if (confirmAccion.tipo === 'parcial') {
-                  hidePopoverKeepCita();
-                  setShowModalParcial(true);
                 }
                 setConfirmAccion(null);
               }}
             >
               {confirmAccion?.tipo === 'cancelar' && 'Sí, cancelar'}
               {confirmAccion?.tipo === 'completar' && 'Sí, completar'}
-              {confirmAccion?.tipo === 'parcial' && 'Sí, continuar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

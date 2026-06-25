@@ -602,8 +602,8 @@ export function RegistrarCompraPage({ onBack, initialProducto }: RegistrarCompra
       >
         {/* LEFT: Form */}
         <aside className="lg:min-h-0 lg:min-w-0">
-          <div className="elegante-card h-full min-h-0 flex flex-col overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4" style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+          <div className="elegante-card lg:h-full lg:min-h-0 flex flex-col lg:overflow-hidden">
+            <div className="flex-1 lg:min-h-0 lg:overflow-y-auto custom-scrollbar p-4" style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
             {/* Section 1: Información Básica */}
             <FormSection
               title="Información Básica"

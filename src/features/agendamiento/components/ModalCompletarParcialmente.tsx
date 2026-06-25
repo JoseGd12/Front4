@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { formatDuracion } from '../../../shared/utils/dateUtils';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../../../shared/components/ui/alert-dialog';
 
 interface ModalCompletarParcialmenteProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function ModalCompletarParcialmente({
 
   const { error, AlertContainer } = useCustomAlert();
   const [loading, setLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const porcentajeDescuento = descuentoDia;
 
   const servicios = useMemo(() => {
@@ -296,7 +298,7 @@ export function ModalCompletarParcialmente({
             Cancelar
           </button>
           <button
-            onClick={handleSubmit}
+            onClick={() => setShowConfirm(true)}
             disabled={loading || (serviciosChecked.size === 0 && productosChecked.size === 0)}
             className="px-4 py-2 text-sm bg-orange-primary text-white-primary rounded-lg hover:bg-orange-primary/90 disabled:opacity-50 transition-colors font-medium flex items-center gap-2"
           >
@@ -319,6 +321,25 @@ export function ModalCompletarParcialmente({
     <>
       {portal}
       <AlertContainer />
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white-primary">Completar parcialmente</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-lightest">
+              ¿Confirmas que deseas registrar los servicios y productos seleccionados y generar la venta?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="elegante-button-secondary">No, volver</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-primary hover:bg-orange-primary/90 text-black-primary border-none"
+              onClick={handleSubmit}
+            >
+              Sí, completar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

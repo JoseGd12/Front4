@@ -5,6 +5,7 @@ import { clientesService } from "../../clientes/services/clientesService";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { ModalCompletarParcialmente } from "../../agendamiento/components/ModalCompletarParcialmente";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../../shared/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 
 interface CitaNotification {
   id: string;
@@ -164,6 +165,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [showModalParcial, setShowModalParcial] = useState(false);
   const [citaParcialActual, setCitaParcialActual] = useState<Agendamiento | null>(null);
+  const [confirmPendiente, setConfirmPendiente] = useState<{ citaId: number; notifId: string; tipo: 'completar' | 'cancelar' } | null>(null);
   const citasMapRef = useRef<Map<number, Agendamiento>>(new Map());
   const [clientesFotoMap, setClientesFotoMap] = useState<Map<number, string>>(new Map());
   // _tick fuerza re-render cada 60s para actualizar "Hace X min" en tiempo real
@@ -368,13 +370,16 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
 
   const handleVerCita = (hora: string, fecha: string, citaId: number) => {
     setOpen(false);
-    if (!isOnAgendamientos) onNavigateToAgendamientos();
-    const delay = isOnAgendamientos ? 80 : 500;
-    setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("scroll-to-cita-hora", { detail: { hora, fecha, citaId } })
-      );
-    }, delay);
+    if (isOnAgendamientos) {
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("scroll-to-cita-hora", { detail: { hora, fecha, citaId } })
+        );
+      }, 80);
+    } else {
+      (window as any).__pendingScrollToCita = { hora, fecha, citaId };
+      onNavigateToAgendamientos();
+    }
   };
 
   const activeCount = notifications.length;
@@ -533,7 +538,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
                               <>
                                 <button
                                   disabled={isLoading}
-                                  onClick={() => handleAction(notif.citaId, "Completada", notif.id)}
+                                  onClick={() => setConfirmPendiente({ citaId: notif.citaId, notifId: notif.id, tipo: 'completar' })}
                                   aria-label="Completar cita"
                                   title="Completar"
                                   className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-600/20 border border-green-500/40 text-green-400 hover:bg-green-600/30 hover:border-green-500/60 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
@@ -568,7 +573,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
                             )}
                             <button
                               disabled={isLoading}
-                              onClick={() => handleAction(notif.citaId, "Cancelada", notif.id)}
+                              onClick={() => setConfirmPendiente({ citaId: notif.citaId, notifId: notif.id, tipo: 'cancelar' })}
                               aria-label="Cancelar cita"
                               title="Cancelar"
                               className="flex items-center justify-center w-8 h-8 rounded-lg border border-red-500/30 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"

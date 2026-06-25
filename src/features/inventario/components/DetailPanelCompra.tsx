@@ -66,7 +66,7 @@ export function DetailPanelCompra({
   const tieneItems = productos.length > 0;
 
   return (
-    <div className="elegante-card h-full min-h-0 overflow-hidden flex flex-col">
+    <div className="elegante-card lg:h-full lg:min-h-0 lg:overflow-hidden flex flex-col">
       <div className="sticky top-0 z-10 px-5 py-3 border-b border-gray-dark bg-gradient-to-r from-blue-500/10 to-gray-darkest">
         <h3 className="text-lg font-bold text-white-primary flex items-center gap-2">
           <Receipt className="w-5 h-5 text-blue-400" />
@@ -74,7 +74,7 @@ export function DetailPanelCompra({
         </h3>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 lg:min-h-0 lg:overflow-y-auto custom-scrollbar">
         {productos.length > 0 && (
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">

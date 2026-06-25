@@ -225,6 +225,22 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [isFooterVisible, setIsFooterVisible] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', email: '', telefono: '', fecha: '', hora: '', servicio: '' });
 
+  // Mobile detection for carousels
+  const [isMobileCarousel, setIsMobileCarousel] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 639px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobileCarousel(e.matches);
+    setIsMobileCarousel(mql.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+  useEffect(() => {
+    if (!isMobileCarousel) return;
+    [servTrackRef, prodTrackRef, heroGalleryRef].forEach(ref => {
+      if (ref.current) ref.current.style.transform = '';
+    });
+  }, [isMobileCarousel]);
+
   // WhatsApp Chat Widget
   const [waChatOpen, setWaChatOpen] = useState(false);
   const [waMessage, setWaMessage] = useState('');
@@ -339,6 +355,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   // Transform-based infinite carousels (no scrollLeft — seamless loop)
   const servTrackRef = useRef<HTMLDivElement>(null);
   const prodTrackRef = useRef<HTMLDivElement>(null);
+  const heroGalleryRef = useRef<HTMLDivElement>(null);
   const servOffsetRef = useRef(0);
   const prodOffsetRef = useRef(0);
   const servFrameRef = useRef<number>(0);
@@ -353,7 +370,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   };
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isMobileCarousel) return;
     const track = servTrackRef.current;
     if (!track) return;
     let last = 0;
@@ -378,10 +395,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     };
     servFrameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(servFrameRef.current);
-  }, [loading, servicesView]);
+  }, [loading, servicesView, isMobileCarousel]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isMobileCarousel) return;
     const track = prodTrackRef.current;
     if (!track) return;
     let last = 0;
@@ -406,10 +423,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     };
     prodFrameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(prodFrameRef.current);
-  }, [loading]);
+  }, [loading, isMobileCarousel]);
 
   useEffect(() => {
-    if (instagramLoading || instagramError) return;
+    if (instagramLoading || instagramError || isMobileCarousel) return;
     const track = heroGalleryRef.current;
     if (!track) return;
     let last = 0;
@@ -434,10 +451,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     };
     galleryFrameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(galleryFrameRef.current);
-  }, [instagramLoading, instagramError]);
+  }, [instagramLoading, instagramError, isMobileCarousel]);
 
   const lenisRef = useRef<Lenis | null>(null);
-  const heroGalleryRef = useRef<HTMLDivElement>(null);
   const galleryOffsetRef = useRef(0);
   const galleryTargetRef = useRef(0);
   const galleryFrameRef = useRef<number>(0);
@@ -1009,7 +1025,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               }
 
               galleryItemsListRef.current = galleryItems;
-              const allSets = [...sets, ...sets];
+              const allSets = isMobileCarousel ? sets : [...sets, ...sets];
 
               innerContent = allSets.map((set, si) => (
                 <div key={`hero-set-${si}`} className="flex shrink-0 h-full" style={{ gap: '3px' }}>
@@ -1039,7 +1055,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
 
             return (
               <div className="flex items-stretch gap-8 sm:gap-10 md:gap-14 lg:gap-16">
-                <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+                <div className="flex shrink-0 items-center justify-center self-center landing-carousel-arrows min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
                   <button
                     type="button"
                     onClick={() => scrollGallery(-1)}
@@ -1065,7 +1081,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   <div className="hero-gallery-fade-in hero-gallery-fade-in--right" aria-hidden />
                 </div>
 
-                <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+                <div className="flex shrink-0 items-center justify-center self-center landing-carousel-arrows min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
                   <button
                     type="button"
                     onClick={() => scrollGallery(1)}
@@ -1308,7 +1324,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Carousel de Servicios — mismo layout que “Nuestro trabajo” (padding, flechas laterales, luz + fade) */}
         <div className="px-8 sm:px-14 lg:px-24 xl:px-32 2xl:px-40">
           <div className="flex items-stretch gap-8 sm:gap-10 md:gap-14 lg:gap-16">
-            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+            <div className="flex shrink-0 items-center justify-center self-center landing-carousel-arrows min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
               <button
                 type="button"
                 disabled={loading}
@@ -1327,7 +1343,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                       <div
                         key={i}
-                        className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                        className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414] landing-carousel-card"
                         style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
                       >
                         <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
@@ -1354,10 +1370,10 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   <div
                     ref={servTrackRef}
                     className="relative flex gap-6"
-                    style={{ width: 'max-content', willChange: 'transform', marginBottom: '2rem' }}
+                    style={isMobileCarousel ? { width: 'max-content', marginBottom: '2rem' } : { width: 'max-content', willChange: 'transform', marginBottom: '2rem' }}
                   >
-                    {[...activeServiceItems, ...activeServiceItems].map((servicio, idx) => (
-                      <div key={`srv-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
+                    {(isMobileCarousel ? activeServiceItems : [...activeServiceItems, ...activeServiceItems]).map((servicio, idx) => (
+                      <div key={`srv-${idx}`} className="shrink-0 group landing-carousel-card" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
                         <div
                           className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full cursor-pointer flex flex-col"
                           onClick={() => handleOpenDetail(servicio, 'servicio')}
@@ -1416,7 +1432,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               )}
             </div>
 
-            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+            <div className="flex shrink-0 items-center justify-center self-center landing-carousel-arrows min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
               <button
                 type="button"
                 disabled={loading}
@@ -1451,7 +1467,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         {/* Carousel de Productos — mismo layout que “Nuestro trabajo” */}
         <div className="px-8 sm:px-14 lg:px-24 xl:px-32 2xl:px-40 pb-8">
           <div className="flex items-stretch gap-8 sm:gap-10 md:gap-14 lg:gap-16 ">
-            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+            <div className="flex shrink-0 items-center justify-center self-center landing-carousel-arrows min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
               <button
                 type="button"
                 disabled={loading}
@@ -1466,11 +1482,11 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             <div className="hero-gallery-carousel hero-gallery-carousel--cards relative flex-1 min-w-0">
               <div className="hero-gallery-track-wrap">
                 {loading ? (
-                  <div className="relative flex gap-6" style={{ width: 'max-content', marginBottom: '4rem' }}>
+                  <div className="relative flex gap-6" style={isMobileCarousel ? { width: 'max-content', marginBottom: '4rem' } : { width: 'max-content', marginBottom: '4rem' }}>
                     {[1, 2, 3, 4, 5].map((i) => (
                       <div
                         key={i}
-                        className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414]"
+                        className="shrink-0 rounded-2xl overflow-hidden border border-[#d8b081]/10 bg-[#141414] landing-carousel-card"
                         style={{ width: '380px', minWidth: '380px', maxWidth: '380px', animationDelay: `${i * 150}ms` }}
                       >
                         <div className="relative h-[240px] bg-[#1a1a1a] overflow-hidden">
@@ -1492,9 +1508,9 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                     ))}
                   </div>
                 ) : (
-                  <div ref={prodTrackRef} className="relative flex gap-6" style={{ width: 'max-content', willChange: 'transform', marginBottom: '4rem' }}>
-                    {[...productos, ...productos].map((producto, idx) => (
-                      <div key={`prod-${idx}`} className="shrink-0 group" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
+                  <div ref={prodTrackRef} className="relative flex gap-6" style={isMobileCarousel ? { width: 'max-content', marginBottom: '4rem' } : { width: 'max-content', willChange: 'transform', marginBottom: '4rem' }}>
+                    {(isMobileCarousel ? productos : [...productos, ...productos]).map((producto, idx) => (
+                      <div key={`prod-${idx}`} className="shrink-0 group landing-carousel-card" style={{ width: '380px', minWidth: '380px', maxWidth: '380px' }}>
                         <div
                           className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-[#d8b081]/20 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_40px_80px_rgba(216,176,129,0.08)] glow-on-hover h-full cursor-pointer"
                           onClick={() => handleOpenDetail(producto, 'producto')}
@@ -1534,7 +1550,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               )}
             </div>
 
-            <div className="flex shrink-0 items-center justify-center self-center min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
+            <div className="flex shrink-0 items-center justify-center self-center landing-carousel-arrows min-w-[3rem] sm:min-w-[4rem] md:min-w-[4.5rem] px-1 sm:px-2">
               <button
                 type="button"
                 disabled={loading}
@@ -1559,26 +1575,24 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
             <p className="text-gray-400 mt-4 max-w-xl mx-auto text-lg mb-4 leading-relaxed">Conoce a los artistas detrás de tu imagen. Nuestra dedicación se refleja en cada detalle.</p>
           </div>
           
-          <div className="barber-grid w-full max-w-[850px] mx-auto overflow-hidden" style={{ height: '480px' }}>
-            {[
+          {(() => {
+            const barberos = [
               { nombre: 'Maicol', foto: imgMaicol, imageClass: 'barber-crop-default' },
               { nombre: 'Juan', foto: imgJuan, imageClass: 'barber-crop-juan' },
               { nombre: 'Edwin', foto: imgEdwin, imageClass: 'barber-crop-edwin' },
               { nombre: 'Eduardo', foto: imgEduardo, imageClass: 'barber-crop-eduardo' },
               { nombre: 'Christian', foto: imgChristian, imageClass: 'barber-crop-christian' },
-            ].map((barbero, idx) => (
+            ];
+            const barberCard = (barbero: typeof barberos[0], idx: number) => (
               <div
                 key={idx}
                 className="barber-panel relative flex flex-col bg-[#141414] rounded-2xl overflow-hidden shadow-2xl group"
               >
-                {/* Nombre arriba */}
                 <div className="py-5 text-center px-2 flex flex-col justify-center items-center bg-[#141414] z-10">
                   <h3 className="text-2xl md:text-3xl font-black font-title tracking-tight text-white group-hover:text-[#d8b081] transition-colors duration-200">
                     {barbero.nombre}
                   </h3>
                 </div>
-
-                {/* Imagen rellenando el espacio medio */}
                 <div className="flex-1 w-full relative overflow-hidden bg-[#141414]">
                   <img
                     src={barbero.foto}
@@ -1589,8 +1603,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   />
                   <div className="absolute inset-0 bg-transparent group-hover:bg-black/55 transition-all duration-250 pointer-events-none" />
                 </div>
-
-                {/* Botón de agendar */}
                 <button
                   className="barber-panel-btn relative z-10 w-full py-6 font-bold tracking-[0.2em] text-xs outline-none border-t border-white/10 bg-transparent text-white cursor-pointer"
                   onClick={(e) => {
@@ -1605,8 +1617,22 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
                   Agendar Cita
                 </button>
               </div>
-            ))}
-          </div>
+            );
+            return (
+              <>
+                <div className="barber-grid hidden sm:grid w-full max-w-[850px] mx-auto overflow-hidden" style={{ height: '480px' }}>
+                  {barberos.map(barberCard)}
+                </div>
+                <div className="barber-mobile-scroll flex sm:hidden gap-4 overflow-x-auto px-4" style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}>
+                  {barberos.map((barbero, idx) => (
+                    <div key={idx} className="shrink-0" style={{ width: 'calc(100vw - 3rem)', scrollSnapAlign: 'center', height: '420px' }}>
+                      {barberCard(barbero, idx)}
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </section>
 

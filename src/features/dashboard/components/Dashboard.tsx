@@ -507,17 +507,20 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
       </button>
     );
 
-    // Tooltip siempre visible (barra desplegada o contraída), mismo diseño que el botón de la barra lateral
-    return (
-      <Tooltip key={item.label} delayDuration={0}>
-        <TooltipTrigger asChild>
-          {buttonElement}
-        </TooltipTrigger>
-        <TooltipContent side="right" className="bg-gray-darkest border-gray-dark text-white-primary">
-          <p>{item.label}</p>
-        </TooltipContent>
-      </Tooltip>
-    );
+    if (sidebarCollapsed && !isMobile) {
+      return (
+        <Tooltip key={item.label} delayDuration={0}>
+          <TooltipTrigger asChild>
+            {buttonElement}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-gray-darkest border-gray-dark text-white-primary">
+            <p>{item.label}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return buttonElement;
   };
 
   const renderContent = () => {
@@ -647,9 +650,47 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                 <button
                   type="button"
                   onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-                  className="p-2 rounded-md bg-muted border border-gray-dark transition-colors duration-150 flex items-center justify-center cursor-pointer hover:bg-gray-medium"
+                  className="sidebar-toggle-btn"
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--black-secondary)',
+                    border: '1px solid var(--gray-dark)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
+                  }}
                 >
-                  <Menu className="w-5 h-5 text-orange-primary" />
+                  <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
+                    <defs>
+                      <mask id="bar-mask-mobile-1"><rect x="0" y="0" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                      <mask id="bar-mask-mobile-2"><rect x="0" y="9.5" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                    </defs>
+                    {[
+                      { mask: 'url(#bar-mask-mobile-1)', y: 0 },
+                      { mask: 'url(#bar-mask-mobile-2)', y: 9.5 },
+                    ].map((bar, i) => (
+                      <g key={i} mask={bar.mask}>
+                        <rect x="0" y={bar.y} width="20" height="4.5" rx="2.25" fill="#E3C6A5" />
+                        <g className="barber-bar-stripes">
+                          {[...Array(10)].map((_, j) => (
+                            <rect
+                              key={j}
+                              x={j * 9 - 18}
+                              y={bar.y - 4}
+                              width="2.2"
+                              height="13"
+                              fill="#A06C31"
+                              transform={`rotate(-35 ${j * 9 - 18 + 1.1} ${bar.y + 2.25})`}
+                            />
+                          ))}
+                        </g>
+                      </g>
+                    ))}
+                  </svg>
                 </button>
               </div>
             )}
@@ -773,62 +814,55 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           >
             {/* Toggle button — borde derecho, parte superior */}
             {!isMobile && (
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={toggleSidebarWithTransition}
-                    className="sidebar-toggle-btn"
-                    style={{
-                      position: 'absolute',
-                      right: '-16px',
-                      top: '24px',
-                      zIndex: 100,
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--black-secondary)',
-                      border: '1px solid var(--gray-dark)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
-                    }}
-                  >
-                    <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg" overflow="visible">
-                      <defs>
-                        <mask id="bar-mask-1"><rect x="0" y="0" width="20" height="4.5" rx="2.25" fill="white" /></mask>
-                        <mask id="bar-mask-2"><rect x="0" y="9.5" width="20" height="4.5" rx="2.25" fill="white" /></mask>
-                      </defs>
-                      {[
-                        { mask: 'url(#bar-mask-1)', y: 0 },
-                        { mask: 'url(#bar-mask-2)', y: 9.5 },
-                      ].map((bar, i) => (
-                        <g key={i} mask={bar.mask}>
-                          <rect x="0" y={bar.y} width="20" height="4.5" rx="2.25" fill="#484848" />
-                          <g className="barber-bar-stripes">
-                            {[...Array(10)].map((_, j) => (
-                              <rect
-                                key={j}
-                                x={j * 9 - 18}
-                                y={bar.y - 4}
-                                width="2.2"
-                                height="13"
-                                fill="var(--orange-primary)"
-                                transform={`rotate(-35 ${j * 9 - 18 + 1.1} ${bar.y + 2.25})`}
-                              />
-                            ))}
-                          </g>
-                        </g>
-                      ))}
-                    </svg>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="bg-gray-darkest border-gray-dark text-white-primary">
-                  <p>{sidebarCollapsed ? "Expandir menú" : "Colapsar menú"}</p>
-                </TooltipContent>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={toggleSidebarWithTransition}
+                className="sidebar-toggle-btn"
+                style={{
+                  position: 'absolute',
+                  right: '-16px',
+                  top: '24px',
+                  zIndex: 100,
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--black-secondary)',
+                  border: '1px solid var(--gray-dark)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s, border-color 0.2s, box-shadow 0.2s',
+                }}
+              >
+                <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
+                  <defs>
+                    <mask id="bar-mask-1"><rect x="0" y="0" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                    <mask id="bar-mask-2"><rect x="0" y="9.5" width="20" height="4.5" rx="2.25" fill="white" /></mask>
+                  </defs>
+                  {[
+                    { mask: 'url(#bar-mask-1)', y: 0 },
+                    { mask: 'url(#bar-mask-2)', y: 9.5 },
+                  ].map((bar, i) => (
+                    <g key={i} mask={bar.mask}>
+                      <rect x="0" y={bar.y} width="20" height="4.5" rx="2.25" fill="#E3C6A5" />
+                      <g className="barber-bar-stripes">
+                        {[...Array(10)].map((_, j) => (
+                          <rect
+                            key={j}
+                            x={j * 9 - 18}
+                            y={bar.y - 4}
+                            width="2.2"
+                            height="13"
+                            fill="#A06C31"
+                            transform={`rotate(-35 ${j * 9 - 18 + 1.1} ${bar.y + 2.25})`}
+                          />
+                        ))}
+                      </g>
+                    </g>
+                  ))}
+                </svg>
+              </button>
             )}
             <div className={`px-6 py-5 ${sidebarCollapsed && !isMobile ? "flex justify-center" : "flex items-center gap-3"}`}>
               {(!sidebarCollapsed || isMobile) && (
@@ -927,7 +961,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
             />
             <div
               className={`module-content flex-1 min-h-0 px-4 sm:px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion"
-                  ? "overflow-hidden flex flex-col"
+                  ? "overflow-y-auto lg:overflow-hidden flex flex-col"
                   : "overflow-y-auto"
                 }`}
             >

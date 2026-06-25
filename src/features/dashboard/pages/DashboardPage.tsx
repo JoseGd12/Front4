@@ -1901,9 +1901,9 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   {periodoHorasPico === "dia" ? (
-                    <BarChart data={horasPico} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <BarChart data={horasPico} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} vertical={false} />
-                      <XAxis dataKey="hora" stroke={ct.axis} tick={{ fill: ct.tick, fontSize: 13 }} interval={0} />
+                      <XAxis dataKey="hora" stroke={ct.axis} tick={{ fill: ct.tick, fontSize: 11 }} interval={0} angle={-45} textAnchor="end" height={50} />
                       <YAxis stroke={ct.axis} allowDecimals={false} tick={{ fill: ct.tick, fontSize: 12 }} />
                       <Tooltip
                         {...chartTooltip}
