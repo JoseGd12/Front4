@@ -228,8 +228,18 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
       c.UserDocumento ??
       '';
 
+    // Priorizar información almacenada directamente en la compra (nombre + apellido)
+    const uNombre = c.usuarioNombre ?? c.UsuarioNombre;
+    const uApellido = c.usuarioApellido ?? c.UsuarioApellido;
+    if (uNombre || uApellido) {
+      const fullNameFromStored = `${uNombre ?? ''} ${uApellido ?? ''}`.trim();
+      if (fullNameFromStored) {
+        return `${fullNameFromStored}${doc ? ` — CC ${doc}` : ''}`;
+      }
+    }
+
     const nombreDirecto =
-      c.responsableNombre ?? c.ResponsableNombre ?? c.usuarioNombre ?? c.UsuarioNombre ?? c.responsable ?? c.usuario;
+      c.responsableNombre ?? c.ResponsableNombre ?? c.responsable ?? c.usuario;
     if (nombreDirecto) return `${String(nombreDirecto)}${doc ? ` — CC ${doc}` : ''}`;
 
     const respObj = c.responsable ?? c.Responsable ?? c.usuario ?? c.Usuario;
