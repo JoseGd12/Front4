@@ -18,9 +18,8 @@ import {
   ChevronRight, Scissors, Star, 
   TrendingUp, TrendingDown, Target, Award, Crown, Medal,
   MapPin, Home, Camera,
-  Upload, ToggleRight, ToggleLeft, X, Loader2, KeyRound, MoreVertical
+  Upload, ToggleRight, ToggleLeft, X, Loader2, KeyRound
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { barberosService, Barbero, CreateBarberoData } from "../services/barberosService";
@@ -86,7 +85,7 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
   const [selectedBarbero, setSelectedBarbero] = useState<Barbero | null>(null);
   const [barberoToDelete, setBarberoToDelete] = useState<Barbero | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("active");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [newBarbero, setNewBarbero] = useState<CreateBarberoData>({
@@ -686,64 +685,6 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
             recordsPlacement="right"
           />
 
-          {/* Mobile Cards de Barberos */}
-          <div className="block sm:hidden">
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : displayedBarberos.length === 0 ? (
-              <div className="text-center py-12 text-gray-lightest">
-                <p className="text-sm font-medium">No se encontraron barberos</p>
-                <p className="text-xs mt-1">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
-              </div>
-            ) : (
-              <div className="std-mobile-cards">
-                {displayedBarberos.map((barbero) => (
-                  <div key={`mobile-${barbero.id}`} className="std-mobile-card">
-                    <div className="std-mobile-card-avatar">
-                      <ImageRenderer
-                        url={barbero.fotoPerfil}
-                        alt={barbero.nombre}
-                        className="w-full h-full object-cover rounded-full"
-                        fallbackVariant="person"
-                        showLabel={false}
-                      />
-                    </div>
-                    <div className="std-mobile-card-info">
-                      <div className="std-mobile-card-row">
-                        <span className="std-mobile-card-title">{barbero.nombre} {barbero.apellido}</span>
-                        <span className={`std-badge ${barbero.status === 'active' ? 'std-badge-positive' : 'std-badge-negative'}`}>
-                          {barbero.status === 'active' ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </div>
-                      <span className="std-mobile-card-sub">{barbero.correo}</span>
-                      <span className="std-mobile-card-meta">
-                        {barbero.tipoDocumento} {barbero.documento} · {barbero.telefono}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <button onClick={() => toggleBarberoStatus(barbero.id)} className="p-1" title={barbero.status === 'active' ? "Desactivar barbero" : "Activar barbero"}>
-                        {barbero.status === 'active' ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
-                      </button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
-                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedBarbero(barbero); setIsDetailDialogOpen(true); }}>Detalles</DropdownMenuItem>
-                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={barbero.status !== 'active'} onSelect={() => handleEditBarbero(barbero)}>Editar</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={barbero.status !== 'active'} onSelect={() => handleDeleteBarbero(barbero.id)}>Eliminar</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
               <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -869,7 +810,6 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
                 )}
               </tbody>
             </table>
-          </div>
           </div>
 
           {/* Paginación */}

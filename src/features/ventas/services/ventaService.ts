@@ -315,11 +315,15 @@ class VentaService {
           ? `${barberoUsuario?.nombre || barberoUsuario?.Nombre} ${barberoUsuario?.apellido || barberoUsuario?.Apellido || ''}`.trim()
           : (data.nombreBarbero || data.NombreBarbero || (typeof data.barbero === 'string' ? data.barbero : '') || (typeof data.Barbero === 'string' ? data.Barbero : '') || 'Sin asignar');
 
-    const responsableNombre = (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre)
-      ? (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre)
-      : (usuarioResponsable.nombre || usuarioResponsable.Nombre)
-        ? `${usuarioResponsable.nombre || usuarioResponsable.Nombre} ${usuarioResponsable.apellido || usuarioResponsable.Apellido || ''}`.trim()
-        : 'Sin asignar';
+    // Priorizar la información de usuario almacenada directamente en la venta
+    const hasStoredUserInfo = data.usuarioNombre || data.UsuarioNombre || data.usuarioApellido || data.UsuarioApellido;
+    const responsableNombre = hasStoredUserInfo
+      ? `${data.usuarioNombre || data.UsuarioNombre || ''} ${data.usuarioApellido || data.UsuarioApellido || ''}`.trim() || 'Sin asignar'
+      : (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre)
+        ? (data.usuarioNombreCompleto || data.UsuarioNombreCompleto || data.responsableNombre || data.ResponsableNombre || data.usuarioNombre || data.UsuarioNombre)
+        : (usuarioResponsable.nombre || usuarioResponsable.Nombre)
+          ? `${usuarioResponsable.nombre || usuarioResponsable.Nombre} ${usuarioResponsable.apellido || usuarioResponsable.Apellido || ''}`.trim()
+          : 'Sin asignar';
 
     const getNumericId = (val: any, fallbackId?: any) => {
       const num = Number(val);

@@ -84,6 +84,12 @@ class CompraService {
             }))
             : [];
 
+        // Priorizar la información de usuario almacenada directamente en la compra
+        const hasStoredUserInfo = raw.usuarioNombre || raw.UsuarioNombre || raw.usuarioApellido || raw.UsuarioApellido;
+        const responsableNombre = hasStoredUserInfo
+            ? `${raw.usuarioNombre || raw.UsuarioNombre || ''} ${raw.usuarioApellido || raw.UsuarioApellido || ''}`.trim() || 'Responsable'
+            : String(raw.usuarioNombreCompleto || raw.UsuarioNombreCompleto || raw.responsableNombre || raw.ResponsableNombre || usuario.nombre || usuario.Nombre || 'Responsable');
+
         return {
             id: Number(raw.id || raw.Id),
             numeroCompra: String(raw.numeroCompra || raw.NumeroCompra || ''),
@@ -100,7 +106,7 @@ class CompraService {
             descuento: this.toFiniteNumber(raw.descuento || raw.Descuento),
             total: this.toFiniteNumber(raw.total || raw.Total),
             usuarioId: Number(raw.usuarioId || raw.UsuarioId || usuario.id || usuario.Id || 0),
-            responsableNombre: String(usuario.nombre || usuario.Nombre || raw.responsableNombre || raw.ResponsableNombre || 'Responsable'),
+            responsableNombre,
             estado: String(raw.estado || raw.Estado || 'Completada'),
             detalles
         };
