@@ -15,8 +15,10 @@ import {
   FileText,
   Ban,
   Calculator,
-  FileDown
+  FileDown,
+  MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
@@ -821,6 +823,57 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
             recordsPlacement="right"
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-orange-primary border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="text-gray-lightest text-sm">Cargando compras...</p>
+                </div>
+              </div>
+            ) : displayedCompras.length === 0 ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <Receipt className="w-12 h-12 text-gray-lightest mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white-primary mb-2">No se encontraron compras</h3>
+                  <p className="text-gray-lightest mb-4">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+                  <button onClick={() => loadCompras(false)} className="elegante-button-primary text-sm">Recargar tabla</button>
+                </div>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedCompras.map((compra) => (
+                  <div key={compra.id} className="std-mobile-card">
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{compra.proveedorNombre}</span>
+                        <span className={`std-badge ${getEstadoColor(compra.estado)}`}>
+                          {compra.estado}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">Compra #{String(compra.id)} · NIT: {compra.proveedorDocumento || 'N/A'}</span>
+                      <span className="std-mobile-card-meta">${compra.totalFormatted} · {compra.fechaFormatted}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewDetails(compra)}>Detalles</DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => generatePurchasePDF(compra)}>PDF</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={compra.estado?.toLowerCase() === "anulada" || compra.estado?.toLowerCase() === "anulado"} onSelect={() => handleAnularCompra(compra.id)}>Anular</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
                   <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -859,6 +912,7 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
                     )}
                   </tbody>
                 </table>
+          </div>
           </div>
           {/* Paginación */}
           <div className="std-pagination">

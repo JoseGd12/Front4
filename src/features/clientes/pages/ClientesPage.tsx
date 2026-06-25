@@ -24,7 +24,8 @@ import {
   Trash2,
   FileText,
   Hash,
-  Filter
+  Filter,
+  MoreVertical
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
@@ -34,6 +35,7 @@ import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
@@ -1146,6 +1148,42 @@ export function ClientesPage() {
                 emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                 onReload={loadClientes}
                 rowKey="id"
+                renderMobileCard={(_row) => {
+                  const row = _row as unknown as Cliente;
+                  return (
+                  <div className="std-mobile-card">
+                    <div className="std-mobile-card-avatar">
+                      <ImageRenderer url={row.fotoPerfil} alt={row.nombre} className="w-full h-full object-cover" fallbackVariant="person" showLabel={false} />
+                    </div>
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{row.nombre} {row.apellido}</span>
+                        <span className={`std-badge ${row.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          {row.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">{row.email || '-'}</span>
+                      <span className="std-mobile-card-meta">{row.telefono || '-'}</span>
+                      <span className="std-mobile-card-meta">Saldo: ${formatCurrency(row.saldoAFavor ?? 0)}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <button onClick={() => toggleClienteStatus(row.id)} className="p-1" title={row.activo ? "Desactivar" : "Activar"}>
+                        {row.activo ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewCliente(row)}>Detalles</DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!row.activo} onSelect={() => handleEditCliente(row)}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={!row.activo} onSelect={() => handleDeleteCliente(row)}>Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                  );
+                }}
               />
             );
           })()}

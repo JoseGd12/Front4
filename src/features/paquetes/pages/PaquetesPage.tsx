@@ -14,8 +14,10 @@ import {
   X,
   Trash2,
   Calculator,
-  FileText
+  FileText,
+  MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Input } from "../../../shared/components/ui/input";
@@ -772,6 +774,60 @@ export function PaquetesPage() {
               emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
               onReload={loadPaquetes}
               rowKey={(row) => String((row as unknown as Paquete).id)}
+              renderMobileCard={(row) => {
+                const paquete = row as unknown as Paquete;
+                const precioOriginal = paquete.precio ?? 0;
+                const descuento = paquete.descuento ?? 0;
+                const precioFinal = descuento > 0 ? precioOriginal - (precioOriginal * descuento / 100) : precioOriginal;
+                const nombresServicios = serviciosPorPaqueteId.get(paquete.id)?.join(', ') || 'Sin servicios';
+                return (
+                  <div className="std-mobile-card">
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{paquete.nombre}</span>
+                        <span className={`std-badge ${paquete.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          {paquete.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">{nombresServicios}</span>
+                      <span className="std-mobile-card-meta">
+                        ${precioFinal.toLocaleString('es-CO')} · {formatDuracion(paquete.duracion)} · {paquete.servicios.length} servicios
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <button
+                        onClick={() => handleToggleEstadoPaquete(paquete)}
+                        className="p-1"
+                        title={paquete.activo ? "Desactivar" : "Activar"}
+                      >
+                        {paquete.activo ? (
+                          <ToggleRight className="w-6 h-6 text-orange-primary" />
+                        ) : (
+                          <ToggleLeft className="w-6 h-6 text-gray-light" />
+                        )}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors">
+                            <MoreVertical className="w-4 h-4 text-gray-lightest" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedPaquete(paquete); setIsDetailDialogOpen(true); loadDetallePaquete(paquete.id); }}>
+                            Detalles
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!paquete.activo} onSelect={() => handleEditPaquete(paquete)}>
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={!paquete.activo} onSelect={() => handleEliminarPaquete(paquete)}>
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                );
+              }}
             />
 
             {/* Paginación */}

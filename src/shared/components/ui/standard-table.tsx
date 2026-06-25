@@ -264,6 +264,8 @@ type StandardTableProps<T extends Record<string, unknown>> = {
    * Si no se provee, se usa el índice del array como fallback.
    */
   rowKey?: keyof T | ((row: T) => string);
+  /** Render function for mobile card view. When provided, cards are shown on mobile and the table is hidden. */
+  renderMobileCard?: (row: T, index: number) => React.ReactNode;
 };
 
 /**
@@ -324,6 +326,7 @@ function StandardTableComponent<T extends Record<string, unknown>>({
   onReload = () => {},
   className,
   rowKey,
+  renderMobileCard,
 }: StandardTableProps<T>) {
   const colSpan = columns.length;
 
@@ -333,64 +336,92 @@ function StandardTableComponent<T extends Record<string, unknown>>({
     return String(row[rowKey] ?? index);
   };
 
-  return (
-    <div className="std-table-wrapper">
-      <table className={cn("std-table", className)}>
-        <Header>
-          <tr>
-            {columns.map((col, i) => (
-              <HeadCell
-                key={String(col.key)}
-                align={i === 0 ? "left" : (col.align ?? "center")}
-              >
-                {col.header}
-              </HeadCell>
-            ))}
-          </tr>
-        </Header>
-        <Body>
-          {loading ? (
-            <TableLoadingStateRow colSpan={colSpan} />
-          ) : data.length === 0 ? (
-            <TableEmptyStateRow
-              colSpan={colSpan}
-              title={emptyTitle}
-              description={emptyMessage}
-              onReload={onReload}
-            />
-          ) : (
-            data.map((row, rowIndex) => (
-              <Row key={getRowKey(row, rowIndex)}>
-                {columns.map((col, colIndex) => {
-                  const value = col.key in row ? row[col.key as keyof T] : undefined;
-                  const content = col.render
-                    ? col.render(value, row)
-                    : value !== undefined && value !== null
-                    ? String(value)
-                    : "—";
+  const hasMobileCards = !!renderMobileCard;
 
-                  if (col.primary || colIndex === 0) {
-                    return (
-                      <PrimaryCell key={String(col.key)}>
-                        {content}
-                      </PrimaryCell>
-                    );
-                  }
-                  return (
-                    <Cell
-                      key={String(col.key)}
-                      align={col.align ?? "center"}
-                    >
-                      {content}
-                    </Cell>
-                  );
-                })}
-              </Row>
-            ))
+  return (
+    <>
+      {hasMobileCards && (
+        <div className="block sm:hidden">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : data.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-lightest text-sm font-medium mb-1">{emptyTitle}</p>
+              <p className="text-gray-lighter text-xs">{emptyMessage}</p>
+            </div>
+          ) : (
+            <div className="std-mobile-cards">
+              {data.map((row, i) => (
+                <React.Fragment key={getRowKey(row, i)}>
+                  {renderMobileCard(row, i)}
+                </React.Fragment>
+              ))}
+            </div>
           )}
-        </Body>
-      </table>
-    </div>
+        </div>
+      )}
+      <div className={hasMobileCards ? "hidden sm:block" : undefined}>
+        <div className="std-table-wrapper">
+          <table className={cn("std-table", className)}>
+            <Header>
+              <tr>
+                {columns.map((col, i) => (
+                  <HeadCell
+                    key={String(col.key)}
+                    align={i === 0 ? "left" : (col.align ?? "center")}
+                  >
+                    {col.header}
+                  </HeadCell>
+                ))}
+              </tr>
+            </Header>
+            <Body>
+              {loading ? (
+                <TableLoadingStateRow colSpan={colSpan} />
+              ) : data.length === 0 ? (
+                <TableEmptyStateRow
+                  colSpan={colSpan}
+                  title={emptyTitle}
+                  description={emptyMessage}
+                  onReload={onReload}
+                />
+              ) : (
+                data.map((row, rowIndex) => (
+                  <Row key={getRowKey(row, rowIndex)}>
+                    {columns.map((col, colIndex) => {
+                      const value = col.key in row ? row[col.key as keyof T] : undefined;
+                      const content = col.render
+                        ? col.render(value, row)
+                        : value !== undefined && value !== null
+                        ? String(value)
+                        : "—";
+
+                      if (col.primary || colIndex === 0) {
+                        return (
+                          <PrimaryCell key={String(col.key)}>
+                            {content}
+                          </PrimaryCell>
+                        );
+                      }
+                      return (
+                        <Cell
+                          key={String(col.key)}
+                          align={col.align ?? "center"}
+                        >
+                          {content}
+                        </Cell>
+                      );
+                    })}
+                  </Row>
+                ))
+              )}
+            </Body>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }
 

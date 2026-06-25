@@ -22,9 +22,11 @@ import {
   Filter,
   DollarSign,
   ChevronDown,
-  ShoppingCart
+  ShoppingCart,
+  MoreVertical
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Switch } from "../../../shared/components/ui/switch";
@@ -75,6 +77,7 @@ export function ProductosPage() {
   const [precioCompraPromedio, setPrecioCompraPromedio] = useState<PrecioCompraPromedioData | null>(null);
   // Estado de fila expandida y caché de promedio por producto
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
   const [precioComprasCache, setPrecioComprasCache] = useState<Record<number, PrecioCompraPromedioData | null>>({});
   const [loadingExpandId, setLoadingExpandId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1257,7 +1260,157 @@ export function ProductosPage() {
               recordsPlacement="right"
             />
 
+            {/* Mobile Cards de Productos */}
+            <div className="block sm:hidden">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : displayedProductos.length === 0 ? (
+                <div className="text-center py-12 text-gray-lightest">
+                  <p className="text-sm font-medium">No se encontraron productos</p>
+                  <p className="text-xs mt-1">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+                </div>
+              ) : (
+                <div className="std-mobile-cards">
+                  {displayedProductos.map((producto) => {
+                    const isMobileExpanded = mobileExpandedId === producto.id;
+                    return (
+                    <div key={`mobile-${producto.id}`} className="std-mobile-card" style={{ flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
+                        <div className="std-mobile-card-avatar">
+                          <ImageRenderer
+                            url={producto.imagenProduc}
+                            alt={producto.nombre}
+                            className="w-full h-full object-cover"
+                            fallbackVariant="product"
+                            showLabel={false}
+                          />
+                        </div>
+                        <div className="std-mobile-card-info">
+                          <div className="std-mobile-card-row">
+                            <span className="std-mobile-card-title">{producto.nombre}</span>
+                            <span className={`std-badge ${producto.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                              {producto.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </div>
+                          <span className="std-mobile-card-meta">
+                            {formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0)} · Stock: {String(getStockTotal(producto as unknown as ApiProducto))}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <button onClick={() => toggleProductoActivo(producto.id)} className="p-1" title={producto.activo ? "Desactivar producto" : "Activar producto"}>
+                            {producto.activo ? (
+                              <ToggleRight className="w-6 h-6 text-orange-primary" />
+                            ) : (
+                              <ToggleLeft className="w-6 h-6 text-gray-light" />
+                            )}
+                          </button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors">
+                                <MoreVertical className="w-4 h-4 text-gray-lightest" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                              <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedProducto(producto); setIsDetailDialogOpen(true); }}>
+                                Detalles
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!producto.activo} onSelect={() => handleEditProducto(producto)}>
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={!producto.activo} onSelect={() => handleDeleteProducto(producto.id)}>
+                                Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      {/* Chevron para expandir */}
+                      <button
+                        onClick={() => setMobileExpandedId(isMobileExpanded ? null : producto.id)}
+                        className="w-full flex justify-center pt-1 pb-0"
+                        style={{ marginTop: '0.25rem' }}
+                      >
+                        <ChevronDown
+                          className="w-4 h-4 text-gray-light transition-transform duration-300"
+                          style={{ transform: isMobileExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                        />
+                      </button>
+
+                      {/* Seccion expandible con detalles */}
+                      <div className={`row-accordion-wrap${isMobileExpanded ? ' open' : ''}`} style={{ width: '100%' }}>
+                        <div className="row-accordion-inner">
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 1fr',
+                              gap: '0.5rem 1rem',
+                              padding: '0.75rem 0 0.25rem 0',
+                              borderTop: '1px solid var(--gray-dark)',
+                              marginTop: '0.25rem',
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            <div>
+                              <span style={{ color: 'var(--gray-light)' }}>Categoria</span>
+                              <p style={{ color: 'var(--gray-lightest)', marginTop: '2px' }}>
+                                {typeof producto.categoria === 'string'
+                                  ? producto.categoria
+                                  : producto.categoria?.nombre ?? 'Sin categoria'}
+                              </p>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--gray-light)' }}>Marca</span>
+                              <p style={{ color: 'var(--gray-lightest)', marginTop: '2px' }}>
+                                {producto.marca ?? 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--gray-light)' }}>Precio base</span>
+                              <p style={{ color: 'var(--gray-lightest)', marginTop: '2px' }}>
+                                {formatearPrecio(producto.precioBase ?? 0)}
+                              </p>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--gray-light)' }}>Precio venta</span>
+                              <p style={{ color: 'var(--orange-primary)', marginTop: '2px', fontWeight: 500 }}>
+                                {formatearPrecio((producto as any).precioVenta ?? producto.precioBase ?? 0)}
+                              </p>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--gray-light)' }}>Stock actual</span>
+                              <p style={{ color: 'var(--gray-lightest)', marginTop: '2px' }}>
+                                {String(getStockTotal(producto as unknown as ApiProducto))}
+                              </p>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--gray-light)' }}>IVA</span>
+                              <p style={{ color: 'var(--gray-lightest)', marginTop: '2px' }}>
+                                {producto.porcentajeIva != null ? `${producto.porcentajeIva}%` : 'N/A'}
+                              </p>
+                            </div>
+                            {producto.descripcion && (
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <span style={{ color: 'var(--gray-light)' }}>Descripcion</span>
+                                <p style={{ color: 'var(--gray-lightest)', marginTop: '2px' }}>
+                                  {producto.descripcion}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Tabla de Productos */}
+            <div className="hidden sm:block">
             <div className="std-table-wrapper">
               <table className="std-table">
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -1456,8 +1609,8 @@ export function ProductosPage() {
                 </tbody>
               </table>
             </div>
+            </div>
 
-            {/* Paginación */}
             {/* Paginación */}
             <div className="std-pagination">
               <div className="std-pag-info">

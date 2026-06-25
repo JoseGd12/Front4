@@ -24,8 +24,10 @@ import {
   ToggleRight,
   ToggleLeft,
   Hash,
-  X
+  X,
+  MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Switch } from "../../../shared/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
@@ -475,7 +477,53 @@ export function CategoriasPage() {
             recordsPlacement="right"
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-primary mx-auto"></div>
+              </div>
+            ) : displayedCategorias.length === 0 ? (
+              <div className="text-center py-8 text-gray-lightest">
+                <p className="font-medium">No se encontraron categorías</p>
+                <p className="text-sm text-gray-lighter mt-1">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedCategorias.map((categoria) => (
+                  <div key={categoria.id} className="std-mobile-card">
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{categoria.nombre}</span>
+                        <span className={`std-badge ${categoria.estado ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          {categoria.estado ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">{categoria.descripcion || 'Sin descripción'}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <button onClick={() => handleToggleStatus(categoria)} className="p-1" title={categoria.estado ? "Desactivar" : "Activar"}>
+                        {categoria.estado ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedCategoria(categoria); setIsDetailDialogOpen(true); }}>Detalles</DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!categoria.estado} onSelect={() => handleEditClick(categoria)}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={!categoria.estado} onSelect={() => handleDeleteClick(categoria)}>Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Tabla de Categorías */}
+          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
               <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -565,6 +613,7 @@ export function CategoriasPage() {
                 )}
               </tbody>
             </table>
+          </div>
           </div>
           {/* Paginación */}
           <div className="std-pagination">

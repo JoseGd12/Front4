@@ -35,8 +35,10 @@ import {
   FileText,
   UserCheck,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
@@ -1306,8 +1308,73 @@ export function ProveedoresPage() {
             recordsPlacement="right"
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-orange-primary border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="text-gray-lightest text-sm">Cargando proveedores...</p>
+                </div>
+              </div>
+            ) : pageError ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white-primary mb-2">Error de conexión</h3>
+                  <p className="text-gray-lightest mb-4">{pageError}</p>
+                  <button onClick={() => cargarProveedores()} className="elegante-button-primary text-sm">Reintentar</button>
+                </div>
+              </div>
+            ) : currentProveedores.length === 0 ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <Package className="w-12 h-12 text-gray-lightest mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white-primary mb-2">No se encontraron proveedores</h3>
+                  <p className="text-gray-lightest mb-4">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+                  <button onClick={() => cargarProveedores()} className="elegante-button-primary text-sm">Recargar tabla</button>
+                </div>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {currentProveedores.map((proveedor) => (
+                  <div key={proveedor.id} className="std-mobile-card">
+                    <div className="std-mobile-card-avatar flex items-center justify-center" style={{background: 'var(--orange-primary)'}}>
+                      {proveedor.tipoProveedor === 'Juridico' ? <Building className="w-5 h-5 text-black-primary" /> : <User className="w-5 h-5 text-black-primary" />}
+                    </div>
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{proveedor.nombre}</span>
+                        <span className={`std-badge ${proveedor.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          {proveedor.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">{proveedor.correo || '-'}</span>
+                      <span className="std-mobile-card-meta">NIT: {proveedor.identificacion || proveedor.nit} · {(proveedor as any).telefono || (proveedor as any).numero || ''}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <button onClick={() => handleToggleStatus(proveedor)} className="p-1" title={proveedor.activo ? "Desactivar proveedor" : "Activar proveedor"}>
+                        {proveedor.activo ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewDetails(proveedor)}>Detalles</DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!proveedor.activo} onSelect={() => handleEdit(proveedor)}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={!proveedor.activo} onSelect={() => handleDeleteClick(proveedor)}>Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Tabla de Proveedores */}
-          <div className="std-table-wrapper">
+          <div className="hidden sm:block"><div className="std-table-wrapper">
             <table className="std-table">
               <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
                 <tr className="border-b border-gray-dark">
@@ -1429,7 +1496,7 @@ export function ProveedoresPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </div></div>
 
           {/* Paginación */}
           {!pageError && (

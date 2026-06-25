@@ -13,8 +13,9 @@ import {
   Search, UserCheck, UserX, Eye, User as UserIcon, ChevronLeft,
   ChevronRight, MapPin, CreditCard, Home, Camera,
   ToggleRight, ToggleLeft, X, Loader2, IdCard, KeyRound,
-  Users2
+  Users2, MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
@@ -1062,6 +1063,69 @@ export function UsersPage() {
             recordsText={`Mostrando ${displayedUsers.length} de ${filteredUsers.length} usuarios`}
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" /></div>
+            ) : displayedUsers.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-lightest text-sm font-medium mb-1">No se encontraron usuarios</p>
+                <p className="text-gray-lighter text-xs">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedUsers.map((user) => {
+                  const isSelfUser = currentUser?.id === user.id.toString();
+                  const isPrivilegedTargetRole = ['super administrador', 'administrador', 'admin', 'gerente', 'super_admin'].includes(user.rol?.toLowerCase() || '');
+                  const canManageByRole = currentUser?.role === 'super_admin' || (currentUser?.role === 'admin' && !isPrivilegedTargetRole);
+                  const canEditUser = canManageByRole || isSelfUser;
+                  const showStatusAction = canManageByRole || isSelfUser;
+                  const showDeleteAction = canManageByRole || isSelfUser;
+                  const isDeleteBlockedByRole = currentUser?.role !== 'super_admin' && (user.rol?.toLowerCase() === 'super administrador' || ['administrador', 'admin'].includes(user.rol?.toLowerCase() || ''));
+
+                  return (
+                    <div key={user.id} className="std-mobile-card">
+                      <div className="std-mobile-card-info">
+                        <div className="std-mobile-card-row">
+                          <span className="std-mobile-card-title">{user.nombres}</span>
+                          <span className={`std-badge ${user.status ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                            {user.status ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                        <span className="std-mobile-card-sub">{user.rol || '—'}</span>
+                        <span className="std-mobile-card-meta">{(user as any).tipoDocumento ? `${abreviarTipoDoc((user as any).tipoDocumento)} ${user.documento || ''}`.trim() : (user.documento || '—')}</span>
+                        <span className="std-mobile-card-meta">{user.correo || '—'}</span>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {showStatusAction && (
+                          <button onClick={() => { if (!isSelfUser) toggleUserStatus(user.id); }} className="p-1" title={isSelfUser ? "No puedes cambiar tu propio estado" : (user.status ? "Desactivar usuario" : "Activar usuario")} disabled={isSelfUser}>
+                            {user.status ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                          </button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedUser(user); setIsDetailDialogOpen(true); }}>Detalles</DropdownMenuItem>
+                            {canEditUser && (
+                              <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!user.status} onSelect={() => handleEditUser(user)}>Editar</DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!user.status} onSelect={() => handleSendPasswordSetup(user.correo)}>Enviar contraseña</DropdownMenuItem>
+                            {showDeleteAction && (
+                              <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={!user.status || isSelfUser || isDeleteBlockedByRole} onSelect={() => { if (!isSelfUser) { setUserToDelete(user); setIsDeleteDialogOpen(true); } }}>Eliminar</DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -1203,6 +1267,7 @@ export function UsersPage() {
                   )}
                 </tbody>
               </table>
+          </div>
           </div>
 
           {/* Paginación */}

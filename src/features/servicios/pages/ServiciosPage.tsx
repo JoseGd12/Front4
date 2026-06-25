@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "../../../shared/components/ui/input";
 import { NameInput } from "../../../shared/components/ui/NameInput";
-import { Scissors, Plus, Edit, Trash2, Eye, ToggleRight, ToggleLeft, Image as ImageIcon, X, Loader2, Camera, Info, FileText } from "lucide-react";
+import { Scissors, Plus, Edit, Trash2, Eye, ToggleRight, ToggleLeft, Image as ImageIcon, X, Loader2, Camera, Info, FileText, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
@@ -683,6 +684,59 @@ export function ServiciosPage() {
               emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
               onReload={loadServicios}
               rowKey={(row) => String((row as unknown as Servicio).id)}
+              renderMobileCard={(row) => {
+                const servicio = row as unknown as Servicio;
+                return (
+                  <div className="std-mobile-card">
+                    <div className="std-mobile-card-avatar">
+                      <ImageRenderer url={servicio.imagen} alt={servicio.nombre} className="w-full h-full object-cover" fallbackVariant="product" showLabel={false} />
+                    </div>
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{servicio.nombre}</span>
+                        <span className={`std-badge ${servicio.estado ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          {servicio.estado ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">{servicio.descripcion}</span>
+                      <span className="std-mobile-card-meta">
+                        ${servicio.precio.toLocaleString('es-CO')}  ·  {formatDuracion(servicio.duracion)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <button
+                        onClick={() => toggleActivo(servicio.id)}
+                        className="p-1"
+                        title={servicio.estado ? "Desactivar" : "Activar"}
+                      >
+                        {servicio.estado ? (
+                          <ToggleRight className="w-6 h-6 text-orange-primary" />
+                        ) : (
+                          <ToggleLeft className="w-6 h-6 text-gray-light" />
+                        )}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors">
+                            <MoreVertical className="w-4 h-4 text-gray-lightest" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedServicio(servicio); setIsDetailDialogOpen(true); }}>
+                            Detalles
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!servicio.estado} onSelect={() => handleEditServicio(servicio)}>
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={!servicio.estado} onSelect={() => handleDeleteServicio(servicio)}>
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                );
+              }}
             />
           )}
 

@@ -3155,7 +3155,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
           {/* Navegación de Semana */}
           <div className="std-card agendamiento-std-card mb-4" style={{ padding: 0 }}>
-            <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6" style={{ minHeight: '56px' }}>
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-0" style={{ minHeight: '56px' }}>
 
               {/* Título */}
               <h4 className="text-sm sm:text-base font-bold text-white-primary shrink-0 tracking-wide">Citas de la Semana</h4>

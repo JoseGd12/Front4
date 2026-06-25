@@ -20,6 +20,7 @@ import {
   CalendarX,
   ChevronDown,
   FileText,
+  MoreVertical,
 } from "lucide-react";
 import {
   Dialog,
@@ -45,6 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../../shared/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
@@ -1167,7 +1169,140 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
             recordsText={`Mostrando ${displayedHorarios.length} de ${filteredHorarios.length} registros`}
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" /></div>
+            ) : displayedHorarios.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-lightest text-sm font-medium mb-1">No se encontraron horarios</p>
+                <p className="text-gray-lighter text-xs">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedHorarios.map((horario) => {
+                  const isExpanded = expandedId === horario.id;
+                  const diasOrden = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+                  const diasUnicos = diasOrden.filter(d => horario.bloques.some(b => b.dia === d && b.estado !== false));
+
+                  return (
+                  <div key={horario.id} className="std-mobile-card" style={{ flexDirection: 'column', gap: 0 }}>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <div className="std-mobile-card-info">
+                        <div className="std-mobile-card-row">
+                          <span className="std-mobile-card-title">{horario.barbero}</span>
+                          <span className={`std-badge ${horario.activo ? 'std-badge-green' : 'std-badge-negative'}`}>
+                            {horario.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                        <span className="std-mobile-card-sub">{horario.tipoDocumento} {horario.documento || '—'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span className="std-mobile-card-meta">
+                            {horario.bloques.length > 0 ? `${formatHoraStr12(horario.bloques[0].horaInicio)} - ${formatHoraStr12(horario.bloques[0].horaFin)}` : '—'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span className="std-mobile-card-meta">
+                            {[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length} dia{[...new Set(horario.bloques.filter(b => b.estado !== false).map(b => b.dia))].length !== 1 ? 's' : ''} de trabajo
+                          </span>
+                          <button
+                            onClick={() => setExpandedId(isExpanded ? null : horario.id)}
+                            className="p-1 rounded-lg hover:bg-gray-darker transition-colors"
+                            title={isExpanded ? 'Cerrar detalle' : 'Ver dias'}
+                          >
+                            <ChevronDown className={`w-4 h-4 text-gray-lightest transition-transform duration-200 ${isExpanded ? 'rotate-180 text-orange-primary' : ''}`} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <button
+                          onClick={() => toggleEstadoHorario(horario)}
+                          disabled={togglingId === horario.id}
+                          className="p-1"
+                          title={horario.activo ? 'Desactivar horario' : 'Activar horario'}
+                        >
+                          {togglingId === horario.id ? (
+                            <Loader2 className="w-6 h-6 animate-spin text-gray-light" />
+                          ) : horario.activo ? (
+                            <ToggleRight className="w-6 h-6 text-orange-primary" />
+                          ) : (
+                            <ToggleLeft className="w-6 h-6 text-gray-light" />
+                          )}
+                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!horario.activo} onSelect={() => handleOpenSpecialCancel(horario)}>
+                              Cancelacion especial
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!horario.activo} onSelect={() => handleEditHorario(horario)}>
+                              Editar horario
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!horario.activo} onSelect={() => handleDeleteHorario(horario)}>
+                              Eliminar horario
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+
+                    {/* Seccion expandible -- dias del barbero (mobile) */}
+                    <div className={`row-accordion-wrap${isExpanded ? ' open' : ''}`}>
+                      <div className="row-accordion-inner">
+                        <div style={{ borderTop: '1px solid var(--gray-dark)', marginTop: '0.5rem' }}>
+                          <div style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--gray-darker)' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--orange-primary)' }}>
+                              Horario semanal
+                            </span>
+                          </div>
+                          {diasUnicos.length === 0 ? (
+                            <div style={{ padding: '0.75rem 0', fontSize: '13px', color: 'var(--gray-lighter)', fontStyle: 'italic' }}>Sin dias configurados</div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                              {diasUnicos.map(dia => {
+                                const bloquesDelDia = horario.bloques.filter(b => b.dia === dia);
+                                const activos = bloquesDelDia.filter(b => b.estado !== false).length;
+                                const horaInicio = bloquesDelDia.reduce((min, b) => b.horaInicio < min ? b.horaInicio : min, bloquesDelDia[0]?.horaInicio || '—');
+                                const horaFin = bloquesDelDia.reduce((max, b) => b.horaFin > max ? b.horaFin : max, bloquesDelDia[0]?.horaFin || '—');
+
+                                const diasJs = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                                const targetDow = diasJs.indexOf(dia);
+                                const hoy = new Date();
+                                const diff = (targetDow - hoy.getDay() + 7) % 7;
+                                const fechaDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + diff);
+
+                                return (
+                                  <div key={dia} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--gray-dark)' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--gray-lightest)' }}>
+                                        {dia}
+                                        <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--gray-lighter)' }}>
+                                          {`${String(fechaDia.getDate()).padStart(2, '0')}/${String(fechaDia.getMonth() + 1).padStart(2, '0')}`}
+                                        </span>
+                                      </span>
+                                      <span style={{ fontSize: '12px', color: 'var(--gray-lighter)' }}>
+                                        {formatHoraStr12(horaInicio)} — {formatHoraStr12(horaFin)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Tabla */}
+          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
               <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -1387,6 +1522,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                 )}
               </tbody>
             </table>
+          </div>
           </div>
 
           {/* Paginación */}

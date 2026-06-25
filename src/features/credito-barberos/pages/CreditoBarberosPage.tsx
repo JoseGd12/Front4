@@ -360,6 +360,7 @@ export function CreditoBarberosPage() {
   const [searchTerm,  setSearchTerm]  = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("sin-pagar");
   const [expandedId,  setExpandedId]  = useState<number | null>(null);
+  const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
   const SUBTAB_PAGE_SIZE = 5;
   const [ventasPage, setVentasPage] = useState<Record<number, number>>({});
   const [abonosPage, setAbonosPage] = useState<Record<number, number>>({});
@@ -672,8 +673,137 @@ export function CreditoBarberosPage() {
             recordsPlacement="right"
           />
 
-          {/* Table */}
-          <div className="std-table-wrapper" style={{ overflowX: "auto" }}>
+          {/* Mobile cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
+                Cargando creditos...
+              </div>
+            ) : creditos.length === 0 ? (
+              <div style={{ padding: 48, textAlign: "center", color: "var(--gray-dark)" }}>
+                No hay barberos con credito registrado.
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {creditos.map(c => {
+                  const isMobileOpen = mobileExpandedId === c.barberoId;
+                  const barbero = barberosMap[c.barberoId];
+                  const puedeExtender = !c.extensionUsada && !esPagado(c.estado) && new Date(c.fechaVencimiento).getTime() < Date.now();
+                  return (
+                    <div key={c.id || c.barberoId} className="std-mobile-card" style={{ flexDirection: "column", alignItems: "stretch", padding: 0 }}>
+                      {/* Cabecera de la tarjeta */}
+                      <div
+                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }}
+                        onClick={() => setMobileExpandedId(isMobileOpen ? null : c.barberoId)}
+                      >
+                        <AvatarCell barbero={barbero} />
+                        <div className="std-mobile-card-info">
+                          <div className="std-mobile-card-row">
+                            <span className="std-mobile-card-title">{c.barberoNombre || `Barbero #${c.barberoId}`}</span>
+                            <EstadoBadge estado={c.estado} />
+                          </div>
+                          <div className="std-mobile-card-row" style={{ marginTop: 4 }}>
+                            <span className="std-mobile-card-meta">
+                              <DollarSign className="w-3 h-3" />
+                              Deuda: <strong style={{ color: "var(--orange-primary)" }}>{formatCurrency(c.saldoDeuda)}</strong>
+                            </span>
+                          </div>
+                          <div className="std-mobile-card-meta" style={{ marginTop: 2 }}>
+                            Cupo: {formatCurrency(c.cupoDisponible)} / {formatCurrency(c.cupoMaximo)}
+                          </div>
+                        </div>
+                        <div style={{ flexShrink: 0 }}>
+                          <ChevronDown
+                            className="w-5 h-5"
+                            style={{
+                              color: "var(--gray-lightest)",
+                              transition: "transform 0.2s",
+                              transform: isMobileOpen ? "rotate(180deg)" : "rotate(0deg)",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Contenido expandible */}
+                      <div className={`row-accordion-wrap${isMobileOpen ? " open" : ""}`}>
+                        <div className="row-accordion-inner">
+                          <div style={{ borderTop: "1px solid var(--gray-darker)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+                            {/* Deuda actual + barra de progreso */}
+                            <div>
+                              <div style={{ fontSize: 11, color: "var(--gray-light)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700, marginBottom: 6 }}>
+                                Deuda actual
+                              </div>
+                              <div style={{ fontSize: 20, fontWeight: 700, color: "var(--white-primary)", marginBottom: 8 }}>
+                                {formatCurrency(c.saldoDeuda)}
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, color: "var(--gray-light)" }}>Uso del cupo</span>
+                                <span style={{ fontSize: 11, color: "var(--gray-lightest)" }}>{formatCurrency(c.saldoDeuda)} / {formatCurrency(c.cupoMaximo)}</span>
+                              </div>
+                              <BarraProgreso saldo={c.saldoDeuda} cupo={c.cupoMaximo} />
+                              <div style={{ fontSize: 11, color: "var(--gray-light)", marginTop: 4 }}>
+                                Disponible: <span style={{ color: "var(--status-green)", fontWeight: 600 }}>{formatCurrency(c.cupoDisponible)}</span>
+                              </div>
+                            </div>
+
+                            {/* Fechas clave */}
+                            <div style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: 1,
+                              background: "var(--gray-darker)",
+                              borderRadius: 8,
+                              overflow: "hidden",
+                            }}>
+                              <div style={{ background: "var(--black-secondary)", padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, color: "var(--gray-light)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700, marginBottom: 3 }}>Inicio</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--white-primary)" }}>{formatDate(c.fechaInicio)}</div>
+                              </div>
+                              <div style={{ background: "var(--black-secondary)", padding: "10px 12px" }}>
+                                <div style={{ fontSize: 10, color: "var(--gray-light)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700, marginBottom: 3 }}>Vencimiento</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--white-primary)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                  {formatDate(c.fechaVencimiento)}
+                                  <VencimientoChip fechaVenc={c.fechaVencimiento} estado={c.estado} />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Botones de accion */}
+                            {(!esPagado(c.estado) || puedeExtender) && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {!esPagado(c.estado) && (
+                                  <button className="cred-action-btn" style={{ justifyContent: "center", width: "100%" }} onClick={() => openRegistrar(c)}>
+                                    <Wallet className="w-4 h-4" />
+                                    Registrar Abono
+                                  </button>
+                                )}
+                                {!esPagado(c.estado) && (
+                                  <button className="cred-action-btn" style={{ justifyContent: "center", width: "100%" }} onClick={() => { setSubirLimiteCredito(c); setIncrementoRaw(''); setSubirLimiteOpen(true); }}>
+                                    <TrendingUp className="w-4 h-4" />
+                                    Subir Limite
+                                  </button>
+                                )}
+                                {puedeExtender && (
+                                  <button className="cred-action-btn-ext" style={{ justifyContent: "center", width: "100%" }} onClick={() => { setExtenderCredito(c); setExtenderOpen(true); }}>
+                                    <CalendarClock className="w-4 h-4" />
+                                    Extender Plazo
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Table (desktop) */}
+          <div className="hidden sm:block std-table-wrapper" style={{ overflowX: "auto" }}>
             <table className="cred-table">
               <thead className="cred-thead">
                 <tr>

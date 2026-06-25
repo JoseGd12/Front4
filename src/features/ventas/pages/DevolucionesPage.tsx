@@ -1558,8 +1558,201 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
             </span>
           </div>
 
-          {/* ── Table ── */}
-          <div style={{ overflowX: "auto" }}>
+          {/* ── Mobile cards ── */}
+          <div className="block sm:hidden">
+            {isLoading ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: T.grayLightest, fontSize: "13px" }}>
+                Cargando devoluciones...
+              </div>
+            ) : displayedGrupos.length === 0 ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: T.grayLightest, fontSize: "13px" }}>
+                No se encontraron clientes con los filtros aplicados.
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedGrupos.map((grupo) => {
+                  const open = expandedId === grupo.key;
+                  const devsFiltradas = grupo.items;
+
+                  return (
+                    <div key={`mob-${grupo.key}`}>
+                      {/* Card principal del grupo */}
+                      <div
+                        className="std-mobile-card"
+                        onClick={() => toggleExpand(grupo.key)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <div
+                          className="std-mobile-card-avatar"
+                          style={{
+                            overflow: "hidden",
+                            background: (grupo.imagen && grupo.imagen.trim() !== "" && grupo.imagen !== "No especificada")
+                              ? "transparent"
+                              : "var(--orange-primary)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "var(--black-primary)",
+                          }}
+                        >
+                          {(grupo.imagen && grupo.imagen.trim() !== "" && grupo.imagen !== "No especificada") ? (
+                            <ImageRenderer
+                              url={grupo.imagen}
+                              alt={grupo.cliente}
+                              className="w-full h-full object-cover rounded-full"
+                              showLabel={false}
+                              fallbackVariant="person"
+                            />
+                          ) : (
+                            <UserIcon className="w-5 h-5" />
+                          )}
+                        </div>
+
+                        <div className="std-mobile-card-info">
+                          <div className="std-mobile-card-row">
+                            <span className="std-mobile-card-title">{grupo.cliente}</span>
+                          </div>
+                          <span className="std-mobile-card-sub">
+                            {grupo.tipoDocumento} {grupo.documento}
+                          </span>
+                          <div className="std-mobile-card-meta">
+                            <span>{grupo.totalDevoluciones} devolucion{grupo.totalDevoluciones !== 1 ? "es" : ""}</span>
+                            <span style={{ color: "var(--gray-dark)" }}>|</span>
+                            <span style={{ color: "var(--orange-primary)", fontWeight: 700 }}>
+                              ${formatCurrency(grupo.saldoTotal)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="std-mobile-card-actions">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleExpand(grupo.key); }}
+                            style={{
+                              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.25s ease",
+                            }}
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Accordion con devoluciones individuales */}
+                      <div className={`row-accordion-wrap${open ? " open" : ""}`}>
+                        <div className="row-accordion-inner">
+                          <div
+                            style={{
+                              padding: "8px 0 4px 0",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            {devsFiltradas.length === 0 ? (
+                              <div style={{ padding: "12px", textAlign: "center", color: T.grayDark, fontSize: "12px" }}>
+                                Sin devoluciones para este filtro.
+                              </div>
+                            ) : (
+                              devsFiltradas.map((dev) => {
+                                const isDevBarbero = !!(dev.barberoId && dev.barberoId > 0) && (!dev.clienteId || dev.clienteId === "0" || dev.clienteId === "");
+                                const saldoIndividual = isDevBarbero ? 0 : (Number(dev.saldoAFavor) || 0);
+
+                                return (
+                                  <div
+                                    key={`mob-dev-${dev.id}`}
+                                    style={{
+                                      background: "var(--gray-darker)",
+                                      borderRadius: "10px",
+                                      padding: "10px 12px",
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: "6px",
+                                    }}
+                                  >
+                                    {/* Fila 1: ID + Fecha + Estado */}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <span style={{ color: "var(--orange-primary)", fontWeight: 600, fontSize: "12px" }}>
+                                          #{dev.id}
+                                        </span>
+                                        <span style={{ color: "var(--gray-lighter)", fontSize: "11px" }}>
+                                          {dev.fecha}
+                                        </span>
+                                      </div>
+                                      <span className={badgeClass(dev.estado)} style={{ fontSize: "10px" }}>
+                                        {dev.estado}
+                                      </span>
+                                    </div>
+
+                                    {/* Fila 2: Monto + Saldo */}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                        <div>
+                                          <div style={{ fontSize: "10px", color: "var(--gray-lighter)", marginBottom: "1px" }}>Monto</div>
+                                          <div style={{ fontSize: "13px", color: "var(--gray-lightest)", fontWeight: 400 }}>
+                                            ${formatCurrency(dev.monto)}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div style={{ fontSize: "10px", color: "var(--gray-lighter)", marginBottom: "1px" }}>Saldo a favor</div>
+                                          <div style={{
+                                            fontSize: "13px",
+                                            fontWeight: 600,
+                                            color: saldoIndividual > 0 ? (isAdminOrSuperAdmin ? "var(--red)" : "var(--green)") : "var(--gray-dark)",
+                                          }}>
+                                            ${formatCurrency(saldoIndividual)}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Acciones */}
+                                      <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                                        <button
+                                          className="dev-icon-btn ban"
+                                          title="Anular"
+                                          disabled={dev.estado !== "Completada"}
+                                          onClick={() => handleToggleEstado(dev)}
+                                          style={{ padding: "5px" }}
+                                        >
+                                          <Ban className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          className="dev-icon-btn eye"
+                                          title="Ver detalle"
+                                          onClick={() => {
+                                            setSelectedDevolucion(dev);
+                                            setIsDetailDialogOpen(true);
+                                          }}
+                                          style={{ padding: "5px" }}
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          className="dev-icon-btn pdf"
+                                          title="Descargar PDF"
+                                          onClick={() => generateIndividualPdf(dev)}
+                                          style={{ padding: "5px" }}
+                                        >
+                                          <FileDown className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Table (desktop) ── */}
+          <div className="hidden sm:block" style={{ overflowX: "auto" }}>
             <table className="dev-table">
               <thead className="dev-thead">
                 <tr>

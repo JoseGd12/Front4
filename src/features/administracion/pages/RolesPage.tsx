@@ -16,12 +16,14 @@ import {
   Loader2,
   ToggleRight,
   ToggleLeft,
-  Filter
+  Filter,
+  MoreVertical
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { Label } from "../../../shared/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -725,7 +727,78 @@ export function RolesPage() {
             recordsPlacement="right"
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading && roles.length === 0 ? (
+              <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" /></div>
+            ) : displayedRoles.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-lightest text-sm font-medium mb-1">No se encontraron roles</p>
+                <p className="text-gray-lighter text-xs">Ajusta los filtros o crea un nuevo rol.</p>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedRoles.map((rol) => (
+                  <div key={rol.id} className="std-mobile-card">
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{rol.nombre}</span>
+                        <span className={`std-badge ${rol.estado === true ? 'std-badge-positive' : 'std-badge-neutral'}`}>
+                          {rol.estado === true ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">{rol.usuariosAsignados} usuario{rol.usuariosAsignados !== 1 ? 's' : ''} asignado{rol.usuariosAsignados !== 1 ? 's' : ''}</span>
+                      <span className="std-mobile-card-meta">{rol.modulos.length} módulo{rol.modulos.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <button onClick={() => toggleRoleStatus(rol.id)} className="p-1" title={rol.estado ? (rol.usuariosAsignados > 0 ? "No se puede desactivar con usuarios asignados" : "Desactivar rol") : "Activar rol"} disabled={isCreating || isEditing || isDeleting}>
+                        {rol.estado ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={isCreating || isEditing || isDeleting} onSelect={() => handleViewDetails(rol)}>Detalles</DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!rol.estado || isCreating || isEditing || isDeleting} onSelect={async () => {
+                            setHasTriedToSubmit(false);
+                            const rolesModulosData = await loadRolesModulosByRole(rol.id);
+                            const permisosMap: Record<string, any> = {};
+                            const modulosIds: string[] = [];
+                            rolesModulosData.forEach((rm: any) => {
+                              const modId = String(rm.moduloId ?? rm.ModuloId);
+                              modulosIds.push(modId);
+                              permisosMap[modId] = {
+                                puedeVer: rm.puedeVer ?? rm.PuedeVer,
+                                puedeCrear: rm.puedeCrear ?? rm.PuedeCrear,
+                                puedeEditar: rm.puedeEditar ?? rm.PuedeEditar,
+                                puedeEliminar: rm.puedeEliminar ?? rm.PuedeEliminar
+                              };
+                            });
+                            const rolParaEditar = { ...rol, modulos: modulosIds, permisosPorModulo: permisosMap };
+                            setEditingRole(rolParaEditar);
+                            editingRoleOriginalRef.current = JSON.parse(JSON.stringify(rolParaEditar));
+                            setIsEditDialogOpen(true);
+                          }}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-400 cursor-pointer" disabled={!rol.estado || isCreating || isEditing || isDeleting} onSelect={() => {
+                            if (rol.usuariosAsignados > 0) {
+                              showError("Este rol no se puede eliminar porque tiene usuarios activos");
+                              return;
+                            }
+                            setRoleToDelete(rol);
+                            setIsDeleteDialogOpen(true);
+                          }}>Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Tabla de Roles */}
+          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
                 <thead className={loading && roles.length === 0 ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -844,6 +917,7 @@ export function RolesPage() {
                   ))}
                 </tbody>
               </table>
+          </div>
           </div>
 
           {/* Paginación */}

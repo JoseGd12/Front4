@@ -25,8 +25,10 @@ import {
   AlertCircle,
   FileText,
   ShieldCheck,
-  Filter
+  Filter,
+  MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { Checkbox } from "../../../shared/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -1972,7 +1974,81 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                 recordsPlacement="right"
               />
 
+              {/* Mobile Cards */}
+              <div className="block sm:hidden">
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-primary mx-auto"></div>
+                  </div>
+                ) : displayedVentas.length > 0 ? (
+                  <div className="std-mobile-cards">
+                    {displayedVentas.map((venta) => {
+                      const isBarberoVenta = String(venta.tipoVenta || '').toLowerCase().includes('barbero');
+                      const nombre = isBarberoVenta ? normalizeBarbero(venta.barbero) : normalizeCliente(venta.cliente);
+                      const documento = isBarberoVenta ? venta.barberoDocumento || 'N/A' : venta.clienteDocumento || 'N/A';
+                      const variant = resolveStatusVariant(venta.estado);
+                      const badgeClass = variant === 'positive' ? 'std-badge-positive' : variant === 'negative' ? 'std-badge-negative' : 'std-badge-neutral';
+                      const totalAjustado = (() => {
+                        if (String(venta.metodoPago || '').toLowerCase() === 'creditobarbero') return 0;
+                        const sumDev = devoluciones
+                          .filter((d) => {
+                            const motivoDet = String((d as any).motivoDetalle || '').toLowerCase();
+                            const motivoCat = String((d as any).motivo || (d as any).motivoCategoria || '').toLowerCase();
+                            const esConsumoSaldo = (motivoDet.includes('consumo') && motivoDet.includes('saldo')) || (motivoCat.includes('consumo') && motivoCat.includes('saldo'));
+                            const estado = String((d as any).estado || '').toLowerCase().trim();
+                            const noAnulada = estado !== 'anulada' && estado !== 'anulado';
+                            return Number((d as any).ventaId) === Number(venta.id) && noAnulada && !esConsumoSaldo;
+                          })
+                          .reduce((acc, d) => acc + (Number((d as any).monto) || 0), 0);
+                        const expSaldo = Number((venta as any).SaldoAFavorUsado ?? (venta as any).saldoAFavorUsado ?? (venta as any).SaldoAFavor ?? (venta as any).saldoAfavor ?? 0);
+                        const saldoUsado = expSaldo > 0
+                          ? expSaldo
+                          : (() => {
+                            const should = (Number(venta.subtotal) || 0) + (Number((venta as any).iva) || 0) - (Number(venta.descuento) || 0);
+                            const diff = should - (Number(venta.total) || 0);
+                            return diff > 0.01 ? diff : 0;
+                          })();
+                        return Math.max(0, (Number(venta.total) || ((Number(venta.subtotal) || 0) - (Number(venta.descuento) || 0))) - saldoUsado - sumDev);
+                      })();
+                      return (
+                        <div key={venta.id} className="std-mobile-card">
+                          <div className="std-mobile-card-info">
+                            <div className="std-mobile-card-row">
+                              <span className="std-mobile-card-title">#{String(venta.id).padStart(3, "0")} — {nombre}</span>
+                              <span className={`std-badge ${badgeClass}`}>{venta.estado}</span>
+                            </div>
+                            <span className="std-mobile-card-sub">Doc: {documento}</span>
+                            <div className="std-mobile-card-meta">
+                              <span>${formatCurrency(totalAjustado)}</span>
+                              <span>{formatDate(venta.fecha)}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                                <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewDetails(venta)}>Detalles</DropdownMenuItem>
+                                <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => generateVentaPDF(venta)}>PDF</DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={venta.estado !== 'Completada'} onSelect={() => handleToggleEstado(venta)}>Anular</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-lightest">
+                    <p className="font-medium">No se encontraron ventas</p>
+                    <p className="text-sm text-gray-lighter mt-1">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+                  </div>
+                )}
+              </div>
+
               {/* Tabla de Ventas */}
+              <div className="hidden sm:block">
               <div className="std-table-wrapper">
                 <table className="std-table">
                   <StandardTable.Header className={loading ? "[&_th]:!text-transparent [&_th]:select-none" : undefined}>
@@ -2096,6 +2172,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     )}
                   </StandardTable.Body>
                 </table>
+              </div>
               </div>
 
               {/* Paginación Funcional */}

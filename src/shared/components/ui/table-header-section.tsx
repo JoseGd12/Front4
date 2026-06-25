@@ -142,23 +142,27 @@ export function TableHeaderSection({
 
         {/* ══ MOBILE (<sm): layout de 3 filas ══ */}
         <div className="flex sm:hidden flex-col gap-2">
-          {/* Fila 1: botón (izquierda) + filtro (derecha) */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 shrink-0">{leftContent}</div>
-            <div className="flex items-center gap-2 shrink-0">{filterWidget}</div>
-          </div>
-          {/* Fila 2: buscador ancho completo */}
-          {onSearchChange && (
-            <div className="flex items-center gap-2 w-full">
-              <DarkSearchBar maxWidth="100%" />
-              {extraFilters}
+          {/* Fila 1: botones */}
+          {leftContent && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {leftContent}
             </div>
           )}
-          {/* Fila 3: contador + rightContent */}
-          {(renderRecords || rightContent) && (
-            <div className="flex flex-wrap items-center gap-2">
-              {renderRecords}
-              {rightContent}
+          {/* Fila 2: buscador ancho completo */}
+          {onSearchChange && (
+            <DarkSearchBar maxWidth="100%" />
+          )}
+          {/* Fila 3: filtro (izquierda) + contador (derecha) */}
+          {(filterWidget || extraFilters || renderRecords || rightContent) && (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {filterWidget}
+                {extraFilters}
+              </div>
+              <div className="flex items-center gap-2">
+                {renderRecords}
+                {rightContent}
+              </div>
             </div>
           )}
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Eye, RotateCcw, Hash } from "lucide-react";
+import { Eye, RotateCcw, Hash, MoreVertical, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
@@ -25,6 +26,7 @@ export function ClienteHistorialDevolucionesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDevolucion, setSelectedDevolucion] = useState<Devolucion | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
@@ -133,82 +135,186 @@ export function ClienteHistorialDevolucionesPage() {
             recordsPlacement="right"
           />
 
-          <div className="std-table-wrapper">
-            <table className="std-table">
-              <thead className={isLoading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
-                <tr className="border-b border-gray-dark">
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Venta Ref.</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Producto/Motivo</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto Devolución</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="std-tbody">
-                {isLoading ? (
-                  <TableLoadingStateRow
-                    colSpan={8}
-                    title="Cargando devoluciones..."
-                  />
-                ) : displayedDevoluciones.length > 0 ? displayedDevoluciones.map((dev) => (
-                  <tr key={dev.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Hash className="w-4 h-4 text-orange-primary" />
-                        <span className="text-gray-lighter">{String(dev.id)}</span>
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {isLoading ? (
+              <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" /></div>
+            ) : displayedDevoluciones.length > 0 ? (
+              <div className="std-mobile-cards">
+                {displayedDevoluciones.map((dev) => {
+                  const isExpanded = mobileExpandedId === dev.id;
+                  return (
+                    <div key={dev.id}>
+                      <div className="std-mobile-card">
+                        <div className="std-mobile-card-info">
+                          <div className="std-mobile-card-row">
+                            <span className="std-mobile-card-title">#D{String(dev.id)}</span>
+                            <span className={`std-badge ${getEstadoColor(dev.estado)}`}>{dev.estado}</span>
+                          </div>
+                          <p className="std-mobile-card-sub">{dev.productoNombre || 'Multiples items'}</p>
+                          <p className="std-mobile-card-meta italic truncate">{dev.motivo}</p>
+                          <div className="std-mobile-card-row">
+                            <span className="std-mobile-card-meta">{new Date(dev.fecha).toLocaleDateString()}</span>
+                            <span className="std-mobile-card-meta">Venta #{String(dev.ventaId)}</span>
+                          </div>
+                          <div className="std-mobile-card-row">
+                            <div className="flex flex-col">
+                              <span className="text-gray-lighter font-bold text-sm">${formatCurrency(dev.monto)}</span>
+                              <span className="text-gray-lightest text-xs">Devolucion</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-gray-lighter font-bold text-sm">${formatCurrency(dev.saldoAFavor)}</span>
+                              <span className="text-gray-lightest text-xs">Saldo a favor</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-center pt-1">
+                            <button
+                              onClick={() => setMobileExpandedId(isExpanded ? null : dev.id)}
+                              className="p-1 rounded-lg hover:bg-gray-darker transition-colors"
+                            >
+                              <ChevronDown
+                                className="w-4 h-4 text-gray-lightest transition-transform duration-300"
+                                style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                              <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewDetails(dev)}>
+                                Ver detalles
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Hash className="w-4 h-4 text-orange-primary" />
-                        <span className="text-gray-lighter">{String(dev.ventaId)}</span>
+                      <div className={`row-accordion-wrap ${isExpanded ? 'open' : ''}`}>
+                        <div className="row-accordion-inner">
+                          <div className="px-4 pb-4 pt-1 space-y-3 border-x border-b border-gray-dark rounded-b-xl bg-gray-darkest -mt-2">
+                            <div className="space-y-1">
+                              <h4 className="text-[10px] font-bold text-gray-lightest uppercase tracking-widest">Motivo de devolucion</h4>
+                              <p className="text-sm text-orange-primary font-medium">{dev.motivo}</p>
+                              {dev.observaciones && (
+                                <p className="text-xs text-gray-lightest italic">"{dev.observaciones}"</p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <h4 className="text-[10px] font-bold text-gray-lightest uppercase tracking-widest">Detalle del producto</h4>
+                              <div className="p-2.5 bg-white/5 rounded-lg border border-white/10">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-white-primary font-medium">{dev.productoNombre || 'Servicio/Combo'}</span>
+                                  <span className="text-xs text-gray-lightest">x{dev.cantidad}</span>
+                                </div>
+                                <div className="flex justify-between items-center mt-1">
+                                  <span className="text-xs text-gray-lightest">Monto devolucion</span>
+                                  <span className="text-sm text-gray-lighter font-bold">${formatCurrency(dev.monto)}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="pt-2 border-t border-gray-dark">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-lightest font-bold">Saldo a tu favor</span>
+                                <span className="text-sm font-black text-green-500">${formatCurrency(dev.saldoAFavor)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-lighter">{new Date(dev.fecha).toLocaleDateString()}</span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="max-w-xs">
-                        <p className="text-sm font-medium text-gray-lighter truncate">{dev.productoNombre || 'Múltiples items'}</p>
-                        <p className="text-[10px] text-gray-lightest truncate italic">{dev.motivo}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-lighter font-bold">${formatCurrency(dev.monto)}</span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-lighter">${formatCurrency(dev.saldoAFavor)}</span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className={`std-badge ${getEstadoColor(dev.estado)}`}>
-                        {dev.estado}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleViewDetails(dev)}
-                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                          title="Ver detalles"
-                        >
-                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                        </button>
-                      </div>
-                    </td>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-lightest text-sm font-medium mb-1">No se encontraron devoluciones</p>
+                <p className="text-gray-lighter text-xs">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block">
+            <div className="std-table-wrapper">
+              <table className="std-table">
+                <thead className={isLoading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
+                  <tr className="border-b border-gray-dark">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Venta Ref.</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Producto/Motivo</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Monto Devolución</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Saldo a Favor</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
-                )) : (
-                  <TableEmptyStateRow
-                    colSpan={8}
-                    title="No se encontraron devoluciones"
-                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                    onReload={fetchDevoluciones}
-                  />
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="std-tbody">
+                  {isLoading ? (
+                    <TableLoadingStateRow
+                      colSpan={8}
+                      title="Cargando devoluciones..."
+                    />
+                  ) : displayedDevoluciones.length > 0 ? displayedDevoluciones.map((dev) => (
+                    <tr key={dev.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Hash className="w-4 h-4 text-orange-primary" />
+                          <span className="text-gray-lighter">{String(dev.id)}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Hash className="w-4 h-4 text-orange-primary" />
+                          <span className="text-gray-lighter">{String(dev.ventaId)}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter">{new Date(dev.fecha).toLocaleDateString()}</span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="max-w-xs">
+                          <p className="text-sm font-medium text-gray-lighter truncate">{dev.productoNombre || 'Múltiples items'}</p>
+                          <p className="text-[10px] text-gray-lightest truncate italic">{dev.motivo}</p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter font-bold">${formatCurrency(dev.monto)}</span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter">${formatCurrency(dev.saldoAFavor)}</span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`std-badge ${getEstadoColor(dev.estado)}`}>
+                          {dev.estado}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleViewDetails(dev)}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            title="Ver detalles"
+                          >
+                            <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <TableEmptyStateRow
+                      colSpan={8}
+                      title="No se encontraron devoluciones"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={fetchDevoluciones}
+                    />
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Paginación */}

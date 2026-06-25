@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Eye, DollarSign, User, Package, Scissors, Hash, X, Loader2, Calendar, CreditCard, Tag, RotateCcw, Wallet, Receipt, FileText } from "lucide-react";
+import { Eye, DollarSign, User, Package, Scissors, Hash, X, Loader2, Calendar, CreditCard, Tag, RotateCcw, Wallet, Receipt, FileText, MoreVertical } from "lucide-react";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../shared/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Input } from "../../../shared/components/ui/input";
 import { Label } from "../../../shared/components/ui/label";
 import { StandardTable, resolveStatusVariant } from "../../../shared/components/ui/standard-table";
@@ -415,116 +416,192 @@ export function ClienteHistorialVentasPage() {
             recordsPlacement="right"
           />
 
-          <div className="std-table-wrapper">
-            <table className="std-table">
-              <thead className={isLoading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
-                <tr className="border-b border-gray-dark">
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contenido</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
-                  <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="std-tbody">
-                {isLoading ? (
-                  <TableLoadingStateRow
-                    colSpan={8}
-                    title="Cargando tu historial..."
-                  />
-                ) : displayedVentas.length > 0 ? displayedVentas.map((venta) => (
-                  <tr key={venta.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Hash className="w-4 h-4 text-orange-primary" />
-                        <span className="text-gray-lighter">{String(venta.numeroVenta)}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-lighter">{new Date(venta.fecha).toLocaleDateString()}</span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex flex-col gap-1.5 items-center">
-                        {(venta.serviciosDetalle?.length > 0 || (venta.servicios && venta.servicios !== "Sin servicios")) && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="p-1 bg-purple-500/10 rounded shrink-0">
-                              <Scissors className="w-3 h-3 text-purple-400" />
-                            </span>
-                            <span className="text-gray-lighter text-sm font-medium whitespace-nowrap">
-                              Servicios ({venta.serviciosDetalle?.length > 0
-                                ? venta.serviciosDetalle.length
-                                : venta.servicios.split(',').filter(s => s.trim()).length})
-                            </span>
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {isLoading ? (
+              <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-orange-primary border-t-transparent rounded-full animate-spin" /></div>
+            ) : displayedVentas.length > 0 ? (
+              <div className="std-mobile-cards">
+                {displayedVentas.map((venta) => {
+                  const montoDev = devoluciones
+                    .filter(d => Number(d.ventaId) === Number(venta.id))
+                    .reduce((acc, d) => acc + d.monto, 0);
+                  const totalReal = Math.max(0, (venta.total || 0) - montoDev);
+                  return (
+                    <div key={venta.id} className="std-mobile-card">
+                      <div className="std-mobile-card-info">
+                        <div className="std-mobile-card-row">
+                          <span className="std-mobile-card-title">#{String(venta.numeroVenta)}</span>
+                          <span className={`std-badge ${getEstadoColor(venta.estado)}`}>{venta.estado}</span>
+                        </div>
+                        <p className="std-mobile-card-sub">{venta.barbero || "Sin asignar"}</p>
+                        <div className="std-mobile-card-row">
+                          <span className="std-mobile-card-meta">{new Date(venta.fecha).toLocaleDateString()}</span>
+                          <span className="std-mobile-card-meta">{venta.metodoPago}</span>
+                        </div>
+                        <div className="std-mobile-card-row">
+                          <div className="flex items-center gap-2">
+                            {(venta.serviciosDetalle?.length > 0 || (venta.servicios && venta.servicios !== "Sin servicios")) && (
+                              <div className="flex items-center gap-1">
+                                <Scissors className="w-3 h-3 text-purple-400" />
+                                <span className="text-gray-lighter text-xs">
+                                  {venta.serviciosDetalle?.length > 0
+                                    ? venta.serviciosDetalle.length
+                                    : venta.servicios.split(',').filter((s: string) => s.trim()).length}
+                                </span>
+                              </div>
+                            )}
+                            {(venta.productosDetalle?.length > 0 || (venta.productos && venta.productos !== "Sin productos")) && (
+                              <div className="flex items-center gap-1">
+                                <Package className="w-3 h-3 text-orange-400" />
+                                <span className="text-gray-lighter text-xs">
+                                  {venta.productosDetalle?.length > 0
+                                    ? venta.productosDetalle.length
+                                    : venta.productos.split(',').filter((s: string) => s.trim()).length}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {(venta.productosDetalle?.length > 0 || (venta.productos && venta.productos !== "Sin productos")) && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="p-1 bg-orange-500/10 rounded shrink-0">
-                              <Package className="w-3 h-3 text-orange-400" />
-                            </span>
-                            <span className="text-gray-lighter text-sm font-medium whitespace-nowrap">
-                              Productos ({venta.productosDetalle?.length > 0
-                                ? venta.productosDetalle.length
-                                : venta.productos.split(',').filter(s => s.trim()).length})
-                            </span>
-                          </div>
-                        )}
-                        {(!venta.servicios || venta.servicios === "Sin servicios") &&
-                         (!venta.productos || venta.productos === "Sin productos") && (
-                          <span className="text-gray-lighter text-xs italic opacity-60">Sin items</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-3">
-                        <div className="text-gray-lighter">
-                          {venta.barbero || "Sin asignar"}
+                          <span className="text-gray-lighter font-bold text-sm">${formatCurrency(totalReal)}</span>
                         </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-lighter font-bold">
-                        ${(() => {
-                            const montoDev = devoluciones
-                                .filter(d => Number(d.ventaId) === Number(venta.id))
-                                .reduce((acc, d) => acc + d.monto, 0);
-                            return formatCurrency(Math.max(0, (venta.total || 0) - montoDev));
-                        })()}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-lighter">{venta.metodoPago}</span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className={`std-badge ${getEstadoColor(venta.estado)}`}>
-                        {venta.estado}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleViewDetails(venta)}
-                          className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                          title="Ver detalles"
-                        >
-                          <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
-                        </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewDetails(venta)}>
+                              Ver detalles
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                    </td>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-lightest text-sm font-medium mb-1">No se encontraron compras</p>
+                <p className="text-gray-lighter text-xs">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block">
+            <div className="std-table-wrapper">
+              <table className="std-table">
+                <thead className={isLoading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
+                  <tr className="border-b border-gray-dark">
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Número</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Fecha</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Contenido</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Barbero</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Total</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Pago</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Estado</th>
+                    <th className="text-center py-3 px-4 text-white-primary font-bold text-sm">Acciones</th>
                   </tr>
-                )) : (
-                  <TableEmptyStateRow
-                    colSpan={8}
-                    title="No se encontraron compras"
-                    description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
-                    onReload={() => { setIsLoading(true); fetchVentas().finally(() => setIsLoading(false)); }}
-                  />
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="std-tbody">
+                  {isLoading ? (
+                    <TableLoadingStateRow
+                      colSpan={8}
+                      title="Cargando tu historial..."
+                    />
+                  ) : displayedVentas.length > 0 ? displayedVentas.map((venta) => (
+                    <tr key={venta.id} className="border-b border-gray-dark hover:bg-gray-darker transition-colors">
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Hash className="w-4 h-4 text-orange-primary" />
+                          <span className="text-gray-lighter">{String(venta.numeroVenta)}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter">{new Date(venta.fecha).toLocaleDateString()}</span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex flex-col gap-1.5 items-center">
+                          {(venta.serviciosDetalle?.length > 0 || (venta.servicios && venta.servicios !== "Sin servicios")) && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="p-1 bg-purple-500/10 rounded shrink-0">
+                                <Scissors className="w-3 h-3 text-purple-400" />
+                              </span>
+                              <span className="text-gray-lighter text-sm font-medium whitespace-nowrap">
+                                Servicios ({venta.serviciosDetalle?.length > 0
+                                  ? venta.serviciosDetalle.length
+                                  : venta.servicios.split(',').filter(s => s.trim()).length})
+                              </span>
+                            </div>
+                          )}
+                          {(venta.productosDetalle?.length > 0 || (venta.productos && venta.productos !== "Sin productos")) && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="p-1 bg-orange-500/10 rounded shrink-0">
+                                <Package className="w-3 h-3 text-orange-400" />
+                              </span>
+                              <span className="text-gray-lighter text-sm font-medium whitespace-nowrap">
+                                Productos ({venta.productosDetalle?.length > 0
+                                  ? venta.productosDetalle.length
+                                  : venta.productos.split(',').filter(s => s.trim()).length})
+                              </span>
+                            </div>
+                          )}
+                          {(!venta.servicios || venta.servicios === "Sin servicios") &&
+                           (!venta.productos || venta.productos === "Sin productos") && (
+                            <span className="text-gray-lighter text-xs italic opacity-60">Sin items</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="text-gray-lighter">
+                            {venta.barbero || "Sin asignar"}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter font-bold">
+                          ${(() => {
+                              const montoDev = devoluciones
+                                  .filter(d => Number(d.ventaId) === Number(venta.id))
+                                  .reduce((acc, d) => acc + d.monto, 0);
+                              return formatCurrency(Math.max(0, (venta.total || 0) - montoDev));
+                          })()}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-gray-lighter">{venta.metodoPago}</span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`std-badge ${getEstadoColor(venta.estado)}`}>
+                          {venta.estado}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleViewDetails(venta)}
+                            className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                            title="Ver detalles"
+                          >
+                            <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <TableEmptyStateRow
+                      colSpan={8}
+                      title="No se encontraron compras"
+                      description="Ajusta los filtros o recarga la tabla para actualizar los resultados."
+                      onReload={() => { setIsLoading(true); fetchVentas().finally(() => setIsLoading(false)); }}
+                    />
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Paginación */}
