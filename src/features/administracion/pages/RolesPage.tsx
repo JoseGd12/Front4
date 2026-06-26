@@ -17,7 +17,8 @@ import {
   ToggleRight,
   ToggleLeft,
   Filter,
-  MoreVertical
+  MoreVertical,
+  X
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
@@ -108,6 +109,8 @@ export function RolesPage() {
   const [roleToDelete, setRoleToDelete] = useState<RoleWithModules | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState<'todos' | 'activo' | 'inactivo'>('todos');
+  const [moduloSearchCreate, setModuloSearchCreate] = useState("");
+  const [moduloSearchEdit, setModuloSearchEdit] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [nuevoRol, setNuevoRol] = useState<CreateRoleData>({
@@ -136,13 +139,13 @@ export function RolesPage() {
 
   const handleCreateDialogClose = (open: boolean) => {
     if (!open) {
-      if (isCreateFormDirty()) { setIsConfirmDiscardCreateOpen(true); } else { setHasTriedToSubmit(false); setIsDialogOpen(false); }
+      if (isCreateFormDirty()) { setIsConfirmDiscardCreateOpen(true); } else { setHasTriedToSubmit(false); setIsDialogOpen(false); setModuloSearchCreate(""); }
     } else { setIsDialogOpen(true); }
   };
 
   const handleEditDialogClose = (open: boolean) => {
     if (!open) {
-      if (isEditFormDirty()) { setIsConfirmDiscardEditOpen(true); } else { setHasTriedToSubmit(false); setIsEditDialogOpen(false); setEditingRole(null); }
+      if (isEditFormDirty()) { setIsConfirmDiscardEditOpen(true); } else { setHasTriedToSubmit(false); setIsEditDialogOpen(false); setEditingRole(null); setModuloSearchEdit(""); }
     } else { setIsEditDialogOpen(true); }
   };
 
@@ -587,7 +590,9 @@ export function RolesPage() {
     isEditing = false,
     showSelectAll = true,
     showPermisos = false,
-    permisos = {}
+    permisos = {},
+    searchTerm: moduloSearch = '',
+    onSearchChange
   }: {
     modulos: string[];
     onToggle: (id: string, isEdit: boolean) => void;
@@ -596,7 +601,15 @@ export function RolesPage() {
     showSelectAll?: boolean;
     showPermisos?: boolean;
     permisos?: Record<string, PermisoModulo>;
-  }) => (
+    searchTerm?: string;
+    onSearchChange?: (val: string) => void;
+  }) => {
+    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const modulosFiltrados = moduloSearch.trim()
+      ? modulosProyecto.filter(m => norm(m.nombre).includes(norm(moduloSearch)))
+      : modulosProyecto;
+
+    return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Label className="text-white-primary flex items-center gap-2">
@@ -606,6 +619,26 @@ export function RolesPage() {
         <div className="text-sm text-gray-lightest">
           Seleccionados: {modulos.length} de {modulosProyecto.length}
         </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
+        <input
+          type="text"
+          placeholder="Escribe el nombre..."
+          value={moduloSearch}
+          onChange={e => onSearchChange?.(e.target.value)}
+          className="elegante-input pl-10 pr-8 w-full"
+        />
+        {moduloSearch && (
+          <button
+            type="button"
+            onClick={() => onSearchChange?.('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-darker text-gray-lighter hover:text-gray-lightest transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {showSelectAll && (
@@ -627,9 +660,11 @@ export function RolesPage() {
         </div>
       )}
 
-      <div className="p-4 bg-gray-darker rounded-lg space-y-3" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+      <div className="p-4 bg-gray-darker rounded-lg space-y-3" style={{ maxHeight: '340px', overflowY: 'auto' }}>
         <div className="grid grid-cols-1 gap-3">
-          {modulosProyecto.map((modulo) => {
+          {modulosFiltrados.length === 0 ? (
+            <p className="text-center text-gray-lightest text-sm py-4">Sin resultados.</p>
+          ) : modulosFiltrados.map((modulo) => {
             const IconComponent = modulo.icono;
             const isSelected = modulos.includes(modulo.id);
             const moduloPermisos = permisos[modulo.id];
@@ -716,7 +751,7 @@ export function RolesPage() {
         </div>
       </div>
     </div>
-  ), [selectAllModulos, deselectAllModulos, modulosProyecto]);
+  ); }, [selectAllModulos, deselectAllModulos, modulosProyecto]);
 
   return (
     <div className="w-full bg-black-primary text-white-primary h-full overflow-y-auto">
@@ -1021,6 +1056,8 @@ export function RolesPage() {
                 onToggle={toggleModulo}
                 isEditing={false}
                 showPermisos={false}
+                searchTerm={moduloSearchCreate}
+                onSearchChange={setModuloSearchCreate}
               />
             </div>
 
@@ -1166,8 +1203,10 @@ export function RolesPage() {
                   onToggle={toggleModulo}
                   onTogglePermiso={togglePermiso}
                   isEditing={true}
-                  showPermisos={false} // Ocultar permisos granulares
+                  showPermisos={false}
                   permisos={editingRole.permisosPorModulo || {}}
+                  searchTerm={moduloSearchEdit}
+                  onSearchChange={setModuloSearchEdit}
                 />
               </div>
             )}
@@ -1219,12 +1258,12 @@ export function RolesPage() {
         <DiscardChangesDialog
           open={isConfirmDiscardCreateOpen}
           onKeepEditing={() => setIsConfirmDiscardCreateOpen(false)}
-          onDiscard={() => { setIsConfirmDiscardCreateOpen(false); setHasTriedToSubmit(false); setNuevoRol({ nombre: '', descripcion: '', modulos: [], permisos: {} }); setIsDialogOpen(false); }}
+          onDiscard={() => { setIsConfirmDiscardCreateOpen(false); setHasTriedToSubmit(false); setNuevoRol({ nombre: '', descripcion: '', modulos: [], permisos: {} }); setIsDialogOpen(false); setModuloSearchCreate(""); }}
         />
         <DiscardChangesDialog
           open={isConfirmDiscardEditOpen}
           onKeepEditing={() => setIsConfirmDiscardEditOpen(false)}
-          onDiscard={() => { setIsConfirmDiscardEditOpen(false); setHasTriedToSubmit(false); setEditingRole(null); editingRoleOriginalRef.current = null; setIsEditDialogOpen(false); }}
+          onDiscard={() => { setIsConfirmDiscardEditOpen(false); setHasTriedToSubmit(false); setEditingRole(null); editingRoleOriginalRef.current = null; setIsEditDialogOpen(false); setModuloSearchEdit(""); }}
         />
       </div>
     </div>

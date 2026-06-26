@@ -99,8 +99,11 @@ class ApiService {
       this._cache.clear();
       return;
     }
+    const cleanPrefix = prefix.replace(/^\//, '').toLowerCase();
     for (const key of this._cache.keys()) {
-      if (key.startsWith(prefix)) this._cache.delete(key);
+      if (key.toLowerCase().startsWith(cleanPrefix)) {
+        this._cache.delete(key);
+      }
     }
   }
 
@@ -484,11 +487,16 @@ class ApiService {
         fechaNacimiento: (item.fechaNacimiento || item.FechaNacimiento) ? String(item.fechaNacimiento || item.FechaNacimiento).split('T')[0] : "",
         fotoPerfil: item.fotoPerfil || item.FotoPerfil,
         estado: item.estado === true || item.Estado === true || item.activo === true || item.Activo === true,
-        rol: item.rol || item.Rol ? {
+        rol: (item.rol || item.Rol) ? {
           id: item.rol?.id || item.Rol?.Id || item.rol?.id || item.Rol?.id,
           nombre: item.rol?.nombre || item.Rol?.Nombre,
           descripcion: item.rol?.descripcion || item.Rol?.Descripcion,
           estado: item.rol?.estado === true || item.Rol?.Estado === true
+        } : (item.rolNombre || item.RolNombre) ? {
+          id: item.rolId || item.RolId || 0,
+          nombre: item.rolNombre || item.RolNombre,
+          descripcion: '',
+          estado: true
         } : undefined
       }));
 

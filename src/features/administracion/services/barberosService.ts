@@ -105,50 +105,71 @@ class BarberosService {
     return [];
   }
 
-  async getBarberos(page = 1, pageSize = 100): Promise<Barbero[]> {
-    try {
-      const merged: any[] = [];
-      const firstRaw = await httpClient.get(`/Barberos?page=${page}&pageSize=${pageSize}`);
-      merged.push(...this.extract(firstRaw));
-      
-      let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
-        ? Number((firstRaw as any).totalPages ?? 1)
-        : 1;
-      totalPages = Math.min(Math.max(1, totalPages), 200);
-      
-      if (totalPages > 1) {
-        const promises: Promise<any[]>[] = [];
-        for (let page = 2; page <= totalPages; page++) {
-          promises.push(
-            httpClient.get(`/Barberos?page=${page}&pageSize=100`)
-              .then(raw => this.extract(raw))
+  async getBarberos(_page = 1, _pageSize = 100): Promise<Barbero[]> {
+    // Fetch both sources in parallel: the dedicated Barberos table and all Users
+    // filtered to the barber role. This ensures users whose role was changed to
+    // "barbero" always appear even if they don't yet have a row in the Barberos table.
+    const [barberosRaw, usuariosRaw] = await Promise.allSettled([
+      (async () => {
+        const firstRaw = await httpClient.get(`/Barberos?page=1&pageSize=100`);
+        const merged: any[] = [...this.extract(firstRaw)];
+        let totalPages = firstRaw && typeof firstRaw === 'object' && !Array.isArray(firstRaw)
+          ? Number((firstRaw as any).totalPages ?? 1) : 1;
+        totalPages = Math.min(Math.max(1, totalPages), 200);
+        if (totalPages > 1) {
+          const pages = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, i) =>
+              httpClient.get(`/Barberos?page=${i + 2}&pageSize=100`).then(r => this.extract(r))
+            )
           );
+          pages.forEach(items => merged.push(...items));
         }
-        const rest = await Promise.all(promises);
-        rest.forEach(items => merged.push(...items));
-      }
-      return merged.map(item => this.mapApiToComponent(item));
-    } catch (e: any) {
-      const msg = String(e?.message || '').toLowerCase();
-      const is404 = msg.includes('404') || msg.includes('not found');
-      
-      // Si falla el endpoint de Barberos, intentar fallback a Usuarios filtrados
-      if (is404 || msg.includes('500')) {
-        try {
-          logger.warn('Fallo en endpoint /Barberos, intentando fallback a /Usuarios...');
-          const usuarios: ApiUser[] = await apiService.getUsuarios();
-          const soloBarberos = usuarios.filter(u => {
-            const rolNombre = (u.rol?.nombre || '').toLowerCase();
-            return u.rolId === 2 || rolNombre === 'barbero';
-          });
-          return soloBarberos.map(u => this.mapApiToComponent(u as any));
-        } catch (fallbackErr) {
-          logger.error('Error en fallback de barberos:', fallbackErr);
-          throw e;
-        }
-      }
-      throw e;
+        return merged;
+      })(),
+      (async () => {
+        const usuarios: ApiUser[] = await apiService.getUsuarios();
+        return usuarios.filter(u => {
+          const rolNombre = (u.rol?.nombre || '').toLowerCase();
+          return rolNombre === 'barbero';
+        });
+      })(),
+    ]);
+
+    const barberRows: Barbero[] =
+      barberosRaw.status === 'fulfilled'
+        ? barberosRaw.value.map((item: any) => this.mapApiToComponent(item))
+        : [];
+
+    const usuarioRows: Barbero[] =
+      usuariosRaw.status === 'fulfilled'
+        ? usuariosRaw.value.map((u: any) => this.mapApiToComponent(u))
+        : [];
+
+    if (barberRows.length === 0 && usuarioRows.length === 0) {
+      logger.warn('No se pudieron obtener barberos de ninguna fuente');
+      return [];
     }
+
+    // Merge: /Barberos has richer data (profile, especialidad, saldo) so it wins.
+    // Fill in any barbero-role users that are NOT yet in the Barberos table.
+    const seenIds = new Set<number>();
+    const result: Barbero[] = [];
+
+    for (const b of barberRows) {
+      const uid = b.usuarioId || b.id;
+      seenIds.add(uid);
+      result.push(b);
+    }
+
+    for (const u of usuarioRows) {
+      const uid = u.usuarioId || u.id;
+      if (!seenIds.has(uid)) {
+        seenIds.add(uid);
+        result.push(u);
+      }
+    }
+
+    return result;
   }
 
   // Creación vía Usuarios para sincronizar cuenta y perfil

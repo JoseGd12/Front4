@@ -70,6 +70,11 @@ class HttpClient {
       headers,
     };
 
+    // Invalidate cache on mutation
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+      this.invalidateCache(endpoint);
+    }
+
     try {
       const response = await fetch(url, config);
       return await this.handleResponse(response);
@@ -120,11 +125,20 @@ class HttpClient {
   }
 
   /**
-   * Limpia el caché para un endpoint específico o todo el caché.
+   * Limpia el caché para un endpoint específico (por prefijo de recurso) o todo el caché.
    */
   invalidateCache(endpoint?: string) {
     if (endpoint) {
-      this.cache.delete(`GET:${endpoint}`);
+      // Normalizar el endpoint (remover slash inicial, obtener segmento principal y quitar queries)
+      const cleanEndpoint = endpoint.replace(/^\//, '').split('/')[0].split('?')[0].toLowerCase();
+      
+      for (const key of this.cache.keys()) {
+        // La clave de caché tiene formato "GET:/recurso..." o "GET:recurso..."
+        const cleanKey = key.replace(/^GET:\/?/, '').split('/')[0].split('?')[0].toLowerCase();
+        if (cleanKey === cleanEndpoint) {
+          this.cache.delete(key);
+        }
+      }
     } else {
       this.cache.clear();
     }

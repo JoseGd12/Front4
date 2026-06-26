@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "../../../shared/components/ui/badge";
-import { Calendar, DollarSign, Users, Scissors, Package, Clock, Download, ChevronDown, ChevronUp, RotateCcw, FileDown, FileSpreadsheet } from "lucide-react";
+import { Calendar, DollarSign, Users, Scissors, Package, Clock, Download, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, RotateCcw, FileDown, FileSpreadsheet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, LegendType, PieChart, Pie, AreaChart, Area } from "recharts";
 import { useThemeColors } from "../../../shared/utils/themeColors";
 import { getChartTheme, getChartTooltipProps } from "../../../shared/utils/chartTheme";
@@ -266,21 +266,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
   const [mesSeleccionadoDrilldown, setMesSeleccionadoDrilldown] = useState<number | null>(null);
 
   const [filtroBarberosPeriodo, setFiltroBarberosPeriodo] = useState<"hoy" | "semanal" | "mensual" | "anual">("hoy");
-  const [selectedBarberoGanancia, setSelectedBarberoGanancia] = useState<string>("Todos");
-  const [barberoSearchOpen, setBarberoSearchOpen] = useState(false);
-  const [barberoSearch, setBarberoSearch] = useState("");
-  const barberoSelectRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (barberoSelectRef.current && !barberoSelectRef.current.contains(e.target as Node)) {
-        setBarberoSearchOpen(false);
-        setBarberoSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, []);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (showReport && reportButtonRef.current) {
@@ -448,40 +434,76 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
   }, [ventas, agendamientos, barberosSistema]);
 
 
-  const [gananciasDashboard, setGananciasDashboard] = useState({
-    totalServicios: 0,
-    gananciasBarberos: 0,
-    gananciasBarberia: 0,
-  });
+  // ── Per-barber earnings for carousel ──
+  type BarberoGanancia = {
+    nombre: string;
+    gananciasBarbero: number; // 60%
+    gananciasBarberia: number; // 40%
+    totalServicios: number;
+  };
+
+  const [gananciasPerBarbero, setGananciasPerBarbero] = useState<BarberoGanancia[]>([]);
+  const [gananciasLoading, setGananciasLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    const fetchGanancias = async () => {
+    const fetchAllGanancias = async () => {
+      setGananciasLoading(true);
       try {
-        const url = `/api/Dashboard/ganancias?periodo=${filtroBarberosPeriodo}&barbero=${encodeURIComponent(selectedBarberoGanancia)}`;
-        const res = await fetchWithAuth(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setGananciasDashboard({
-              totalServicios: data.totalServicios || 0,
-              gananciasBarberos: data.gananciasBarberos || 0,
-              gananciasBarberia: data.gananciasBarberia || 0,
-            });
-          }
+        // Fetch for each barber individually
+        const promises = listaBarberosUnicos.map(async (nombre) => {
+          try {
+            const url = `/api/Dashboard/ganancias?periodo=${filtroBarberosPeriodo}&barbero=${encodeURIComponent(nombre)}`;
+            const res = await fetchWithAuth(url);
+            if (res.ok) {
+              const data = await res.json();
+              return {
+                nombre,
+                gananciasBarbero: data.gananciasBarberos || 0,
+                gananciasBarberia: data.gananciasBarberia || 0,
+                totalServicios: data.totalServicios || 0,
+              };
+            }
+          } catch { /* skip errors for individual barbers */ }
+          return { nombre, gananciasBarbero: 0, gananciasBarberia: 0, totalServicios: 0 };
+        });
+        const results = await Promise.all(promises);
+        if (isMounted) {
+          // Filter out barbers with zero earnings, then sort highest first
+          const sorted = results
+            .filter(b => (b.gananciasBarbero + b.gananciasBarberia) > 0)
+            .sort((a, b) => (b.gananciasBarbero + b.gananciasBarberia) - (a.gananciasBarbero + a.gananciasBarberia));
+          setGananciasPerBarbero(sorted);
         }
       } catch (error) {
-        console.error("Error al cargar ganancias dinámicas", error);
+        console.error("Error al cargar ganancias por barbero", error);
+      } finally {
+        if (isMounted) setGananciasLoading(false);
       }
     };
-    fetchGanancias();
+    if (listaBarberosUnicos.length > 0) {
+      fetchAllGanancias();
+    } else {
+      setGananciasPerBarbero([]);
+      setGananciasLoading(false);
+    }
     return () => { isMounted = false; };
-  }, [filtroBarberosPeriodo, selectedBarberoGanancia]);
+  }, [filtroBarberosPeriodo, listaBarberosUnicos]);
 
-  const gananciasBarberosDinámica = gananciasDashboard.gananciasBarberos;
-  const gananciasBarberiaDinámica = gananciasDashboard.gananciasBarberia;
+  // Carousel scroll helpers
+  const scrollCarousel = useCallback((direction: "left" | "right") => {
+    if (!carouselRef.current) return;
+    const cardWidth = 280 + 16; // card min-width + gap
+    carouselRef.current.scrollBy({
+      left: direction === "left" ? -cardWidth : cardWidth,
+      behavior: "smooth",
+    });
+  }, []);
 
+  // Keep metrics for PDF report (backward compat)
   const metrics = useMemo(() => {
+    const totalBarberos = gananciasPerBarbero.reduce((s, b) => s + b.gananciasBarbero, 0);
+    const totalBarberia = gananciasPerBarbero.reduce((s, b) => s + b.gananciasBarberia, 0);
     return [
       {
         id: "ventas-hoy",
@@ -504,7 +526,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
       {
         id: "ganancia-barberia",
         title: "Ganancia Barbería (40%)",
-        value: `$${formatCurrencyValue(gananciasBarberiaDinámica)}`,
+        value: `$${formatCurrencyValue(totalBarberia)}`,
         change: "Solo en servicios",
         icon: DollarSign,
         iconColor: "text-primary-gold",
@@ -513,14 +535,42 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
       {
         id: "ganancias-barberos",
         title: "Ganancias Barberos (60%)",
-        value: `$${formatCurrencyValue(gananciasBarberosDinámica)}`,
-        change: selectedBarberoGanancia === "Todos" ? "Todos los barberos" : selectedBarberoGanancia,
+        value: `$${formatCurrencyValue(totalBarberos)}`,
+        change: "Todos los barberos",
         icon: Scissors,
         iconColor: "text-gray-lightest",
         isPositive: true
       }
     ];
-  }, [totalVentasHoy, citasHoy.length, gananciasBarberiaDinámica, gananciasBarberosDinámica, selectedBarberoGanancia]);
+  }, [totalVentasHoy, citasHoy.length, gananciasPerBarbero]);
+
+  // ── Completed appointments per barber filtered by active period ──
+  const cortesCompletadosPerBarbero = useMemo(() => {
+    const map = new Map<string, number>();
+    const now = new Date();
+    const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfYear  = new Date(now.getFullYear(), 0, 1);
+
+    const cutoff: Date =
+      filtroBarberosPeriodo === "hoy"    ? startOfDay  :
+      filtroBarberosPeriodo === "semanal" ? startOfWeek :
+      filtroBarberosPeriodo === "mensual" ? startOfMonth : startOfYear;
+
+    agendamientosStats.forEach(a => {
+      const st = String(a.estado || "").toLowerCase();
+      if (st !== "completada" && st !== "en-curso") return;
+      const dt = a.fechaHora ? new Date(a.fechaHora) : null;
+      if (!dt || dt < cutoff) return;
+      const nombre = (a.barbero || "").trim();
+      if (!nombre) return;
+      map.set(nombre, (map.get(nombre) ?? 0) + 1);
+    });
+    return map;
+  }, [agendamientosStats, filtroBarberosPeriodo]);
 
   const ventasComparativasPorPeriodo = useMemo(() => {
     const withinDays = (v: Venta, days: number) => {
@@ -1493,13 +1543,31 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
     } else {
       start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     }
+
+    // Helper: devuelve solo el total de servicios de una venta (excluye productos)
+    const soloServicios = (v: Venta): number => {
+      // Ventas históricas tienen totalServicios precalculado
+      if (v.totalServicios !== undefined && (v.totalServicios > 0 || v.totalProductos !== undefined)) {
+        return v.totalServicios;
+      }
+      // Ventas recientes: sumar serviciosDetalle
+      const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
+      const sumDetalle = sd.reduce((s, d) => s + Number(d.precio || 0) * Number(d.cantidad || 1), 0);
+      if (sumDetalle > 0) return sumDetalle;
+      // Si no hay detalle de productos ni servicios por separado, asumir que el total son servicios
+      const pd = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
+      const sumProd = pd.reduce((s, d) => s + Number(d.precio || 0) * Number(d.cantidad || 1), 0);
+      if (sumProd === 0 && sd.length === 0) return Number(v.total || 0);
+      return sumDetalle;
+    };
+
     const map = new Map<string, { barbero: string; ingresos: number }>();
     ventas.forEach((v) => {
       const name = (v.barbero || "").trim();
       if (!name || name === "Sin asignar" || !isVentaActiva(v.estado)) return;
       if (!v.fecha || new Date(v.fecha) < start) return;
       const e = map.get(name) || { barbero: name, ingresos: 0 };
-      e.ingresos += Number(v.total || 0);
+      e.ingresos += soloServicios(v);
       map.set(name, e);
     });
     return Array.from(map.values())
@@ -1701,125 +1769,188 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
               </button>
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
-            {isLoading
-              ? Array.from({ length: 4 }).map((_, idx) => (
-                <div key={`metric-skeleton-${idx}`} className="rounded-xl bg-gray-darkest p-5 flex items-center justify-center min-h-[112px]">
-                  <div className="w-6 h-6 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
+          {/* ── Barber Earnings Carousel ── */}
+          <div className="mb-10">
+            {/* Header row: title + period filter + scroll arrows */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center">
+                  <Scissors className="w-4 h-4 text-orange-primary" />
                 </div>
-              ))
-              : metrics.map(metric => {
-                const Icon = metric.icon;
-                const isGanancia = metric.id === "ganancia-barberia" || metric.id === "ganancias-barberos";
+                <h3 className="text-base font-bold text-white-primary">Ganancias por Barbero</h3>
+              </div>
 
-                if (metric.id === "ganancias-barberos") {
-                  return (
-                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
-                          <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
-                            <Icon className="w-3.5 h-3.5 text-orange-primary" />
-                          </div>
-                        </div>
-                        <p className="text-3xl font-bold text-white-primary leading-none">{metric.value}</p>
+              <div className="flex items-center gap-3">
+                {/* Period filter pills */}
+                <div className="flex items-center rounded-lg border border-gray-dark overflow-hidden">
+                  {(["hoy", "semanal", "mensual", "anual"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setFiltroBarberosPeriodo(p)}
+                      className={`px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                        filtroBarberosPeriodo === p
+                          ? "bg-orange-primary text-black-primary"
+                          : "text-gray-lightest hover:bg-white/5"
+                      }`}
+                    >
+                      {p === "hoy" ? "Hoy" : p === "semanal" ? "Sem" : p === "mensual" ? "Mes" : "Año"}
+                    </button>
+                  ))}
+                </div>
 
-                        {/* Filtro de periodo — pills */}
-                        <div className="flex items-center rounded-lg border border-gray-dark overflow-hidden">
-                          {(["hoy", "semanal", "mensual", "anual"] as const).map((p) => (
-                            <button
-                              key={p}
-                              onClick={() => setFiltroBarberosPeriodo(p)}
-                              className={`flex-1 py-1 text-[11px] font-semibold transition-colors ${filtroBarberosPeriodo === p ? "bg-orange-primary text-black-primary" : "text-gray-lightest hover:bg-white/5"}`}
-                            >
-                              {p === "hoy" ? "Hoy" : p === "semanal" ? "Sem" : p === "mensual" ? "Mes" : "Año"}
-                            </button>
-                          ))}
-                        </div>
+                {/* Scroll arrows */}
+                {gananciasPerBarbero.length > 4 && (
+                  <div className="hidden sm:flex items-center gap-1">
+                    <button
+                      onClick={() => scrollCarousel("left")}
+                      className="w-7 h-7 rounded-lg border border-gray-dark hover:border-orange-primary/40 bg-gray-darkest flex items-center justify-center transition-colors hover:bg-gray-darker"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-gray-lightest" />
+                    </button>
+                    <button
+                      onClick={() => scrollCarousel("right")}
+                      className="w-7 h-7 rounded-lg border border-gray-dark hover:border-orange-primary/40 bg-gray-darkest flex items-center justify-center transition-colors hover:bg-gray-darker"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-lightest" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
-                        {/* Filtro de barbero — buscador personalizado */}
-                        <div className="relative" ref={barberoSelectRef}>
+            {/* Carousel container */}
+            <div
+              ref={carouselRef}
+              className="flex gap-4 overflow-x-auto pb-2"
+              style={{
+                scrollSnapType: "x mandatory",
+                scrollbarWidth: "thin",
+                scrollbarColor: "var(--gray-medium) transparent",
+              }}
+            >
+              {(isLoading || gananciasLoading)
+                ? Array.from({ length: 4 }).map((_, idx) => (
+                  <div
+                    key={`barber-skeleton-${idx}`}
+                    className="rounded-xl bg-gray-darkest p-5 flex items-center justify-center shrink-0"
+                    style={{ minWidth: 280, height: 160, scrollSnapAlign: "start" }}
+                  >
+                    <div className="w-6 h-6 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
+                  </div>
+                ))
+                : gananciasPerBarbero.length === 0
+                ? (
+                  <div className="relative rounded-xl border border-gray-dark/50 bg-gray-darkest overflow-hidden w-full">
+                    {/* Decorative background scissors pattern */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
+                      <Scissors className="w-64 h-64 text-orange-primary" />
+                    </div>
+                    {/* Content */}
+                    <div className="relative flex flex-col items-center justify-center py-10 px-6 gap-4">
+                      {/* Icon badge */}
+                      <div className="w-14 h-14 rounded-full bg-orange-primary/10 border border-orange-primary/20 flex items-center justify-center">
+                        <Scissors className="w-6 h-6 text-orange-primary/60" />
+                      </div>
+                      {/* Message */}
+                      <div className="text-center">
+                        <p className="text-sm font-semibold text-white-primary mb-1">
+                          Sin ingresos registrados
+                        </p>
+                        <p className="text-xs text-gray-light max-w-xs">
+                          No hay servicios completados para el periodo&nbsp;
+                          <span className="text-orange-primary font-medium">
+                            {filtroBarberosPeriodo === "hoy" ? "de hoy" :
+                             filtroBarberosPeriodo === "semanal" ? "de esta semana" :
+                             filtroBarberosPeriodo === "mensual" ? "de este mes" : "de este año"}
+                          </span>.
+                          <br />Los ingresos aparecerán aquí una vez se completen citas.
+                        </p>
+                      </div>
+                      {/* Period hint pills */}
+                      <div className="flex items-center gap-2 mt-1">
+                        {(["hoy", "semanal", "mensual", "anual"] as const).map(p => (
                           <button
-                            type="button"
-                            onClick={() => { setBarberoSearchOpen(!barberoSearchOpen); setBarberoSearch(""); }}
-                            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-gray-darker border border-gray-dark hover:border-orange-primary/50 transition-colors text-xs"
+                            key={p}
+                            onClick={() => setFiltroBarberosPeriodo(p)}
+                            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                              filtroBarberosPeriodo === p
+                                ? "bg-orange-primary text-black-primary border-orange-primary"
+                                : "text-gray-light border-gray-dark hover:border-orange-primary/40 hover:text-gray-lightest"
+                            }`}
                           >
-                            <span className={selectedBarberoGanancia === "Todos" ? "text-gray-lightest" : "text-orange-primary font-semibold truncate"}>
-                              {selectedBarberoGanancia === "Todos" ? "Todos los barberos" : selectedBarberoGanancia}
-                            </span>
-                            <ChevronDown className={`w-3.5 h-3.5 text-gray-lightest shrink-0 transition-transform ${barberoSearchOpen ? "rotate-180" : ""}`} />
+                            {p === "hoy" ? "Hoy" : p === "semanal" ? "Semana" : p === "mensual" ? "Mes" : "Año"}
                           </button>
-
-                          {barberoSearchOpen && (
-                            <div className="absolute bottom-full mb-1 left-0 right-0 rounded-xl shadow-2xl z-[300] overflow-hidden bg-gray-darkest border border-orange-primary/30">
-                              {/* Input de búsqueda */}
-                              <div className="p-2 border-b border-gray-dark">
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  placeholder="Buscar barbero..."
-                                  value={barberoSearch}
-                                  onChange={(e) => setBarberoSearch(e.target.value)}
-                                  className="w-full text-white-primary text-xs px-3 py-2 rounded-lg outline-none placeholder:text-gray-light transition-colors bg-gray-darker border border-gray-dark"
-                                />
-                              </div>
-                              {/* Lista filtrada — máx. 5 items visibles con scroll */}
-                              <div className="overflow-y-auto py-1 bg-gray-darkest" style={{ maxHeight: "160px" }}>
-                                {["Todos", ...listaBarberosUnicos]
-                                  .filter(b => b === "Todos" || b.toLowerCase().includes(barberoSearch.toLowerCase()))
-                                  .map(b => (
-                                    <button
-                                      key={b}
-                                      type="button"
-                                      onClick={() => { setSelectedBarberoGanancia(b); setBarberoSearchOpen(false); setBarberoSearch(""); }}
-                                      style={{ backgroundColor: selectedBarberoGanancia === b ? "rgba(216,176,129,0.15)" : "transparent" }}
-                                      className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
-                                        selectedBarberoGanancia === b
-                                          ? "text-orange-primary font-semibold"
-                                          : "text-gray-lightest hover:bg-gray-dark"
-                                      }`}
-                                    >
-                                      {selectedBarberoGanancia === b && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-primary shrink-0" />
-                                      )}
-                                      {b === "Todos" ? "Todos los barberos" : b}
-                                    </button>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                    </div>
-                  );
-                }
-
-                if (metric.id === "ganancia-barberia") {
-                  return (
-                    <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
-                          <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
-                            <Icon className="w-3.5 h-3.5 text-orange-primary" />
-                          </div>
-                        </div>
-                        <p className="text-3xl font-bold text-white-primary leading-none">{metric.value}</p>
-                        {metric.change && <p className="text-xs text-gray-lightest">{metric.change}</p>}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={metric.title} className="rounded-xl bg-gray-darkest p-4 flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] leading-tight">{metric.title}</p>
-                      <div className="w-7 h-7 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
-                        <Icon className={`w-3.5 h-3.5 ${metric.iconColor}`} />
+                        ))}
                       </div>
                     </div>
-                    <p className="text-3xl font-bold text-white-primary leading-none">{metric.value}</p>
-                    {metric.change && <span className="text-xs text-gray-lightest">{metric.change}</span>}
                   </div>
-                );
-              })}
+                )
+                : gananciasPerBarbero.map((barbero, idx) => {
+                  const totalIngreso = barbero.gananciasBarbero + barbero.gananciasBarberia;
+                  const isTop = idx === 0 && totalIngreso > 0;
+                  return (
+                    <div
+                      key={barbero.nombre}
+                      className={`rounded-xl p-4 flex flex-col gap-3 shrink-0 transition-all duration-300 border ${
+                        isTop
+                          ? "bg-gradient-to-br from-gray-darkest to-[rgba(216,176,129,0.08)] border-orange-primary/40"
+                          : "bg-gray-darkest border-gray-dark/50 hover:border-gray-dark"
+                      }`}
+                      style={{ minWidth: 280, scrollSnapAlign: "start" }}
+                    >
+                      {/* Barber name + ranking badge */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                            isTop
+                              ? "bg-orange-primary text-black-primary"
+                              : "bg-gray-darker text-gray-lightest border border-gray-dark"
+                          }`}>
+                            {idx + 1}
+                          </div>
+                          <p className="text-sm font-semibold text-white-primary truncate">
+                            {barbero.nombre}
+                            {(() => { const n = cortesCompletadosPerBarbero.get(barbero.nombre) ?? 0; return <span className="text-gray-light font-normal"> · {n} {n === 1 ? "corte" : "cortes"}</span>; })()}
+                          </p>
+                        </div>
+                        {isTop && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-orange-primary bg-orange-primary/10 px-2 py-0.5 rounded-full border border-orange-primary/30 shrink-0">
+                            Top
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Earnings split */}
+                      <div className="flex flex-col gap-3">
+                        {/* Top row: Barbero 60% + Barbería 40% */}
+                        <div className="flex gap-3">
+                          {/* Barbero 60% */}
+                          <div className="flex-1 rounded-lg bg-gray-darker/60 p-3">
+                            <p className="text-[10px] text-gray-light uppercase tracking-wider mb-1">Barbero (60%)</p>
+                            <p className="text-lg font-bold text-orange-primary leading-none">
+                              ${formatCurrencyValue(barbero.gananciasBarbero)}
+                            </p>
+                          </div>
+                          {/* Barbería 40% */}
+                          <div className="flex-1 rounded-lg bg-gray-darker/60 p-3">
+                            <p className="text-[10px] text-gray-light uppercase tracking-wider mb-1">Barbería (40%)</p>
+                            <p className="text-lg font-bold text-white-primary leading-none">
+                              ${formatCurrencyValue(barbero.gananciasBarberia)}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Total 100% — full width below */}
+                        <div className="rounded-lg bg-gray-darker/60 p-3 flex items-center justify-between">
+                          <p className="text-[10px] text-gray-light uppercase tracking-wider">Total (100%)</p>
+                          <p className="text-lg font-bold text-white-primary leading-none">
+                            ${formatCurrencyValue(totalIngreso)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         </section>
         {/* Rendimiento por periodo — ancho completo */}
