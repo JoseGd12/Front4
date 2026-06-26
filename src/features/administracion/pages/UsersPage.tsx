@@ -899,7 +899,7 @@ export function UsersPage() {
                           }}
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          maxLength={18}
+                          maxLength={10}
                           className={`elegante-input w-full ${showUserFormErrors && !newUser.documento ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="Número de documento (solo números)"
                         />

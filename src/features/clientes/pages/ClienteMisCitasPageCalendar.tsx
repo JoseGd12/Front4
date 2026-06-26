@@ -1261,8 +1261,30 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
               <div className="h-14 w-36 bg-gray-darker rounded-lg shrink-0" />
             </div>
           </div>
-          {/* Calendar grid skeleton */}
-          <div className="std-card !py-0" style={{ marginBottom: '1.5rem' }}>
+          {/* Mobile calendar skeleton */}
+          <div className="block sm:hidden std-card !py-0 animate-pulse" style={{ marginBottom: '1.5rem' }}>
+            <div className="flex items-center justify-center gap-6 py-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5">
+                  <div className="h-3 w-8 bg-gray-darker rounded" />
+                  <div className="h-8 w-8 bg-gray-darker rounded-full" />
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-gray-dark mx-3" />
+            <div className="px-2 py-3 space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="grid gap-[3px]" style={{ gridTemplateColumns: '38px 1fr 1fr 1fr' }}>
+                  <div className="h-3 w-8 bg-gray-darker rounded mx-auto" />
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <div key={j} className="h-[52px] bg-gray-darker/40 rounded border border-gray-dark/30" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Calendar grid skeleton (desktop) */}
+          <div className="hidden sm:block std-card !py-0" style={{ marginBottom: '1.5rem' }}>
             <div className="w-full py-5 pb-6">
               <div className="-mx-6 pl-3 pr-6">
                 <div

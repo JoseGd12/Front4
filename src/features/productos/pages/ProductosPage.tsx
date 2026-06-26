@@ -1537,10 +1537,12 @@ export function ProductosPage() {
                   </Label>
                   <Textarea
                     value={nuevoProducto.descripcion}
-                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value.slice(0, 200) })}
+                    maxLength={200}
                     placeholder="Detalles del producto, características, instrucciones de uso..."
-                    className="elegante-input w-full min-h-[120px] resize-none text-sm"
+                    className="elegante-input w-full min-h-[80px] max-h-[120px] overflow-y-auto resize-none text-sm"
                   />
+                  <span className="text-[10px] text-gray-light text-right block">{(nuevoProducto.descripcion || '').length}/200</span>
                 </div>
 
                 {editingProducto && (

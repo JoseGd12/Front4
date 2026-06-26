@@ -180,6 +180,21 @@ class RolesApiService {
     const role = await this.getRoleById(id);
     return role.rolesModulos || [];
   }
+
+  async getMisModulos(): Promise<RolesModulos[]> {
+    const data = await httpClient.get('/RolesModulos/mis-modulos');
+    const items = Array.isArray(data) ? data : (data.items || data.$values || []);
+    return items.map((rm: any) => ({
+      id: Number(rm.id ?? rm.Id ?? 0),
+      rolId: Number(rm.rolId ?? rm.RolId ?? 0),
+      moduloId: String(rm.moduloId ?? rm.ModuloId ?? ''),
+      puedeVer: rm.puedeVer ?? rm.PuedeVer ?? false,
+      puedeCrear: rm.puedeCrear ?? rm.PuedeCrear ?? false,
+      puedeEditar: rm.puedeEditar ?? rm.PuedeEditar ?? false,
+      puedeEliminar: rm.puedeEliminar ?? rm.PuedeEliminar ?? false,
+      modulo: rm.modulo ?? rm.Modulo ?? undefined
+    }));
+  }
 }
 
 export const rolesApiService = new RolesApiService();

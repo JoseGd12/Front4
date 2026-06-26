@@ -67,7 +67,7 @@ const normalizarTipoDoc = (tipo: string | undefined): string => {
 };
 
 const CLIENTE_LIMITS = {
-  numeroDocumento: 18,
+  numeroDocumento: 10,
   nombre: 100,
   apellido: 100,
   email: 100,

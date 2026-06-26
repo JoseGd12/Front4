@@ -49,7 +49,7 @@ const normalizarTipoDocBarbero = (tipo: string | undefined): string => {
 const BARBERO_LIMITS = {
   nombre: 100,
   apellido: 100,
-  documento: 18,
+  documento: 10,
   correo: 100,
   telefono: 20,
   especialidad: 100

@@ -59,6 +59,37 @@ interface ModuloExtendido {
   rolesModulos?: any[];
 }
 
+// Módulos reales de la aplicación — deben coincidir con las páginas del menú lateral.
+// Se usan para filtrar módulos obsoletos que aún existan en la BD.
+const MODULOS_APP: Record<string, string[]> = {
+  'Agendamientos': ['agendamiento', 'agenda', 'citas'],
+  'Horarios': ['horario'],
+  'Barberos': ['barbero', 'empleado'],
+  'Ventas': ['venta'],
+  'Servicios': ['servicio'],
+  'Paquetes': ['paquete'],
+  'Devoluciones': ['devolucion'],
+  'Clientes': ['cliente'],
+  'Compras': ['compra'],
+  'Productos': ['producto', 'inventario'],
+  'Categorías': ['categoria'],
+  'Proveedores': ['proveedor'],
+  'Usuarios': ['usuario'],
+  'Roles': ['rol', 'permiso'],
+  'Crédito Barberos': ['credito', 'credito barbero', 'abono'],
+  'Configuración': ['config', 'ajuste', 'configuracion'],
+};
+
+function esModuloDeApp(nombreModulo: string): boolean {
+  const norm = nombreModulo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  for (const [label, aliases] of Object.entries(MODULOS_APP)) {
+    const labelNorm = label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (norm === labelNorm || labelNorm.includes(norm) || norm.includes(labelNorm)) return true;
+    if (aliases.some(a => norm === a || norm.includes(a) || a.includes(norm))) return true;
+  }
+  return false;
+}
+
 export function RolesPage() {
   const { success: showSuccess, error: showError, AlertContainer } = useCustomAlert();
   const [roles, setRoles] = useState<RoleWithModules[]>([]);
@@ -127,14 +158,16 @@ export function RolesPage() {
         modulosService.getModulos()
       ]);
 
-      // Adaptar módulos inline para evitar dependencias circulares
-      const modulosAdaptados = modulosData.map(modulo => ({
-        ...modulo,
-        id: modulo.id.toString(),
-        icono: Settings,
-        color: 'blue',
-        descripcion: modulo.nombre
-      }));
+      // Solo módulos activos que correspondan a páginas reales de la app
+      const modulosAdaptados = modulosData
+        .filter(modulo => modulo.estado && esModuloDeApp(modulo.nombre))
+        .map(modulo => ({
+          ...modulo,
+          id: modulo.id.toString(),
+          icono: Settings,
+          color: 'blue',
+          descripcion: modulo.nombre
+        }));
 
       setRoles(rolesData);
       setModulosProyecto(modulosAdaptados);
@@ -764,10 +797,12 @@ export function RolesPage() {
                           <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!rol.estado || isCreating || isEditing || isDeleting} onSelect={async () => {
                             setHasTriedToSubmit(false);
                             const rolesModulosData = await loadRolesModulosByRole(rol.id);
+                            const activeIds = new Set(modulosProyecto.map(m => m.id));
                             const permisosMap: Record<string, any> = {};
                             const modulosIds: string[] = [];
                             rolesModulosData.forEach((rm: any) => {
                               const modId = String(rm.moduloId ?? rm.ModuloId);
+                              if (!activeIds.has(modId)) return;
                               modulosIds.push(modId);
                               permisosMap[modId] = {
                                 puedeVer: rm.puedeVer ?? rm.PuedeVer,
@@ -864,13 +899,15 @@ export function RolesPage() {
                               setHasTriedToSubmit(false);
                               // Cargar rolesmodulos específicos del rol antes de editar
                               const rolesModulosData = await loadRolesModulosByRole(rol.id);
+                              const activeIds = new Set(modulosProyecto.map(m => m.id));
 
-                              // Construir mapa de permisos y lista de módulos
+                              // Construir mapa de permisos y lista de módulos (solo activos)
                               const permisosMap: Record<string, any> = {};
                               const modulosIds: string[] = [];
 
                               rolesModulosData.forEach((rm: any) => {
                                 const modId = String(rm.moduloId ?? rm.ModuloId);
+                                if (!activeIds.has(modId)) return;
                                 modulosIds.push(modId);
                                 permisosMap[modId] = {
                                   puedeVer: rm.puedeVer ?? rm.PuedeVer,

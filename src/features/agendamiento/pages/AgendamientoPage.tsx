@@ -3187,8 +3187,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               {/* Título */}
               <h4 className="text-sm sm:text-base font-bold text-white-primary shrink-0 tracking-wide">Citas de la Semana</h4>
 
-              {/* Buscador fantasma */}
-              <div ref={searchContainerRef} className="flex-1 min-w-0 relative flex items-center justify-end">
+              {/* Buscador fantasma (desktop) */}
+              <div ref={searchContainerRef} className="hidden sm:flex flex-1 min-w-0 relative items-center justify-end">
                 <div className={`relative w-full max-w-xs transition-opacity duration-200 ease-out ${
                   busquedaExpanded || carouselBusqueda ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}>
@@ -3375,7 +3375,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 </button>
                 <button onClick={handleOpenCreateModal} className="btn-std-primary">
                   <Plus className="w-4 h-4" />
-                  Nueva Cita
+                  <span className="hidden sm:inline">Nueva Cita</span>
                 </button>
               </div>
             </div>
@@ -3810,6 +3810,30 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
 
           {/* ═══ Calendario Mobile — vista de 3 días ═══ */}
           <div className="block sm:hidden std-card agendamiento-std-card !py-0" style={{ marginBottom: '1.5rem' }}>
+            {isLoading ? (
+              <div className="animate-pulse py-4">
+                <div className="flex items-center justify-center gap-6 pb-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1.5">
+                      <div className="h-3 w-8 bg-gray-darker rounded" />
+                      <div className="h-8 w-8 bg-gray-darker rounded-full" />
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-gray-dark mx-3" />
+                <div className="px-2 py-3 space-y-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="grid gap-[3px]" style={{ gridTemplateColumns: '38px 1fr 1fr 1fr' }}>
+                      <div className="h-3 w-8 bg-gray-darker rounded mx-auto my-auto" />
+                      {Array.from({ length: 3 }).map((_, j) => (
+                        <div key={j} className="h-[52px] bg-gray-darker/40 rounded border border-gray-dark/30" />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+            <>
             {/* Encabezados de día con navegación */}
             <div className="flex items-center pt-3 pb-1 px-1">
               <button
@@ -3969,6 +3993,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 ));
               })()}
             </div>
+            </>
+            )}
           </div>
 
           <div style={{ height: '2rem' }} aria-hidden />

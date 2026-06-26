@@ -11,6 +11,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  rolId?: number;
   telefono?: string;
   ultimaVisita?: string;
   fechaRegistro?: string;
@@ -184,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // FE-C4: Guardamos nombre/email/foto para UX (continuidad visual), 
     // pero el ROL nunca se guarda en localStorage para evitar manipulación.
     // El rol se re-verifica siempre desde Firebase Claims o la API en cada carga.
-    const { role: _, ...uiData } = sessionUser;
+    const { role: _, rolId: _rolId, ...uiData } = sessionUser;
     localStorage.setItem('barbershop_user', JSON.stringify(uiData));
     
     setUser(sessionUser);
@@ -231,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: syncResult.user.correo,
                 name: `${syncResult.user.nombre || ''} ${syncResult.user.apellido || ''}`.trim() || syncResult.user.correo,
                 role: authSyncService.getRoleName(syncResult.user.rolId || 0) as UserRole,
+                rolId: syncResult.user.rolId ?? undefined,
                 telefono: syncResult.user.telefono ?? undefined,
                 fotoPerfil: syncResult.user.fotoPerfil ?? undefined,
                 firebaseUid: firebaseProfile.uid,
@@ -319,6 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: result.user.correo,
           name: `${result.user.nombre || ''} ${result.user.apellido || ''}`.trim() || result.user.correo,
           role: authSyncService.getRoleName(result.user.rolId) as UserRole,
+          rolId: result.user.rolId ?? undefined,
           telefono: result.user.telefono ?? undefined,
           fotoPerfil: result.user.fotoPerfil ?? undefined,
           firebaseUid: firebaseProfile.uid,
@@ -545,6 +548,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: result.user.correo,
           name: `${result.user.nombre || ''} ${result.user.apellido || ''}`.trim() || result.user.correo,
           role: authSyncService.getRoleName(result.user.rolId) as UserRole,
+          rolId: result.user.rolId ?? undefined,
           telefono: result.user.telefono ?? undefined,
           fotoPerfil: result.user.fotoPerfil ?? undefined,
           firebaseUid: firebaseProfile.uid,

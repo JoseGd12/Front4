@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
-import { authSyncService } from "../../auth/services/authSyncService";
 import { rolesApiService } from "../../administracion/services/rolesApiService";
-import { modulosService } from "../../administracion/services/modulosService";
 import { BarberPole } from "../../../shared/components/ui/BarberPole";
 import {
   Calendar,
@@ -379,25 +377,20 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
         return;
       }
 
-      // Roles menores (barbero, cajero, recepcionista, cliente) consultan la API
+      // Roles no-admin consultan el endpoint accesible mis-modulos
       try {
         setLoadingModules(true);
-        const rolId = authSyncService.getRolId(user.role);
 
-        const [rolePerms, allModules] = await Promise.all([
-          rolesApiService.getRoleModules(rolId as number),
-          modulosService.getModulos()
-        ]);
+        const misModulos = await rolesApiService.getMisModulos();
 
-        // IDs de módulos que el rol puede ver
-        const validModuleIds = rolePerms
+        // Extraer nombres de módulos que el rol puede ver
+        const allowedNames = misModulos
           .filter(rm => rm.puedeVer)
-          .map(rm => rm.moduloId.toString());
-
-        // Mapear de validModuleIds a los nombres de módulo
-        const allowedNames = allModules
-          .filter(m => validModuleIds.includes(m.id.toString()))
-          .map(m => m.nombre);
+          .map(rm => {
+            const mod = rm.modulo as any;
+            return mod?.nombre ?? mod?.Nombre ?? '';
+          })
+          .filter(Boolean);
 
         setAllowedModules(allowedNames.length > 0 ? allowedNames : getFallbackModulesForRole(user.role));
       } catch (error) {
@@ -477,6 +470,11 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
           // Solo admin y super_admin pueden ver Crédito Barberos
           if (item.label === "Crédito Barberos" || (item as any).page === "CreditoBarberos") {
             return user?.role === 'super_admin' || user?.role === 'admin';
+          }
+          // Clientes no pueden acceder a estos módulos operativos
+          if (user?.role === 'cliente') {
+            const bloqueados = ['Compras', 'Devoluciones', 'Servicios', 'Paquetes', 'Agendamientos'];
+            if (bloqueados.includes(item.label)) return false;
           }
           return checkModuleAccess(item.label);
         })

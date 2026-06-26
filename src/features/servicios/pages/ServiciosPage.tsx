@@ -929,10 +929,12 @@ export function ServiciosPage() {
                 </Label>
                 <Textarea
                   value={nuevoServicio.descripcion}
-                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, descripcion: e.target.value })}
+                  onChange={(e) => setNuevoServicio({ ...nuevoServicio, descripcion: e.target.value.slice(0, 200) })}
+                  maxLength={200}
                   placeholder="Describe el servicio detalladamente"
-                  className="elegante-input w-full min-h-[120px] resize-none text-sm"
+                  className="elegante-input w-full min-h-[80px] max-h-[120px] overflow-y-auto resize-none text-sm"
                 />
+                <span className="text-[10px] text-gray-light text-right block">{(nuevoServicio.descripcion || '').length}/200</span>
               </div>
 
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-dark">

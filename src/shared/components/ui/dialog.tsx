@@ -49,16 +49,38 @@ const DialogOverlay = React.forwardRef<
 });
 DialogOverlay.displayName = "DialogOverlay";
 
+const allowIfDiscardDialog = (e: Event) => {
+  const target = e.target as HTMLElement | null;
+  if (target?.closest('[data-discard-dialog-root]')) {
+    e.preventDefault();
+  }
+};
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+>(({ className, children, onFocusOutside, onPointerDownOutside, onInteractOutside, ...props }, ref) => {
+  const mergedFocusOutside = (e: Event) => {
+    allowIfDiscardDialog(e);
+    (onFocusOutside as ((e: Event) => void) | undefined)?.(e);
+  };
+  const mergedPointerDownOutside = (e: Event) => {
+    allowIfDiscardDialog(e);
+    (onPointerDownOutside as ((e: Event) => void) | undefined)?.(e);
+  };
+  const mergedInteractOutside = (e: Event) => {
+    allowIfDiscardDialog(e);
+    (onInteractOutside as ((e: Event) => void) | undefined)?.(e);
+  };
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
         data-slot="dialog-content"
+        onFocusOutside={mergedFocusOutside}
+        onPointerDownOutside={mergedPointerDownOutside}
+        onInteractOutside={mergedInteractOutside}
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[9999] grid w-full max-w-lg max-h-[85vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-4 sm:p-6 shadow-lg duration-200",
           className,
