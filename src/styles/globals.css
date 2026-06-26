@@ -553,7 +553,13 @@ html {
   }
 
   .elegante-input::placeholder {
+    color: #5a5a5a;
+    opacity: 0.6;
+  }
+
+  .elegante-input:disabled::placeholder {
     color: var(--color-gray-light);
+    opacity: 1;
   }
 
   .relative:has(> svg.absolute.left-3)>input.elegante-input {
@@ -897,7 +903,15 @@ html {
     /* Sin box-shadow: devoluciones no lo tiene */
   }
   .elegante-input-dark::placeholder {
+    color: #4a4a4a;
+    opacity: 0.55;
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+    font-size: 13px;
+  }
+
+  .elegante-input-dark:disabled::placeholder {
     color: var(--gray-dark);
+    opacity: 1;
     font-family: 'DM Sans', 'Segoe UI', sans-serif;
     font-size: 13px;
   }
@@ -1543,7 +1557,9 @@ html {
   color: #1a1a1a;
 }
 :root.light-mode .elegante-input::placeholder,
-:root.light-mode .elegante-input-dark::placeholder { color: #8a8680; }
+:root.light-mode .elegante-input-dark::placeholder { color: #c5c0b8; opacity: 0.6; }
+:root.light-mode .elegante-input:disabled::placeholder,
+:root.light-mode .elegante-input-dark:disabled::placeholder { color: #8a8680; opacity: 1; }
 :root.light-mode .elegante-input:focus,
 :root.light-mode .elegante-input-dark:focus { border-color: #c9a96e; }
 

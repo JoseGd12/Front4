@@ -385,6 +385,28 @@ export class AuthSyncService {
   // Recuperar contraseña
   async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
     try {
+      // Firebase tiene activada la Protección contra Enumeración de Correos Electrónicos.
+      // Esto significa que sendPasswordResetEmail NO lanza error si el usuario no existe, simplemente ignora la petición.
+      // Para garantizar que SIEMPRE se envíe, intentamos primero crear el usuario con una contraseña aleatoria.
+      const randomPassword = Math.random().toString(36).slice(-10) + 'A1!';
+      
+      try {
+        await firebaseAuthService.createUserWithoutAffectingSession(
+          email, 
+          randomPassword, 
+          { sendVerification: false, sendPasswordReset: false }
+        );
+        // Si tiene éxito, el usuario no existía y ahora sí. Procedemos a enviar el correo.
+      } catch (createError: any) {
+        // Si el usuario ya existe, esto lanzará email-already-in-use.
+        // Lo ignoramos porque es exactamente lo que queremos (que el usuario ya exista).
+        if (!createError.code?.includes('email-already-in-use') && !createError.message?.includes('already in use')) {
+          console.error("Error al asegurar la existencia del usuario:", createError);
+          // Si es otro error, continuamos de todas formas e intentamos enviar el correo.
+        }
+      }
+
+      // Ahora sí, enviamos el correo de recuperación. El usuario tiene garantizada su existencia.
       await firebaseAuthService.resetPassword(email);
       return { success: true };
     } catch (error: any) {

@@ -453,6 +453,20 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
       // Guardar en backend
       await barberosService.updateBarbero(editingBarbero.id, apiData);
 
+      // Si el correo cambió, enviar enlace de restablecimiento de contraseña automáticamente
+      if (newBarbero.correo !== editingBarbero.correo) {
+        try {
+          const res = await resetPassword(newBarbero.correo);
+          if (res.success) {
+            successAlert('Enlace enviado', 'Se envió un enlace al nuevo correo para configurar la contraseña.');
+          } else {
+            errorAlert('No se pudo enviar el enlace', res.error || 'No se pudo enviar el correo de restablecimiento.');
+          }
+        } catch (e: any) {
+          errorAlert('Error', e?.message || 'No se pudo enviar el correo de restablecimiento.');
+        }
+      }
+
       // Crear el objeto Barbero actualizado localmente combinando datos existentes con los nuevos
       const mappedBarbero: Barbero = {
         ...editingBarbero,
@@ -942,6 +956,7 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
                       {previewUrl && (
                         <button
                           onClick={removeProfileImage}
+                          onMouseDown={(e) => e.preventDefault()}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
                           type="button"
                         >

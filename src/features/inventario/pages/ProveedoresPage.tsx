@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../../../shared/components/ui/button";
 import { Input } from "../../../shared/components/ui/input";
 import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
@@ -1875,7 +1875,7 @@ export function ProveedoresPage() {
       <DiscardChangesDialog
         open={isConfirmDiscardOpen}
         onKeepEditing={() => setIsConfirmDiscardOpen(false)}
-        onDiscard={() => { setIsConfirmDiscardOpen(false); resetForm(); setIsDialogOpen(false); }}
+        onDiscard={() => { setIsConfirmDiscardOpen(false); setShowProveedorFormErrors(false); setIsEditDialogOpen(false); resetForm(); setIsDialogOpen(false); }}
       />
 
       {AlertContainer}

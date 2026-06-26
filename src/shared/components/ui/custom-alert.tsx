@@ -213,7 +213,7 @@ export function useCustomAlert() {
       };
     }
   ) => {
-    const id = Date.now().toString();
+    const id = `${Date.now().toString()}-${Math.random().toString(36).substring(2, 9)}`;
     const normalizedTitle = normalizeNotificationTitle(title);
     const normalizedMessage = normalizeNotificationMessage(message);
     const alert: AlertItem = {

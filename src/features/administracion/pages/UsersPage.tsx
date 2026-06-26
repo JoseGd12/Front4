@@ -641,6 +641,11 @@ export function UsersPage() {
       const apiUserData = mapComponentToApiUser(newUser);
       await apiService.updateUsuario(editingUser.id, apiUserData);
 
+      // Si el correo cambió, enviar el enlace de restablecimiento de contraseña automáticamente
+      if (newUser.correo !== editingUser.correo) {
+        await handleSendPasswordSetup(newUser.correo);
+      }
+
       const updatedUser = {
         ...editingUser,
         ...newUser,
@@ -823,6 +828,7 @@ export function UsersPage() {
                           {userPreviewUrl && (
                             <button
                               onClick={removeUserProfileImage}
+                              onMouseDown={(e) => e.preventDefault()}
                               className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
                               type="button"
                             >
@@ -1266,7 +1272,7 @@ export function UsersPage() {
                               </button>
                             )}
                             <button
-                              onClick={() => handleSendPasswordSetup(user.correo)}
+                              onClick={(e) => { e.stopPropagation(); handleSendPasswordSetup(user.correo); }}
                               disabled={!user.status}
                               className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                               title={user.status ? "Enviar enlace de contraseña" : "Usuario inactivo (solo historial)"}

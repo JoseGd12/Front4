@@ -25,7 +25,8 @@ import {
   FileText,
   Hash,
   Filter,
-  MoreVertical
+  MoreVertical,
+  KeyRound
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
@@ -738,6 +739,19 @@ export function ClientesPage() {
     return true;
   };
 
+  const handleSendPasswordSetup = async (email: string) => {
+    try {
+      const res = await resetPassword(email);
+      if (res.success) {
+        success('Enlace enviado', 'Se envió un enlace para configurar la contraseña.');
+      } else {
+        error('No se pudo enviar', res.error || 'Intenta nuevamente.');
+      }
+    } catch (e: any) {
+      error('No se pudo enviar', e?.message || 'Intenta nuevamente.');
+    }
+  };
+
   const handleSaveEditCliente = () => {
     if (!validateEditForm(editForm)) {
       setShowEditValidation(true);
@@ -798,6 +812,20 @@ export function ClientesPage() {
 
       // Actualizar cliente en la API
       await clientesService.updateCliente(parseInt(selectedCliente.id), updateData);
+
+      // Si el correo cambió, enviar enlace de restablecimiento de contraseña automáticamente
+      if (editForm.email !== selectedCliente.correo) {
+        try {
+          const res = await resetPassword(editForm.email);
+          if (res.success) {
+            success('Enlace enviado', 'Se envió un enlace al nuevo correo para configurar la contraseña.');
+          } else {
+            error('No se pudo enviar el enlace', res.error || 'No se pudo enviar el correo de restablecimiento.');
+          }
+        } catch (e: any) {
+          error('Error', e?.message || 'No se pudo enviar el correo de restablecimiento.');
+        }
+      }
 
       setShowEditValidation(false);
       setIsEditDialogOpen(false);
@@ -1120,12 +1148,20 @@ export function ClientesPage() {
                       <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                     </button>
                     <button
-                      onClick={() => handleEditCliente(row)}
+                      onClick={(e) => { e.stopPropagation(); handleEditCliente(row); }}
                       disabled={!row.activo}
                       className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                       title={row.activo ? "Editar cliente" : "Cliente inactivo (solo historial)"}
                     >
                       <Edit className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleSendPasswordSetup(row.correo); }}
+                      disabled={!row.activo}
+                      className="p-2 hover:bg-gray-darker rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      title={row.activo ? "Enviar enlace de contraseña" : "Cliente inactivo (solo historial)"}
+                    >
+                      <KeyRound className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                     </button>
                     <button
                       onClick={() => handleDeleteCliente(row)}
@@ -1190,6 +1226,7 @@ export function ClientesPage() {
                           <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
                             <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewCliente(cliente)}>Detalles</DropdownMenuItem>
                             <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!cliente.activo} onSelect={() => handleEditCliente(cliente)}>Editar</DropdownMenuItem>
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!cliente.activo} onSelect={() => handleSendPasswordSetup(cliente.correo)}>Enviar contraseña</DropdownMenuItem>
                             <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={!cliente.activo} onSelect={() => handleDeleteCliente(cliente)}>Eliminar</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1438,6 +1475,7 @@ export function ClientesPage() {
                       {editPreviewUrl && (
                         <button
                           onClick={removeEditProfileImage}
+                          onMouseDown={(e) => e.preventDefault()}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
                           type="button"
                         >
@@ -1664,6 +1702,7 @@ export function ClientesPage() {
                       {previewUrl && (
                         <button
                           onClick={removeProfileImage}
+                          onMouseDown={(e) => e.preventDefault()}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
                           type="button"
                         >
