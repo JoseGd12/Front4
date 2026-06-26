@@ -322,7 +322,7 @@ export function RegistrarVentaBarberoPage({ onBack }: RegistrarVentaBarberoPageP
 
   return (
     <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-      <AlertContainer />
+      {AlertContainer}
 
       <div
         className="grid grid-cols-1 lg:grid-cols-master-detail gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden"

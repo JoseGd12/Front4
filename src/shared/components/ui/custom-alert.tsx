@@ -260,38 +260,34 @@ export function useCustomAlert() {
   const deleted = (title: string, message?: string, options?: { autoClose?: boolean; autoCloseDelay?: number; action?: { label: string; onClick: () => void } }) =>
     showAlert('deleted', title, message, options);
 
-  const AlertContainer = () => {
-    if (ctx) return null;
-    return (
-      <div
-        data-alert-root="true"
-        className="fixed z-alert flex flex-col items-end gap-3 pointer-events-none"
-        style={{
-          bottom: `max(env(safe-area-inset-bottom), 24px)`,
-          right: `max(env(safe-area-inset-right), 24px)`,
-          maxHeight: 'calc(100vh - 48px)',
-          overflowY: 'auto',
-          paddingLeft: '12px'
-        }}
-      >
-        {alerts.map((alert) => (
-          <div key={alert.id} className="pointer-events-auto">
-            <CustomAlert
-              // Marca cada alerta para facilitar detección de clic externo
-              isOpen={true}
-              onClose={() => removeAlert(alert.id)}
-              type={alert.type}
-              title={alert.title}
-              message={alert.message}
-              autoClose={alert.autoClose}
-              autoCloseDelay={Math.max(8000, alert.autoCloseDelay ?? 8000)}
-              action={alert.action}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const alertContainer = ctx ? null : (
+    <div
+      data-alert-root="true"
+      className="fixed z-alert flex flex-col items-end gap-3 pointer-events-none"
+      style={{
+        bottom: `max(env(safe-area-inset-bottom), 24px)`,
+        right: `max(env(safe-area-inset-right), 24px)`,
+        maxHeight: 'calc(100vh - 48px)',
+        overflowY: 'auto',
+        paddingLeft: '12px'
+      }}
+    >
+      {alerts.map((alert) => (
+        <div key={alert.id} className="pointer-events-auto">
+          <CustomAlert
+            isOpen={true}
+            onClose={() => removeAlert(alert.id)}
+            type={alert.type}
+            title={alert.title}
+            message={alert.message}
+            autoClose={alert.autoClose}
+            autoCloseDelay={Math.max(8000, alert.autoCloseDelay ?? 8000)}
+            action={alert.action}
+          />
+        </div>
+      ))}
+    </div>
+  );
 
   return {
     success,
@@ -301,7 +297,7 @@ export function useCustomAlert() {
     created,
     edited,
     deleted,
-    AlertContainer,
+    AlertContainer: alertContainer,
   };
 }
 

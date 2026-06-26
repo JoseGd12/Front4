@@ -388,7 +388,7 @@ export function AdminPerfilPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <AlertContainer />
+      {AlertContainer}
     </>
   );
 }

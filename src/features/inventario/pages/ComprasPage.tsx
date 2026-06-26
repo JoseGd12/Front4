@@ -1170,8 +1170,8 @@ export function ComprasPage({ onNavigate }: ComprasPageProps) {
           </DialogContent>
         </Dialog>
       </main>
-      <DoubleConfirmationContainer />
-      <AlertContainer />
+      {DoubleConfirmationContainer}
+      {AlertContainer}
     </>
   );
 }

@@ -93,7 +93,7 @@ export default function CrearSolicitudPage({ onNavigate, barberoId: propBarberoI
 
   return (
     <div className="flex flex-col gap-6">
-      <AlertContainer />
+      {AlertContainer}
 
       <TableHeaderSection
         variant="dark"

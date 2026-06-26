@@ -27,6 +27,7 @@ import { Textarea } from "../../../shared/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { apiService, Paquete } from "../../../shared/services/api";
@@ -1354,21 +1355,14 @@ export function PaquetesPage() {
           </DialogContent>
         </Dialog>
 
-        <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
-          <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
-              <button onClick={() => { setIsConfirmDiscardOpen(false); setViewMode('list'); setEditingPaquete(null); setNuevoPaquete({ ...estadoInicialPaquete }); setServiciosAgregados([]); setServicioSeleccionado(''); setPrecioInput(''); setPorcentajeInput(''); setShowDiscountWarning(false); setFormErrors({ nombre: '', servicios: '' }); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DiscardChangesDialog
+          open={isConfirmDiscardOpen}
+          onKeepEditing={() => setIsConfirmDiscardOpen(false)}
+          onDiscard={() => { setIsConfirmDiscardOpen(false); setViewMode('list'); setEditingPaquete(null); setNuevoPaquete({ ...estadoInicialPaquete }); setServiciosAgregados([]); setServicioSeleccionado(''); setPrecioInput(''); setPorcentajeInput(''); setShowDiscountWarning(false); setFormErrors({ nombre: '', servicios: '' }); }}
+        />
 
-        <AlertContainer />
-        <DoubleConfirmationContainer />
+        {AlertContainer}
+        {DoubleConfirmationContainer}
       </main>
     </>
   );

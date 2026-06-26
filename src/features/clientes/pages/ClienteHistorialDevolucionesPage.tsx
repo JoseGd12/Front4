@@ -396,7 +396,7 @@ export function ClienteHistorialDevolucionesPage() {
           </DialogContent>
         </Dialog>
       </main>
-    <AlertContainer />
+    {AlertContainer}
     </>
   );
 }

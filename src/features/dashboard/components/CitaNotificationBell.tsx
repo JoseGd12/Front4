@@ -656,7 +656,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertContainer />
+      {AlertContainer}
     </div>
   );
 }

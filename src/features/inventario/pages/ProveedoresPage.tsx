@@ -43,6 +43,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Label } from "../../../shared/components/ui/label";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
@@ -1871,21 +1872,14 @@ export function ProveedoresPage() {
         </Dialog>
       )}
 
-      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
-        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-            <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
-            <button onClick={() => { setIsConfirmDiscardOpen(false); resetForm(); setIsDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardChangesDialog
+        open={isConfirmDiscardOpen}
+        onKeepEditing={() => setIsConfirmDiscardOpen(false)}
+        onDiscard={() => { setIsConfirmDiscardOpen(false); resetForm(); setIsDialogOpen(false); }}
+      />
 
-      <AlertContainer />
-      <DoubleConfirmationContainer />
+      {AlertContainer}
+      {DoubleConfirmationContainer}
     </>
   );
 }

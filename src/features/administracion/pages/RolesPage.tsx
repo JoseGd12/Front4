@@ -25,6 +25,7 @@ import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { Label } from "../../../shared/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
@@ -686,7 +687,7 @@ export function RolesPage() {
 
   return (
     <div className="w-full bg-black-primary text-white-primary h-full overflow-y-auto">
-      <AlertContainer />
+      {AlertContainer}
 
       <div>
         <div className="std-card">
@@ -1178,31 +1179,16 @@ export function RolesPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={isConfirmDiscardCreateOpen} onOpenChange={setIsConfirmDiscardCreateOpen}>
-          <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setIsConfirmDiscardCreateOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
-              <button onClick={() => { setIsConfirmDiscardCreateOpen(false); setHasTriedToSubmit(false); setNuevoRol({ nombre: '', descripcion: '', modulos: [], permisos: {} }); setIsDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={isConfirmDiscardEditOpen} onOpenChange={setIsConfirmDiscardEditOpen}>
-          <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setIsConfirmDiscardEditOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
-              <button onClick={() => { setIsConfirmDiscardEditOpen(false); setHasTriedToSubmit(false); setEditingRole(null); editingRoleOriginalRef.current = null; setIsEditDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DiscardChangesDialog
+          open={isConfirmDiscardCreateOpen}
+          onKeepEditing={() => setIsConfirmDiscardCreateOpen(false)}
+          onDiscard={() => { setIsConfirmDiscardCreateOpen(false); setHasTriedToSubmit(false); setNuevoRol({ nombre: '', descripcion: '', modulos: [], permisos: {} }); setIsDialogOpen(false); }}
+        />
+        <DiscardChangesDialog
+          open={isConfirmDiscardEditOpen}
+          onKeepEditing={() => setIsConfirmDiscardEditOpen(false)}
+          onDiscard={() => { setIsConfirmDiscardEditOpen(false); setHasTriedToSubmit(false); setEditingRole(null); editingRoleOriginalRef.current = null; setIsEditDialogOpen(false); }}
+        />
       </div>
     </div>
   );

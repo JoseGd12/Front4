@@ -141,10 +141,10 @@ export function useDoubleConfirmation() {
     });
   }, [executeAction]);
 
-  const DoubleConfirmationContainer = () => (
+  const doubleConfirmationContainer = (
     <>
-      <ConfirmationContainer />
-      <AlertContainer />
+      {ConfirmationContainer}
+      {AlertContainer}
     </>
   );
 
@@ -152,6 +152,6 @@ export function useDoubleConfirmation() {
     confirmCreateAction,
     confirmEditAction,
     confirmDeleteAction,
-    DoubleConfirmationContainer
+    DoubleConfirmationContainer: doubleConfirmationContainer,
   };
 }

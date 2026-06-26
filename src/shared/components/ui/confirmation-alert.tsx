@@ -290,25 +290,24 @@ export function useConfirmationAlert() {
     );
   };
 
-  const ConfirmationContainer = () => 
-    confirmation ? (
-      <ConfirmationAlert
-        isOpen={confirmation.isOpen}
-        onClose={closeConfirmation}
-        onConfirm={handleConfirm}
-        type={confirmation.type}
-        title={confirmation.title}
-        message={confirmation.message}
-        itemName={confirmation.itemName}
-        requireInput={confirmation.requireInput}
-        confirmButtonText={confirmation.confirmButtonText}
-        cancelButtonText={confirmation.cancelButtonText}
-      />
-    ) : null;
+  const confirmationContainer = confirmation ? (
+    <ConfirmationAlert
+      isOpen={confirmation.isOpen}
+      onClose={closeConfirmation}
+      onConfirm={handleConfirm}
+      type={confirmation.type}
+      title={confirmation.title}
+      message={confirmation.message}
+      itemName={confirmation.itemName}
+      requireInput={confirmation.requireInput}
+      confirmButtonText={confirmation.confirmButtonText}
+      cancelButtonText={confirmation.cancelButtonText}
+    />
+  ) : null;
 
   return {
     confirmDelete,
     confirmEdit,
-    ConfirmationContainer,
+    ConfirmationContainer: confirmationContainer,
   };
 }

@@ -38,6 +38,7 @@ import { Label } from "../../../shared/components/ui/label";
 import { Textarea } from "../../../shared/components/ui/textarea";
 import { emailJsService } from "../../../shared/services/emailJsService";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { FormSection } from "../../../shared/components/ui/FormSection";
 import { SearchField } from "../../../shared/components/ui/SearchField";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
@@ -155,8 +156,6 @@ type FormSnapshot = {
   productoSearchTerm: string;
 };
 
-const DISCARD_DIALOG_Z = 200000;
-
 const buildFormSnapshot = (
   cita: NuevaCitaFormState,
   extras: Omit<FormSnapshot, 'cita'>
@@ -209,6 +208,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [horariosList, setHorariosList] = useState<any[]>([]);
 
   const [currentWeek, setCurrentWeek] = useState(0);
+  const [mobileCalOffset, setMobileCalOffset] = useState(() => {
+    const d = new Date().getDay();
+    const idx = d === 0 ? 6 : d - 1;
+    return Math.max(0, Math.min(4, idx - 1));
+  });
   const [highlightedCitaId, setHighlightedCitaId] = useState<number | null>(null);
   const [carouselPage, setCarouselPage] = useState(0);
   const [carouselEstadoFiltro, setCarouselEstadoFiltro] = useState<'Todas' | 'Pendiente' | 'Completada' | 'Cancelada'>('Pendiente');
@@ -2943,7 +2947,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         onChange={setProductoSearchTerm}
                         ghostMode={true}
                         isSelected={Object.keys(nuevaCita.productoCantidades).length > 0}
-                        items={productosList}
+                        items={productosList.filter(p => !(p.id in nuevaCita.productoCantidades))}
                         filterFn={(p, term) =>
                           (p.nombre || '').toLowerCase().includes(term.toLowerCase())
                         }
@@ -3324,7 +3328,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               {/* Navegación de semana */}
               <div className="flex items-center gap-1 shrink-0">
                 <button
-                  onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
+                  onClick={() => { setCurrentWeek(currentWeek - 1); setCarouselPage(0); setMobileCalOffset(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
                   className="btn-ghost-icon"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -3338,7 +3342,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   </p>
                 </div>
                 <button
-                  onClick={() => { setCurrentWeek(currentWeek + 1); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
+                  onClick={() => { setCurrentWeek(currentWeek + 1); setCarouselPage(0); setMobileCalOffset(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
                   className="btn-ghost-icon"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -3364,7 +3368,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                   </SelectContent>
                 </Select>
                 <button
-                  onClick={() => { setCurrentWeek(0); setCarouselPage(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
+                  onClick={() => { setCurrentWeek(0); setCarouselPage(0); setMobileCalOffset(0); setCarouselBusqueda(''); setBusquedaExpanded(false); setShowSearchResults(false); }}
                   className="elegante-button-secondary text-sm"
                 >
                   Hoy
@@ -3413,7 +3417,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             );
 
             return (
-              <div className="std-card agendamiento-std-card mb-4" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+              <div className="hidden sm:block std-card agendamiento-std-card mb-4" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {/* Flecha anterior */}
@@ -3504,8 +3508,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             );
           })()}
 
-          {/* Grid de horarios + headers de días — un solo card unificado */}
-          <div className="std-card agendamiento-std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
+          {/* Grid de horarios + headers de días — un solo card unificado (desktop) */}
+          <div className="hidden sm:block std-card agendamiento-std-card !py-0 !overflow-visible" style={{ marginBottom: '1.5rem' }}>
             <div className="w-full py-5 pb-6">
               <div className="-mx-6 pl-3 pr-6 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <div style={{ minWidth: '700px' }}>
@@ -3801,6 +3805,169 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 )}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ═══ Calendario Mobile — vista de 3 días ═══ */}
+          <div className="block sm:hidden std-card agendamiento-std-card !py-0" style={{ marginBottom: '1.5rem' }}>
+            {/* Encabezados de día con navegación */}
+            <div className="flex items-center pt-3 pb-1 px-1">
+              <button
+                onClick={() => setMobileCalOffset(o => Math.max(0, o - 1))}
+                disabled={mobileCalOffset === 0}
+                className={`btn-ghost-icon shrink-0 ${mobileCalOffset === 0 ? 'opacity-20 pointer-events-none' : ''}`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex-1 grid grid-cols-3 gap-1">
+                {getCurrentWeekDays().slice(mobileCalOffset, mobileCalOffset + 3).map(({ dia, fechaCompleta }) => {
+                  const isToday = fechaCompleta === toLocalDateString(new Date());
+                  const dayNum = parseInt(fechaCompleta.split('-')[2], 10);
+                  const isSelected = selectedDates.has(fechaCompleta);
+                  const discount = dayDiscounts[fechaCompleta];
+                  return (
+                    <div
+                      key={dia}
+                      className={`flex flex-col items-center gap-0.5 py-2 rounded-lg cursor-pointer transition-colors ${
+                        isSelected ? 'bg-orange-primary/10' : ''
+                      }`}
+                      onClick={() => handleDateSelect(fechaCompleta)}
+                    >
+                      <span className="text-[11px] uppercase tracking-wide text-gray-lighter font-medium leading-none">
+                        {dia.slice(0, 3)}
+                      </span>
+                      <span
+                        className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold leading-none ${
+                          isToday
+                            ? 'bg-orange-primary text-white'
+                            : isSelected
+                              ? 'border-2 border-orange-primary text-orange-primary'
+                              : 'text-gray-lightest'
+                        }`}
+                      >
+                        {dayNum}
+                      </span>
+                      {discount > 0 && (
+                        <span className="std-badge-negative mt-0.5" style={{ fontSize: '8px', lineHeight: 1, padding: '2px 4px' }}>
+                          -{discount}%
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setMobileCalOffset(o => Math.min(4, o + 1))}
+                disabled={mobileCalOffset >= 4}
+                className={`btn-ghost-icon shrink-0 ${mobileCalOffset >= 4 ? 'opacity-20 pointer-events-none' : ''}`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Separador */}
+            <div className="border-t border-gray-dark mx-3" />
+
+            {/* Grid de franjas horarias */}
+            <div className="overflow-y-auto pb-3 pt-1" style={{ maxHeight: '60vh' }}>
+              {(() => {
+                const mobileDays = getCurrentWeekDays().slice(mobileCalOffset, mobileCalOffset + 3);
+                const todayStr = toLocalDateString(new Date());
+                return horasDelDia.map((hora) => (
+                  <div
+                    key={hora}
+                    className="grid gap-[3px] px-2"
+                    style={{ gridTemplateColumns: '38px 1fr 1fr 1fr', minHeight: '56px' }}
+                  >
+                    <div className="flex items-center justify-center text-[10px] text-gray-light whitespace-nowrap">
+                      {formatHora12(hora)}
+                    </div>
+                    {mobileDays.map((dayInfo) => {
+                      const citasEnSlot = getCitasEnSlot(dayInfo.dia, hora);
+
+                      let isPastSlot = false;
+                      if (dayInfo.fechaCompleta < todayStr) {
+                        isPastSlot = true;
+                      } else if (dayInfo.fechaCompleta === todayStr) {
+                        const now = new Date();
+                        if ((hora * 60) <= now.getHours() * 60 + now.getMinutes()) isPastSlot = true;
+                      }
+
+                      const citasQueArrancan = citasEnSlot.filter(cita => {
+                        const [hh, mm] = (cita.hora || '').split(':');
+                        const citaInicio = parseInt(hh) + parseInt(mm || '0') / 60;
+                        const citaInicioSlot = Math.floor(citaInicio * 2) / 2;
+                        if (Math.abs(citaInicioSlot - hora) < 0.001) return true;
+                        if (citaInicioSlot < hora) {
+                          const startEnGrilla = horasDelDia.some(h => Math.abs(h - citaInicioSlot) < 0.001);
+                          if (!startEnGrilla) {
+                            const primerSlotGrilla = horasDelDia.find(h => h > citaInicioSlot);
+                            return primerSlotGrilla !== undefined && Math.abs(primerSlotGrilla - hora) < 0.001;
+                          }
+                        }
+                        return false;
+                      });
+
+                      const tieneCita = citasEnSlot.length > 0;
+
+                      return (
+                        <div
+                          key={dayInfo.dia}
+                          className={`relative rounded min-h-[52px] transition-colors ${
+                            isPastSlot
+                              ? 'bg-gray-darkest/60 border border-gray-dark/30 opacity-50'
+                              : tieneCita
+                                ? 'border border-gray-dark bg-gray-darker'
+                                : 'border border-gray-dark/50 bg-gray-darker/40 active:bg-gray-dark'
+                          }`}
+                          onClick={() => {
+                            if (isPastSlot) return;
+                            if (isCreateModalOpen || isSlotModalOpen || isDeleteDialogOpen || showDiscardDialog || isDiscountDialogOpen || isEditHorarioModalOpen || showModalParcial || overflowPopup !== null) return;
+                            if (citasQueArrancan.length > 0) {
+                              const firstCita = citasQueArrancan[0];
+                              const [hStr, mStr] = (firstCita.hora || '09:00').split(':');
+                              const horaNum = parseInt(hStr) + parseInt(mStr || '0') / 60;
+                              openCitaPopover(
+                                firstCita,
+                                { dia: dayInfo.dia, hora: horaNum, fecha: dayInfo.fechaCompleta },
+                                { top: window.innerHeight / 2, left: window.innerWidth / 2, width: 0, height: 0, bottom: window.innerHeight / 2, right: window.innerWidth / 2, x: window.innerWidth / 2, y: window.innerHeight / 2, toJSON: () => ({}) }
+                              );
+                            } else {
+                              handleSlotClick(dayInfo.dia, hora);
+                            }
+                          }}
+                        >
+                          {citasQueArrancan.length > 0 ? (
+                            <div className="flex flex-col gap-0.5 p-1 overflow-hidden">
+                              {citasQueArrancan.slice(0, 2).map((citaItem) => {
+                                const dotColor = getCitaDotColor(citaItem);
+                                return (
+                                  <div key={citaItem.id} className="flex items-center gap-1 min-w-0">
+                                    <div
+                                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                                      style={{ background: dotColor }}
+                                    />
+                                    <span className="truncate text-[10px] font-semibold text-gray-lightest leading-tight">
+                                      {formatHoraStr12(citaItem.hora)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                              {citasQueArrancan.length > 2 && (
+                                <span className="text-[9px] text-gray-lighter pl-2.5">
+                                  +{citasQueArrancan.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          ) : tieneCita ? (
+                            <div className="absolute inset-y-2 left-1.5 w-[2px] rounded-full" style={{ background: getCitaDotColor(citasEnSlot[0]) }} />
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ));
+              })()}
             </div>
           </div>
 
@@ -4379,55 +4546,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Diálogo de descarte: siempre montado (evita onOpenChange de Radix al montar condicional) */}
-      {createPortal(
-        <div
-          data-discard-dialog-root
-          className={`fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-150 ${
-            showDiscardDialog ? 'opacity-100' : 'pointer-events-none opacity-0'
-          }`}
-          style={{ zIndex: DISCARD_DIALOG_Z }}
-          aria-hidden={!showDiscardDialog}
-        >
-          <div
-            className="absolute inset-0"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(2px)' }}
-            onClick={() => setShowDiscardDialog(false)}
-          />
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="discard-dialog-title"
-            aria-describedby="discard-dialog-desc"
-            className="relative w-full max-w-md rounded-xl border border-gray-dark bg-gray-darkest p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="discard-dialog-title" className="text-lg font-semibold text-white-primary">
-              ¿Descartar cambios?
-            </h2>
-            <p id="discard-dialog-desc" className="mt-2 text-sm text-gray-lightest">
-              Tienes cambios sin guardar. Si cierras el formulario, se perderán.
-            </p>
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                className="elegante-button-primary rounded-xl"
-                onClick={() => setShowDiscardDialog(false)}
-              >
-                Seguir editando
-              </button>
-              <button
-                type="button"
-                className="bg-transparent text-gray-lightest border border-gray-dark hover:bg-gray-dark font-semibold rounded-xl px-6 py-3 transition-colors"
-                onClick={() => handleCloseModal(true)}
-              >
-                Descartar
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <DiscardChangesDialog
+        open={showDiscardDialog}
+        onKeepEditing={() => setShowDiscardDialog(false)}
+        onDiscard={() => handleCloseModal(true)}
+      />
 
       {/* Dialog para configurar descuentos de días */}
       <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
@@ -4679,7 +4802,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         </DialogContent>
       </Dialog>
 
-      <AlertContainer />
+      {AlertContainer}
     </>
   );
 }

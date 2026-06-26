@@ -533,7 +533,7 @@ export function RegistrarDevolucionPage({ onBack }: RegistrarDevolucionPageProps
 
   return (
     <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-      <AlertContainer />
+      {AlertContainer}
 
       {/* Master-Detail Layout */}
       <div

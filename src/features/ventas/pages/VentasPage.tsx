@@ -2561,8 +2561,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
           </DialogContent>
         </Dialog>
 
-        <AlertContainer />
-        <DoubleConfirmationContainer />
+        {AlertContainer}
+        {DoubleConfirmationContainer}
       </main>
     </>
   );

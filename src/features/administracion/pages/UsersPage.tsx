@@ -13,9 +13,11 @@ import {
   Search, UserCheck, UserX, Eye, User as UserIcon, ChevronLeft,
   ChevronRight, MapPin, CreditCard, Home, Camera,
   ToggleRight, ToggleLeft, X, Loader2, IdCard, KeyRound,
-  Users2
+  Users2, MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
@@ -1062,6 +1064,95 @@ export function UsersPage() {
             recordsText={`Mostrando ${displayedUsers.length} de ${filteredUsers.length} usuarios`}
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-orange-primary border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="text-gray-lightest text-sm">Cargando usuarios...</p>
+                </div>
+              </div>
+            ) : displayedUsers.length === 0 ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <Users className="w-12 h-12 text-gray-lightest mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white-primary mb-2">No se encontraron usuarios</h3>
+                  <p className="text-gray-lightest mb-4">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+                  <button onClick={loadInitialData} className="elegante-button-primary text-sm">Recargar tabla</button>
+                </div>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedUsers.map(user => {
+                  const isSelfUser = currentUser?.id === user.id.toString();
+                  const isPrivilegedTargetRole = ['super administrador', 'administrador', 'admin', 'gerente', 'super_admin'].includes(user.rol?.toLowerCase() || '');
+                  const canManageByRole = currentUser?.role === 'super_admin' || (currentUser?.role === 'admin' && !isPrivilegedTargetRole);
+                  const canEditUser = canManageByRole || isSelfUser;
+                  const showStatusAction = canManageByRole || isSelfUser;
+                  const showDeleteAction = canManageByRole || isSelfUser;
+                  const isDeleteBlockedByRole = currentUser?.role !== 'super_admin' && (user.rol?.toLowerCase() === 'super administrador' || ['administrador', 'admin'].includes(user.rol?.toLowerCase() || ''));
+
+                  return (
+                    <div key={user.id} className="std-mobile-card">
+                      <div className="std-mobile-card-avatar">
+                        <ImageRenderer
+                          url={user.imagenUrl}
+                          alt={`Foto de ${user.nombres}`}
+                          className="w-full h-full object-cover"
+                          fallbackVariant="person"
+                          showLabel={false}
+                        />
+                      </div>
+                      <div className="std-mobile-card-info">
+                        <div className="std-mobile-card-row">
+                          <span className="std-mobile-card-title">{user.nombres}</span>
+                          <span className={`std-badge ${user.status ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                            {user.status ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                        <span className="std-mobile-card-sub">{user.correo || '-'}</span>
+                        <span className="std-mobile-card-meta">
+                          {(user as any).tipoDocumento ? `${abreviarTipoDoc((user as any).tipoDocumento)} ${user.documento || ""}`.trim() : (user.documento || "—")}
+                          {user.rol ? ` · ${user.rol}` : ''}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {showStatusAction && (
+                          <button
+                            onClick={() => { if (!isSelfUser) toggleUserStatus(user.id); }}
+                            className="p-1"
+                            title={isSelfUser ? "No puedes cambiar tu propio estado" : (user.status ? "Desactivar usuario" : "Activar usuario")}
+                            disabled={isSelfUser}
+                          >
+                            {user.status ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                          </button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[160px]" align="end">
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedUser(user); setIsDetailDialogOpen(true); }}>Detalles</DropdownMenuItem>
+                            {canEditUser && (
+                              <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!user.status} onSelect={() => handleEditUser(user)}>Editar</DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!user.status} onSelect={() => handleSendPasswordSetup(user.correo)}>Enviar contraseña</DropdownMenuItem>
+                            {showDeleteAction && (
+                              <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={!user.status || isSelfUser || isDeleteBlockedByRole} onSelect={() => { setUserToDelete(user); setIsDeleteDialogOpen(true); }}>Eliminar</DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
                 <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -1203,6 +1294,7 @@ export function UsersPage() {
                   )}
                 </tbody>
               </table>
+          </div>
           </div>
 
           {/* Paginación */}
@@ -1409,40 +1501,20 @@ export function UsersPage() {
           </DialogContent>
         </Dialog>
 
-        <AlertContainer />
+        {AlertContainer}
       </main>
 
-      {/* Alerta de Confirmación de Descarte de Cambios */}
-      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
-        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest font-medium">
-              Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={() => setIsConfirmDiscardOpen(false)}
-              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
-            >
-              Seguir editando
-            </button>
-            <button
-              onClick={() => {
-                setIsConfirmDiscardOpen(false);
-                setShowUserFormErrors(false);
-                resetForm();
-                setIsDialogOpen(false);
-                setEditingUser(null);
-              }}
-              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
-            >
-              Descartar cambios
-            </button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardChangesDialog
+        open={isConfirmDiscardOpen}
+        onKeepEditing={() => setIsConfirmDiscardOpen(false)}
+        onDiscard={() => {
+          setIsConfirmDiscardOpen(false);
+          setShowUserFormErrors(false);
+          resetForm();
+          setIsDialogOpen(false);
+          setEditingUser(null);
+        }}
+      />
     </>
   );
 }

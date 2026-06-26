@@ -320,7 +320,7 @@ export function ModalCompletarParcialmente({
   return (
     <>
       {portal}
-      <AlertContainer />
+      {AlertContainer}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
           <AlertDialogHeader>

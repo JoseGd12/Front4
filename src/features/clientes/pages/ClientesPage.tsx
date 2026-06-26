@@ -24,8 +24,10 @@ import {
   Trash2,
   FileText,
   Hash,
-  Filter
+  Filter,
+  MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { Input } from "../../../shared/components/ui/input";
 import { NameInput } from "../../../shared/components/ui/NameInput";
@@ -36,6 +38,7 @@ import { DatePicker } from "../../../shared/components/ui/DatePicker";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { useDoubleConfirmation } from "../../../shared/components/ui/double-confirmation";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { StandardTable, resolveStatusVariant, ColumnDef } from "../../../shared/components/ui/standard-table";
@@ -1146,6 +1149,54 @@ export function ClientesPage() {
                 emptyMessage="Ajusta los filtros o recarga la tabla para actualizar los resultados."
                 onReload={loadClientes}
                 rowKey="id"
+                renderMobileCard={(row) => {
+                  const cliente = row as unknown as Cliente;
+                  return (
+                    <div className="std-mobile-card">
+                      <div className="std-mobile-card-avatar">
+                        <ImageRenderer
+                          url={cliente.fotoPerfil}
+                          alt={`Foto de ${cliente.nombre}`}
+                          className="w-full h-full object-cover"
+                          fallbackVariant="person"
+                          showLabel={false}
+                        />
+                      </div>
+                      <div className="std-mobile-card-info">
+                        <div className="std-mobile-card-row">
+                          <span className="std-mobile-card-title">{cliente.nombre} {cliente.apellido}</span>
+                          <span className={`std-badge ${cliente.activo ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                            {cliente.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+                        <span className="std-mobile-card-sub">{cliente.email || '-'}</span>
+                        <span className="std-mobile-card-meta">
+                          {(cliente as any).tipoDocumento ? `${normalizarTipoDoc((cliente as any).tipoDocumento)} ${cliente.numeroDocumento}` : cliente.numeroDocumento}
+                          {(cliente.saldoAFavor ?? 0) > 0 ? ` · $${formatCurrency(cliente.saldoAFavor)}` : ''}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <button
+                          onClick={() => toggleClienteStatus(cliente.id)}
+                          className="p-1"
+                          title={cliente.activo ? "Desactivar cliente" : "Activar cliente"}
+                        >
+                          {cliente.activo ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewCliente(cliente)}>Detalles</DropdownMenuItem>
+                            <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={!cliente.activo} onSelect={() => handleEditCliente(cliente)}>Editar</DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={!cliente.activo} onSelect={() => handleDeleteCliente(cliente)}>Eliminar</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  );
+                }}
               />
             );
           })()}
@@ -1842,88 +1893,48 @@ export function ClientesPage() {
       </AlertDialog>
 
       {/* Contenedor de alertas */}
-      <AlertContainer />
+      {AlertContainer}
 
       {/* Contenedor de confirmaciones de eliminación */}
-      <DoubleConfirmationContainer />
+      {DoubleConfirmationContainer}
 
-      {/* Alertas de Confirmación de Descarte de Cambios */}
-      <AlertDialog open={isConfirmDiscardCreateOpen} onOpenChange={setIsConfirmDiscardCreateOpen}>
-        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest font-medium">
-              Tienes cambios sin guardar en el formulario de creación. ¿Deseas seguir editando o descartar los cambios realizados?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={() => setIsConfirmDiscardCreateOpen(false)}
-              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
-            >
-              Seguir editando
-            </button>
-            <button
-              onClick={() => {
-                setIsConfirmDiscardCreateOpen(false);
-                setShowCreateValidation(false);
-                setIsCreateDialogOpen(false);
-                setCreateForm({
-                  tipoDocumento: 'CC',
-                  numeroDocumento: '',
-                  nombre: '',
-                  apellido: '',
-                  email: '',
-                  telefono: '',
-                  direccion: '',
-                  barrio: '',
-                  fechaNacimiento: '',
-                  fotoPerfil: ''
-                });
-                setSelectedProfileImage(null);
-                setPreviewUrl(null);
-                setFormError('');
-              }}
-              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
-            >
-              Descartar cambios
-            </button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={isConfirmDiscardEditOpen} onOpenChange={setIsConfirmDiscardEditOpen}>
-        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest font-medium">
-              Tienes cambios sin guardar en el formulario de edición. ¿Deseas seguir editando o descartar los cambios realizados?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={() => setIsConfirmDiscardEditOpen(false)}
-              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
-            >
-              Seguir editando
-            </button>
-            <button
-              onClick={() => {
-                setIsConfirmDiscardEditOpen(false);
-                setShowEditValidation(false);
-                setIsEditDialogOpen(false);
-                setSelectedCliente(null);
-                setEditForm({});
-                setEditSelectedProfileImage(null);
-                setEditPreviewUrl(null);
-              }}
-              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
-            >
-              Descartar cambios
-            </button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardChangesDialog
+        open={isConfirmDiscardCreateOpen}
+        onKeepEditing={() => setIsConfirmDiscardCreateOpen(false)}
+        onDiscard={() => {
+          setIsConfirmDiscardCreateOpen(false);
+          setShowCreateValidation(false);
+          setIsCreateDialogOpen(false);
+          setCreateForm({
+            tipoDocumento: 'CC',
+            numeroDocumento: '',
+            nombre: '',
+            apellido: '',
+            email: '',
+            telefono: '',
+            direccion: '',
+            barrio: '',
+            fechaNacimiento: '',
+            fotoPerfil: ''
+          });
+          setSelectedProfileImage(null);
+          setPreviewUrl(null);
+          setFormError('');
+        }}
+      />
+      <DiscardChangesDialog
+        open={isConfirmDiscardEditOpen}
+        onKeepEditing={() => setIsConfirmDiscardEditOpen(false)}
+        onDiscard={() => {
+          setIsConfirmDiscardEditOpen(false);
+          setShowEditValidation(false);
+          setIsEditDialogOpen(false);
+          setSelectedCliente(null);
+          setEditForm({});
+          setEditSelectedProfileImage(null);
+          setEditPreviewUrl(null);
+        }}
+      />
     </>
   );
 }

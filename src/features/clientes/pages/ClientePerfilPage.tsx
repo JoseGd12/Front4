@@ -7,6 +7,7 @@ import { PhoneInput } from "../../../shared/components/ui/PhoneInput";
 import { Label } from "../../../shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { firebaseAuthService } from "../../../shared/services/firebase";
 import { apiService } from "../../../shared/services/api";
@@ -580,54 +581,15 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
             </button>
           </DialogFooter>
 
-          {/* Overlay de confirmacion descartar — dentro del Dialog para evitar inert */}
-          {showDiscardConfirm && (
-            <div
-              className="z-50 flex items-center justify-center"
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '100vw',
-                height: '100vh',
-                backgroundColor: 'rgba(0, 0, 0, 0.80)',
-                backdropFilter: 'blur(4px)',
-              }}
-            >
-              <div
-                role="alertdialog"
-                aria-modal="true"
-                className="w-full max-w-md rounded-xl border border-gray-dark bg-gray-darkest p-6 shadow-xl mx-4"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h2 className="text-lg font-semibold text-white-primary">¿Descartar cambios?</h2>
-                <p className="mt-2 text-sm text-gray-lightest">
-                  Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
-                </p>
-                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    className="elegante-button-primary rounded-xl"
-                    onClick={() => setShowDiscardConfirm(false)}
-                  >
-                    Seguir editando
-                  </button>
-                  <button
-                    type="button"
-                    className="bg-transparent text-gray-lightest border border-gray-dark hover:bg-gray-dark font-semibold rounded-xl px-6 py-3 transition-colors"
-                    onClick={() => { setShowDiscardConfirm(false); setIsEditDialogOpen(false); }}
-                  >
-                    Descartar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <DiscardChangesDialog
+            open={showDiscardConfirm}
+            onKeepEditing={() => setShowDiscardConfirm(false)}
+            onDiscard={() => { setShowDiscardConfirm(false); setIsEditDialogOpen(false); }}
+          />
         </DialogContent>
       </Dialog>
 
-    <AlertContainer />
+    {AlertContainer}
     </>
   );
 }

@@ -15,12 +15,14 @@ import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import {
   Users, Plus, Edit, Trash2, Mail, Phone, Calendar, User as UserIcon,
   UserCheck, UserX, Eye, ChevronLeft, FileText, Hash,
-  ChevronRight, Scissors, Star, 
+  ChevronRight, Scissors, Star,
   TrendingUp, TrendingDown, Target, Award, Crown, Medal,
   MapPin, Home, Camera,
-  Upload, ToggleRight, ToggleLeft, X, Loader2, KeyRound
+  Upload, ToggleRight, ToggleLeft, X, Loader2, KeyRound, MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { barberosService, Barbero, CreateBarberoData } from "../services/barberosService";
 import { notifyEntityCreated } from "../../../shared/services/notificationService";
@@ -635,7 +637,7 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
 
   return (
     <>
-      <AlertContainer />
+      {AlertContainer}
       {activeView === 'creditos' ? (
         <Suspense fallback={<div className="flex items-center justify-center h-64 text-orange-primary animate-pulse text-sm">Cargando módulo de créditos...</div>}>
           <style>{`.cred-embed .cred-root { min-height: 0 !important; } .cred-embed > .cred-root > .p-6 { padding: 0 !important; }`}</style>
@@ -685,6 +687,85 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
             recordsPlacement="right"
           />
 
+          {/* Mobile Cards */}
+          <div className="block sm:hidden">
+            {loading ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-orange-primary border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="text-gray-lightest text-sm">Cargando barberos...</p>
+                </div>
+              </div>
+            ) : displayedBarberos.length === 0 ? (
+              <div className="std-mobile-cards">
+                <div className="py-12 text-center">
+                  <Scissors className="w-12 h-12 text-gray-lightest mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-white-primary mb-2">No se encontraron barberos</h3>
+                  <p className="text-gray-lightest mb-4">Ajusta los filtros o recarga la tabla para actualizar los resultados.</p>
+                  <button onClick={loadBarberos} className="elegante-button-primary text-sm">Recargar tabla</button>
+                </div>
+              </div>
+            ) : (
+              <div className="std-mobile-cards">
+                {displayedBarberos.map(barbero => (
+                  <div key={barbero.id} className="std-mobile-card">
+                    <div className="std-mobile-card-avatar">
+                      <ImageRenderer
+                        url={barbero.fotoPerfil}
+                        alt={`Foto de ${barbero.nombre}`}
+                        className="w-full h-full object-cover"
+                        fallbackVariant="person"
+                        showLabel={false}
+                      />
+                    </div>
+                    <div className="std-mobile-card-info">
+                      <div className="std-mobile-card-row">
+                        <span className="std-mobile-card-title">{barbero.nombre} {barbero.apellido}</span>
+                        <span className={`std-badge ${barbero.status === 'active' ? 'std-badge-positive' : 'std-badge-negative'}`}>
+                          {barbero.status === 'active' ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <span className="std-mobile-card-sub">{barbero.correo || '-'}</span>
+                      <span className="std-mobile-card-meta">
+                        {barbero.tipoDocumento} {barbero.documento}
+                        {' · '}
+                        <span className={
+                          (barbero.saldoDisponible ?? 200000) <= 0 ? 'text-red-400'
+                          : (barbero.saldoDisponible ?? 200000) < 50000 ? 'text-yellow-400'
+                          : 'text-green-400'
+                        }>
+                          ${(barbero.saldoDisponible ?? 200000).toLocaleString('es-CO')}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <button
+                        onClick={() => toggleBarberoStatus(barbero.id)}
+                        className="p-1"
+                        title={barbero.status === 'active' ? 'Desactivar' : 'Activar'}
+                      >
+                        {barbero.status === 'active' ? <ToggleRight className="w-6 h-6 text-orange-primary" /> : <ToggleLeft className="w-6 h-6 text-gray-light" />}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 rounded-lg hover:bg-gray-darker transition-colors"><MoreVertical className="w-4 h-4 text-gray-lightest" /></button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[160px]" align="end">
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => { setSelectedBarbero(barbero); setIsDetailDialogOpen(true); }}>Detalles</DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={barbero.status !== 'active'} onSelect={() => handleEditBarbero(barbero)}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem className="text-gray-lightest cursor-pointer" disabled={barbero.status !== 'active'} onSelect={() => handleSendPasswordSetup(barbero.correo)}>Enviar contraseña</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={barbero.status !== 'active'} onSelect={() => handleDeleteBarbero(barbero.id)}>Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block">
           <div className="std-table-wrapper">
             <table className="std-table">
               <thead className={loading ? "std-thead [&_th]:!text-transparent [&_th]:select-none" : "std-thead"}>
@@ -810,6 +891,7 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
                 )}
               </tbody>
             </table>
+          </div>
           </div>
 
           {/* Paginación */}
@@ -1295,37 +1377,17 @@ export function BarberosPage({ activeView: activeViewProp, onViewChange }: Barbe
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Alerta de Confirmación de Descarte de Cambios */}
-      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
-        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest font-medium">
-              Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={() => setIsConfirmDiscardOpen(false)}
-              className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
-            >
-              Seguir editando
-            </button>
-            <button
-              onClick={() => {
-                setIsConfirmDiscardOpen(false);
-                setShowBarberoFormErrors(false);
-                resetForm();
-                setIsDialogOpen(false);
-                setEditingBarbero(null);
-              }}
-              className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
-            >
-              Descartar cambios
-            </button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardChangesDialog
+        open={isConfirmDiscardOpen}
+        onKeepEditing={() => setIsConfirmDiscardOpen(false)}
+        onDiscard={() => {
+          setIsConfirmDiscardOpen(false);
+          setShowBarberoFormErrors(false);
+          resetForm();
+          setIsDialogOpen(false);
+          setEditingBarbero(null);
+        }}
+      />
     </>
   );
 }

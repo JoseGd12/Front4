@@ -2740,8 +2740,8 @@ export function DevolucionesPage({ onNavigate }: DevolucionesPageProps = {}) {
         </DialogContent>
       </Dialog>
 
-      <DoubleConfirmationContainer />
-      <AlertContainer />
+      {DoubleConfirmationContainer}
+      {AlertContainer}
     </>
   );
 }

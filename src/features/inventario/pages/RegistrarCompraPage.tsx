@@ -593,7 +593,7 @@ export function RegistrarCompraPage({ onBack, initialProducto }: RegistrarCompra
 
   return (
     <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-      <AlertContainer />
+      {AlertContainer}
 
       {/* Master-Detail Layout */}
       <div

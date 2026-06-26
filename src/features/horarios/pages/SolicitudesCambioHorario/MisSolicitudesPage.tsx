@@ -85,7 +85,7 @@ export default function MisSolicitudesPage({ barberoId, onNavigate }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <AlertContainer />
+      {AlertContainer}
 
       <TableHeaderSection
         variant="dark"

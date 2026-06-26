@@ -48,6 +48,7 @@ import {
 } from "../../../shared/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../shared/components/ui/dropdown-menu";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { TableEmptyStateRow } from "../../../shared/components/ui/table-empty-state-row";
 import { TableLoadingStateRow } from "../../../shared/components/ui/table-loading-state-row";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
@@ -341,6 +342,21 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
 
   // Resetear formulario
   const isHorarioFormDirty = () => {
+    if (editingHorario) {
+      if (nuevoHorario.barberoId !== editingHorario.barberoId.toString()) return true;
+      if (nuevoHorario.bloques.length !== editingHorario.bloques.length) return true;
+      const origSorted = [...editingHorario.bloques].sort((a, b) =>
+        a.dia.localeCompare(b.dia) || a.horaInicio.localeCompare(b.horaInicio)
+      );
+      const currSorted = [...nuevoHorario.bloques].sort((a, b) =>
+        a.dia.localeCompare(b.dia) || a.horaInicio.localeCompare(b.horaInicio)
+      );
+      return currSorted.some((b, i) =>
+        b.dia !== origSorted[i]?.dia ||
+        b.horaInicio !== origSorted[i]?.horaInicio ||
+        b.horaFin !== origSorted[i]?.horaFin
+      );
+    }
     return nuevoHorario.barberoId !== '' || nuevoHorario.bloques.length > 0 || asignarATodos;
   };
 
@@ -2758,20 +2774,13 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isConfirmDiscardOpen} onOpenChange={setIsConfirmDiscardOpen}>
-        <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-lightest font-medium">Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-            <button onClick={() => setIsConfirmDiscardOpen(false)} className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md">Seguir editando</button>
-            <button onClick={() => { setIsConfirmDiscardOpen(false); resetFormulario(); setEditingHorario(null); setIsDialogOpen(false); }} className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Descartar cambios</button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardChangesDialog
+        open={isConfirmDiscardOpen}
+        onKeepEditing={() => setIsConfirmDiscardOpen(false)}
+        onDiscard={() => { setIsConfirmDiscardOpen(false); resetFormulario(); setEditingHorario(null); setIsDialogOpen(false); }}
+      />
 
-      <AlertContainer />
+      {AlertContainer}
     </>
   );
 }

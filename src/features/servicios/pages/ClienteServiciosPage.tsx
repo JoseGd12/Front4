@@ -483,7 +483,7 @@ export function ClienteServiciosPage({ onSelectReservation }: ClienteServiciosPa
               )}
             </DialogContent>
           </Dialog>
-    <AlertContainer />
+    {AlertContainer}
     </>
   );
 }

@@ -33,6 +33,7 @@ import { Switch } from "../../../shared/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
 import { EllipsisPagination } from "../../../shared/components/ui/pagination";
 import { useCustomAlert } from "../../../shared/components/ui/custom-alert";
+import { DiscardChangesDialog } from "../../../shared/components/ui/discard-changes-dialog";
 import { TableHeaderSection } from "../../../shared/components/ui/table-header-section";
 import { productoService, ApiProducto } from "../services/productos";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
@@ -1638,31 +1639,11 @@ export function ProductosPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Dialog de descartar cambios */}
-          <AlertDialog open={isDiscardDialogOpen} onOpenChange={setIsDiscardDialogOpen}>
-            <AlertDialogContent className="bg-gray-darkest border border-gray-dark">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-white-primary text-xl">¿Descartar cambios?</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-lightest font-medium">
-                  Tienes cambios sin guardar en el formulario. ¿Deseas seguir editando o descartar los cambios realizados?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={() => setIsDiscardDialogOpen(false)}
-                  className="elegante-button-secondary bg-transparent border-gray-dark text-white-primary hover:bg-gray-darker px-4 py-2 rounded-md"
-                >
-                  Seguir editando
-                </button>
-                <button
-                  onClick={() => { setIsDiscardDialogOpen(false); closeFormClean(); }}
-                  className="elegante-button-primary bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
-                >
-                  Descartar cambios
-                </button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <DiscardChangesDialog
+            open={isDiscardDialogOpen}
+            onKeepEditing={() => setIsDiscardDialogOpen(false)}
+            onDiscard={() => { setIsDiscardDialogOpen(false); closeFormClean(); }}
+          />
 
           {/* Dialog de confirmación para eliminar */}
           <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -1802,7 +1783,7 @@ export function ProductosPage() {
             </DialogContent>
           </Dialog>
 
-          <AlertContainer />
+          {AlertContainer}
       </main>
     </>
   );
