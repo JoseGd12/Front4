@@ -8,6 +8,7 @@ import { barberosService } from "../../administracion/services/barberosService";
 import { servicioService } from "../../servicios/services/servicioService";
 import { clientesService } from "../../clientes/services/clientesService";
 import { apiService } from "../../../shared/services/api";
+import { httpClient } from "../../../shared/services/httpClient";
 import { productoService } from "../../productos/services/productos";
 import { TimeInput12h } from "../../../shared/components/ui/TimeInput12h";
 import { horariosService } from "../services/horariosService";
@@ -30,7 +31,7 @@ import { Input } from "../../../shared/components/ui/input";
 import { Calendar as UICalendar } from "../../../shared/components/ui/calendar";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale/es";
-import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, Plus, Minus, X, Phone, Check } from "lucide-react";
+import { Calendar, Clock, User, Edit, Trash2, Search, ChevronLeft, ChevronRight, Eye, MoreHorizontal, ShoppingBag, Scissors, Package, FileText, CalendarDays, Plus, Minus, X, Phone, Check, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../../shared/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../shared/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/components/ui/select";
@@ -124,6 +125,7 @@ interface AgendamientoPageProps {
     backTitle?: string;
     icon?: React.ReactNode;
     iconContainerClassName?: string;
+    rightContent?: React.ReactNode;
   } | null) => void;
 }
 
@@ -206,6 +208,11 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [barberosList, setBarberosList] = useState<any[]>([]);
   const [clientesList, setClientesList] = useState<any[]>([]);
   const [horariosList, setHorariosList] = useState<any[]>([]);
+
+  const isUserBarbero = user?.role === 'barbero';
+  const loggedBarbero = isUserBarbero
+    ? barberosList.find((b: any) => Number(b.usuarioId || b.id) === Number(user?.id))
+    : null;
 
   const [currentWeek, setCurrentWeek] = useState(0);
   const [mobileCalOffset, setMobileCalOffset] = useState(() => {
@@ -355,6 +362,14 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setIsLoading(false);
   };
 
+  const handleRefreshCalendar = async () => {
+    setIsRefreshing(true);
+    httpClient.invalidateCache();
+    apiService.invalidateCache();
+    await fetchData();
+    setIsRefreshing(false);
+  };
+
   // Estados para el popover de detalle de cita (estilo Google Calendar)
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
   const isSlotModalOpenRef = useRef(false);
@@ -424,6 +439,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const [showModalParcial, setShowModalParcial] = useState(false);
   const showModalParcialRef = useRef(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Índice de la cita activa cuando hay varias en una misma franja (pestañas; key: `${fecha}-${hora}`)
   const [slotCitaIndex, setSlotCitaIndex] = useState<Record<string, number>>({});
 
@@ -820,6 +836,18 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     return () => document.removeEventListener('mousedown', handleMouseDown, true);
   }, [isCreateModalOpen, handleCloseModal]);
 
+  const refreshButton = (
+    <button
+      type="button"
+      onClick={handleRefreshCalendar}
+      disabled={isRefreshing || isLoading}
+      className="p-2 rounded-lg hover:bg-gray-dark text-gray-lighter hover:text-orange-primary transition-colors disabled:opacity-40"
+      title="Refrescar calendario"
+    >
+      <RefreshCw className={`w-[18px] h-[18px] ${isRefreshing ? 'animate-spin' : ''}`} />
+    </button>
+  );
+
   useEffect(() => {
     if (!onSubNavChange) return;
 
@@ -837,8 +865,26 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       return;
     }
 
-    onSubNavChange(null);
-  }, [isCreateModalOpen, selectedCita, onSubNavChange, handleCloseModal]);
+    onSubNavChange({ title: 'Agendamiento', icon: <CalendarDays className="w-5 h-5" />, iconContainerClassName: 'text-orange-primary', rightContent: refreshButton });
+  }, [isCreateModalOpen, selectedCita, onSubNavChange, handleCloseModal, isRefreshing, isLoading]);
+
+  useEffect(() => {
+    if (!isCreateModalOpen || !isUserBarbero || !loggedBarbero) return;
+    if (nuevaCita.barberoId === loggedBarbero.id) return;
+    const nombreCompleto = `${loggedBarbero.nombre} ${loggedBarbero.apellido || ''}`.trim();
+    setNuevaCita(prev => {
+      const updated = { ...prev, barberoId: loggedBarbero.id, barbero: nombreCompleto };
+      if (initialFormSnapshotRef.current) {
+        initialFormSnapshotRef.current = {
+          ...initialFormSnapshotRef.current,
+          cita: { ...initialFormSnapshotRef.current.cita, barberoId: loggedBarbero.id, barbero: nombreCompleto },
+          barberoFormSearchTerm: nombreCompleto,
+        };
+      }
+      return updated;
+    });
+    setBarberoFormSearchTerm(nombreCompleto);
+  }, [isCreateModalOpen, isUserBarbero, loggedBarbero]);
 
   const getAutoDateTime = () => {
     const now = new Date();
@@ -2819,115 +2865,121 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 </div>
               </div>
 
-              {/* ── Fila: Barbero ── */}
-              <div
-                className="flex items-center gap-0 py-1 px-2.5 px-2"
-                style={(showFormErrors && !nuevaCita.barberoId && !dismissedErrors.has('barbero')) || (nuevaCita.fecha && barberosParaFormulario.length === 0) ? { marginBottom: '1.25rem' } : {}}
-              >
-                <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
-                  <User className="w-5 h-5 text-gray-lighter" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  {nuevaCita.barberoId > 0 ? (() => {
-                    const b = barberosList.find((x: any) => x.id === nuevaCita.barberoId);
-                    if (!b) return null;
-                    const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
-                    return (
-                      <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg group">
-                        {b.fotoPerfil ? (
-                          <img src={b.fotoPerfil} alt={nombreCompleto} className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-dark border border-gray-dark/60 flex items-center justify-center shrink-0">
-                            <User className="w-4 h-4 text-gray-lighter" />
+              {/* ── Fila: Barbero (oculta para rol barbero en creacion) ── */}
+              {!isUserBarbero && (
+                <>
+                  <div
+                    className="flex items-center gap-0 py-1 px-2.5 px-2"
+                    style={(showFormErrors && !nuevaCita.barberoId && !dismissedErrors.has('barbero')) || (nuevaCita.fecha && barberosParaFormulario.length === 0) ? { marginBottom: '1.25rem' } : {}}
+                  >
+                    <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
+                      <User className="w-5 h-5 text-gray-lighter" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {nuevaCita.barberoId > 0 ? (() => {
+                        const b = barberosList.find((x: any) => x.id === nuevaCita.barberoId);
+                        if (!b) return null;
+                        const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
+                        return (
+                          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg group">
+                            {b.fotoPerfil ? (
+                              <img src={b.fotoPerfil} alt={nombreCompleto} className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-dark border border-gray-dark/60 flex items-center justify-center shrink-0">
+                                <User className="w-4 h-4 text-gray-lighter" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-gray-lightest leading-tight truncate">{nombreCompleto}</p>
+                              {b.telefono && (
+                                <p className="text-xs text-gray-lighter leading-tight truncate">{b.telefono}</p>
+                              )}
+                            </div>
+                            {!isUserBarbero && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
+                                  setBarberoFormSearchTerm('');
+                                  setBarberoHorarioWarning(null);
+                                }}
+                                className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-white-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                title="Cambiar barbero"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm text-gray-lightest leading-tight truncate">{nombreCompleto}</p>
-                          {b.telefono && (
-                            <p className="text-xs text-gray-lighter leading-tight truncate">{b.telefono}</p>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
+                        );
+                      })() : (
+                        <SearchField<any>
+                          label="Buscar barbero"
+                          placeholder={
+                            !nuevaCita.fecha
+                              ? 'Selecciona fecha y hora primero'
+                              : barberosParaFormulario.length === 0
+                                ? 'Ningún barbero disponible en este horario'
+                                : 'Nombre del barbero...'
+                          }
+                          value={barberoFormSearchTerm}
+                          onChange={setBarberoFormSearchTerm}
+                          ghostMode={true}
+                          items={nuevaCita.fecha ? barberosParaFormulario : []}
+                          filterFn={(b, term) => {
+                            const t = term.toLowerCase();
+                            const full = `${b.nombre || ''} ${b.apellido || ''}`.trim().toLowerCase();
+                            return full.includes(t) ||
+                              (b.nombre || '').toLowerCase().includes(t) ||
+                              (b.apellido || '').toLowerCase().includes(t);
+                          }}
+                          onSelect={(b) => {
+                            const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
+                            setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: nombreCompleto }));
+                            setBarberoFormSearchTerm(nombreCompleto);
+                          }}
+                          onClear={() => {
                             setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
                             setBarberoFormSearchTerm('');
                             setBarberoHorarioWarning(null);
                           }}
-                          className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-white-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                          title="Cambiar barbero"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    );
-                  })() : (
-                    <SearchField<any>
-                      label="Buscar barbero"
-                      placeholder={
-                        !nuevaCita.fecha
-                          ? 'Selecciona fecha y hora primero'
-                          : barberosParaFormulario.length === 0
-                            ? 'Ningún barbero disponible en este horario'
-                            : 'Nombre del barbero...'
-                      }
-                      value={barberoFormSearchTerm}
-                      onChange={setBarberoFormSearchTerm}
-                      ghostMode={true}
-                      items={nuevaCita.fecha ? barberosParaFormulario : []}
-                      filterFn={(b, term) => {
-                        const t = term.toLowerCase();
-                        const full = `${b.nombre || ''} ${b.apellido || ''}`.trim().toLowerCase();
-                        return full.includes(t) ||
-                          (b.nombre || '').toLowerCase().includes(t) ||
-                          (b.apellido || '').toLowerCase().includes(t);
-                      }}
-                      onSelect={(b) => {
-                        const nombreCompleto = `${b.nombre} ${b.apellido || ''}`.trim();
-                        setNuevaCita(prev => ({ ...prev, barberoId: b.id, barbero: nombreCompleto }));
-                        setBarberoFormSearchTerm(nombreCompleto);
-                      }}
-                      onClear={() => {
-                        setNuevaCita(prev => ({ ...prev, barberoId: 0, barbero: '' }));
-                        setBarberoFormSearchTerm('');
-                        setBarberoHorarioWarning(null);
-                      }}
-                      renderItem={(b) => (
-                        <div className="flex items-center gap-3 w-full">
-                          {b.fotoPerfil ? (
-                            <img src={b.fotoPerfil} alt={b.nombre} className="w-8 h-8 rounded-full object-cover shrink-0" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-dark flex items-center justify-center shrink-0">
-                              <User className="w-4 h-4 text-gray-lighter" />
+                          renderItem={(b) => (
+                            <div className="flex items-center gap-3 w-full">
+                              {b.fotoPerfil ? (
+                                <img src={b.fotoPerfil} alt={b.nombre} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gray-dark flex items-center justify-center shrink-0">
+                                  <User className="w-4 h-4 text-gray-lighter" />
+                                </div>
+                              )}
+                              <p className="text-sm text-gray-lightest">{`${b.nombre} ${b.apellido || ''}`.trim()}</p>
                             </div>
                           )}
-                          <p className="text-sm text-gray-lightest">{`${b.nombre} ${b.apellido || ''}`.trim()}</p>
-                        </div>
+                          error={
+                            showFormErrors && !nuevaCita.barberoId && !dismissedErrors.has('barbero')
+                              ? 'Selecciona un barbero'
+                              : nuevaCita.fecha && barberosParaFormulario.length === 0
+                                ? 'No hay barberos con horario para esta fecha y hora'
+                                : undefined
+                          }
+                          onFocus={() => setDismissedErrors(prev => new Set(prev).add('barbero'))}
+                        />
                       )}
-                      error={
-                        showFormErrors && !nuevaCita.barberoId && !dismissedErrors.has('barbero')
-                          ? 'Selecciona un barbero'
-                          : nuevaCita.fecha && barberosParaFormulario.length === 0
-                            ? 'No hay barberos con horario para esta fecha y hora'
-                            : undefined
-                      }
-                      onFocus={() => setDismissedErrors(prev => new Set(prev).add('barbero'))}
-                    />
-                  )}
-                </div>
-              </div>
+                    </div>
+                  </div>
 
-              {barberoHorarioWarning && (
-                <div className="flex items-center gap-0 py-1 px-2.5">
-                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
-                    <svg className="w-5 h-5 text-orange-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0 ml-2 mr-4 px-3 py-1.5 rounded-lg bg-orange-primary/10 border border-orange-primary/30">
-                    <p className="text-sm text-orange-primary leading-relaxed">{barberoHorarioWarning}</p>
-                  </div>
-                </div>
+                  {barberoHorarioWarning && (
+                    <div className="flex items-center gap-0 py-1 px-2.5">
+                      <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
+                        <svg className="w-5 h-5 text-orange-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0 ml-2 mr-4 px-3 py-1.5 rounded-lg bg-orange-primary/10 border border-orange-primary/30">
+                        <p className="text-sm text-orange-primary leading-relaxed">{barberoHorarioWarning}</p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* ── Fila: Producto ── */}

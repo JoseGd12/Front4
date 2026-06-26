@@ -30,6 +30,7 @@ import { notifyEntityCreated } from "../../../shared/services/notificationServic
 
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { firebaseAuthService } from "../../../shared/services/firebase";
+import { httpClient } from "../../../shared/services/httpClient";
 // ... imports ...
 
 // DTOs para la comunicación con la API
@@ -641,6 +642,10 @@ export function UsersPage() {
       const apiUserData = mapComponentToApiUser(newUser);
       await apiService.updateUsuario(editingUser.id, apiUserData);
 
+      // Invalidate httpClient caches to ensure HorariosPage gets fresh BarberoId
+      httpClient.invalidateCache('/Barberos');
+      httpClient.invalidateCache('/Clientes');
+
       // Si el correo cambió, enviar el enlace de restablecimiento de contraseña automáticamente
       if (newUser.correo !== editingUser.correo) {
         await handleSendPasswordSetup(newUser.correo);
@@ -731,6 +736,8 @@ export function UsersPage() {
 
     try {
       await apiService.updateUsuarioStatus(userId, newStatus);
+      httpClient.invalidateCache('/Barberos');
+      httpClient.invalidateCache('/Clientes');
       showSuccess(
         newStatus ? "Usuario activado" : "Usuario desactivado",
         `${user.nombres} ahora está ${newStatus ? "activo" : "inactivo"}`

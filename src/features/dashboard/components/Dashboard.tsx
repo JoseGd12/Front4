@@ -69,6 +69,7 @@ type ModuleSubNavOverride = {
   backTitle?: string;
   icon?: React.ReactNode;
   iconContainerClassName?: string;
+  rightContent?: React.ReactNode;
 } | null;
 
 // Información de cada módulo para el título dinámico
@@ -615,6 +616,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
       ? React.createElement(moduleInfo[activePage].icon, { className: "w-5 h-5" })
       : undefined,
     iconContainerClassName: moduleInfo[activePage] ? moduleInfo[activePage].color : undefined,
+    rightContent: undefined as React.ReactNode,
   };
 
   const currentSubNav = subNavOverride ?? defaultSubNavConfig;
@@ -928,7 +930,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
               backTitle={currentSubNav.backTitle}
               icon={currentSubNav.icon}
               iconContainerClassName={currentSubNav.iconContainerClassName}
-              rightContent={activePage === 'Barberos' ? (
+              rightContent={currentSubNav.rightContent ?? (activePage === 'Barberos' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--gray-darker)', borderRadius: '10px', padding: '3px', border: '1px solid var(--gray-dark)' }}>
                   <button
                     type="button"
@@ -955,7 +957,7 @@ export function Dashboard({ onBackToLanding, initialItem, onClearInitialItem }: 
                     Créditos
                   </button>
                 </div>
-              ) : undefined}
+              ) : undefined)}
             />
             <div
               className={`module-content flex-1 min-h-0 px-4 sm:px-6 lg:px-8 pt-4 pb-6 ${activePage === "RegistrarVenta" || activePage === "RegistrarCompra" || activePage === "RegistrarDevolucion"

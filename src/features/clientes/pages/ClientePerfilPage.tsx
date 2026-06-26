@@ -16,9 +16,10 @@ import { clientesService } from "../services/clientesService";
 interface ClientePerfilPageProps {
   autoOpenEdit?: boolean;
   onAutoOpenEditDone?: () => void;
+  onProfileUpdated?: () => void;
 }
 
-export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClientePerfilPageProps = {}) {
+export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone, onProfileUpdated }: ClientePerfilPageProps = {}) {
   const { user, updateUser, logout } = useAuth();
   const { success, error: showErrorAlert, info: showInfoAlert, AlertContainer } = useCustomAlert();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -209,6 +210,7 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone }: ClienteP
           }
         }
         success("Perfil actualizado", "Tus cambios se han guardado correctamente.");
+        onProfileUpdated?.();
         setClienteExtraData({
           tipoDocumento: formData.tipoDocumento || "CC",
           documento: formData.documento || "",

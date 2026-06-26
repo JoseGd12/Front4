@@ -11,6 +11,7 @@ import { auth } from "../../../shared/services/firebase";
 import * as XLSX from "xlsx";
 import { barberosService, Barbero as BarberoEntity } from "../../administracion/services/barberosService";
 import { apiService } from "../../../shared/services/api";
+import GastosExternos from "../components/GastosExternos";
 
 type PeriodoClave = "semanal" | "mensual" | "anual";
 
@@ -260,7 +261,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
   const [reportWidth, setReportWidth] = useState<number>(0);
 
   const [periodoHorasPico, setPeriodoHorasPico] = useState<"dia" | "semana" | "mes">("dia");
-  const [periodoRankingBarberos, setPeriodoRankingBarberos] = useState<"dia" | "semana" | "mes">("mes");
+  const [periodoRankingBarberos, setPeriodoRankingBarberos] = useState<"hoy" | "semana" | "mes" | "año">("mes");
   const [periodoTasaCitas, setPeriodoTasaCitas] = useState<"dia" | "semana" | "mes">("mes");
   const [anioHorasPico, setAnioHorasPico] = useState<number>(new Date().getFullYear());
   const [mesSeleccionadoDrilldown, setMesSeleccionadoDrilldown] = useState<number | null>(null);
@@ -1530,51 +1531,72 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
     return totales.map((ingresos, i) => ({ label: String(i + 1), ingresos }));
   }, [ventas, anioHorasPico, mesSeleccionadoDrilldown]);
 
-  // 3. Ranking de barberos por ingresos generados (filtrable por día/semana/mes)
+  // 3. Ranking de barberos por ingresos generados (con su propio filtro y misma lógica de negocio)
   const rankingBarberos = useMemo(() => {
     const now = new Date();
-    let start: Date;
-    if (periodoRankingBarberos === "dia") {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    let start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    
+    if (periodoRankingBarberos === "hoy") {
+      // ya está en hoy a las 00:00
     } else if (periodoRankingBarberos === "semana") {
-      const day = now.getDay();
-      const diff = day === 0 ? 6 : day - 1;
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff, 0, 0, 0, 0);
-    } else {
+      start.setDate(start.getDate() - ((now.getDay() + 6) % 7));
+    } else if (periodoRankingBarberos === "mes") {
       start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    } else if (periodoRankingBarberos === "año") {
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
     }
 
-    // Helper: devuelve solo el total de servicios de una venta (excluye productos)
+    const map = new Map<string, { barbero: string; totalVentas: number; totalAgendamientos: number }>();
+
+    // Inicializar el mapa con los barberos activos (evita mostrar barberos eliminados)
+    listaBarberosUnicos.forEach(nombre => {
+      map.set(nombre, { barbero: nombre, totalVentas: 0, totalAgendamientos: 0 });
+    });
+
     const soloServicios = (v: Venta): number => {
-      // Ventas históricas tienen totalServicios precalculado
       if (v.totalServicios !== undefined && (v.totalServicios > 0 || v.totalProductos !== undefined)) {
         return v.totalServicios;
       }
-      // Ventas recientes: sumar serviciosDetalle
       const sd = Array.isArray(v.serviciosDetalle) ? v.serviciosDetalle : [];
       const sumDetalle = sd.reduce((s, d) => s + Number(d.precio || 0) * Number(d.cantidad || 1), 0);
       if (sumDetalle > 0) return sumDetalle;
-      // Si no hay detalle de productos ni servicios por separado, asumir que el total son servicios
       const pd = Array.isArray(v.productosDetalle) ? v.productosDetalle : [];
       const sumProd = pd.reduce((s, d) => s + Number(d.precio || 0) * Number(d.cantidad || 1), 0);
       if (sumProd === 0 && sd.length === 0) return Number(v.total || 0);
       return sumDetalle;
     };
 
-    const map = new Map<string, { barbero: string; ingresos: number }>();
     ventas.forEach((v) => {
       const name = (v.barbero || "").trim();
       if (!name || name === "Sin asignar" || !isVentaActiva(v.estado)) return;
       if (!v.fecha || new Date(v.fecha) < start) return;
-      const e = map.get(name) || { barbero: name, ingresos: 0 };
-      e.ingresos += soloServicios(v);
-      map.set(name, e);
+      if (!map.has(name)) return; // Ignorar si no está en la lista de activos
+      
+      const e = map.get(name)!;
+      e.totalVentas += soloServicios(v);
     });
+
+    agendamientos.forEach((a) => {
+      const name = (a.barberoNombre || "").trim();
+      if (!name || name === "Sin asignar") return;
+      if (a.estado !== "completada") return;
+      if (!a.fecha || new Date(a.fecha) < start) return;
+      if (!a.servicioNombre && !a.paqueteNombre) return;
+      if (!map.has(name)) return;
+
+      const e = map.get(name)!;
+      e.totalAgendamientos += Number(a.precio || 0);
+    });
+
     return Array.from(map.values())
+      .map(b => ({
+        barbero: b.barbero,
+        ingresos: Math.max(b.totalVentas, b.totalAgendamientos)
+      }))
       .filter((x) => x.ingresos > 0)
       .sort((a, b) => b.ingresos - a.ingresos)
       .slice(0, 5);
-  }, [ventas, periodoRankingBarberos]);
+  }, [ventas, agendamientos, listaBarberosUnicos, periodoRankingBarberos]);
 
   // 4. Clientes: recurrentes vs ocasionales + top por frecuencia
   const clientesAnalisis = useMemo(() => {
@@ -2234,10 +2256,10 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
             <div className="pb-4 border-b border-gray-dark flex items-start justify-between gap-4">
               <div>
                 <h4 className="text-lg font-bold text-white-primary mb-1">Rendimiento por barbero</h4>
-                <p className="text-sm text-gray-lightest">Top 5 barberos por ingresos generados al negocio</p>
+                <p className="text-sm text-gray-lightest">Top 5 barberos por ingresos de servicios generados</p>
               </div>
               <div className="flex gap-1 shrink-0">
-                {(["dia", "semana", "mes"] as const).map((p) => (
+                {(["hoy", "semana", "mes", "año"] as const).map((p) => (
                   <button
                     key={p}
                     onClick={() => setPeriodoRankingBarberos(p)}
@@ -2247,7 +2269,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                         : "bg-gray-darker text-gray-lightest hover:bg-gray-dark"
                     }`}
                   >
-                    {p === "dia" ? "Hoy" : p === "semana" ? "Semana" : "Mes"}
+                    {p === "hoy" ? "Hoy" : p === "semana" ? "Semana" : p === "mes" ? "Mes" : "Año"}
                   </button>
                 ))}
               </div>
@@ -2466,8 +2488,19 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
               )}
             </div>
           </div>
-
         </div>
+
+        {/* ── Gastos Externos del día ── */}
+        <div className="mb-10" style={{ marginTop: '40px' }}>
+          <div className="mb-6">
+            <h3 className="text-2xl font-bold text-white-primary mb-2">Gastos Externos</h3>
+            <p className="text-gray-lightest font-medium">
+              Egresos registrados hoy y balance ingresos vs gastos.
+            </p>
+          </div>
+          <GastosExternos />
+        </div>
+
       </main>
     </>
   );

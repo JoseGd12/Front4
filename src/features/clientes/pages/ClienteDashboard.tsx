@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../../shared/contexts/AuthContext";
 import { useIsMobile } from "../../../shared/hooks/useIsMobile";
@@ -16,6 +16,7 @@ import {
   X,
   ArrowRight,
   Menu,
+  AlertCircle,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../shared/components/ui/tooltip";
 import {
@@ -36,6 +37,8 @@ import { ClienteProductosPage } from "./ClienteProductosPage";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
 import { Input } from "../../../shared/components/ui/input";
+import { PerfilIncompletoModal } from "../../../shared/components/ui/PerfilIncompletoModal";
+import { clientesService } from "../services/clientesService";
 // Navegación para clientes - Sin agrupaciones
 const navItems = [
   { icon: Calendar, label: "Mis Citas" },
@@ -54,6 +57,9 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
   const [preSelectedReservation, setPreSelectedReservation] = useState<any>(initialItem || null);
   const [preSelectedProduct, setPreSelectedProduct] = useState<any>(null);
   const [autoOpenPerfilEdit, setAutoOpenPerfilEdit] = useState(false);
+  const [camposFaltantes, setCamposFaltantes] = useState<string[]>([]);
+  const [showPerfilModal, setShowPerfilModal] = useState(false);
+  const perfilCheckDone = useRef(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,6 +110,43 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
     setPreSelectedProduct(product);
     setActivePage("Mis Citas");
   };
+
+  useEffect(() => {
+    if (perfilCheckDone.current || !user?.email) return;
+    perfilCheckDone.current = true;
+
+    const checkPerfil = async () => {
+      try {
+        const allClientes = await clientesService.getClientes();
+        const cliente = allClientes.find((c: any) => (c.correo || '').toLowerCase() === user.email.toLowerCase());
+        if (!cliente) return;
+
+        const faltantes: string[] = [];
+        const docStr = (cliente.documento || cliente.numeroDocumento || '').trim();
+        const isTempDoc = !docStr || docStr.startsWith('PASO-');
+        if (isTempDoc) {
+          faltantes.push('documento');
+        } else {
+          const partes = docStr.split(/\s+/);
+          if (partes.length < 2) {
+            const tipoSeparado = (cliente.tipoDocumento || '').trim();
+            if (!tipoSeparado) faltantes.push('tipoDocumento');
+          }
+        }
+        if (!cliente.fechaNacimiento) faltantes.push('fechaNacimiento');
+        if (!cliente.telefono) faltantes.push('telefono');
+
+        if (faltantes.length > 0) {
+          setCamposFaltantes(faltantes);
+          navigate('/dashboard/cuenta', { replace: true });
+          setTimeout(() => setShowPerfilModal(true), 400);
+        }
+      } catch {
+        // silently ignore
+      }
+    };
+    checkPerfil();
+  }, [user]);
 
   const renderNavItem = (item: any, isActive: boolean) => {
     const Icon = item.icon;
@@ -160,7 +203,7 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
       case "Productos":
         return <ClienteProductosPage onSelectProduct={handleProductReservation} />;
       case "Cuenta":
-        return <ClientePerfilPage autoOpenEdit={autoOpenPerfilEdit} onAutoOpenEditDone={() => setAutoOpenPerfilEdit(false)} />;
+        return <ClientePerfilPage autoOpenEdit={autoOpenPerfilEdit} onAutoOpenEditDone={() => setAutoOpenPerfilEdit(false)} onProfileUpdated={() => setCamposFaltantes([])} />;
       default:
         return <ClienteMisCitasPageCalendar onGoToPerfil={() => { setAutoOpenPerfilEdit(true); setActivePage("Cuenta"); }} />;
     }
@@ -408,12 +451,41 @@ export function ClienteDashboard({ onBackToLanding, initialItem }: { onBackToLan
                 return <Icon className="w-5 h-5 text-orange-primary" />;
               })()}
             />
+
+            {activePage === 'Cuenta' && camposFaltantes.length > 0 && (
+              <div className="mx-4 sm:mx-6 lg:mx-8 mt-3 px-4 py-3 rounded-xl bg-orange-primary/10 border border-orange-primary/25 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-orange-primary">Completa tus datos para agendar citas</p>
+                  <p className="text-xs text-gray-lighter mt-0.5 leading-relaxed">
+                    No podras agendar citas ni realizar compras hasta completar tu perfil. Solo toma un momento y es una unica vez.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setAutoOpenPerfilEdit(true); }}
+                  className="shrink-0 px-3 py-1.5 text-xs font-semibold bg-orange-primary text-black-primary rounded-lg hover:bg-orange-primary/90 transition-colors"
+                >
+                  Completar
+                </button>
+              </div>
+            )}
+
             <div className="module-content flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-4 pb-6">
               {renderContent()}
             </div>
           </div>
         </div>
 
+        <PerfilIncompletoModal
+          open={showPerfilModal}
+          onClose={() => setShowPerfilModal(false)}
+          onGoToPerfil={() => {
+            setShowPerfilModal(false);
+            setAutoOpenPerfilEdit(true);
+          }}
+          camposFaltantes={camposFaltantes}
+        />
 
       </div>
     </TooltipProvider>
