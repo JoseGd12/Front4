@@ -2019,7 +2019,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               className="inline-flex items-center gap-3 pl-4 pr-10 py-4 bg-transparent text-white border-2 border-white font-bold text-sm tracking-widest rounded-xl shadow-2xl hover:scale-105 transition-all duration-300 shrink-0 gold-hover-transition no-underline cursor-pointer"
             >
               <Smartphone className="w-5 h-5" />
-              Descargar App
+              Descargar App Para Android
               <span className="inline-flex pr-2">
                 <Download className="w-4 h-5" />
               </span>

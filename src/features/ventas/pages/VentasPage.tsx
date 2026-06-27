@@ -612,6 +612,12 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     return detalles.reduce((sum: number, s: any) => sum + (Number(s.precio || 0) * Number(s.cantidad || 1)), 0);
   };
 
+  const calcTotalProductos = (venta: Venta): number => {
+    const detalles = (venta as any).productosDetalle;
+    if (!Array.isArray(detalles) || detalles.length === 0) return 0;
+    return detalles.reduce((sum: number, p: any) => sum + (Number(p.precio || 0) * Number(p.cantidad || 1)), 0);
+  };
+
   const getProductoDetalleImage = (producto: any): string => {
     const nombreProducto = String(producto?.nombre || '').trim().toLowerCase();
     const productoId = Number(String(producto?.id || '').replace(/\D/g, ''));
@@ -2063,14 +2069,15 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                           })
                           .reduce((acc, d) => acc + (Number((d as any).monto) || 0), 0);
                         const expSaldo = Number((venta as any).SaldoAFavorUsado ?? (venta as any).saldoAFavorUsado ?? (venta as any).SaldoAFavor ?? (venta as any).saldoAfavor ?? 0);
+                        const realSubtotal = calcTotalServicios(venta) + calcTotalProductos(venta);
                         const saldoUsado = expSaldo > 0
                           ? expSaldo
                           : (() => {
-                            const should = (Number(venta.subtotal) || 0) + (Number((venta as any).iva) || 0) - (Number(venta.descuento) || 0);
+                            const should = realSubtotal + (Number((venta as any).iva) || 0) - (Number(venta.descuento) || 0);
                             const diff = should - (Number(venta.total) || 0);
                             return diff > 0.01 ? diff : 0;
                           })();
-                        return Math.max(0, (Number(venta.total) || ((Number(venta.subtotal) || 0) - (Number(venta.descuento) || 0))) - saldoUsado - sumDev);
+                        return Math.max(0, realSubtotal - (Number(venta.descuento) || 0) - saldoUsado - sumDev);
                       })();
                       return (
                         <div key={venta.id} className="std-mobile-card">
@@ -2171,14 +2178,15 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                               })
                               .reduce((acc, d) => acc + (Number((d as any).monto) || 0), 0);
                             const expSaldo = Number((venta as any).SaldoAFavorUsado ?? (venta as any).saldoAFavorUsado ?? (venta as any).SaldoAFavor ?? (venta as any).saldoAfavor ?? 0);
+                            const realSubtotal = calcTotalServicios(venta) + calcTotalProductos(venta);
                             const saldoUsado = expSaldo > 0
                               ? expSaldo
                               : (() => {
-                                const should = (Number(venta.subtotal) || 0) + (Number((venta as any).iva) || 0) - (Number(venta.descuento) || 0);
+                                const should = realSubtotal + (Number((venta as any).iva) || 0) - (Number(venta.descuento) || 0);
                                 const diff = should - (Number(venta.total) || 0);
                                 return diff > 0.01 ? diff : 0;
                               })();
-                            const listadoTotalAjustado = Math.max(0, (Number(venta.total) || ((Number(venta.subtotal) || 0) - (Number(venta.descuento) || 0))) - saldoUsado - sumDev);
+                            const listadoTotalAjustado = Math.max(0, realSubtotal - (Number(venta.descuento) || 0) - saldoUsado - sumDev);
                             return formatCurrency(listadoTotalAjustado);
                           })()}
                         </StandardTable.Cell>
@@ -2591,12 +2599,14 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                       );
                     }
 
+                    const realSubtotalAdmin = calcTotalServicios(selectedVenta) + calcTotalProductos(selectedVenta);
+
                     return (
                       <div className="bg-gray-darker p-4 rounded-xl border border-gray-dark space-y-3">
                         {/* Subtotal */}
                         <div className="flex justify-between text-gray-lightest font-normal">
                           <span>Subtotal:</span>
-                          <span>${formatCurrency(selectedVenta.subtotal || 0)}</span>
+                          <span>${formatCurrency(realSubtotalAdmin)}</span>
                         </div>
 
                         {/* Descuento - siempre visible */}
@@ -2629,7 +2639,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                           <span className="text-orange-primary font-bold text-xl">
                             ${String(selectedVenta.metodoPago || '').toLowerCase() === 'creditobarbero'
                               ? formatCurrency(0)
-                              : formatCurrency(Math.max(0, (selectedVenta.total || (selectedVenta.subtotal || 0) - (selectedVenta.descuento || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0))))
+                              : formatCurrency(Math.max(0, realSubtotalAdmin - (selectedVenta.descuento || 0) - (saldoUsadoDetalle || 0) - (totalMontoDevuelto || 0)))
                             }
                           </span>
                         </div>
