@@ -21,6 +21,7 @@ export interface GastoExternoInput {
   categoria: string;
   fecha: string; // "yyyy-MM-dd"
   notas?: string;
+  usuarioId: number;
 }
 
 export interface ResumenDia {

@@ -574,11 +574,8 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
   }, [agendamientosStats, filtroBarberosPeriodo]);
 
   const ventasComparativasPorPeriodo = useMemo(() => {
-    const withinDays = (v: Venta, days: number) => {
+    const withinRange = (v: Venta, start: Date) => {
       const dt = new Date(v.fecha);
-      const start = new Date(today);
-      start.setDate(start.getDate() - (days - 1));
-      start.setHours(0, 0, 0, 0);
       const end = new Date(today);
       end.setHours(23, 59, 59, 999);
       return dt >= start && dt <= end;
@@ -613,9 +610,12 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
         servicios: topN(Array.from(serv.values()))
       };
     };
-    const semanal = aggregate(ventas.filter(v => withinDays(v, 7)));
-    const mensual = aggregate(ventas.filter(v => withinDays(v, 30)));
-    const anual = aggregate(ventas.filter(v => withinDays(v, 365)));
+    const startSemanal = new Date(today); startSemanal.setDate(today.getDate() - 6); startSemanal.setHours(0, 0, 0, 0);
+    const startMensual = new Date(today); startMensual.setDate(today.getDate() - 29); startMensual.setHours(0, 0, 0, 0);
+    const startAnual = new Date(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+    const semanal = aggregate(ventas.filter(v => withinRange(v, startSemanal)));
+    const mensual = aggregate(ventas.filter(v => withinRange(v, startMensual)));
+    const anual = aggregate(ventas.filter(v => withinRange(v, startAnual)));
     return { semanal, mensual, anual } as const;
   }, [ventas]);
 
@@ -1304,21 +1304,22 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
   };
 
   const ingresosTotalesPorPeriodo = useMemo(() => {
-    const periodos: { periodo: PeriodoClave; days: number }[] = [
-      { periodo: "semanal", days: 7 },
-      { periodo: "mensual", days: 30 },
-      { periodo: "anual", days: 365 },
+    const startSem = new Date(today); startSem.setDate(today.getDate() - 6);
+    const startMes = new Date(today); startMes.setDate(today.getDate() - 29);
+    const startAno = new Date(today.getFullYear(), 0, 1);
+    const periodos: { periodo: PeriodoClave; startDate: Date }[] = [
+      { periodo: "semanal", startDate: startSem },
+      { periodo: "mensual", startDate: startMes },
+      { periodo: "anual",   startDate: startAno },
     ];
-    const withinDaysLocal = (fechaStr: string, days: number) => {
+    const withinRange = (fechaStr: string, startDate: Date) => {
       if (!fechaStr) return false;
       const dateOnly = fechaStr.split('T')[0];
-      const start = new Date(today);
-      start.setDate(start.getDate() - (days - 1));
-      const startStr = formatDateYMD(start);
+      const startStr = formatDateYMD(startDate);
       return dateOnly >= startStr && dateOnly <= todayYMD;
     };
-    return periodos.map(({ periodo, days }) => {
-      const subset = ventas.filter(v => withinDaysLocal(v.fecha, days));
+    return periodos.map(({ periodo, startDate }) => {
+      const subset = ventas.filter(v => withinRange(v.fecha, startDate));
       let productos = 0;
       let servicios = 0;
       subset.forEach(v => {
@@ -1546,11 +1547,10 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
       start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
     }
 
-    const map = new Map<string, { barbero: string; totalVentas: number; totalAgendamientos: number }>();
+    const map = new Map<string, { barbero: string; totalVentas: number }>();
 
-    // Inicializar el mapa con los barberos activos (evita mostrar barberos eliminados)
     listaBarberosUnicos.forEach(nombre => {
-      map.set(nombre, { barbero: nombre, totalVentas: 0, totalAgendamientos: 0 });
+      map.set(nombre, { barbero: nombre, totalVentas: 0 });
     });
 
     const soloServicios = (v: Venta): number => {
@@ -1570,33 +1570,16 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
       const name = (v.barbero || "").trim();
       if (!name || name === "Sin asignar" || !isVentaActiva(v.estado)) return;
       if (!v.fecha || new Date(v.fecha) < start) return;
-      if (!map.has(name)) return; // Ignorar si no está en la lista de activos
-      
-      const e = map.get(name)!;
-      e.totalVentas += soloServicios(v);
-    });
-
-    agendamientos.forEach((a) => {
-      const name = (a.barberoNombre || "").trim();
-      if (!name || name === "Sin asignar") return;
-      if (a.estado !== "completada") return;
-      if (!a.fecha || new Date(a.fecha) < start) return;
-      if (!a.servicioNombre && !a.paqueteNombre) return;
       if (!map.has(name)) return;
-
-      const e = map.get(name)!;
-      e.totalAgendamientos += Number(a.precio || 0);
+      map.get(name)!.totalVentas += soloServicios(v);
     });
 
     return Array.from(map.values())
-      .map(b => ({
-        barbero: b.barbero,
-        ingresos: Math.max(b.totalVentas, b.totalAgendamientos)
-      }))
+      .map(b => ({ barbero: b.barbero, ingresos: b.totalVentas }))
       .filter((x) => x.ingresos > 0)
       .sort((a, b) => b.ingresos - a.ingresos)
       .slice(0, 5);
-  }, [ventas, agendamientos, listaBarberosUnicos, periodoRankingBarberos]);
+  }, [ventas, listaBarberosUnicos, periodoRankingBarberos]);
 
   // 4. Clientes: recurrentes vs ocasionales + top por frecuencia
   const clientesAnalisis = useMemo(() => {

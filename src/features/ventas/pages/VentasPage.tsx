@@ -204,6 +204,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   const VALOR_SIN_BARBERO = "sin-barbero";
   const [barberoSeleccionado, setBarberoSeleccionado] = useState<string>(VALOR_TODOS_BARBEROS);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const isUserBarbero = user?.role === 'barbero';
+  const [barberoVentasTab, setBarberoVentasTab] = useState<'ganancias' | 'compras'>('ganancias');
 
   // Versión optimizada que recibe los Map ya construidos
   const enriquecerVentaConClienteOptimizado = (
@@ -248,6 +250,13 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   useEffect(() => {
     cargarVentas();
   }, []);
+
+  // Para barbero: auto-filtrar a sus propias ventas cuando cargue barberosAPI
+  useEffect(() => {
+    if (user?.role !== 'barbero' || barberosAPI.length === 0) return;
+    const b = barberosAPI.find((u: ApiUser) => Number(u.id) === Number(user.id));
+    if (b) setBarberoSeleccionado(`${b.nombre} ${b.apellido || ''}`.trim());
+  }, [barberosAPI, user]);
 
   const cargarVentas = async () => {
     try {
@@ -540,9 +549,15 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
         statusFilter === 'all' ||
         (statusFilter === 'completada' && (estadoNormalizado === 'completada' || estadoNormalizado === 'completado' || estadoNormalizado === 'activo')) ||
         (statusFilter === 'anulada' && (estadoNormalizado === 'anulada' || estadoNormalizado === 'anulado'));
+      if (isUserBarbero) {
+        const esCompra = String(venta.tipoVenta || '').toLowerCase().includes('barbero')
+          || String(venta.metodoPago || '').toLowerCase() === 'creditobarbero';
+        const matchesTab = barberoVentasTab === 'compras' ? esCompra : !esCompra;
+        return matchesSearch && matchesBarbero && matchesStatus && matchesTab;
+      }
       return matchesSearch && matchesBarbero && matchesStatus;
     });
-  }, [ventas, searchTerm, barberoSeleccionado, statusFilter]);
+  }, [ventas, searchTerm, barberoSeleccionado, statusFilter, barberoVentasTab, isUserBarbero]);
 
   const totalPages = Math.max(1, Math.ceil(filteredVentas.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -575,7 +590,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
 
     const totalServicios = ventasParaComision.reduce((acum, venta) => {
       const totalServiciosVenta = venta.serviciosDetalle.reduce(
-        (suma: number, servicio: any) => suma + (servicio.precio || 0),
+        (suma: number, servicio: any) => suma + (Number(servicio.precio || 0) * Number(servicio.cantidad || 1)),
         0
       );
       return acum + totalServiciosVenta;
@@ -591,6 +606,11 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
     };
   }, [filteredVentas]);
 
+  const calcTotalServicios = (venta: Venta): number => {
+    const detalles = (venta as any).serviciosDetalle;
+    if (!Array.isArray(detalles) || detalles.length === 0) return 0;
+    return detalles.reduce((sum: number, s: any) => sum + (Number(s.precio || 0) * Number(s.cantidad || 1)), 0);
+  };
 
   const getProductoDetalleImage = (producto: any): string => {
     const nombreProducto = String(producto?.nombre || '').trim().toLowerCase();
@@ -1878,6 +1898,32 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
   return (
     <>
       <main className="flex-1 overflow-auto bg-black-primary">
+        {/* Tabs para barbero: Mis Ganancias / Mis Compras */}
+        {isUserBarbero && (
+          <div className="flex gap-1 border-b border-gray-dark mb-4 pt-1">
+            <button
+              onClick={() => { setBarberoVentasTab('ganancias'); setCurrentPage(1); }}
+              className={`px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                barberoVentasTab === 'ganancias'
+                  ? 'border-orange-primary text-orange-primary'
+                  : 'border-transparent text-gray-lighter hover:text-gray-lightest'
+              }`}
+            >
+              Mis Ganancias
+            </button>
+            <button
+              onClick={() => { setBarberoVentasTab('compras'); setCurrentPage(1); }}
+              className={`px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                barberoVentasTab === 'compras'
+                  ? 'border-orange-primary text-orange-primary'
+                  : 'border-transparent text-gray-lighter hover:text-gray-lightest'
+              }`}
+            >
+              Mis Compras
+            </button>
+          </div>
+        )}
+
         {/* Estado de error */}
         {error && !loading && (
           <div className="flex items-center justify-center py-12">
@@ -1930,7 +1976,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
             <div className="std-card">
               <TableHeaderSection
                 variant="dark"
-                leftContent={(
+                leftContent={!isUserBarbero ? (
                   <button
                     className="btn-std-primary"
                     onClick={() => onNavigate?.("RegistrarVenta")}
@@ -1938,7 +1984,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     <Plus className="w-4 h-4" />
                     Nueva Venta
                   </button>
-                )}
+                ) : null}
                 searchValue={searchTerm}
                 onSearchChange={handleSearchChange}
                 searchPlaceholder="Buscar por cualquier campo de la tabla..."
@@ -2029,7 +2075,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                             </div>
                             <span className="std-mobile-card-sub">Doc: {documento}</span>
                             <div className="std-mobile-card-meta">
-                              <span>${formatCurrency(totalAjustado)}</span>
+                              <span>${formatCurrency(isUserBarbero && barberoVentasTab === 'ganancias' ? calcTotalServicios(venta) * 0.6 : totalAjustado)}</span>
                               <span>{formatDate(venta.fecha)}</span>
                             </div>
                           </div>
@@ -2040,8 +2086,8 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent className="bg-gray-darkest border-gray-dark min-w-[140px]" align="end">
                                 <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => handleViewDetails(venta)}>Detalles</DropdownMenuItem>
-                                <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => generateVentaPDF(venta)}>PDF</DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={venta.estado !== 'Completada'} onSelect={() => handleToggleEstado(venta)}>Anular</DropdownMenuItem>
+                                {!isUserBarbero && <DropdownMenuItem className="text-gray-lightest cursor-pointer" onSelect={() => generateVentaPDF(venta)}>PDF</DropdownMenuItem>}
+                                {!isUserBarbero && <DropdownMenuItem className="text-red-500 cursor-pointer" disabled={venta.estado !== 'Completada'} onSelect={() => handleToggleEstado(venta)}>Anular</DropdownMenuItem>}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -2100,6 +2146,10 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         </StandardTable.Cell>
                         <StandardTable.Cell>
                           ${(() => {
+                            if (isUserBarbero && barberoVentasTab === 'ganancias') {
+                              // En Mis Ganancias, mostrar 60% del total de servicios de la venta
+                              return formatCurrency(calcTotalServicios(venta) * 0.6);
+                            }
                             // Ventas a crédito barbero: el cobro es diferido, se muestra $0 en el listado
                             if (String(venta.metodoPago || '').toLowerCase() === 'creditobarbero') {
                               return formatCurrency(0);
@@ -2137,7 +2187,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                         </StandardTable.Cell>
                         <StandardTable.Cell>
                           <div className="flex items-center justify-center gap-2">
-                            {venta.estado === 'Completada' && (
+                            {!isUserBarbero && venta.estado === 'Completada' && (
                               <button
                                 onClick={() => handleToggleEstado(venta)}
                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
@@ -2146,7 +2196,7 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                                 <Ban className="w-4 h-4 text-gray-lightest group-hover:text-red-400" />
                               </button>
                             )}
-                            {venta.estado === 'Anulada' && (
+                            {!isUserBarbero && venta.estado === 'Anulada' && (
                               <button
                                 onClick={() => handleToggleEstado(venta)}
                                 className="p-2 hover:bg-gray-darker rounded-lg transition-colors group opacity-50 cursor-not-allowed"
@@ -2162,13 +2212,15 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                             >
                               <Eye className="w-4 h-4 text-gray-lightest group-hover:text-orange-primary" />
                             </button>
-                            <button
-                              onClick={() => generateVentaPDF(venta)}
-                              className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
-                              title="Descargar PDF"
-                            >
-                              <FileDown className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
-                            </button>
+                            {!isUserBarbero && (
+                              <button
+                                onClick={() => generateVentaPDF(venta)}
+                                className="p-2 hover:bg-gray-darker rounded-lg transition-colors group"
+                                title="Descargar PDF"
+                              >
+                                <FileDown className="w-4 h-4 text-gray-lightest group-hover:text-blue-400" />
+                              </button>
+                            )}
                           </div>
                         </StandardTable.Cell>
                       </StandardTable.Row>

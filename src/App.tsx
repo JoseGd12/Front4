@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./shared/contexts/AuthContext";
 import { AlertProvider, GlobalAlertContainer } from "./shared/components/ui/custom-alert";
 import { Dashboard } from "./features/dashboard/components/Dashboard";
 import { ClienteDashboard } from "./features/clientes/pages/ClienteDashboard";
+import { BarberoDashboard } from "./features/dashboard/pages/BarberoDashboard";
 import { LandingPage } from "./features/dashboard/pages/LandingPage";
 import { LoginPage } from "./features/auth/pages/LoginPage";
 import { RegisterPage } from "./features/auth/pages/RegisterPage";
@@ -149,12 +150,14 @@ function AppContent() {
 
       <Route path="/dashboard/*" element={
         isAuthenticated ? (
-          (isAdmin() || isBarbero()) ? (
+          isAdmin() ? (
             <Dashboard
               initialItem={initialReservation}
               onClearInitialItem={() => setInitialReservation(null)}
               onBackToLanding={() => navigate('/')}
             />
+          ) : isBarbero() ? (
+            <BarberoDashboard onBackToLanding={() => navigate('/')} />
           ) : (
             isCliente() ? (
               <ClienteDashboard 

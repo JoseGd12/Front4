@@ -55,6 +55,7 @@ import { TableHeaderSection } from "../../../shared/components/ui/table-header-s
 import { TimeInput12h } from "../../../shared/components/ui/TimeInput12h";
 import { barberosService, Barbero } from "../../administracion/services/barberosService";
 import { horariosService, HorarioSemanalApi } from "../../agendamiento/services/horariosService";
+import { useAuth } from "../../../shared/contexts/AuthContext";
 import { agendamientoService } from "../../agendamiento/services/agendamientoService";
 import { emailJsService } from "../../../shared/services/emailJsService";
 
@@ -110,6 +111,8 @@ interface HorariosPageProps {
 
 export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isUserBarbero = user?.role === 'barbero';
   const { success, error, AlertContainer } = useCustomAlert();
   const [horarios, setHorarios] = useState<HorarioSemanal[]>([]);
   const [barberos, setBarberos] = useState<Barbero[]>([]);
@@ -233,7 +236,24 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
           };
         });
 
-      setHorarios(horariosMapeados);
+      if (isUserBarbero && user) {
+        const uid = Number(user.id);
+        const correo = (user.email || '').toLowerCase();
+        const loggedBarberoEntidad = barberosData.find((b: any) => {
+          if (b.usuarioId && Number(b.usuarioId) === uid) return true;
+          if (Number(b.id) === uid) return true;
+          if (correo && (b.correo || '').toLowerCase() === correo) return true;
+          return false;
+        });
+        if (loggedBarberoEntidad) {
+          setNuevoHorario(prev => ({ ...prev, barberoId: String(loggedBarberoEntidad.id) }));
+          setHorarios(horariosMapeados.filter(h => h.barberoId === loggedBarberoEntidad.id));
+        } else {
+          setHorarios([]);
+        }
+      } else {
+        setHorarios(horariosMapeados);
+      }
       setAgendamientos(agendamientosData);
     } catch (err) {
       console.error("Error cargando horarios:", err);
@@ -375,11 +395,11 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
   };
 
   const resetFormulario = () => {
-    setNuevoHorario({
-      barberoId: "",
+    setNuevoHorario(prev => ({
+      barberoId: isUserBarbero ? prev.barberoId : "",
       activo: true,
       bloques: [],
-    });
+    }));
     setNuevoBloque({ dia: "", horaInicio: "", horaFin: "" });
     setDiasSeleccionados([]);
     setBarberoSearchTerm("");
@@ -403,17 +423,6 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
         return;
       }
       setIsAsignarTodosDialogOpen(true);
-      return;
-    }
-
-    const existingHorario = horarios.find(h => h.barberoId.toString() === nuevoHorario.barberoId);
-    if (existingHorario) {
-      error("Duplicado", "Este barbero ya tiene horarios asignados. Edítalos en su lugar.", {
-        action: {
-          label: "Ver horario asignado",
-          onClick: () => handleViewDetail(existingHorario)
-        }
-      });
       return;
     }
 
@@ -1578,6 +1587,28 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                 {/* Barbero */}
                 <div className="space-y-1.5">
                   <Label className="text-gray-lightest text-sm">Barbero *</Label>
+                  {isUserBarbero ? (
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-darker border border-gray-dark">
+                      {(() => {
+                        const b = barberos.find(bb => bb.id.toString() === nuevoHorario.barberoId);
+                        return b ? (
+                          <>
+                            {b.fotoPerfil ? (
+                              <img src={b.fotoPerfil} alt={`${b.nombre} ${b.apellido}`} className="w-8 h-8 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-dark border border-gray-dark/60 flex items-center justify-center shrink-0">
+                                <UserIcon className="w-4 h-4 text-gray-lighter" />
+                              </div>
+                            )}
+                            <p className="text-sm text-gray-lightest">{b.nombre} {b.apellido}</p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-lighter">Cargando barbero...</p>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                  <>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-lighter pointer-events-none z-10" />
                     <Input
@@ -1724,6 +1755,8 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                         Se asignará el horario a {barberosLibresEstaSemana.length} barbero{barberosLibresEstaSemana.length !== 1 ? 's' : ''} sin horario esta semana
                       </p>
                     </div>
+                  )}
+                  </>
                   )}
                 </div>
 
@@ -2686,6 +2719,7 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
               <Eye className="w-5 h-5 text-blue-400" />
               Detalles del Horario
             </DialogTitle>
+            <DialogDescription className="sr-only">Información detallada del horario semanal del barbero</DialogDescription>
           </DialogHeader>
 
           {selectedHorario && (

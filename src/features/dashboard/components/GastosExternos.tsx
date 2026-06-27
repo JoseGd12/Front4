@@ -25,7 +25,10 @@ import GastoExternoModal from './GastoExternoModal';
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => {
+  // Colombia = UTC-5: always subtract 5h from UTC, independent of browser timezone
+  return new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+};
 
 const CATEGORIA_COLORS: Record<string, string> = {
   Servicios: '#6ea8fe',

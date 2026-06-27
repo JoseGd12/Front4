@@ -6,6 +6,8 @@ import {
   GastoExternoInput,
   gastosExternosService,
 } from '../../../shared/services/gastosExternosService';
+import { useAuth } from '../../../shared/contexts/AuthContext';
+import { apiService } from '../../../shared/services/api';
 
 interface Props {
   isOpen: boolean;
@@ -17,15 +19,20 @@ interface Props {
   defaultDate?: string;
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => {
+  // Colombia = UTC-5: always subtract 5h from UTC, independent of browser timezone
+  return new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+};
 
 export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, defaultDate }: Props) {
+  const { user } = useAuth();
   const [form, setForm] = useState<GastoExternoInput>({
     descripcion: '',
     monto: 0,
     categoria: 'Servicios',
     fecha: defaultDate ?? todayISO(),
     notas: '',
+    usuarioId: 0,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,6 +47,7 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
         categoria: gasto.categoria,
         fecha: gasto.fecha,
         notas: gasto.notas ?? '',
+        usuarioId: gasto.usuarioId,
       });
     } else {
       setForm({
@@ -48,6 +56,7 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
         categoria: 'Servicios',
         fecha: defaultDate ?? todayISO(),
         notas: '',
+        usuarioId: 0,
       });
     }
     setError('');
@@ -80,6 +89,20 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
     return '';
   };
 
+  const resolveUsuarioId = async (): Promise<number> => {
+    if (!user) return 0;
+    const numericId = Number(user.id);
+    if (Number.isFinite(numericId) && numericId > 0) return numericId;
+    try {
+      const all = await apiService.getUsuarios();
+      const matched = (all || []).find(
+        (u) => String(u.correo || "").toLowerCase() === String(user.email || "").toLowerCase()
+      );
+      if (matched?.id && Number.isFinite(Number(matched.id))) return Number(matched.id);
+    } catch {}
+    return 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validate();
@@ -88,10 +111,21 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
     setLoading(true);
     setError('');
     try {
+      const usuarioIdNum = await resolveUsuarioId();
+      if (!Number.isFinite(usuarioIdNum) || usuarioIdNum <= 0) {
+        setError("Tu sesión está activa pero no se pudo vincular tu cuenta con el sistema. Cierra sesión y vuelve a ingresar.");
+        return;
+      }
+
+      const dataToSend: GastoExternoInput = {
+        ...form,
+        usuarioId: usuarioIdNum
+      };
+
       if (gasto) {
-        await gastosExternosService.update(gasto.id, form);
+        await gastosExternosService.update(gasto.id, dataToSend);
       } else {
-        await gastosExternosService.create(form);
+        await gastosExternosService.create(dataToSend);
       }
       onSaved();
       onClose();

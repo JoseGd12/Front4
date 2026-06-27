@@ -2865,7 +2865,36 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 </div>
               </div>
 
-              {/* ── Fila: Barbero (oculta para rol barbero en creacion) ── */}
+              {/* ── Fila: Barbero ── */}
+              {isUserBarbero && loggedBarbero && (
+                <div className="flex items-center gap-0 py-1 px-2.5 px-2">
+                  <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
+                    <User className="w-5 h-5 text-gray-lighter" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg">
+                      {loggedBarbero.fotoPerfil ? (
+                        <img
+                          src={loggedBarbero.fotoPerfil}
+                          alt={`${loggedBarbero.nombre} ${loggedBarbero.apellido || ''}`.trim()}
+                          className="w-8 h-8 rounded-full object-cover shrink-0"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-dark border border-gray-dark/60 flex items-center justify-center shrink-0">
+                          <User className="w-4 h-4 text-gray-lighter" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-gray-lightest leading-tight truncate">
+                          {`${loggedBarbero.nombre} ${loggedBarbero.apellido || ''}`.trim()}
+                        </p>
+                        <p className="text-xs text-gray-lighter leading-tight">Barbero asignado</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {!isUserBarbero && (
                 <>
                   <div
@@ -4483,7 +4512,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     >
                       Cancelar cita
                     </button>
-                    {!isFuture && (
+                    {!isFuture && !isUserBarbero && (
                       <>
                         <button
                           onClick={() => { hidePopoverKeepCita(); setShowModalParcial(true); }}
