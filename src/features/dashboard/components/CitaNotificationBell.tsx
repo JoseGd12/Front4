@@ -24,6 +24,8 @@ interface CitaNotification {
 interface CitaNotificationBellProps {
   isOnAgendamientos: boolean;
   onNavigateToAgendamientos: () => void;
+  /** Si se indica, solo se muestran/accionan las citas de este barbero (uso en panel de barbero). */
+  barberoId?: number;
 }
 
 const ACTIONED_KEY = "cita_notifications_actioned";
@@ -153,7 +155,7 @@ const saveActionedIds = (ids: Set<string>) => {
   } catch {}
 };
 
-export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamientos }: CitaNotificationBellProps) {
+export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamientos, barberoId }: CitaNotificationBellProps) {
   const { success, error: alertError, AlertContainer } = useCustomAlert();
   // Carga cache inmediatamente — muestra notifs aunque API esté caída
   const [notifications, setNotifications] = useState<CitaNotification[]>(() => {
@@ -202,10 +204,13 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
 
   const checkCitas = useCallback(async () => {
     try {
-      const [porTerminar, todasCitas] = await Promise.all([
+      const [porTerminarRaw, todasCitasRaw] = await Promise.all([
         agendamientoService.getCitasPorTerminar(),
         agendamientoService.getAgendamientos(),
       ]);
+
+      const porTerminar = barberoId != null ? porTerminarRaw.filter((c) => c.barberoId === barberoId) : porTerminarRaw;
+      const todasCitas = barberoId != null ? todasCitasRaw.filter((c) => c.barberoId === barberoId) : todasCitasRaw;
 
       const newCitasMap = new Map<number, Agendamiento>();
       [...porTerminar, ...todasCitas].forEach((c) => { if (c.id) newCitasMap.set(c.id, c); });
@@ -299,7 +304,7 @@ export function CitaNotificationBell({ isOnAgendamientos, onNavigateToAgendamien
     } catch {
       // API down — keep cached notifications visible
     }
-  }, [clientesFotoMap]);
+  }, [clientesFotoMap, barberoId]);
 
   useEffect(() => {
     if (!fotosListas) return; // wait for photos before first run

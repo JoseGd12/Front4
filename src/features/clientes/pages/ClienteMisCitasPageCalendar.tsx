@@ -640,7 +640,7 @@ export function ClienteMisCitasPageCalendar({ initialItem, onClearInitialItem, p
       const endExist = startExist + Number(cita.duracion || 60);
       return startNueva < endExist && startExist < endNueva;
     });
-    if (solapa) return `El barbero ya tiene otra cita ocupada de ${solapa.hora} (+${solapa.duracion}min). Selecciona otro horario.`;
+    if (solapa) return `El barbero ya tiene otra cita ocupada de ${formatRangoHorarioCita(solapa)} (+${solapa.duracion}min). Selecciona otro horario.`;
     return null;
   };
 

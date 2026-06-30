@@ -30,6 +30,7 @@ import { AdminPerfilPage } from "./AdminPerfilPage";
 import ImageRenderer from "../../../shared/components/ui/ImageRenderer";
 import { ModuleSubNav } from "../../../shared/components/ui/module-sub-nav";
 import { barberosService } from "../../administracion/services/barberosService";
+import { CitaNotificationBell } from "../components/CitaNotificationBell";
 const MisSolicitudesPage = React.lazy(() => import("../../horarios/pages/SolicitudesCambioHorario/MisSolicitudesPage"));
 const CrearSolicitudPage = React.lazy(() => import("../../horarios/pages/SolicitudesCambioHorario/CrearSolicitudPage"));
 
@@ -316,6 +317,13 @@ export function BarberoDashboard({
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                {barberoIdNum !== undefined && (
+                  <CitaNotificationBell
+                    isOnAgendamientos={activePage === "Agendamientos"}
+                    onNavigateToAgendamientos={() => setActivePage("Agendamientos")}
+                    barberoId={barberoIdNum}
+                  />
+                )}
                 {onBackToLanding && (
                   <Tooltip>
                     <TooltipTrigger asChild>

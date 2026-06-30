@@ -198,7 +198,7 @@ const isSnapshotDirty = (current: FormSnapshot, initial: FormSnapshot): boolean 
 export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChange }: AgendamientoPageProps) {
   const { user, isLoading: authIsLoading } = useAuth();
   const { success, error, AlertContainer } = useCustomAlert();
-  const [citas, setCitas] = useState<any[]>([]);
+  const [citasRaw, setCitasRaw] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Listas para los selects
@@ -213,6 +213,34 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   const loggedBarbero = isUserBarbero
     ? barberosList.find((b: any) => Number(b.usuarioId || b.id) === Number(user?.id))
     : null;
+
+  // Resuelve el id de barbero del usuario logueado de forma independiente del
+  // fetch general (que filtra por activos/con horario): así nunca se ocultan
+  // ni se mezclan citas de otros barberos por una carrera entre peticiones.
+  const [barberoIdPropio, setBarberoIdPropio] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (!isUserBarbero || !user) return;
+    let cancelled = false;
+    const uid = Number(user.id);
+    const correo = (user.email || '').toLowerCase();
+    barberosService.getBarberos().then((barberos) => {
+      if (cancelled) return;
+      const b = barberos.find((bb: any) => {
+        if (bb.usuarioId && Number(bb.usuarioId) === uid) return true;
+        if (Number(bb.id) === uid) return true;
+        if (correo && (bb.correo || '').toLowerCase() === correo) return true;
+        return false;
+      });
+      if (b) setBarberoIdPropio(b.id);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isUserBarbero, user]);
+
+  // Vista de citas: el barbero solo ve sus propias citas. Mientras no se resuelva
+  // su id no se muestra nada (mejor vacío momentáneo que filtrar mal/mostrar de más).
+  const citas = isUserBarbero
+    ? citasRaw.filter((c: any) => barberoIdPropio != null && Number(c.barberoId) === Number(barberoIdPropio))
+    : citasRaw;
 
   const [currentWeek, setCurrentWeek] = useState(0);
   const [mobileCalOffset, setMobileCalOffset] = useState(() => {
@@ -308,7 +336,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     const productosData = productosResponse ? ((productosResponse as any).items || productosResponse) : [];
 
     // Actualizar estado solo para peticiones exitosas (las fallidas conservan estado previo)
-    if (citasData !== null)     setCitas(citasData);
+    // El filtrado por barbero propio se aplica aparte (ver `citas` derivado más arriba).
+    if (citasData !== null) setCitasRaw(citasData);
     if (serviciosData !== null) setServiciosList((serviciosData as any[]).filter((s: any) => s.estado === true));
     if (clientesData !== null)  setClientesList((clientesData as any[]).filter((c: any) => c.estado === true));
     if (paquetesData !== null)  setPaquetesList((paquetesData as any[]).filter((p: any) => p.activo === true));
@@ -592,7 +621,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     const handler = (e: Event) => {
       const { citaId, estado } = (e as CustomEvent<{ citaId: number; estado: string }>).detail || {};
       if (!citaId || !estado) return;
-      setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado } : c));
+      setCitasRaw(prev => prev.map(c => c.id === citaId ? { ...c, estado } : c));
       setSelectedCita(prev => prev?.id === citaId ? { ...prev, estado } : prev);
     };
     window.addEventListener('cita-estado-changed', handler);
@@ -1285,7 +1314,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     });
 
     if (solapa) {
-      return `El barbero ya tiene otra cita ocupada de ${solapa.hora} a ${solapa.hora} (+${solapa.duracion}min). Por favor selecciona otro horario.`;
+      return `El barbero ya tiene otra cita ocupada de ${formatRangoHorarioCita(solapa)} (+${solapa.duracion}min). Por favor selecciona otro horario.`;
     }
 
     return null; // Todo correcto
@@ -1840,7 +1869,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       const citaParaDescuento = citas.find(c => c.id === citaId);
       const descuentoDelDia = dayDiscounts[citaParaDescuento?.fecha || ''] || 0;
       const result = await agendamientoService.updateAgendamientoStatus(citaId, nuevoEstado, descuentoDelDia);
-      setCitas(citas.map(cita =>
+      setCitasRaw(citasRaw.map(cita =>
         cita.id === citaId ? { ...cita, estado: nuevoEstado } : cita
       ));
       // Notifica al bell para que elimine la notif al instante
@@ -4503,6 +4532,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                 const [h, m] = (selectedCita.hora || '00:00').split(':');
                 const citaStart = new Date(selectedCita.fecha + 'T' + h.padStart(2, '0') + ':' + m.padStart(2, '0'));
                 const isFuture = citaStart > new Date();
+                // El barbero solo puede completar sus propias citas.
+                const puedeCompletar = !isUserBarbero || (loggedBarbero && selectedCita.barberoId === loggedBarbero.id);
 
                 return (
                   <div className="flex flex-wrap justify-end gap-2 sm:gap-3 pt-3">
@@ -4512,7 +4543,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                     >
                       Cancelar cita
                     </button>
-                    {!isFuture && !isUserBarbero && (
+                    {!isFuture && puedeCompletar && (
                       <>
                         <button
                           onClick={() => { hidePopoverKeepCita(); setShowModalParcial(true); }}
@@ -4554,7 +4585,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
               estado: "Completada",
               porcentajeDescuento: dayDiscounts[selectedCita.fecha] || 0
             });
-            setCitas(citas.map(c =>
+            setCitasRaw(citasRaw.map(c =>
               c.id === selectedCita.id ? { ...c, estado: 'Completada' } : c
             ));
             window.dispatchEvent(new CustomEvent("cita-estado-changed", { detail: { citaId: selectedCita.id, estado: "Completada" } }));
