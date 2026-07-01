@@ -37,6 +37,10 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const [montoDisplay, setMontoDisplay] = useState('');
+
+  const formatMontoDisplay = (n: number) =>
+    n > 0 ? n.toLocaleString('es-CO') : '';
 
   // Populate form when editing
   useEffect(() => {
@@ -49,6 +53,7 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
         notas: gasto.notas ?? '',
         usuarioId: gasto.usuarioId,
       });
+      setMontoDisplay(formatMontoDisplay(gasto.monto));
     } else {
       setForm({
         descripcion: '',
@@ -58,6 +63,7 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
         notas: '',
         usuarioId: 0,
       });
+      setMontoDisplay('');
     }
     setError('');
   }, [gasto, isOpen, defaultDate]);
@@ -75,8 +81,20 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'monto' ? parseFloat(value) || 0 : value,
+      [name]: value,
     }));
+  };
+
+  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^\d]/g, '');
+    if (raw === '') {
+      setMontoDisplay('');
+      setForm((prev) => ({ ...prev, monto: 0 }));
+      return;
+    }
+    const num = parseInt(raw, 10);
+    setMontoDisplay(num.toLocaleString('es-CO'));
+    setForm((prev) => ({ ...prev, monto: num }));
   };
 
   const validate = (): string => {
@@ -199,17 +217,17 @@ export default function GastoExternoModal({ isOpen, onClose, onSaved, gasto, def
               <label className="block text-xs font-semibold text-gray-lightest uppercase tracking-wider mb-1.5">
                 Monto ($) <span className="text-orange-primary">*</span>
               </label>
-              <input
-                name="monto"
-                type="number"
-                min={0.01}
-                step={0.01}
-                max={999999.99}
-                value={form.monto || ''}
-                onChange={handleChange}
-                placeholder="0.00"
-                className="w-full px-3 py-2.5 rounded-lg bg-gray-darker border border-gray-dark text-white-primary placeholder:text-gray-medium text-sm focus:outline-none focus:border-orange-primary/60 transition-colors"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-primary text-sm font-bold pointer-events-none">$</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={montoDisplay}
+                  onChange={handleMontoChange}
+                  placeholder="0"
+                  className="w-full pl-7 pr-3 py-2.5 rounded-lg bg-gray-darker border border-gray-dark text-white-primary placeholder:text-gray-medium text-sm focus:outline-none focus:border-orange-primary/60 transition-colors"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-lightest uppercase tracking-wider mb-1.5">

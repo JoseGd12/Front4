@@ -1777,22 +1777,22 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
           {/* ── Barber Earnings Carousel ── */}
           <div className="mb-10">
             {/* Header row: title + period filter + scroll arrows */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-orange-primary/10 border border-orange-primary/30 flex items-center justify-center shrink-0">
                   <Scissors className="w-4 h-4 text-orange-primary" />
                 </div>
-                <h3 className="text-base font-bold text-white-primary">Ganancias por Barbero</h3>
+                <h3 className="text-sm sm:text-base font-bold text-white-primary truncate">Ganancias por Barbero</h3>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {/* Period filter pills */}
                 <div className="flex items-center rounded-lg border border-gray-dark overflow-hidden">
                   {(["hoy", "semanal", "mensual", "anual"] as const).map((p) => (
                     <button
                       key={p}
                       onClick={() => setFiltroBarberosPeriodo(p)}
-                      className={`px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                      className={`px-2 sm:px-3 py-1.5 text-[10px] sm:text-[11px] font-semibold transition-colors ${
                         filtroBarberosPeriodo === p
                           ? "bg-orange-primary text-black-primary"
                           : "text-gray-lightest hover:bg-white/5"
@@ -1901,12 +1901,12 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                           ? "bg-gradient-to-br from-gray-darkest to-[rgba(216,176,129,0.08)] border-orange-primary/40"
                           : "bg-gray-darkest border-gray-dark/50 hover:border-gray-dark"
                       }`}
-                      style={{ minWidth: 280, scrollSnapAlign: "start" }}
+                      style={{ minWidth: 240, maxWidth: 320, scrollSnapAlign: "start" }}
                     >
                       {/* Barber name + ranking badge */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                             isTop
                               ? "bg-orange-primary text-black-primary"
                               : "bg-gray-darker text-gray-lightest border border-gray-dark"
@@ -1930,24 +1930,24 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
                         {/* Top row: Barbero 60% + Barbería 40% */}
                         <div className="flex gap-3">
                           {/* Barbero 60% */}
-                          <div className="flex-1 rounded-lg bg-gray-darker/60 p-3">
-                            <p className="text-[10px] text-gray-light uppercase tracking-wider mb-1">Barbero (60%)</p>
-                            <p className="text-lg font-bold text-orange-primary leading-none">
+                          <div className="flex-1 rounded-lg bg-gray-darker/60 p-2.5 sm:p-3 overflow-hidden">
+                            <p className="text-[9px] sm:text-[10px] text-gray-light uppercase tracking-wider mb-1">Barbero (60%)</p>
+                            <p className="text-base sm:text-lg font-bold text-orange-primary leading-none truncate">
                               ${formatCurrencyValue(barbero.gananciasBarbero)}
                             </p>
                           </div>
                           {/* Barbería 40% */}
-                          <div className="flex-1 rounded-lg bg-gray-darker/60 p-3">
-                            <p className="text-[10px] text-gray-light uppercase tracking-wider mb-1">Barbería (40%)</p>
-                            <p className="text-lg font-bold text-white-primary leading-none">
+                          <div className="flex-1 rounded-lg bg-gray-darker/60 p-2.5 sm:p-3 overflow-hidden">
+                            <p className="text-[9px] sm:text-[10px] text-gray-light uppercase tracking-wider mb-1">Barbería (40%)</p>
+                            <p className="text-base sm:text-lg font-bold text-white-primary leading-none truncate">
                               ${formatCurrencyValue(barbero.gananciasBarberia)}
                             </p>
                           </div>
                         </div>
                         {/* Total 100% — full width below */}
-                        <div className="rounded-lg bg-gray-darker/60 p-3 flex items-center justify-between">
-                          <p className="text-[10px] text-gray-light uppercase tracking-wider">Total (100%)</p>
-                          <p className="text-lg font-bold text-white-primary leading-none">
+                        <div className="rounded-lg bg-gray-darker/60 p-2.5 sm:p-3 flex items-center justify-between overflow-hidden">
+                          <p className="text-[9px] sm:text-[10px] text-gray-light uppercase tracking-wider shrink-0">Total (100%)</p>
+                          <p className="text-base sm:text-lg font-bold text-white-primary leading-none truncate ml-2">
                             ${formatCurrencyValue(totalIngreso)}
                           </p>
                         </div>
@@ -2235,18 +2235,18 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
           </div>
 
           {/* Ranking de barberos por ingresos */}
-          <div className="rounded-xl p-6 mb-6 bg-gray-darkest">
-            <div className="pb-4 border-b border-gray-dark flex items-start justify-between gap-4">
-              <div>
-                <h4 className="text-lg font-bold text-white-primary mb-1">Rendimiento por barbero</h4>
-                <p className="text-sm text-gray-lightest">Top 5 barberos por ingresos de servicios generados</p>
+          <div className="rounded-xl p-4 sm:p-6 mb-6 bg-gray-darkest">
+            <div className="pb-4 border-b border-gray-dark flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="min-w-0">
+                <h4 className="text-base sm:text-lg font-bold text-white-primary mb-1">Rendimiento por barbero</h4>
+                <p className="text-xs sm:text-sm text-gray-lightest">Top 5 barberos por ingresos de servicios generados</p>
               </div>
-              <div className="flex gap-1 shrink-0">
+              <div className="flex gap-1 flex-wrap shrink-0">
                 {(["hoy", "semana", "mes", "año"] as const).map((p) => (
                   <button
                     key={p}
                     onClick={() => setPeriodoRankingBarberos(p)}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`px-2.5 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-semibold transition-colors ${
                       periodoRankingBarberos === p
                         ? "bg-orange-primary text-black-primary"
                         : "bg-gray-darker text-gray-lightest hover:bg-gray-dark"
@@ -2293,7 +2293,7 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
           </div>
 
           {/* KPIs de compras */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
             {[
               { label: "Gasto total", value: `$${formatCurrencyValue(resumenCompras.totalGastado)}`, sub: "90 días" },
               { label: "Órdenes de compra", value: String(resumenCompras.numCompras), sub: "registradas" },
@@ -2301,14 +2301,14 @@ export function DashboardPage({ onNavigate }: { onNavigate?: (page: string, data
               { label: "Proveedores", value: String(resumenCompras.proveedoresUnicos), sub: "activos en el periodo" },
             ].map((k) =>
               isLoading ? (
-                <div key={k.label} className="rounded-xl bg-gray-darkest p-5 flex items-center justify-center min-h-[112px]">
+                <div key={k.label} className="rounded-xl bg-gray-darkest p-4 sm:p-5 flex items-center justify-center min-h-[100px] sm:min-h-[112px]">
                   <div className="w-6 h-6 rounded-full border-2 border-gray-dark border-t-orange-primary animate-spin" />
                 </div>
               ) : (
-                <div key={k.label} className="rounded-xl bg-gray-darkest p-5">
-                  <p className="text-xs text-gray-lightest uppercase tracking-[0.2em] mb-1">{k.label}</p>
-                  <p className="text-3xl font-bold text-white-primary">{k.value}</p>
-                  <p className="text-xs text-gray-lightest mt-1">{k.sub}</p>
+                <div key={k.label} className="rounded-xl bg-gray-darkest p-3 sm:p-5 overflow-hidden">
+                  <p className="text-[10px] sm:text-xs text-gray-lightest uppercase tracking-[0.12em] sm:tracking-[0.2em] mb-1 truncate">{k.label}</p>
+                  <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-white-primary truncate">{k.value}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-lightest mt-1 truncate">{k.sub}</p>
                 </div>
               )
             )}

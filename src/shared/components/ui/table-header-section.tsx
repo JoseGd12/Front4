@@ -185,16 +185,19 @@ export function TableHeaderSection({
             />
           )}
           {/* Fila 3: filtro (izquierda) + contador (derecha) */}
-          {(filterWidget || extraFilters || renderRecords || rightContent) && (
+          {(filterWidget || extraFilters || renderRecords) && (
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 {filterWidget}
                 {extraFilters}
               </div>
-              <div className="flex items-center gap-2">
-                {renderRecords}
-                {rightContent}
-              </div>
+              {renderRecords}
+            </div>
+          )}
+          {/* Fila 4: rightContent en su propia fila en mobile */}
+          {rightContent && (
+            <div className="overflow-x-auto -mx-[22px] px-[22px]">
+              {rightContent}
             </div>
           )}
         </div>

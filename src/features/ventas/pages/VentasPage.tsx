@@ -2012,32 +2012,28 @@ export function VentasPage({ onNavigate }: VentasPageProps) {
                     { value: "anulada", label: "Anuladas" },
                   ],
                 }}
-                rightContent={(
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    {barberoSeleccionado !== VALOR_TODOS_BARBEROS && (
-                      <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                        <span className="px-3 py-1 rounded-full bg-gray-darker border border-gray-dark text-gray-lightest">
-                          Total servicios:{" "}
-                          <span className="text-orange-primary font-semibold">
-                            ${formatCurrency(totalServiciosFiltrados)}
-                          </span>
-                        </span>
-                        <span className="px-3 py-1 rounded-full bg-gray-darker border border-gray-dark text-gray-lightest">
-                          60% Barbero:{" "}
-                          <span className="text-green-400 font-semibold">
-                            ${formatCurrency(totalBarbero)}
-                          </span>
-                        </span>
-                        <span className="px-3 py-1 rounded-full bg-gray-darker border border-gray-dark text-gray-lightest">
-                          40% Barbería:{" "}
-                          <span className="text-blue-300 font-semibold">
-                            ${formatCurrency(totalBarberia)}
-                          </span>
-                        </span>
-                      </div>
-                    )}
+                rightContent={barberoSeleccionado !== VALOR_TODOS_BARBEROS ? (
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <span className="px-2 sm:px-3 py-1 rounded-full bg-gray-darker border border-gray-dark text-gray-lightest whitespace-nowrap">
+                      Total servicios:{" "}
+                      <span className="text-orange-primary font-semibold">
+                        ${formatCurrency(totalServiciosFiltrados)}
+                      </span>
+                    </span>
+                    <span className="px-2 sm:px-3 py-1 rounded-full bg-gray-darker border border-gray-dark text-gray-lightest whitespace-nowrap">
+                      60% Barbero:{" "}
+                      <span className="text-green-400 font-semibold">
+                        ${formatCurrency(totalBarbero)}
+                      </span>
+                    </span>
+                    <span className="px-2 sm:px-3 py-1 rounded-full bg-gray-darker border border-gray-dark text-gray-lightest whitespace-nowrap">
+                      40% Barbería:{" "}
+                      <span className="text-blue-300 font-semibold">
+                        ${formatCurrency(totalBarberia)}
+                      </span>
+                    </span>
                   </div>
-                )}
+                ) : undefined}
                 recordsText={`Mostrando ${displayedVentas.length} de ${filteredVentas.length} ventas`}
                 recordsPlacement="right"
               />

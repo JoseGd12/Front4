@@ -35,6 +35,18 @@ export interface ResumenDia {
   gastos: GastoExterno[];
 }
 
+export interface ResumenRango {
+  desde: string;
+  hasta: string;
+  ingresosVentas: number;
+  ingresosAgendamientos: number;
+  ingresosTotal: number;
+  gastosExternos: number;
+  gananciaNeta: number;
+  cantidadGastos: number;
+  gastos: GastoExterno[];
+}
+
 export const CATEGORIAS_GASTO = [
   'Servicios',
   'Suministros',
@@ -86,6 +98,13 @@ class GastosExternosService {
   async getResumenDia(fecha?: string): Promise<ResumenDia> {
     const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : '';
     return httpClient.get<ResumenDia>(`/Dashboard/resumen-dia${query}`, { useCache: false });
+  }
+
+  async getResumenRango(from: string, to: string): Promise<ResumenRango> {
+    return httpClient.get<ResumenRango>(
+      `/Dashboard/resumen-rango?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      { useCache: false },
+    );
   }
 }
 
