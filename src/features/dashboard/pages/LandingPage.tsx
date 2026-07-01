@@ -37,13 +37,15 @@ import {
   Menu,
   Home,
   Image,
-  LayoutGrid
+  LayoutGrid,
+  Percent
 } from 'lucide-react';
 import { useCustomAlert } from '../../../shared/components/ui/custom-alert';
 import { apiService } from '../../../shared/services/api';
 import { formatDuracion } from '../../../shared/utils/dateUtils';
 import { barberosService } from '../../administracion/services/barberosService';
 import { horariosService } from '../../agendamiento/services/horariosService';
+import { descuentoDiaService } from '../../agendamiento/services/descuentoDiaService';
 import { productoService } from '../../productos/services/productos';
 import manitoLogo from '../../../assets/Manito.jpeg';
 import heroVideo from '../../../assets/hero-video.mp4';
@@ -320,6 +322,7 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
   const [servicios, setServicios] = useState<any[]>([]);
   const [paquetes, setPaquetes] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
+  const [dayDiscounts, setDayDiscounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [servicesView, setServicesView] = useState<'servicios' | 'paquetes'>('servicios');
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
@@ -545,6 +548,49 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
     };
     fetchData();
   }, []);
+
+  // Descuentos por día (compartidos con el panel de agendamiento / app móvil)
+  useEffect(() => {
+    descuentoDiaService.getDescuentos().then(setDayDiscounts).catch(() => {});
+  }, []);
+
+  // Descuento del día: el descuento vigente más próximo (hoy o un día futuro de
+  // esta semana). Se ignoran los descuentos de días ya pasados.
+  const descuentoDelDia = useMemo(() => {
+    // Fecha de hoy en zona horaria de Colombia (America/Bogota), formato yyyy-MM-dd.
+    const todayKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    // Fin de la semana actual (domingo) para acotar el descuento a "un día de la semana".
+    const base = new Date(`${todayKey}T12:00:00`);
+    const dow = base.getDay(); // 0 = domingo ... 6 = sábado
+    const daysToSunday = dow === 0 ? 0 : 7 - dow;
+    const endOfWeek = new Date(base);
+    endOfWeek.setDate(base.getDate() + daysToSunday);
+    const endKey = `${endOfWeek.getFullYear()}-${String(endOfWeek.getMonth() + 1).padStart(2, '0')}-${String(endOfWeek.getDate()).padStart(2, '0')}`;
+
+    const proximo = Object.entries(dayDiscounts)
+      .filter(([fecha, pct]) => pct > 0 && fecha >= todayKey && fecha <= endKey)
+      .sort(([a], [b]) => a.localeCompare(b))[0];
+
+    if (!proximo) return null;
+
+    const [fecha, porcentaje] = proximo;
+    const esHoy = fecha === todayKey;
+    const etiqueta = esHoy
+      ? 'Válido solo por hoy'
+      : new Date(`${fecha}T12:00:00`).toLocaleDateString('es-CO', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        });
+
+    return { fecha, porcentaje, esHoy, etiqueta };
+  }, [dayDiscounts]);
 
   // Reveal on scroll y Footer Visibility
   useEffect(() => {
@@ -1239,6 +1285,77 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
         </div>
         </section>
       </div>
+
+      {/* Descuento del día — solo se muestra si hay un descuento vigente (hoy o futuro de esta semana) */}
+      {descuentoDelDia && (
+        <div className="bg-black" style={{ position: 'relative', zIndex: 20 }}>
+          <div className="content-max-width px-4 flex justify-center reveal-item" style={{ paddingTop: '3rem', paddingBottom: '7rem' }}>
+            <div
+              className="relative w-full max-w-md rounded-2xl text-center overflow-hidden"
+              style={{
+                background: 'linear-gradient(160deg, #161310 0%, #0d0b09 100%)',
+                border: '1px solid rgba(216,176,129,0.25)',
+                boxShadow: '0 30px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+                padding: '2.5rem 2rem',
+              }}
+            >
+              {/* Halo dorado de fondo */}
+              <div
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  top: '-40%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '260px',
+                  height: '260px',
+                  background: 'radial-gradient(circle, rgba(216,176,129,0.18) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <div className="relative">
+                {/* Icono */}
+                <div
+                  className="mx-auto flex items-center justify-center"
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '16px',
+                    background: 'rgba(216,176,129,0.12)',
+                    border: '1px solid rgba(216,176,129,0.3)',
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  <Percent className="w-6 h-6 text-[#d8b081]" />
+                </div>
+
+                <p className="text-xs font-bold tracking-[0.4em] uppercase text-gray-400">
+                  Descuento del día
+                </p>
+
+                <p
+                  className="font-title font-black text-gradient"
+                  style={{ fontSize: '3.25rem', lineHeight: 1.05, margin: '0.75rem 0 0.25rem' }}
+                >
+                  {descuentoDelDia.porcentaje}% OFF
+                </p>
+
+                <p className="text-sm text-gray-400 capitalize">
+                  {descuentoDelDia.etiqueta}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('servicios')}
+                  className="mt-6 px-8 py-3 bg-transparent text-[#d8b081] text-sm font-bold tracking-widest rounded-xl border-2 border-[#d8b081] hover:scale-105 transition-all duration-300 shadow-lg gold-hover-transition"
+                >
+                  Aprovéchalo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Supertítulo — fondo barbería a todo el ancho (sin foto equipo) */}
       <div

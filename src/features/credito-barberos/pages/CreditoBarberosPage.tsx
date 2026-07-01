@@ -1497,7 +1497,7 @@ export function CreditoBarberosPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-darkest border-gray-dark">
-                    {["Efectivo", "Transferencia", "Tarjeta", "Nequi", "Daviplata", "Otro"].map(m => (
+                    {["Efectivo", "Transferencia"].map(m => (
                       <SelectItem key={m} value={m} className="text-white-primary">{m}</SelectItem>
                     ))}
                   </SelectContent>

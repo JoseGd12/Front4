@@ -54,7 +54,10 @@ export interface AgendamientoProductoInput {
 }
 
 export interface CreateAgendamientoData {
-    clienteId: number;
+    /** Cliente registrado. Usar 0 (o null) cuando es un invitado; enviar `clienteNombre`. */
+    clienteId: number | null;
+    /** Nombre libre del invitado cuando no hay `clienteId`. */
+    clienteNombre?: string;
     barberoId: number;
     servicioId: number | null;
     servicioIds?: number[];
@@ -290,7 +293,8 @@ class AgendamientoService {
         const localIsoStr = `${safeY}-${pad(safeM)}-${pad(safeD)}T${pad(safeH)}:${pad(safeMin)}:00`;
 
         const apiBody = {
-            ClienteId: data.clienteId,
+            ClienteId: data.clienteId && data.clienteId > 0 ? data.clienteId : 0,
+            ClienteNombre: (!data.clienteId || data.clienteId <= 0) ? (data.clienteNombre?.trim() || undefined) : undefined,
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
             ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,
@@ -348,7 +352,8 @@ class AgendamientoService {
 
         const apiBody = {
             Id: id,
-            ClienteId: data.clienteId,
+            ClienteId: data.clienteId && data.clienteId > 0 ? data.clienteId : 0,
+            ClienteNombre: (!data.clienteId || data.clienteId <= 0) ? (data.clienteNombre?.trim() || undefined) : undefined,
             BarberoId: data.barberoId,
             ServicioId: data.servicioId,
             ServicioIds: data.servicioIds && data.servicioIds.length > 0 ? data.servicioIds : undefined,

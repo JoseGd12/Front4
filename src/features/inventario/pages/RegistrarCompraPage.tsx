@@ -716,7 +716,6 @@ export function RegistrarCompraPage({ onBack, initialProducto }: RegistrarCompra
                     <SelectContent className="bg-gray-darkest border-gray-dark">
                       <SelectItem value="Efectivo" className="text-white-primary">Efectivo</SelectItem>
                       <SelectItem value="Tarjeta" className="text-white-primary">Tarjeta</SelectItem>
-                      <SelectItem value="Transferencia" className="text-white-primary">Transferencia</SelectItem>
                     </SelectContent>
                   </Select>
                   {showCompraFormErrors && !nuevaCompra.metodoPago && (

@@ -659,6 +659,9 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   // Estados para buscadores dentro del formulario de cita
   const [clienteSearchTerm, setClienteSearchTerm] = useState('');
   const [showClienteResults, setShowClienteResults] = useState(false);
+  // Nombre de invitado (walk-in sin registro): cuando está definido y clienteId=0,
+  // la cita se agenda a nombre de este invitado y al completarla genera una "Venta Invitado".
+  const [clienteInvitado, setClienteInvitado] = useState('');
   const [barberoFormSearchTerm, setBarberoFormSearchTerm] = useState('');
   const [showBarberoFormResults, setShowBarberoFormResults] = useState(false);
   const [servicioSearchTerm, setServicioSearchTerm] = useState('');
@@ -801,6 +804,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       if (!isSlotModalOpenRef.current) setSelectedCita(null);
       setShowFormErrors(false);
       setClienteSearchTerm('');
+      setClienteInvitado('');
       setBarberoFormSearchTerm('');
       setServicioSearchTerm('');
       setPaqueteSearchTerm('');
@@ -1351,6 +1355,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setSelectedCita(null);
     setShowFormErrors(false);
     setClienteSearchTerm('');
+    setClienteInvitado('');
     setBarberoFormSearchTerm('');
     setServicioSearchTerm('');
     setPaqueteSearchTerm('');
@@ -1411,6 +1416,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     setSelectedCita(null);
     setShowFormErrors(false);
     setClienteSearchTerm('');
+    setClienteInvitado('');
     setBarberoFormSearchTerm('');
     setServicioSearchTerm('');
     setPaqueteSearchTerm('');
@@ -1616,7 +1622,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   // Crear nueva cita
   const handleCreateCita = async () => {
     if (isSavingCitaRef.current) return;
-    if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
+    const tieneClienteOInvitado = nuevaCita.clienteId > 0 || clienteInvitado.trim().length > 0;
+    if (!tieneClienteOInvitado || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
       setDismissedErrors(new Set());
       return;
@@ -1632,8 +1639,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     isSavingCitaRef.current = true;
     setIsSavingCita(true);
     try {
+      const esInvitado = !(nuevaCita.clienteId > 0) && clienteInvitado.trim().length > 0;
       await agendamientoService.createAgendamiento({
-        clienteId: nuevaCita.clienteId,
+        clienteId: esInvitado ? 0 : nuevaCita.clienteId,
+        clienteNombre: esInvitado ? clienteInvitado.trim() : undefined,
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
         servicioIds: nuevaCita.servicioIds,
@@ -1651,6 +1660,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
       await fetchData();
 
       setClienteSearchTerm('');
+      setClienteInvitado('');
       setBarberoFormSearchTerm('');
       success("¡Cita creada exitosamente!", `La cita ha sido registrada.`);
       handleCloseModal(true);
@@ -1697,7 +1707,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
         notas: citaCompleta.notas
       });
 
-      setClienteSearchTerm(citaCompleta.clienteNombre || '');
+      // Cita de invitado: sin clienteId registrado pero con nombre libre.
+      const esCitaInvitado = !(Number(citaCompleta.clienteId) > 0) && !!(citaCompleta.clienteNombre || '').trim();
+      setClienteInvitado(esCitaInvitado ? (citaCompleta.clienteNombre || '').trim() : '');
+      setClienteSearchTerm(esCitaInvitado ? '' : (citaCompleta.clienteNombre || ''));
       setBarberoFormSearchTerm(citaCompleta.barberoNombre || '');
       setTipoServicio(citaCompleta.paqueteId ? 'paquetes' : 'individuales');
       setEditingFecha(false);
@@ -1753,7 +1766,8 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
   // Actualizar cita
   const handleUpdateCita = async () => {
     if (isSavingCitaRef.current) return;
-    if (!nuevaCita.clienteId || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
+    const tieneClienteOInvitado = nuevaCita.clienteId > 0 || clienteInvitado.trim().length > 0;
+    if (!tieneClienteOInvitado || (!(nuevaCita.servicioIds.length > 0) && !nuevaCita.paqueteId) || !nuevaCita.barberoId || !nuevaCita.fecha || !nuevaCita.hora) {
       setShowFormErrors(true);
       setDismissedErrors(new Set());
       return;
@@ -1782,8 +1796,10 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
     isSavingCitaRef.current = true;
     setIsSavingCita(true);
     try {
+      const esInvitadoUpd = !(nuevaCita.clienteId > 0) && clienteInvitado.trim().length > 0;
       await agendamientoService.updateAgendamiento(selectedCita.id, {
-        clienteId: nuevaCita.clienteId,
+        clienteId: esInvitadoUpd ? 0 : nuevaCita.clienteId,
+        clienteNombre: esInvitadoUpd ? clienteInvitado.trim() : undefined,
         barberoId: nuevaCita.barberoId,
         servicioId: nuevaCita.servicioId,
         servicioIds: nuevaCita.servicioIds,
@@ -2373,7 +2389,7 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
             <div className="shrink-0 pr-6">
               <div
                 className="flex items-center gap-0 py-1 px-2.5 px-2"
-                style={showFormErrors && !nuevaCita.clienteId && !dismissedErrors.has('cliente') ? { marginBottom: '1.25rem' } : {}}
+                style={showFormErrors && !nuevaCita.clienteId && !clienteInvitado && !dismissedErrors.has('cliente') ? { marginBottom: '1.25rem' } : {}}
               >
                 <div style={{ width: 44, minWidth: 44, flexShrink: 0, marginLeft: 3 }} className="flex items-center justify-center">
                   <User className="w-5 h-5 text-gray-lighter" />
@@ -2409,7 +2425,28 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                         <X className="w-4 h-4" />
                       </button>
                     </div>
+                  ) : clienteInvitado ? (
+                    <div className="flex items-center justify-between py-1.5 px-3 bg-gray-dark/20 rounded-lg group animate-in fade-in slide-in-from-left-2 duration-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-dark flex items-center justify-center border-2 border-orange-primary/60 shadow-sm">
+                          <User className="w-4 h-4 text-gray-lighter" />
+                        </div>
+                        <div className="leading-tight">
+                          <p className="text-sm font-medium text-gray-lightest">{clienteInvitado}</p>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-primary">Invitado</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setClienteInvitado(''); setClienteSearchTerm(''); }}
+                        className="p-1 rounded-full text-gray-lighter hover:bg-gray-dark hover:text-white-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                        title="Quitar invitado"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   ) : (
+                    <>
                     <SearchField<any>
                       label="Buscar cliente"
                       placeholder="Nombre del cliente..."
@@ -2446,9 +2483,25 @@ export function AgendamientoPage({ initialItem, onClearInitialItem, onSubNavChan
                           </div>
                         </div>
                       )}
-                      error={showFormErrors && !nuevaCita.clienteId && !dismissedErrors.has('cliente') ? 'Selecciona un cliente' : undefined}
+                      error={showFormErrors && !nuevaCita.clienteId && !clienteInvitado && !dismissedErrors.has('cliente') ? 'Selecciona un cliente o agenda como invitado' : undefined}
                       onFocus={() => setDismissedErrors(prev => new Set(prev).add('cliente'))}
                     />
+                    {clienteSearchTerm.trim().length >= 2 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClienteInvitado(clienteSearchTerm.trim());
+                          setNuevaCita(prev => ({ ...prev, clienteId: 0, cliente: '', telefono: '' }));
+                          setDismissedErrors(prev => new Set(prev).add('cliente'));
+                        }}
+                        className="mt-1.5 ml-1 flex items-center gap-1.5 text-xs text-orange-primary hover:text-orange-secondary transition-colors cursor-pointer"
+                        title="Agendar sin registrar al cliente"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        Agendar a "{clienteSearchTerm.trim()}" como invitado
+                      </button>
+                    )}
+                    </>
                   )}
                 </div>
               </div>

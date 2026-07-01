@@ -1432,9 +1432,6 @@ export function RegistrarVentaPage({ onBack }: RegistrarVentaPageProps) {
                       <SelectContent className="elegante-card">
                         <SelectItem value="Efectivo">Efectivo</SelectItem>
                         <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                        <SelectItem value="Transferencia">
-                          Transferencia
-                        </SelectItem>
                         {seleccionadoEsBarbero && (
                           <SelectItem value="Crédito">Crédito</SelectItem>
                         )}

@@ -185,29 +185,37 @@ export function ClientePerfilPage({ autoOpenEdit, onAutoOpenEditDone, onProfileU
       } as any);
 
       if (result.success) {
-        // Actualizar el registro Clientes con documento concatenado para mantener consistencia
-        if (formData.tipoDocumento && formData.documento) {
-          try {
-            const allClientes = await clientesService.getClientes();
-            const clienteRecord = allClientes.find(c => (c.correo || '').toLowerCase() === formData.email.toLowerCase());
-            if (clienteRecord) {
-              const docConcatenado = `${formData.tipoDocumento} ${formData.documento}`;
-              await clientesService.updateCliente(Number(clienteRecord.id), {
-                nombre: formData.nombre,
-                apellido: formData.apellido,
-                documento: docConcatenado,
-                email: formData.email,
-                telefono: formData.telefono,
-                fechaNacimiento: formData.fechaNacimiento || undefined,
-                direccion: formData.direccion || undefined,
-                barrio: formData.barrio || undefined,
-                fotoPerfil: formData.fotoPerfil || undefined,
-                activo: true,
-              });
-            }
-          } catch (clienteErr) {
-            console.warn('No se pudo actualizar registro de cliente:', clienteErr);
+        // El registro Clientes es la fuente de verdad para fechaNacimiento/direccion/barrio:
+        // la tabla Usuarios no persiste esos campos y el endpoint /Usuarios solo los copia al
+        // Cliente cuando el rol resuelve a "Cliente". Por eso se actualiza SIEMPRE el Cliente,
+        // no solo cuando hay documento.
+        try {
+          const allClientes = await clientesService.getClientes();
+          const clienteRecord = allClientes.find(c => (c.correo || '').toLowerCase() === formData.email.toLowerCase());
+          if (clienteRecord) {
+            const docConcatenado = (formData.tipoDocumento && formData.documento)
+              ? `${formData.tipoDocumento} ${formData.documento}`
+              : (clienteRecord.documento || undefined);
+            // Los nombres de campo deben coincidir con clientesService.mapToApiFormat
+            // (correo/estado/usuarioId). Con `email`/`activo` o sin usuarioId, la API rechaza
+            // el update (ClienteInputValidator exige Correo y UsuarioId > 0) y el error se perdía
+            // en el catch, dejando la fecha de nacimiento sin guardar.
+            await clientesService.updateCliente(Number(clienteRecord.id), {
+              usuarioId: Number(clienteRecord.usuarioId) || Number(user.id),
+              nombre: formData.nombre,
+              apellido: formData.apellido,
+              documento: docConcatenado,
+              correo: formData.email,
+              telefono: formData.telefono,
+              fechaNacimiento: formData.fechaNacimiento || undefined,
+              direccion: formData.direccion || undefined,
+              barrio: formData.barrio || undefined,
+              fotoPerfil: formData.fotoPerfil || undefined,
+              estado: true,
+            } as any);
           }
+        } catch (clienteErr) {
+          console.warn('No se pudo actualizar registro de cliente:', clienteErr);
         }
         success("Perfil actualizado", "Tus cambios se han guardado correctamente.");
         onProfileUpdated?.();
