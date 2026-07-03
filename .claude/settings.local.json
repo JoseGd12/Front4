@@ -49,7 +49,24 @@
       "Bash(npm list *)",
       "Bash(node -e \"require\\('docx'\\); console.log\\('ok'\\)\")",
       "Bash(node -e \"const m = require\\('C:/Users/samue/AppData/Roaming/npm/node_modules/docx'\\); console.log\\(Object.keys\\(m\\).slice\\(0,5\\)\\)\")",
-      "Bash(python scripts/office/unpack.py \"C:\\\\Users\\\\samue\\\\Downloads\\\\trabajo caja negra.docx\" unpacked_ejemplo/)"
+      "Bash(python scripts/office/unpack.py \"C:\\\\Users\\\\samue\\\\Downloads\\\\trabajo caja negra.docx\" unpacked_ejemplo/)",
+      "Bash(ls -lh \"/c/Users/samue/OneDrive/Escritorio/Manual/\")",
+      "Bash(find \"/c/Users/samue/OneDrive\" -iname \"Manual*.pdf\" 2>/dev/null | head -20; echo \"=== busqueda global Escritorio ===\"; find \"/c/Users/samue/OneDrive/Escritorio\" -iname \"*.pdf\" 2>/dev/null | head -20)",
+      "Bash(gswin64c --version)",
+      "Bash(gs --version)",
+      "Bash(python -c \"import pikepdf; print\\('pikepdf', pikepdf.__version__\\)\")",
+      "Bash(pip --version)",
+      "Bash(winget --version)",
+      "Bash(choco --version)",
+      "Bash(python -)",
+      "Bash(choco install *)",
+      "Bash(pip install *)",
+      "Bash(python __TRACKED_VAR__/compress_pdf.py 'Manual Cliente.pdf' '__TRACKED_VAR__/Manual Cliente.pdf' 72 0)",
+      "Bash(python __TRACKED_VAR__/compress_pdf.py 'Manual Administrador.pdf' '__TRACKED_VAR__/Manual Administrador.pdf' 72 0)",
+      "Read(//c/Users/samue/AppData/Local/Temp/claude/C--Users-samue-OneDrive-Escritorio-Proyectos-Front4/158449f4-0525-45ea-9d50-6cb11405fc62/scratchpad/**)",
+      "Bash(python run_all.py)",
+      "Bash(python -c \"import fitz,sys; fitz.open\\(r'C:\\\\Users\\\\samue\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-samue-OneDrive-Escritorio-Proyectos-Front4\\\\158449f4-0525-45ea-9d50-6cb11405fc62\\\\scratchpad\\\\compressed\\\\Manual de Usuarios.pdf'\\)\")",
+      "Read(//c/Users/samue/AppData/Local/Temp/claude/C--Users-samue-OneDrive-Escritorio-Proyectos-Front4/158449f4-0525-45ea-9d50-6cb11405fc62/tasks/**)"
     ]
   },
   "enabledPlugins": {

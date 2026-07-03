@@ -1164,13 +1164,15 @@ export function HorariosPage({ onNavigate }: HorariosPageProps = {}) {
                     </button>
                   </DialogTrigger>
                 </Dialog>
-                <button
-                  onClick={() => onNavigate?.('Solicitudes de Cambio de Horario')}
-                  className="btn-std-primary"
-                >
-                  <FileText className="w-4 h-4" />
-                  Solicitudes de Cambio
-                </button>
+                {!isUserBarbero && (
+                  <button
+                    onClick={() => onNavigate?.('Solicitudes de Cambio de Horario')}
+                    className="btn-std-primary"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Solicitudes de Cambio
+                  </button>
+                )}
               </div>
             )}
             searchValue={searchTerm}
