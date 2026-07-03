@@ -1697,7 +1697,6 @@ export function LandingPage({ onRequestLogin, onRequestRegister, onRequestDashbo
               { nombre: 'Maicol', foto: imgMaicol, imageClass: 'barber-crop-default' },
               { nombre: 'Juan', foto: imgJuan, imageClass: 'barber-crop-juan' },
               { nombre: 'Edwin', foto: imgEdwin, imageClass: 'barber-crop-edwin' },
-              { nombre: 'Eduardo', foto: imgEduardo, imageClass: 'barber-crop-eduardo' },
               { nombre: 'Christian', foto: imgChristian, imageClass: 'barber-crop-christian' },
             ];
             const barberCard = (barbero: typeof barberos[0], idx: number) => (

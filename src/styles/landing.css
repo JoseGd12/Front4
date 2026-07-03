@@ -1296,16 +1296,15 @@ body {
 /* ── Barber Grid: CSS-only expand on hover (GPU-friendly) ── */
 .barber-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 6px;
   transition: grid-template-columns 0.28s cubic-bezier(0.22, 0.68, 0, 1);
 }
 
-.barber-grid:has(.barber-panel:nth-child(1):hover) { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
-.barber-grid:has(.barber-panel:nth-child(2):hover) { grid-template-columns: 1fr 2fr 1fr 1fr 1fr; }
-.barber-grid:has(.barber-panel:nth-child(3):hover) { grid-template-columns: 1fr 1fr 2fr 1fr 1fr; }
-.barber-grid:has(.barber-panel:nth-child(4):hover) { grid-template-columns: 1fr 1fr 1fr 2fr 1fr; }
-.barber-grid:has(.barber-panel:nth-child(5):hover) { grid-template-columns: 1fr 1fr 1fr 1fr 2fr; }
+.barber-grid:has(.barber-panel:nth-child(1):hover) { grid-template-columns: 2fr 1fr 1fr 1fr; }
+.barber-grid:has(.barber-panel:nth-child(2):hover) { grid-template-columns: 1fr 2fr 1fr 1fr; }
+.barber-grid:has(.barber-panel:nth-child(3):hover) { grid-template-columns: 1fr 1fr 2fr 1fr; }
+.barber-grid:has(.barber-panel:nth-child(4):hover) { grid-template-columns: 1fr 1fr 1fr 2fr; }
 
 .barber-panel-btn {
   transition: background-color 0.2s ease, color 0.2s ease;
