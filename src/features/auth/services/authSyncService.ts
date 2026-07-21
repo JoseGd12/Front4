@@ -143,7 +143,7 @@ export class AuthSyncService {
           rolId: rolId,
           estado: true,
           nombre: firebaseProfile.displayName?.split(' ')[0] || '',
-          apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || '',
+          apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || 'usuario',
           fotoPerfil: firebaseProfile.photoURL || '',
           ...additionalData
         };
@@ -344,7 +344,7 @@ export class AuthSyncService {
       // 2. Sincronizar con API
       const syncResult = await this.syncUsuarioConApi(firebaseProfile, rolId, {
         nombre: firebaseProfile.displayName?.split(' ')[0] || '',
-        apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || '',
+        apellido: firebaseProfile.displayName?.split(' ').slice(1).join(' ') || 'usuario',
         fotoPerfil: firebaseProfile.photoURL || '',
         ...additionalData
       });
