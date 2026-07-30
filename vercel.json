@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://barberiaapi-em5q.onrender.com/api/:path*"
+      "destination": "https://manito-api.onrender.com/api/:path*"
     },
     {
       "source": "/assets/:path*",
-      "destination": "https://barberiaapi-em5q.onrender.com/assets/:path*"
+      "destination": "https://manito-api.onrender.com/assets/:path*"
     },
     {
       "source": "/instagram-api/:path*",

@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => ({
     open: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE_URL || 'https://barberiaapi-em5q.onrender.com',
+        target: process.env.VITE_API_BASE_URL || 'https://manito-api.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path,
@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => ({
         },
       },
       '/assets': {
-        target: 'https://barberiaapi-em5q.onrender.com',
+        target: 'https://manito-api.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path,
